@@ -3,14 +3,16 @@ import type {
   Profile,
   ProfileCreateParams,
   ProfileUpdateParams,
+  ProfileListResponse,
   EvalParams,
   EvalResult,
   ExportFormat,
-  ExportResult,
+  ExportFullResult,
+  ExportMinimalResult,
   APIError,
 } from './types';
 
-const DEFAULT_BASE_URL = 'https://api.commandagi.com';
+const DEFAULT_BASE_URL = 'https://commandagi.com';
 
 export class CommandAGI {
   private apiKey: string;
@@ -33,6 +35,7 @@ export class CommandAGI {
     const headers: Record<string, string> = {
       Authorization: `Bearer ${this.apiKey}`,
       'Content-Type': 'application/json',
+      'User-Agent': 'commandagi-node/0.1.0',
     };
 
     const response = await fetch(url, {
@@ -45,45 +48,79 @@ export class CommandAGI {
 
     if (!response.ok) {
       const error = data as APIError;
-      throw new Error(error.message || `API error: ${response.status}`);
+      throw new Error(error.message || error.error || `API error: ${response.status}`);
     }
 
     return data as T;
   }
 
-  // Profiles
   profiles = {
+    /**
+     * Create a new taste profile.
+     * Requires a projectId and name.
+     */
     create: async (params: ProfileCreateParams): Promise<Profile> => {
-      return this.request<Profile>('POST', '/v1/profiles', params);
+      return this.request<Profile>('POST', '/api/v1/profiles', params);
     },
 
+    /**
+     * Get a profile by ID.
+     * Returns the full profile including constraints, exemplars, and comparisons.
+     */
     get: async (id: string): Promise<Profile> => {
-      return this.request<Profile>('GET', `/v1/profiles/${id}`);
+      return this.request<Profile>('GET', `/api/v1/profiles/${id}`);
     },
 
+    /**
+     * Update a profile. Only provided fields are updated.
+     */
     update: async (id: string, params: ProfileUpdateParams): Promise<Profile> => {
-      return this.request<Profile>('PATCH', `/v1/profiles/${id}`, params);
+      return this.request<Profile>('PATCH', `/api/v1/profiles/${id}`, params);
     },
 
+    /**
+     * Delete a profile.
+     */
     delete: async (id: string): Promise<void> => {
-      await this.request<void>('DELETE', `/v1/profiles/${id}`);
+      await this.request<{ success: boolean }>('DELETE', `/api/v1/profiles/${id}`);
     },
 
-    list: async (): Promise<Profile[]> => {
-      return this.request<Profile[]>('GET', '/v1/profiles');
+    /**
+     * List all profiles. Optionally filter by projectId.
+     */
+    list: async (projectId?: string): Promise<Profile[]> => {
+      const path = projectId
+        ? `/api/v1/profiles?projectId=${projectId}`
+        : '/api/v1/profiles';
+      const resp = await this.request<ProfileListResponse>('GET', path);
+      return resp.profiles;
     },
 
+    /**
+     * Evaluate content against a profile.
+     * Returns a score (0-1), confidence (0-1), and scoring details.
+     */
     eval: async (id: string, params: EvalParams): Promise<EvalResult> => {
-      return this.request<EvalResult>('POST', `/v1/profiles/${id}/eval`, params);
+      return this.request<EvalResult>('POST', `/api/v1/profiles/${id}/eval`, params);
     },
 
-    export: async (
-      id: string,
-      format: ExportFormat = 'full'
-    ): Promise<ExportResult> => {
-      return this.request<ExportResult>(
+    /**
+     * Export a profile in full JSON format.
+     */
+    export: async (id: string): Promise<ExportFullResult> => {
+      return this.request<ExportFullResult>(
         'GET',
-        `/v1/profiles/${id}/export?format=${format}`
+        `/api/v1/profiles/${id}/export?format=json`
+      );
+    },
+
+    /**
+     * Export a profile in minimal format (for inference).
+     */
+    exportMinimal: async (id: string): Promise<ExportMinimalResult> => {
+      return this.request<ExportMinimalResult>(
+        'GET',
+        `/api/v1/profiles/${id}/export?format=minimal`
       );
     },
   };

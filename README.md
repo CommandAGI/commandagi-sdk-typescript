@@ -1,6 +1,6 @@
 # commandAGI Node.js SDK
 
-Official Node.js/TypeScript SDK for [commandAGI](https://commandagi.com) - Command the AGI with taste.
+Official Node.js/TypeScript SDK for [commandAGI](https://commandagi.com) — Command the AGI with taste.
 
 ## Installation
 
@@ -18,12 +18,14 @@ yarn add commandagi
 import { CommandAGI } from 'commandagi';
 
 const client = new CommandAGI({
-  apiKey: process.env.COMMANDAGI_API_KEY,
+  apiKey: process.env.COMMANDAGI_API_KEY!,
 });
 
 // Create a profile
 const profile = await client.profiles.create({
+  projectId: 'your-project-id',
   name: 'my-taste-profile',
+  seed: 'minimalist design with warm tones',
 });
 
 // Evaluate content against the profile
@@ -36,46 +38,51 @@ console.log(`Score: ${result.score}, Confidence: ${result.confidence}`);
 
 ## API Reference
 
+### Client
+
+```typescript
+const client = new CommandAGI({
+  apiKey: 'cagi_xxx...',               // Required
+  baseUrl: 'https://commandagi.com',   // Optional (default)
+});
+```
+
 ### Profiles
 
 ```typescript
-// Create a new profile
+// Create a profile
 const profile = await client.profiles.create({
+  projectId: 'project-id',
   name: 'profile-name',
-  description: 'Optional description',
+  seed: 'optional initial description',
 });
 
-// Get a profile
-const profile = await client.profiles.get('profile_id');
+// Get a profile (includes constraints, exemplars, comparisons)
+const profile = await client.profiles.get('profile-id');
 
-// Update a profile
-const updated = await client.profiles.update('profile_id', {
+// Update a profile (partial update)
+const updated = await client.profiles.update('profile-id', {
   name: 'new-name',
 });
 
 // Delete a profile
-await client.profiles.delete('profile_id');
+await client.profiles.delete('profile-id');
 
-// List all profiles
-const profiles = await client.profiles.list();
+// List all profiles (optionally filter by project)
+const allProfiles = await client.profiles.list();
+const projectProfiles = await client.profiles.list('project-id');
 
 // Evaluate content
-const result = await client.profiles.eval('profile_id', {
+const result = await client.profiles.eval('profile-id', {
   frameUrl: 'https://example.com/image.jpg',
-  dimensions: ['composition', 'color'], // optional
 });
+// result.score (0-1), result.confidence (0-1), result.details
 
-// Export profile data
-const data = await client.profiles.export('profile_id', 'full');
-```
+// Export profile (full)
+const fullExport = await client.profiles.export('profile-id');
 
-## Configuration
-
-```typescript
-const client = new CommandAGI({
-  apiKey: 'cagi_xxx...', // Required
-  baseUrl: 'https://api.commandagi.com', // Optional, defaults to production
-});
+// Export profile (minimal - for inference)
+const minimalExport = await client.profiles.export('profile-id', 'minimal');
 ```
 
 ## License

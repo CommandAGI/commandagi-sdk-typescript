@@ -6,8 +6,8 @@ export type {
   ProfileUpdateParams,
   EvalResult,
   EvalParams,
-  Frame,
-  FrameUploadParams,
-  ExportResult,
+  ExportFullResult,
+  ExportMinimalResult,
   ExportFormat,
+  ProfileListResponse,
 } from './types';
