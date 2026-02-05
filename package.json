@@ -1,0 +1,52 @@
+{
+  "name": "commandagi",
+  "version": "0.1.0",
+  "description": "Official Node.js/TypeScript SDK for commandAGI - Command the AGI with taste",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest",
+    "lint": "eslint src/",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "commandagi",
+    "ai",
+    "annotation",
+    "taste",
+    "human-feedback",
+    "rlhf"
+  ],
+  "author": "commandAGI <hello@commandagi.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/commandAGI/commandagi-node.git"
+  },
+  "homepage": "https://commandagi.com",
+  "bugs": {
+    "url": "https://github.com/commandAGI/commandagi-node/issues"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
