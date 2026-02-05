@@ -5,11 +5,11 @@ Official Node.js/TypeScript SDK for [commandAGI](https://commandagi.com) — Com
 ## Installation
 
 ```bash
-npm install commandagi
+npm install github:commandAGI/commandagi-node
 # or
-pnpm add commandagi
+pnpm add github:commandAGI/commandagi-node
 # or
-yarn add commandagi
+yarn add github:commandAGI/commandagi-node
 ```
 
 ## Quick Start
@@ -82,7 +82,7 @@ const result = await client.profiles.eval('profile-id', {
 const fullExport = await client.profiles.export('profile-id');
 
 // Export profile (minimal - for inference)
-const minimalExport = await client.profiles.export('profile-id', 'minimal');
+const minimalExport = await client.profiles.exportMinimal('profile-id');
 ```
 
 ## License
