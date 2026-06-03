@@ -1,52 +1,31 @@
 {
   "name": "commandagi",
-  "version": "0.1.0",
-  "description": "Official Node.js/TypeScript SDK for commandAGI - Command the AGI with taste",
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
-  "types": "dist/index.d.ts",
+  "version": "0.2.0",
+  "description": "Node/TypeScript SDK for CommandAGI — launch cloud computers and 3D robot simulations and control them programmatically.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "import": "./dist/index.js"
     }
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist", "README.md"],
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
-    "test": "vitest",
-    "lint": "eslint src/",
+    "build": "tsc",
     "prepublishOnly": "npm run build"
   },
-  "keywords": [
-    "commandagi",
-    "ai",
-    "annotation",
-    "taste",
-    "human-feedback",
-    "rlhf"
-  ],
-  "author": "commandAGI <hello@commandagi.com>",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/commandAGI/commandagi-node.git"
-  },
+  "keywords": ["robotics", "simulation", "agents", "pybullet", "computer-use", "commandagi"],
   "homepage": "https://commandagi.com",
-  "bugs": {
-    "url": "https://github.com/commandAGI/commandagi-node/issues"
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "ws": "^8.16.0"
   },
   "devDependencies": {
-    "@types/node": "^20.14.0",
-    "tsup": "^8.0.0",
-    "typescript": "^5.4.0",
-    "vitest": "^2.0.0"
-  },
-  "engines": {
-    "node": ">=18"
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.5.10",
+    "typescript": "^5.4.0"
   }
 }

@@ -1,90 +1,49 @@
-# commandAGI Node.js SDK
+# CommandAGI Node/TypeScript SDK
 
-Official Node.js/TypeScript SDK for [commandAGI](https://commandagi.com) — Command the AGI with taste.
-
-## Installation
+Launch real cloud **computers** and **3D robot simulations** and control them from Node — stream the
+robot's camera, send actions, run episodes — or bring **your own robot** online. No agent: you drive.
 
 ```bash
-npm install github:commandAGI/commandagi-node
-# or
-pnpm add github:commandAGI/commandagi-node
-# or
-yarn add github:commandAGI/commandagi-node
+npm install commandagi
 ```
 
-## Quick Start
+## Drive a 3D robot world
 
-```typescript
-import { CommandAGI } from 'commandagi';
+```ts
+import { CommandAGI } from "commandagi";
 
-const client = new CommandAGI({
-  apiKey: process.env.COMMANDAGI_API_KEY!,
-});
+const cagi = new CommandAGI({ apiKey: "cagi_…" }); // or COMMANDAGI_API_KEY
 
-// Create a profile
-const profile = await client.profiles.create({
-  projectId: 'your-project-id',
-  name: 'my-taste-profile',
-  seed: 'minimalist design with warm tones',
-});
-
-// Evaluate content against the profile
-const result = await client.profiles.eval(profile.id, {
-  frameUrl: 'https://example.com/image.jpg',
-});
-
-console.log(`Score: ${result.score}, Confidence: ${result.confidence}`);
+const world = await cagi.launch("simulation/warehouse");
+let obs = await world.observe();          // JPEG bytes from the robot's head camera
+for (let i = 0; i < 20; i++) obs = await world.step("turn", { dir: "left" });
+await world.reset();                      // robot back to the episode start
+await world.close();                      // stop + release the cloud VM
 ```
 
-## API Reference
+Scenes: `simulation/warehouse`, `simulation/house-on-fire`, `simulation/school`. Computers work the
+same way (`cagi.launch("computer/software-engineer")` → `observe()` returns the screen; actions are
+`click`/`type`/`key`). Robot/sim actions: `move`, `back`, `turn`, `stop`, `reset`.
 
-### Client
+## Bring your own robot
 
-```typescript
-const client = new CommandAGI({
-  apiKey: 'cagi_xxx...',               // Required
-  baseUrl: 'https://commandagi.com',   // Optional (default)
+Stream your robot's camera into a session and apply the actions it receives — anyone (a person, an
+agent, another developer) can then watch and drive it, like a hosted simulation.
+
+```ts
+const bridge = await cagi.registerRobot("my-rover");
+console.log("watch + drive at:", bridge.sessionUrl);
+
+bridge.run({
+  camera: () => myRobot.jpegFrame(),                 // () => Buffer (JPEG/PNG)
+  onAction: (action, payload) => myRobot.do(action, payload),
+  fps: 10,
 });
 ```
 
-### Profiles
+## Auth
 
-```typescript
-// Create a profile
-const profile = await client.profiles.create({
-  projectId: 'project-id',
-  name: 'profile-name',
-  seed: 'optional initial description',
-});
+Create an API key with an `operator` scope (dashboard → API keys). Pass `apiKey` or set
+`COMMANDAGI_API_KEY`. Target another environment with `COMMANDAGI_BASE_URL`.
 
-// Get a profile (includes constraints, exemplars, comparisons)
-const profile = await client.profiles.get('profile-id');
-
-// Update a profile (partial update)
-const updated = await client.profiles.update('profile-id', {
-  name: 'new-name',
-});
-
-// Delete a profile
-await client.profiles.delete('profile-id');
-
-// List all profiles (optionally filter by project)
-const allProfiles = await client.profiles.list();
-const projectProfiles = await client.profiles.list('project-id');
-
-// Evaluate content
-const result = await client.profiles.eval('profile-id', {
-  frameUrl: 'https://example.com/image.jpg',
-});
-// result.score (0-1), result.confidence (0-1), result.details
-
-// Export profile (full)
-const fullExport = await client.profiles.export('profile-id');
-
-// Export profile (minimal - for inference)
-const minimalExport = await client.profiles.exportMinimal('profile-id');
-```
-
-## License
-
-MIT
+Docs: <https://commandagi.com/docs/robots>
