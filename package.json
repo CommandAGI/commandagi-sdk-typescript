@@ -1,31 +1,44 @@
 {
-  "name": "commandagi",
-  "version": "0.2.0",
-  "description": "Node/TypeScript SDK for CommandAGI — launch cloud computers and 3D robot simulations and control them programmatically.",
+  "name": "@commandagi/sdk",
+  "version": "0.1.1",
+  "description": "The CommandAGI SDK + cagi CLI — one typed surface over the platform for developers AND agents, differentiated only by API-key scope.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/commandagi/commandagi.git",
+    "directory": "sdk/typescript"
+  },
+  "homepage": "https://commandagi.com",
   "type": "module",
+  "sideEffects": false,
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "README.md"],
-  "scripts": {
-    "build": "tsc",
-    "prepublishOnly": "npm run build"
+  "bin": {
+    "cagi": "./dist/cli.js"
   },
-  "keywords": ["robotics", "simulation", "agents", "pybullet", "computer-use", "commandagi"],
-  "homepage": "https://commandagi.com",
-  "engines": { "node": ">=18" },
-  "dependencies": {
-    "ws": "^8.16.0"
+  "files": [
+    "dist",
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@types/ws": "^8.5.10",
-    "typescript": "^5.4.0"
+    "@commandagi/core": "workspace:*",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
   }
 }

@@ -1,14 +1,14 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ES2022",
-    "moduleResolution": "bundler",
-    "declaration": true,
     "outDir": "dist",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "rootDir": "src",
+    // Override base `incremental: true`: a shared .tsbuildinfo between `tsc --noEmit` (typecheck) and
+    // `tsc` (build) makes the build think it's up-to-date and emit NOTHING. The package is tiny, so
+    // disable incremental — `pnpm build` then always emits dist reliably (locally and in CI).
+    "incremental": false
   },
-  "include": ["src"]
+  // Tests run via tsx (`pnpm test`), never shipped — keep them out of the published dist.
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "dist"]
 }
