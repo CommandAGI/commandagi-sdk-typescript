@@ -1,12 +1,11 @@
 {
-  "name": "@commandagi/sdk",
+  "name": "commandagi",
   "version": "0.1.1",
-  "description": "The CommandAGI SDK + cagi CLI — one typed surface over the platform for developers AND agents, differentiated only by API-key scope.",
+  "description": "The CommandAGI SDK and the commandagi CLI — one typed client over the platform API, for developers and agents alike (API-key scope is the only difference).",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/commandagi/commandagi.git",
-    "directory": "sdk/typescript"
+    "url": "git+https://github.com/CommandAGI/commandagi-sdk-typescript.git"
   },
   "homepage": "https://commandagi.com",
   "type": "module",
@@ -20,11 +19,11 @@
     }
   },
   "bin": {
-    "cagi": "./dist/cli.js"
+    "commandagi": "./dist/cli.js"
   },
   "files": [
-    "dist",
-    "src"
+    "dist"
+    
   ],
   "publishConfig": {
     "access": "public"

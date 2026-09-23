@@ -234,14 +234,14 @@ test("the help text is rendered from the table, so it lists every command and in
   const help = helpText();
   for (const c of CLI_COMMANDS) {
     const line = [
-      "cagi",
+      "commandagi",
       c.group,
       c.factory?.some((f) => f.from === "positional") ? `<${c.factory[0]!.name}>` : "",
       c.verb,
     ]
       .filter(Boolean)
       .join(" ");
-    assert.ok(help.includes(line), `\`${line}\` is missing from cagi help`);
+    assert.ok(help.includes(line), `\`${line}\` is missing from commandagi help`);
   }
   // The regression that motivated this: help advertised a verb that did not exist.
   assert.ok(

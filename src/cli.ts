@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * `cagi` — the CommandAGI CLI. The THIRD binding of @commandagi/sdk (SDK for code, run_code for the
+ * `commandagi` — the CommandAGI CLI. The THIRD binding of @commandagi/sdk (SDK for code, run_code for the
  * chat kernel, this CLI for the terminal / the CLI-based agent kernel in the runtime image).
  *
  * Same auth model as the SDK: a `cagi_...` API key (env CAGI_API_KEY) whose scopes decide reach — a
@@ -20,13 +20,13 @@
  * One flag rule, everywhere: A FLAG IS THE TOOL'S OWN ARGUMENT NAME. `--fileId`, not `--file`; nothing
  * is aliased or renamed on the way through, so what you type is what the tool receives.
  *
- *   cagi whoami
- *   cagi threads list
- *   cagi threads create --intent "research X"
- *   cagi threads kill th_123
- *   cagi social tiktok post file_9 --privacy public --account @brand
- *   cagi call <tool> --json '{...}'          # the universal escape hatch — ANY platform tool
- *   cagi run script.py                       # Code Mode: run a snippet server-side (stdin with -)
+ *   commandagi whoami
+ *   commandagi threads list
+ *   commandagi threads create --intent "research X"
+ *   commandagi threads kill th_123
+ *   commandagi social tiktok post file_9 --privacy public --account @brand
+ *   commandagi call <tool> --json '{...}'          # the universal escape hatch — ANY platform tool
+ *   commandagi run script.py                       # Code Mode: run a snippet server-side (stdin with -)
  *
  * Env: CAGI_API_KEY (required), CAGI_API_BASE (default https://api.commandagi.com), CAGI_THREAD_ID.
  */
@@ -90,7 +90,7 @@ export interface Command {
   verb: string;
   /** The platform tool it must end up calling — pinned against the spec by the conformance test. */
   tool: string;
-  /** A factory namespace's own params, bound before the verb (`cagi social <platform> post …`). */
+  /** A factory namespace's own params, bound before the verb (`commandagi social <platform> post …`). */
   factory?: { name: string; from: "positional" | "flag" }[];
   /** The method's positional params, in signature order. */
   params?: CliParam[];
@@ -262,7 +262,7 @@ function fail(msg: string): never {
   throw new CliError(msg);
 }
 
-/** `cagi threads send <id> <text…>` → the usage line the table implies. */
+/** `commandagi threads send <id> <text…>` → the usage line the table implies. */
 function usage(c: Command): string {
   const head = [
     c.group,
@@ -283,20 +283,20 @@ function usage(c: Command): string {
     ...(c.factory ?? []).filter((f) => f.from === "flag").map((f) => `[--${f.name} X]`),
     ...(c.spread ? ["[--key value …] [--json '{…}']"] : []),
   ];
-  return ["cagi", head, ...args, ...flagged].join(" ");
+  return ["commandagi", head, ...args, ...flagged].join(" ");
 }
 
 export function helpText(): string {
   const rows = CLI_COMMANDS.map((c) => ({ left: usage(c), doc: c.doc }));
   const width = Math.max(...rows.map((r) => r.left.length));
   return [
-    "cagi — the CommandAGI CLI",
+    "commandagi — the CommandAGI CLI",
     "",
-    "Usage: cagi <group> <verb> [args] [--flags]      (a --flag is the tool's own argument name)",
+    "Usage: commandagi <group> <verb> [args] [--flags]      (a --flag is the tool's own argument name)",
     "",
     ...rows.map((r) => "  " + r.left.padEnd(width) + "   " + r.doc),
     "  " +
-      "cagi call <tool> [--json '{…}'] [--key value …]".padEnd(width) +
+      "commandagi call <tool> [--json '{…}'] [--key value …]".padEnd(width) +
       "   Any platform tool by name — the escape hatch.",
     "",
     "Env: CAGI_API_KEY (required), CAGI_API_BASE, CAGI_THREAD_ID",
@@ -364,10 +364,10 @@ function valueOf(
       const src = !path || path === "-" ? readStdin() : readFileSync(path, "utf8");
       return src.trim()
         ? src
-        : fail(`${cmd.verb}: no code (pass a file path, or pipe code to \`cagi ${cmd.verb} -\`)`);
+        : fail(`${cmd.verb}: no code (pass a file path, or pipe code to \`commandagi ${cmd.verb} -\`)`);
     }
     case "language": {
-      // The extension is the intent: `cagi run script.py` must not run Python through the JS engine,
+      // The extension is the intent: `commandagi run script.py` must not run Python through the JS engine,
       // which is a syntax error 40 lines deep instead of an obvious mistake. --language wins; stdin
       // with no flag stays JavaScript (the run_code default).
       const path = cursor.path ?? "";
@@ -414,7 +414,7 @@ export async function runCli(argv: string[], cagi: Cagi): Promise<unknown> {
 
   // The transport primitive, deliberately outside the spec: `call` IS `cagi.call`, every tool by name.
   if (group === "call") {
-    const tool = positionals[1] ?? fail("usage: cagi call <tool> [--json '{…}'] [--key value …]");
+    const tool = positionals[1] ?? fail("usage: commandagi call <tool> [--json '{…}'] [--key value …]");
     const args: Record<string, unknown> = {};
     if (typeof flags.json === "string") Object.assign(args, JSON.parse(flags.json));
     for (const [k, v] of Object.entries(flags)) if (k !== "json") args[k] = v;
@@ -422,7 +422,7 @@ export async function runCli(argv: string[], cagi: Cagi): Promise<unknown> {
   }
 
   const found = match(positionals);
-  if (!found) fail(`unknown command: ${positionals.join(" ")} (try: cagi help)`);
+  if (!found) fail(`unknown command: ${positionals.join(" ")} (try: commandagi help)`);
   const { cmd, factoryValues, rest } = found;
 
   const cursor: Cursor = { i: 0 };
@@ -456,7 +456,7 @@ export async function runCli(argv: string[], cagi: Cagi): Promise<unknown> {
       : client;
   const method = owner?.[cmd.verb];
   if (typeof method !== "function")
-    fail(`cagi ${[cmd.group, cmd.verb].filter(Boolean).join(" ")}: the SDK has no such method`);
+    fail(`commandagi ${[cmd.group, cmd.verb].filter(Boolean).join(" ")}: the SDK has no such method`);
   return out(await (method as Fn).apply(owner, args));
 }
 
@@ -483,7 +483,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   main().catch((e) => {
     const detail =
       e && typeof e === "object" && "detail" in e ? (e as { detail: unknown }).detail : undefined;
-    process.stderr.write("cagi: " + String((e as Error)?.message ?? e) + "\n");
+    process.stderr.write("commandagi: " + String((e as Error)?.message ?? e) + "\n");
     if (detail !== undefined) process.stderr.write(JSON.stringify(detail, null, 2) + "\n");
     process.exit(1);
   });
