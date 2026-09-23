@@ -111,7 +111,7 @@ export function helpText(): string {
   const rows = CLI_COMMANDS.map((c) => ({ left: usage(c), doc: c.doc }));
   const width = Math.max(...rows.map((r) => r.left.length));
   return [
-    "commandagi — the CommandAGI CLI",
+    "commandagi — the CommandAGI CLI   (run it with no arguments for the interactive session)",
     "",
     "Usage: commandagi <group> <verb> [args] [--flags]      (a --flag is the tool's own argument name)",
     "",
@@ -291,6 +291,13 @@ export async function runCli(argv: string[], cagi: CommandAGI): Promise<unknown>
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const first = argv[0];
+  // No arguments in a real terminal: the interactive session (./tui). Piped or scripted, help.
+  if (!first && process.stdin.isTTY && process.stdout.isTTY) {
+    if (!process.env[ENV.apiKey])
+      fail(`set ${ENV.apiKey} (a cagi_ API key from Settings → API keys)`);
+    const { runTui } = await import("./tui.js");
+    return runTui(new CommandAGI(), loadDaemon);
+  }
   if (!first || first === "help" || argv.includes("--help")) {
     process.stdout.write(helpText());
     return;
@@ -308,11 +315,15 @@ async function main(): Promise<void> {
  * native modules it needs. A path in a variable, so the compiler does not look for it in src/.
  */
 async function runDaemon(argv: string[]): Promise<void> {
+  await (await loadDaemon()).main(argv);
+}
+
+function loadDaemon() {
   const entry = "./daemon/daemon-cli.js";
-  const mod = (await import(new URL(entry, import.meta.url).href)) as {
+  return import(new URL(entry, import.meta.url).href) as Promise<{
     main(argv: string[]): Promise<void>;
-  };
-  await mod.main(argv);
+    probeHost(): Promise<{ state: { owner: string; direct: string; pid: number } } | null>;
+  }>;
 }
 
 // Run ONLY when invoked as the binary. The conformance test imports this module to drive `runCli`
