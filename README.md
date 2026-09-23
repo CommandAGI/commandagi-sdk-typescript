@@ -14,7 +14,9 @@ import { CommandAGI } from "commandagi";
 const cagi = new CommandAGI(); // reads COMMANDAGI_API_KEY
 
 // Agents: start one on a goal and follow along.
-const { threadId } = (await cagi.threads.create({ intent: "Summarise this week's robotics news" })) as {
+const { threadId } = (await cagi.threads.create({
+  intent: "Summarise this week's robotics news",
+})) as {
   threadId: string;
 };
 await cagi.threads.send(threadId, "Add a link for each one.");
@@ -38,6 +40,19 @@ commandagi embodiments act emb_1 click '{"x":10,"y":20}'
 commandagi call <tool> --json '{…}'     # any platform tool by name
 commandagi help                         # every command, rendered from the schema
 ```
+
+### Host this computer in the background
+
+```bash
+commandagi daemon start     # share this machine with your account; returns at once, keeps running
+commandagi daemon status    # who is hosting it (this daemon, or the desktop app) and how
+commandagi daemon stop
+```
+
+One machine is hosted by one process at a time. If the CommandAGI desktop app is installed, it takes
+over hosting when it starts, because it can do more (on-screen overlays, clipboard, notifications),
+and `daemon status` shows that. The native modules the daemon needs are `optionalDependencies`, which
+it loads only for `daemon` commands, so importing the SDK never loads them.
 
 ## One surface, generated
 

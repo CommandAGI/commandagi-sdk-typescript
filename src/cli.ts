@@ -120,6 +120,8 @@ export function helpText(): string {
       "commandagi call <tool> [--json '{…}'] [--key value …]".padEnd(width) +
       "   Any platform tool by name — the escape hatch.",
     "",
+    "  commandagi daemon start | status | stop | logs   Host this computer in the background (share it, drive it).",
+    "",
     `Env: ${ENV.apiKey} (required), ${ENV.baseUrl}, ${ENV.threadId}`,
     "",
   ].join("\n");
@@ -293,10 +295,24 @@ async function main(): Promise<void> {
     process.stdout.write(helpText());
     return;
   }
+  if (first === "daemon") return runDaemon(argv.slice(1));
   if (!process.env[ENV.apiKey])
     fail(`set ${ENV.apiKey} (a cagi_ API key from Settings → API keys)`);
   const cagi = new CommandAGI();
   await runCli(argv, cagi);
+}
+
+/**
+ * `commandagi daemon …` — host this computer in the background. The host is not SDK: it is prebuilt into
+ * dist/daemon/ (scripts/bundle-daemon.mjs) and loaded only here, so importing the SDK never loads the
+ * native modules it needs. A path in a variable, so the compiler does not look for it in src/.
+ */
+async function runDaemon(argv: string[]): Promise<void> {
+  const entry = "./daemon/daemon-cli.js";
+  const mod = (await import(new URL(entry, import.meta.url).href)) as {
+    main(argv: string[]): Promise<void>;
+  };
+  await mod.main(argv);
 }
 
 // Run ONLY when invoked as the binary. The conformance test imports this module to drive `runCli`

@@ -1,7 +1,7 @@
 {
   "name": "commandagi",
   "version": "0.1.1",
-  "description": "The CommandAGI SDK and the commandagi CLI — one typed client over the platform API, for developers and agents alike (API-key scope is the only difference).",
+  "description": "The CommandAGI SDK and the commandagi CLI \u2014 one typed client over the platform API, for developers and agents alike (API-key scope is the only difference).",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -31,16 +31,24 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "tsc",
+    "build": "tsc && node scripts/bundle-daemon.mjs",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "@commandagi/computer-host-daemon": "workspace:*"
   },
   "engines": {
     "node": ">=22"
+  },
+  "optionalDependencies": {
+    "@nut-tree-fork/nut-js": "^4.2.0",
+    "get-windows": "^9.3.0",
+    "screenshot-desktop": "^1.15.0",
+    "sharp": "^0.33.5",
+    "ws": "^8.18.0"
   }
 }
