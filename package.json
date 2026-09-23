@@ -22,8 +22,9 @@
     "commandagi": "./dist/cli.js"
   },
   "files": [
-    "dist"
-    
+    "dist",
+    "commandagi-sdk.schema.json",
+    "README.md"
   ],
   "publishConfig": {
     "access": "public"
@@ -35,9 +36,11 @@
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "devDependencies": {
-    "@commandagi/core": "workspace:*",
     "@types/node": "^22.10.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

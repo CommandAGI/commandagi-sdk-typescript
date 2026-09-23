@@ -1,38 +1,30 @@
 #!/usr/bin/env node
 /**
- * `commandagi` — the CommandAGI CLI. The THIRD binding of @commandagi/sdk (SDK for code, run_code for the
- * chat kernel, this CLI for the terminal / the CLI-based agent kernel in the runtime image).
+ * `commandagi` — the CommandAGI CLI: the same surface as the SDK, from a terminal (and from inside the
+ * platform's own agent runtimes, which inject the same environment).
  *
- * Same auth model as the SDK: a `cagi_...` API key (env CAGI_API_KEY) whose scopes decide reach — a
- * developer's broad key or an agent's session-restricted key, no code difference. Every command speaks
- * JSON on stdout (usesocial.dev-shaped), so it pipes cleanly through jq and into agent scripts.
+ * Auth is the SDK's: a `cagi_…` API key in $COMMANDAGI_API_KEY whose scopes decide reach — a developer's
+ * broad key or an agent's session-restricted key, no code difference. Every command prints JSON, so it
+ * pipes through jq and into scripts.
  *
- * THE COMMAND TABLE IS THE SURFACE, and it is not free-form. `CLI_COMMANDS` below is one row per method in
- * `CAGI_SDK_SPEC` (@commandagi/core), and `conformance.test.ts` fails if the two ever disagree — same
- * group, same verb, same tool, same argument keys. Help text is RENDERED from the table rather than
- * written beside it, because the two drifted the moment they were separate things: the old help
- * advertised `threads stop <id>` for a verb that was implemented as `kill`.
+ * THE COMMAND TABLE IS GENERATED (`CLI_COMMANDS` in ./generated.ts, one row per schema method), and help is
+ * rendered from it, so the CLI cannot advertise or implement anything the SDK does not. This file is only
+ * the argv dispatcher: it resolves a row's params from the command line and calls the TYPED METHOD.
  *
- * (The table is a literal rather than a walk of the imported spec because this package publishes to npm
- * with ZERO runtime dependencies — `@commandagi/core` is a devDependency, reachable from the test but
- * not from the shipped binary. The test is what makes the duplication safe.)
- *
- * One flag rule, everywhere: A FLAG IS THE TOOL'S OWN ARGUMENT NAME. `--fileId`, not `--file`; nothing
- * is aliased or renamed on the way through, so what you type is what the tool receives.
+ * One flag rule, everywhere: A FLAG IS THE TOOL'S OWN ARGUMENT NAME. `--fileId`, not `--file`; nothing is
+ * aliased or renamed on the way through, so what you type is what the tool receives.
  *
  *   commandagi whoami
  *   commandagi threads list
  *   commandagi threads create --intent "research X"
- *   commandagi threads kill th_123
- *   commandagi social tiktok post file_9 --privacy public --account @brand
+ *   commandagi embodiments act emb_1 click '{"x":10,"y":20}'
  *   commandagi call <tool> --json '{...}'          # the universal escape hatch — ANY platform tool
- *   commandagi run script.py                       # Code Mode: run a snippet server-side (stdin with -)
- *
- * Env: CAGI_API_KEY (required), CAGI_API_BASE (default https://api.commandagi.com), CAGI_THREAD_ID.
+ *   commandagi run script.py                       # run a snippet server-side (stdin with -)
  */
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { createCagi, type Cagi } from "./index.js";
+import { CommandAGI } from "./client.js";
+import { CLI_COMMANDS, ENV, type CliParam, type Command } from "./generated.js";
 
 interface Parsed {
   positionals: string[];
@@ -64,177 +56,6 @@ function parseArgs(argv: string[]): Parsed {
   }
   return { positionals, flags };
 }
-
-/**
- * Where a named parameter's value comes from on a command line.
- *   - `positional` — the next bare word.
- *   - `join`       — every remaining bare word, joined (a message, a query); stdin when none are given.
- *   - `json`       — the next bare word, parsed as JSON (a structured argument like an `act` action).
- *   - `file`       — a file path (or `-` for stdin), read into the value.
- *   - `language`   — `--language`, else inferred from the `file` param's extension.
- *   - `flag`       — `--<name>` (`number: true` coerces it).
- */
-type Source = "positional" | "join" | "json" | "file" | "language" | "flag";
-
-interface CliParam {
-  name: string;
-  from?: Source;
-  /** Coerce a `flag` value to a number. */
-  number?: boolean;
-}
-
-export interface Command {
-  /** Namespace name, or "" for a method on the client itself. */
-  group: string;
-  /** The typed-SDK method name — the CLI CALLS that method, so mapping lives in exactly one place. */
-  verb: string;
-  /** The platform tool it must end up calling — pinned against the spec by the conformance test. */
-  tool: string;
-  /** A factory namespace's own params, bound before the verb (`commandagi social <platform> post …`). */
-  factory?: { name: string; from: "positional" | "flag" }[];
-  /** The method's positional params, in signature order. */
-  params?: CliParam[];
-  /** The method takes a trailing options bag: remaining `--flags` (plus `--json`) fill it. */
-  spread?: boolean;
-  doc: string;
-}
-
-/** ONE ROW PER SPEC METHOD. Adding a method to `CAGI_SDK_SPEC` fails the conformance test until it lands here. */
-export const CLI_COMMANDS: Command[] = [
-  { group: "", verb: "whoami", tool: "whoami", doc: "The account this key belongs to." },
-  {
-    group: "",
-    verb: "search",
-    tool: "search_tools",
-    params: [
-      { name: "query", from: "join" },
-      { name: "limit", from: "flag", number: true },
-    ],
-    doc: "Search the whole tool catalog by keyword.",
-  },
-  {
-    group: "",
-    verb: "run",
-    tool: "run_code",
-    params: [
-      { name: "code", from: "file" },
-      { name: "language", from: "language" },
-    ],
-    doc: "Run a snippet server-side — a file path, or `-` for stdin.",
-  },
-  {
-    group: "",
-    verb: "post",
-    tool: "post",
-    spread: true,
-    doc: "Publish a file to a connected social account.",
-  },
-
-  { group: "threads", verb: "list", tool: "list_threads", doc: "Your threads." },
-  {
-    group: "threads",
-    verb: "get",
-    tool: "get_thread",
-    params: [{ name: "threadId" }],
-    doc: "One thread's detail.",
-  },
-  { group: "threads", verb: "create", tool: "create_thread", spread: true, doc: "Spawn a thread." },
-  {
-    group: "threads",
-    verb: "send",
-    tool: "send_message",
-    params: [{ name: "threadId" }, { name: "text", from: "join" }],
-    doc: "Message a thread.",
-  },
-  {
-    group: "threads",
-    verb: "events",
-    tool: "thread_events",
-    params: [{ name: "threadId" }],
-    doc: "A thread's event log.",
-  },
-  {
-    group: "threads",
-    verb: "kill",
-    tool: "kill_process",
-    params: [{ name: "threadId" }],
-    doc: "Stop a thread's run (the thread itself persists).",
-  },
-
-  { group: "embodiments", verb: "list", tool: "list_embodiments", doc: "Attached embodiments." },
-  {
-    group: "embodiments",
-    verb: "launch",
-    tool: "launch_embodiment",
-    spread: true,
-    doc: "Launch a embodiment into the thread.",
-  },
-  {
-    group: "embodiments",
-    verb: "observe",
-    tool: "observe",
-    spread: true,
-    doc: "Look at a embodiment.",
-  },
-  {
-    group: "embodiments",
-    verb: "act",
-    tool: "act",
-    params: [{ name: "action", from: "json" }],
-    doc: "Drive a embodiment.",
-  },
-
-  {
-    group: "memory",
-    verb: "search",
-    tool: "memory_search",
-    params: [{ name: "query", from: "join" }],
-    doc: "Recall by query.",
-  },
-  {
-    group: "memory",
-    verb: "remember",
-    tool: "memory_remember",
-    spread: true,
-    doc: "Store a memory.",
-  },
-  { group: "memory", verb: "link", tool: "memory_link", spread: true, doc: "Relate two memories." },
-
-  { group: "integrations", verb: "list", tool: "list_integrations", doc: "What's connected." },
-  {
-    group: "integrations",
-    verb: "call",
-    tool: "integration_call",
-    params: [{ name: "integration" }],
-    spread: true,
-    doc: "Drive a provider's API (--method/--path/--body).",
-  },
-
-  {
-    group: "social",
-    verb: "post",
-    tool: "post",
-    factory: [
-      { name: "platform", from: "positional" },
-      { name: "account", from: "flag" },
-    ],
-    params: [{ name: "fileId" }],
-    spread: true,
-    doc: "Publish a stored file to this account.",
-  },
-  {
-    group: "social",
-    verb: "call",
-    tool: "integration_call",
-    factory: [
-      { name: "platform", from: "positional" },
-      { name: "account", from: "flag" },
-    ],
-    params: [{ name: "method" }, { name: "path" }],
-    spread: true,
-    doc: "Raw API call as this account.",
-  },
-];
 
 /** File extension → run_code `language`. Mirrors the hostless runtimes in @commandagi/core. */
 const EXT_LANGUAGE: Record<string, string | undefined> = {
@@ -299,7 +120,7 @@ export function helpText(): string {
       "commandagi call <tool> [--json '{…}'] [--key value …]".padEnd(width) +
       "   Any platform tool by name — the escape hatch.",
     "",
-    "Env: CAGI_API_KEY (required), CAGI_API_BASE, CAGI_THREAD_ID",
+    `Env: ${ENV.apiKey} (required), ${ENV.baseUrl}, ${ENV.threadId}`,
     "",
   ].join("\n");
 }
@@ -364,7 +185,9 @@ function valueOf(
       const src = !path || path === "-" ? readStdin() : readFileSync(path, "utf8");
       return src.trim()
         ? src
-        : fail(`${cmd.verb}: no code (pass a file path, or pipe code to \`commandagi ${cmd.verb} -\`)`);
+        : fail(
+            `${cmd.verb}: no code (pass a file path, or pipe code to \`commandagi ${cmd.verb} -\`)`,
+          );
     }
     case "language": {
       // The extension is the intent: `commandagi run script.py` must not run Python through the JS engine,
@@ -403,7 +226,7 @@ function consumedFlags(cmd: Command): Set<string> {
  * SDK; going around it to `cagi.call(tool, …)` would be a second implementation of the same rules, and a
  * second thing to keep in step.
  */
-export async function runCli(argv: string[], cagi: Cagi): Promise<unknown> {
+export async function runCli(argv: string[], cagi: CommandAGI): Promise<unknown> {
   const { positionals, flags } = parseArgs(argv);
   const [group] = positionals;
 
@@ -414,7 +237,8 @@ export async function runCli(argv: string[], cagi: Cagi): Promise<unknown> {
 
   // The transport primitive, deliberately outside the spec: `call` IS `cagi.call`, every tool by name.
   if (group === "call") {
-    const tool = positionals[1] ?? fail("usage: commandagi call <tool> [--json '{…}'] [--key value …]");
+    const tool =
+      positionals[1] ?? fail("usage: commandagi call <tool> [--json '{…}'] [--key value …]");
     const args: Record<string, unknown> = {};
     if (typeof flags.json === "string") Object.assign(args, JSON.parse(flags.json));
     for (const [k, v] of Object.entries(flags)) if (k !== "json") args[k] = v;
@@ -456,7 +280,9 @@ export async function runCli(argv: string[], cagi: Cagi): Promise<unknown> {
       : client;
   const method = owner?.[cmd.verb];
   if (typeof method !== "function")
-    fail(`commandagi ${[cmd.group, cmd.verb].filter(Boolean).join(" ")}: the SDK has no such method`);
+    fail(
+      `commandagi ${[cmd.group, cmd.verb].filter(Boolean).join(" ")}: the SDK has no such method`,
+    );
   return out(await (method as Fn).apply(owner, args));
 }
 
@@ -467,13 +293,9 @@ async function main(): Promise<void> {
     process.stdout.write(helpText());
     return;
   }
-  const apiKey = process.env.CAGI_API_KEY;
-  if (!apiKey) fail("set CAGI_API_KEY (a cagi_ API key from Settings → API keys)");
-  const cagi = createCagi({
-    apiKey,
-    baseUrl: process.env.CAGI_API_BASE,
-    threadId: process.env.CAGI_THREAD_ID,
-  });
+  if (!process.env[ENV.apiKey])
+    fail(`set ${ENV.apiKey} (a cagi_ API key from Settings → API keys)`);
+  const cagi = new CommandAGI();
   await runCli(argv, cagi);
 }
 

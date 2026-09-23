@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createCagi, Cagi, CagiError } from "./index.js";
+import { createClient, CommandAGI, CommandAGIError } from "./index.js";
 
 /** A fake fetch that records the last request and returns a canned MCP tools/call envelope. */
 function fakeFetch(reply: unknown, opts: { isError?: boolean } = {}) {
@@ -25,7 +25,7 @@ function fakeFetch(reply: unknown, opts: { isError?: boolean } = {}) {
 
 test("call() posts a JSON-RPC tools/call to /mcp with the bearer + parses the text result", async () => {
   const { f, calls } = fakeFetch({ ok: true, threads: [] });
-  const cagi = createCagi({
+  const cagi = createClient({
     apiKey: "cagi_test",
     baseUrl: "https://api.example.com/",
     fetchImpl: f,
@@ -41,7 +41,7 @@ test("call() posts a JSON-RPC tools/call to /mcp with the bearer + parses the te
 
 test("threadId auto-fills for self-thread helpers but not for explicit ids", async () => {
   const { f, calls } = fakeFetch({ ok: true });
-  const cagi = new Cagi({ apiKey: "cagi_test", threadId: "th_123", fetchImpl: f });
+  const cagi = new CommandAGI({ apiKey: "cagi_test", threadId: "th_123", fetchImpl: f });
   await cagi.embodiments.observe();
   assert.equal(calls[0]!.body.params.arguments.threadId, "th_123");
   await cagi.embodiments.observe({ threadId: "th_other" });
@@ -50,7 +50,7 @@ test("threadId auto-fills for self-thread helpers but not for explicit ids", asy
 
 test("social(platform, account).post maps to the post tool with the account bound", async () => {
   const { f, calls } = fakeFetch({ ok: true, id: "vid1" });
-  const cagi = createCagi({ apiKey: "cagi_test", fetchImpl: f });
+  const cagi = createClient({ apiKey: "cagi_test", fetchImpl: f });
   await cagi.social("tiktok", "@brand").post("file_9", { privacy: "public", caption: "hi" });
   const a = calls[0]!.body.params.arguments;
   assert.equal(calls[0]!.body.params.name, "post");
@@ -65,11 +65,11 @@ test("social(platform, account).post maps to the post tool with the account boun
   );
 });
 
-test("an isError result throws a CagiError carrying the tool name", async () => {
+test("an isError result throws a CommandAGIError carrying the tool name", async () => {
   const { f } = fakeFetch({ error: "tool_not_allowed" }, { isError: true });
-  const cagi = createCagi({ apiKey: "cagi_test", fetchImpl: f });
+  const cagi = createClient({ apiKey: "cagi_test", fetchImpl: f });
   await assert.rejects(
     () => cagi.call("kill_process", { pid: "thread:x" }),
-    (e) => e instanceof CagiError && e.tool === "kill_process",
+    (e) => e instanceof CommandAGIError && e.tool === "kill_process",
   );
 });
