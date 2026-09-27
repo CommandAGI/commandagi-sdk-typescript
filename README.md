@@ -47,12 +47,12 @@ commandagi help                         # every command, rendered from the schem
 `commandagi agents` — or `/agents` inside it — opens the **agent command center**: every thread you
 can reach, grouped by where it lives (personal, each org, shared with you), filtered by what it needs:
 
-| filter    | means                                                              |
-| --------- | ------------------------------------------------------------------ |
-| Needs you | an open error, or an unread notification from the thread's agent   |
-| Working   | its run is live                                                    |
-| Ready     | idle, active within the last day                                   |
-| Inactive  | idle for longer                                                    |
+| filter    | means                                                            |
+| --------- | ---------------------------------------------------------------- |
+| Needs you | an open error, or an unread notification from the thread's agent |
+| Working   | its run is open and it acted in the last ten minutes             |
+| Ready     | idle, active within the last day                                 |
+| Inactive  | idle for longer                                                  |
 
 `tab`/`shift+tab` filter, `↑`/`↓` move, `enter` opens the thread in the chat, `n` starts a new one,
 `g` toggles grouping, `?` help, `esc` back. It refreshes itself every few seconds.

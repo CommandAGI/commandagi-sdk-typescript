@@ -7,7 +7,10 @@
  *
  *   Needs you  — an open error, or an unread notification pointing at the thread (an agent asking for
  *                a file, an approval, an answer). A human is the blocker.
- *   Working    — its run is live (`status: "running"`, mirrored from the thread's Durable Object).
+ *   Working    — its run is open (`status: "running"`) AND it did something in the last ten minutes. The
+ *                status alone is not enough: threads never end, a run closes only on a result or a kill,
+ *                so a chat whose agent answered hours ago still says "running". A working agent writes
+ *                events (deltas, tool calls, frames) continuously, so recent activity is the live half.
  *   Ready      — idle, and touched within the last day: the agent finished and the next move is yours.
  *   Inactive   — idle for longer than that.
  *
@@ -31,6 +34,8 @@ const BUCKET_LABEL: Record<Bucket, string> = {
   ready: "Ready",
   inactive: "Inactive",
 };
+/** How recently an open run must have acted to count as Working. */
+export const WORKING_WINDOW_MS = 10 * 60 * 1000;
 /** How long an idle thread stays "Ready" before it counts as inactive. */
 export const READY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -82,7 +87,8 @@ export function classify(
       reason: notice.body ? `${notice.title}: ${notice.body}` : notice.title,
       updatedAt: Math.max(updatedAt, notice.createdAt),
     };
-  if (t.status === "running") return { bucket: "working", reason: null, updatedAt };
+  if (t.status === "running" && now - updatedAt <= WORKING_WINDOW_MS)
+    return { bucket: "working", reason: null, updatedAt };
   return {
     bucket: now - updatedAt <= READY_WINDOW_MS ? "ready" : "inactive",
     reason: null,
@@ -273,7 +279,7 @@ const HELP = [
   "  esc  q            back",
   "",
   "Needs you  an open error, or an unread notification from the thread's agent",
-  "Working    its run is live",
+  "Working    its run is open and it acted in the last ten minutes",
   "Ready      idle, active within the last day",
   "Inactive   idle for longer",
 ];
