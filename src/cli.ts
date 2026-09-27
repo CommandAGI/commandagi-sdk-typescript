@@ -120,6 +120,7 @@ export function helpText(): string {
       "commandagi call <tool> [--json '{…}'] [--key value …]".padEnd(width) +
       "   Any platform tool by name — the escape hatch.",
     "",
+    "  commandagi agents                                The agent command center: every thread, what needs you (a terminal).",
     "  commandagi daemon start | status | stop | logs   Host this computer in the background (share it, drive it).",
     "",
     `Env: ${ENV.apiKey} (required), ${ENV.baseUrl}, ${ENV.threadId}`,
@@ -291,12 +292,15 @@ export async function runCli(argv: string[], cagi: CommandAGI): Promise<unknown>
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const first = argv[0];
-  // No arguments in a real terminal: the interactive session (./tui). Piped or scripted, help.
-  if (!first && process.stdin.isTTY && process.stdout.isTTY) {
+  // No arguments in a real terminal: the interactive session (./tui); `agents` opens it on the agent
+  // command center. Piped or scripted, help.
+  if ((!first || first === "agents") && process.stdin.isTTY && process.stdout.isTTY) {
     if (!process.env[ENV.apiKey])
       fail(`set ${ENV.apiKey} (a cagi_ API key from Settings → API keys)`);
     const { runTui } = await import("./tui.js");
-    return runTui(new CommandAGI(), loadDaemon);
+    return runTui(new CommandAGI(), loadDaemon, {
+      startIn: first === "agents" ? "agents" : "chat",
+    });
   }
   if (!first || first === "help" || argv.includes("--help")) {
     process.stdout.write(helpText());

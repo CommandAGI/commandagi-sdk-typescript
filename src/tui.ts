@@ -5,6 +5,7 @@
  * thread, and the agent's reply streams in as it is written (`message.delta`), with what it is doing right
  * now (`agent.status`: thinking, or which tool) on a status line. Slash commands reach the rest:
  *
+ *   /agents             the agent command center: every thread, what needs you, what is working
  *   /threads            your recent threads          /open <n|id>   continue one
  *   /new [intent]       start a fresh thread         /launch <snapshot>   a world you drive (no agent)
  *   /daemon [start|stop|status]   host this computer in the background
@@ -16,6 +17,7 @@
  */
 import { createInterface, type Interface } from "node:readline";
 import type { CommandAGI } from "./client.js";
+import { runCommandCenter } from "./command-center.js";
 
 // ─── rendering (pure) ────────────────────────────────────────────────────────────────────────────
 
@@ -121,6 +123,7 @@ type DaemonModule = {
 export async function runTui(
   cagi: CommandAGI,
   loadDaemon: () => Promise<DaemonModule>,
+  opts: { startIn?: "chat" | "agents" } = {},
 ): Promise<void> {
   const out = (s: string) => process.stdout.write(s);
   const transcript = new Transcript(out);
@@ -186,6 +189,7 @@ export async function runTui(
       say(
         [
           "Type to talk to the agent. The first line starts a thread; later lines continue it.",
+          "  /agents             the agent command center — every thread at a glance",
           "  /threads            your recent threads",
           "  /open <n|id>        continue a thread",
           "  /new [intent]       start a fresh thread",
@@ -194,6 +198,27 @@ export async function runTui(
           "  /quit               leave (hosting keeps running)",
         ].join("\n"),
       ),
+    agents: async () => {
+      // The command center owns the keyboard while it is open: park readline's key handling so a key
+      // pressed there never lands in the chat's input line, and give it back afterwards.
+      const parked = process.stdin.listeners("keypress") as ((...a: unknown[]) => void)[];
+      process.stdin.removeAllListeners("keypress");
+      let result;
+      try {
+        result = await runCommandCenter(cagi, { meId: me.id ?? "", currentThreadId: threadId });
+      } finally {
+        for (const l of parked) process.stdin.on("keypress", l);
+      }
+      switch (result.kind) {
+        case "open":
+          if (result.threadId !== threadId) attach(result.threadId);
+          return say(ansi.dim(`continuing ${result.threadId}`));
+        case "new":
+          return commands.new!("");
+        case "back":
+          return;
+      }
+    },
     threads: async () => {
       const r = (await cagi.threads.list()) as {
         threads?: { threadId?: string; id?: string; title?: string }[];
@@ -283,6 +308,10 @@ export async function runTui(
       ansi.dim("type to talk to an agent · /help for commands · /quit to leave\n"),
   );
   refreshPrompt();
+  if (opts.startIn === "agents")
+    void commands.agents!("")
+      .catch((e: Error) => say(ansi.red(`error: ${e.message}`)))
+      .finally(refreshPrompt);
 
   rl.on("line", (line) => {
     const input = parseInput(line);

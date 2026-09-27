@@ -41,6 +41,22 @@ commandagi call <tool> --json '{…}'     # any platform tool by name
 commandagi help                         # every command, rendered from the schema
 ```
 
+### The interactive session and the agent command center
+
+`commandagi` with no arguments is an interactive chat with an agent (`/help` lists its commands).
+`commandagi agents` — or `/agents` inside it — opens the **agent command center**: every thread you
+can reach, grouped by where it lives (personal, each org, shared with you), filtered by what it needs:
+
+| filter    | means                                                              |
+| --------- | ------------------------------------------------------------------ |
+| Needs you | an open error, or an unread notification from the thread's agent   |
+| Working   | its run is live                                                    |
+| Ready     | idle, active within the last day                                   |
+| Inactive  | idle for longer                                                    |
+
+`tab`/`shift+tab` filter, `↑`/`↓` move, `enter` opens the thread in the chat, `n` starts a new one,
+`g` toggles grouping, `?` help, `esc` back. It refreshes itself every few seconds.
+
 ### Host this computer in the background
 
 ```bash
