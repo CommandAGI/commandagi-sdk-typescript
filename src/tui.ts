@@ -130,6 +130,9 @@ export async function runTui(
   let threadId: string | null = null;
   let socket: WebSocket | null = null;
   let recent: { threadId: string; title?: string }[] = [];
+  /** While the command center owns the screen, the chat's output waits here instead of drawing into it. */
+  let held: (() => void)[] | null = null;
+  const draw = (f: () => void) => (held ? held.push(f) : f());
 
   const rl: Interface = createInterface({ input: process.stdin, output: process.stdout });
   let closed = false;
@@ -163,12 +166,15 @@ export async function runTui(
       }
       if (!["message", "message.delta", "message.delete", "agent.status", "error"].includes(m.t))
         return;
-      process.stdout.write("\r\x1b[2K");
-      transcript.apply(m);
-      refreshPrompt();
+      draw(() => {
+        process.stdout.write("\r\x1b[2K");
+        transcript.apply(m);
+        refreshPrompt();
+      });
     });
     ws.addEventListener("close", () => {
-      if (socket === ws) say(ansi.dim("(disconnected from the thread — /open to reconnect)"));
+      if (socket === ws)
+        draw(() => say(ansi.dim("(disconnected from the thread — /open to reconnect)")));
     });
     socket = ws;
   };
@@ -203,11 +209,15 @@ export async function runTui(
       // pressed there never lands in the chat's input line, and give it back afterwards.
       const parked = process.stdin.listeners("keypress") as ((...a: unknown[]) => void)[];
       process.stdin.removeAllListeners("keypress");
+      held = [];
       let result;
       try {
         result = await runCommandCenter(cagi, { meId: me.id ?? "", currentThreadId: threadId });
       } finally {
         for (const l of parked) process.stdin.on("keypress", l);
+        const replay = held;
+        held = null;
+        for (const f of replay) f(); // what the thread said meanwhile, in order
       }
       switch (result.kind) {
         case "open":
