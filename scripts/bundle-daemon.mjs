@@ -1,46 +1,40 @@
 /**
- * Ship the host daemon inside `commandagi`: copy the host package's prebuilt bundle into dist/daemon/.
+ * Ship the CommandAGI local host inside `commandagi`: `commandagi daemon …` from npm is the same program a checkout
+ * runs as `pnpm commandagi daemon …` and the desktop app runs — the workbench, files, devices, the MCP host and the
+ * platform link — not a platform-link-only copy.
  *
- * `commandagi daemon …` (hosting this computer in the background) is the one part of this package that is
- * not SDK: its source is the CommandAGI host (deployments/clients/computer-host-daemon in the CommandAGI
- * monorepo), which also runs inside the desktop app. It is bundled there — its private workspace
- * dependencies inlined, its native modules left external, which is why they are this package's
- * `optionalDependencies` — and loaded by src/cli.ts only for `daemon` commands, so importing the SDK
- * never loads a native binding.
+ * The CommandAGI monorepo packs it (scripts/workbench/pack-cli.mjs there): the host in the repository layout under
+ * dist/daemon/host/, the platform link's prebuilt library where the host loads it, and dist/daemon/daemon-cli.js,
+ * whose `main(argv)` is the host's `daemon …` and whose `probeHost()` is the host's probe (what the TUI shows).
+ * src/cli.ts loads that module only for `daemon` commands, so importing the SDK never loads a native binding; the
+ * platform link's native modules are this package's `optionalDependencies` and load only when the host starts it.
  *
- * So this package builds inside the monorepo (turbo builds the host first: it is a devDependency). Built
- * anywhere else, this step fails loudly rather than shipping a CLI whose `daemon` command is missing.
+ * So this package builds inside the monorepo, after the workbench's apps (`pnpm workbench:models && pnpm
+ * workbench:bundle`) and the platform link (`pnpm --filter @commandagi/computer-host-daemon build`, which turbo runs
+ * first: it is a devDependency). Built anywhere else, or before those, this step fails loudly rather than shipping a
+ * CLI whose `daemon` command is missing or has no workbench.
  */
-import { cpSync, existsSync, rmSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const source = join(
-  here,
-  "..",
-  "..",
-  "..",
-  "deployments",
-  "clients",
-  "computer-host-daemon",
-  "dist",
-);
+const monorepo = join(here, "..", "..", "..");
+const packer = join(monorepo, "scripts", "workbench", "pack-cli.mjs");
 const target = join(here, "..", "dist", "daemon");
 
-if (!existsSync(join(source, "daemon-cli.js"))) {
+if (!existsSync(packer)) {
   console.error(
-    `bundle-daemon: ${source}/daemon-cli.js is missing — build the host first ` +
-      "(`pnpm --filter @commandagi/computer-host-daemon build`, which turbo does for a normal build).",
+    `bundle-daemon: ${packer} is missing — this package builds inside the CommandAGI monorepo (sdk/typescript), ` +
+      "which packs its local host into dist/daemon/.",
   );
   process.exit(1);
 }
-rmSync(target, { recursive: true, force: true });
-// Exactly the daemon's entry and the chunks it imports (esbuild splitting) — not the host's library
-// entry, its type declarations, or anything an older host build left in its dist/.
-cpSync(join(source, "daemon-cli.js"), join(target, "daemon-cli.js"));
-cpSync(join(source, "chunks"), join(target, "chunks"), {
-  recursive: true,
-  filter: (p) => !p.endsWith(".map"),
-});
-console.log(`bundle-daemon: ${source} → ${target}`);
+const { packCli } = await import(pathToFileURL(packer).href);
+try {
+  const { out, version } = await packCli({ out: target });
+  console.log(`bundle-daemon: the local host ${version} → ${out}`);
+} catch (e) {
+  console.error(`bundle-daemon: ${e?.message ?? e}`);
+  process.exit(1);
+}

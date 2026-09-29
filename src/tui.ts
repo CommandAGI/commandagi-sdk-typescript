@@ -117,7 +117,7 @@ export function parseInput(line: string): Input {
 
 type DaemonModule = {
   main(argv: string[]): Promise<void>;
-  probeHost(): Promise<{ state: { owner: string; direct: string; pid: number } } | null>;
+  probeHost(): Promise<{ state: { owner: string; pid: number; url?: string; platform?: string; direct?: string } } | null>;
 };
 
 export async function runTui(
@@ -183,7 +183,7 @@ export async function runTui(
     try {
       const found = await (await loadDaemon()).probeHost();
       return found
-        ? `hosted by the ${found.state.owner} (pid ${found.state.pid}, share=${found.state.direct})`
+        ? `hosted by the ${found.state.owner} (pid ${found.state.pid}${found.state.url ? `, ${found.state.url}` : ""}, account link ${found.state.platform ?? "off"}${found.state.direct ? `, share=${found.state.direct}` : ""})`
         : "not hosted — /daemon start shares it";
     } catch {
       return "daemon unavailable in this build";

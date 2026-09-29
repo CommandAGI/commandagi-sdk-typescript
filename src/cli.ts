@@ -314,9 +314,10 @@ async function main(): Promise<void> {
 }
 
 /**
- * `commandagi daemon …` — host this computer in the background. The host is not SDK: it is prebuilt into
- * dist/daemon/ (scripts/bundle-daemon.mjs) and loaded only here, so importing the SDK never loads the
- * native modules it needs. A path in a variable, so the compiler does not look for it in src/.
+ * `commandagi daemon …` — host this computer: the CommandAGI local host (workbench, files, devices, MCP,
+ * account link). The host is not SDK: the monorepo packs it into dist/daemon/ (scripts/bundle-daemon.mjs)
+ * and it is loaded only here, so importing the SDK never loads it or the native modules its account link
+ * needs. A path in a variable, so the compiler does not look for it in src/.
  */
 async function runDaemon(argv: string[]): Promise<void> {
   await (await loadDaemon()).main(argv);
@@ -326,7 +327,7 @@ function loadDaemon() {
   const entry = "./daemon/daemon-cli.js";
   return import(new URL(entry, import.meta.url).href) as Promise<{
     main(argv: string[]): Promise<void>;
-    probeHost(): Promise<{ state: { owner: string; direct: string; pid: number } } | null>;
+    probeHost(): Promise<{ state: { owner: string; pid: number; url?: string; platform?: string; direct?: string } } | null>;
   }>;
 }
 

@@ -59,16 +59,28 @@ can reach, grouped by where it lives (personal, each org, shared with you), filt
 
 ### Host this computer in the background
 
+`commandagi daemon` is the CommandAGI local host — the same program the desktop app runs: the workbench
+in your browser, the files of the folder you open, the devices on this machine, the MCP host your CLI
+agents connect to, and the link to your CommandAGI account.
+
 ```bash
-commandagi daemon start     # share this machine with your account; returns at once, keeps running
-commandagi daemon status    # who is hosting it (this daemon, or the desktop app) and how
+commandagi daemon start     # host this machine; returns at once, keeps running in the background
+commandagi daemon status    # who hosts it (the daemon, the desktop app, or a dev checkout) and how
+commandagi daemon logs      # the background host's log
 commandagi daemon stop
+commandagi daemon run       # the same host in the foreground (what `start` runs detached)
 ```
 
-One machine is hosted by one process at a time. If the CommandAGI desktop app is installed, it takes
-over hosting when it starts, because it can do more (on-screen overlays, clipboard, notifications),
-and `daemon status` shows that. The native modules the daemon needs are `optionalDependencies`, which
-it loads only for `daemon` commands, so importing the SDK never loads them.
+`start` and `run` take `--port N` (the workbench's port), `--project DIR` (the folder to open),
+`--name X` (this machine's name on your account), `--monetize` (offer it for rent) and
+`--no-platform` (host locally, with no account link). The account key lives in
+`~/.commandagi/host.json` (a sign-in in the desktop app or the workbench puts it there;
+`COMMANDAGI_API_KEY` also works); the user folder is `~/.commandagi` (`COMMANDAGI_USER_DIR`).
+
+One machine is hosted by one process at a time, found through `~/.commandagi/daemon.json`. The desktop
+app takes over hosting when it starts, and `daemon status` shows that. The native modules the account
+link needs (screen capture and input) are `optionalDependencies`, loaded only when the host starts that
+link, so importing the SDK never loads them.
 
 ## One surface, generated
 
