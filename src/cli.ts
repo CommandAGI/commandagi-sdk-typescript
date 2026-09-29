@@ -121,7 +121,7 @@ export function helpText(): string {
       "   Any platform tool by name — the escape hatch.",
     "",
     "  commandagi agents                                The agent command center: every thread, what needs you (a terminal).",
-    "  commandagi daemon start | status | stop | logs   Host this computer in the background (share it, drive it).",
+    "  commandagi daemon start | status | stop | logs | run   Host this computer: the CommandAGI local host (workbench, files, devices, MCP, account link).",
     "",
     `Env: ${ENV.apiKey} (required), ${ENV.baseUrl}, ${ENV.threadId}`,
     "",
