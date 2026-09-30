@@ -97,6 +97,51 @@ This package, the Python SDK (`pip install commandagi`) and the CLI all come fro
 
 `src/generated.ts` is regenerated from the schema in the CommandAGI monorepo. Don't edit it.
 
+## Design in code: `commandagi/design`
+
+Compositional primitives that **declare structure** as the op graph every CommandAGI editor stores (plain
+JSON: `{ id, nodes: { <id>: { id, type, label?, inputs } }, outputs?, meta? }`, where a port holds a literal
+or one wire `{ "wire": { node, port } }`). The package holds the declaration only. It has no geometry
+kernel, solver, router or renderer; the editor that opens your file evaluates what you declare.
+
+- **CAD**: `part`, `assembly`, `instance` (a part declared by another file), `box`, `cylinder`, `sphere`,
+  `cone`, `sketch` (`rect`, `circle`, `polygon`, `slot`), `extrude`, `revolve`, `union`, `subtract`,
+  `intersect`, `hole`, `fillet`, `chamfer`, `shell`, `copy`, `linearPattern`, `circularPattern`, `mirror`.
+  Each call is one node of the 3D feature graph a `.3dx` holds. Lengths are in mm and angles in degrees.
+- **EDA**: `circuit`, `board`, `component` (reference, value, footprint, placement; its pins are its
+  output ports), `net`, `connect`, and `footprints` (chip `0402`–`1206` for R, C, L, LED and D, plus pin
+  headers, after KiCad's library footprints). A circuit is the graph a `.sch.json` + `.pcb.json` pair
+  holds. Nets say what is meant to connect; nothing is routed.
+- **Any graph**: `graph`, `node(type, inputs)`, `input` (a graph input), `code` (a node that runs another
+  file), `channels(set, values)` (the numbered ports `set.1 … set.N`).
+- **Importers** read other frameworks into the same graph: tscircuit JSX (`<board>`, `<resistor>`, `<led>`,
+  `<trace>` …, compiled against `commandagi/jsx-runtime`), `@jscad/modeling` (primitives, booleans,
+  translations and `extrudeLinear`) and `replicad` (drawings, `sketchOnPlane`, `extrude`, `cut`, `fuse`).
+  They refuse, by name, what they cannot read, rather than guessing.
+
+A **code part** is a file that exports what it declares, and optionally its parameters:
+
+```ts
+import { part, box, hole } from "commandagi/design";
+
+export const params = { width: { default: 60, unit: "mm", min: 30 } };
+
+export default ({ width }: { width: number }) =>
+  part("Plate", () => {
+    let plate = box({ size: [width, 40, 4], center: [0, 0, 2] });
+    for (const x of [-1, 1]) plate = hole(plate, { at: [x * (width / 2 - 8), 0, 4], diameter: 3.2, depth: 4 });
+    return plate;
+  });
+```
+
+Put its path in a graph's **code node** (a `.3dx` `code` feature, or a `code` node in a circuit or node
+graph). The editor runs the file in a sandboxed worker, with no network and a time limit, cached by the
+file's content hash and the node's inputs. The node's other inputs override the `params` defaults, and
+the node outputs what the file declares. The graph editor shows the node as one block naming its file,
+so you change the part by editing the file. A code file may import only `commandagi/design`,
+`@jscad/modeling` and `replicad`; to use another file, declare it as a code node.
+`declarationOf(module, inputs)` is what the sandbox calls, and you can call it in your own tests.
+
 ## Environment
 
 `COMMANDAGI_API_KEY` (your `cagi_…` key; its scopes decide what every call may do), `COMMANDAGI_BASE_URL`
