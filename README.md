@@ -141,6 +141,17 @@ the node outputs what the file declares. The graph editor shows the node as one 
 so you change the part by editing the file. A code file may import only `commandagi/design`,
 `@jscad/modeling` and `replicad`; to use another file, declare it as a code node.
 `declarationOf(module, inputs)` is what the sandbox calls, and you can call it in your own tests.
+The `params` a file declares are the ports of its block (typed, with their defaults; a wire overrides one).
+
+Without a browser, evaluate a part headless in the local host's sandbox (a process of its own with no
+network, no file writes and bounded time and memory; Python parts under the Pyodide the host ships):
+
+```bash
+commandagi code eval bracket.part.ts --input width=80     # prints its op graph and a summary as JSON
+commandagi code eval Blinker.sch.json --no-ir --out blinker.json
+```
+
+An agent connected to the host over MCP does the same with the `evaluate_code` tool.
 
 ## Environment
 
