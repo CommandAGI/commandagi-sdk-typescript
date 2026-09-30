@@ -122,6 +122,7 @@ export function helpText(): string {
     "",
     "  commandagi agents                                The agent command center: every thread, what needs you (a terminal).",
     "  commandagi daemon start | status | stop | logs | run   Host this computer: the CommandAGI local host (workbench, files, devices, MCP, account link).",
+    "  commandagi code eval <path> [--input name=value]…     Evaluate a code part headless (no network, bounded time and memory); prints its op graph and summary.",
     "",
     `Env: ${ENV.apiKey} (required), ${ENV.baseUrl}, ${ENV.threadId}`,
     "",
@@ -307,6 +308,7 @@ async function main(): Promise<void> {
     return;
   }
   if (first === "daemon") return runDaemon(argv.slice(1));
+  if (first === "code") return runCode(argv.slice(1));
   if (!process.env[ENV.apiKey])
     fail(`set ${ENV.apiKey} (a cagi_ API key from Settings → API keys)`);
   const cagi = new CommandAGI();
@@ -323,10 +325,23 @@ async function runDaemon(argv: string[]): Promise<void> {
   await (await loadDaemon()).main(argv);
 }
 
+/**
+ * `commandagi code eval <path> …` — evaluate a code part (a file declaring a board or a part with
+ * `commandagi/design`, tscircuit, JSCAD, replicad or CadQuery style) headless, in the local host's sandbox:
+ * a process of its own with no network and bounded time and memory. Needs no API key: nothing leaves this
+ * computer. The host's packed CLI does the work (dist/daemon/, like `daemon`).
+ */
+async function runCode(argv: string[]): Promise<void> {
+  const daemon = await loadDaemon();
+  if (!daemon.code) fail("this build of the CLI does not carry the local host's code sandbox");
+  await daemon.code(argv);
+}
+
 function loadDaemon() {
   const entry = "./daemon/daemon-cli.js";
   return import(new URL(entry, import.meta.url).href) as Promise<{
     main(argv: string[]): Promise<void>;
+    code?(argv: string[]): Promise<unknown>;
     probeHost(): Promise<{ state: { owner: string; pid: number; url?: string; platform?: string; direct?: string } } | null>;
   }>;
 }
