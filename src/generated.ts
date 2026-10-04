@@ -789,13 +789,52 @@ export const SDK_SCHEMA = {
         doc: "Simulated worlds — lifecycle, interaction, and the robots inside them.",
         actions: [
           {
-            name: "sim_mode",
+            name: "run",
+            channelId: "ctrl",
+            label: "Simulation lifecycle",
+            schema: { type: "object", additionalProperties: false },
+          },
+          {
+            name: "pause",
+            channelId: "ctrl",
+            label: "Simulation lifecycle",
+            schema: { type: "object", additionalProperties: false },
+          },
+          {
+            name: "step",
             channelId: "ctrl",
             label: "Simulation lifecycle",
             schema: {
               type: "object",
-              properties: { mode: { type: "string", enum: ["play", "pause", "step"] } },
-              required: ["mode"],
+              properties: { n: { type: "integer", minimum: 1, maximum: 100000 } },
+              additionalProperties: false,
+            },
+          },
+          {
+            name: "speed",
+            channelId: "ctrl",
+            label: "Simulation lifecycle",
+            schema: {
+              type: "object",
+              properties: { x: { type: "number", minimum: 0, maximum: 64 } },
+              required: ["x"],
+              additionalProperties: false,
+            },
+          },
+          {
+            name: "reset",
+            channelId: "ctrl",
+            label: "Simulation lifecycle",
+            schema: { type: "object", additionalProperties: false },
+          },
+          {
+            name: "params",
+            channelId: "ctrl",
+            label: "Simulation lifecycle",
+            schema: {
+              type: "object",
+              properties: { values: { type: "object", additionalProperties: true } },
+              required: ["values"],
               additionalProperties: false,
             },
           },
@@ -822,38 +861,7 @@ export const SDK_SCHEMA = {
             },
           },
           {
-            name: "reset",
-            channelId: "ctrl",
-            label: "Simulation lifecycle",
-            schema: { type: "object", additionalProperties: false },
-          },
-          {
-            name: "scene",
-            channelId: "ctrl",
-            label: "Simulation lifecycle",
-            schema: {
-              type: "object",
-              properties: {
-                colliderUri: { type: "string", maxLength: 8192 },
-                splatUri: { type: "string", maxLength: 8192 },
-              },
-              additionalProperties: false,
-            },
-          },
-          {
             name: "describe",
-            channelId: "ctrl",
-            label: "Simulation lifecycle",
-            schema: { type: "object", additionalProperties: false },
-          },
-          {
-            name: "scene_graph",
-            channelId: "ctrl",
-            label: "Simulation lifecycle",
-            schema: { type: "object", additionalProperties: false },
-          },
-          {
-            name: "snapshot",
             channelId: "ctrl",
             label: "Simulation lifecycle",
             schema: { type: "object", additionalProperties: false },
@@ -861,12 +869,39 @@ export const SDK_SCHEMA = {
           {
             name: "grab",
             channelId: "ctrl",
-            label: "Simulation interaction",
+            label: "Simulation force drag",
             schema: {
               type: "object",
               properties: {
-                bodyId: { type: "string", minLength: 1, maxLength: 1024 },
-                id: { type: "string", minLength: 1, maxLength: 1024 },
+                body: { type: "string", minLength: 1, maxLength: 1024 },
+                local: {
+                  type: "array",
+                  minItems: 3,
+                  maxItems: 3,
+                  items: { type: "number", minimum: -1000000000, maximum: 1000000000 },
+                },
+                target: {
+                  type: "array",
+                  minItems: 3,
+                  maxItems: 3,
+                  items: { type: "number", minimum: -1000000000, maximum: 1000000000 },
+                },
+                stiffness: { type: "number", minimum: 0, maximum: 1000000000 },
+                damping: { type: "number", minimum: 0, maximum: 1000000000 },
+                max_force: { type: "number", minimum: 0, maximum: 1000000000 },
+                max_speed: { type: "number", minimum: 0, maximum: 1000000 },
+              },
+              required: ["body", "local", "target"],
+              additionalProperties: false,
+            },
+          },
+          {
+            name: "drag",
+            channelId: "ctrl",
+            label: "Simulation force drag",
+            schema: {
+              type: "object",
+              properties: {
                 target: {
                   type: "array",
                   minItems: 3,
@@ -879,137 +914,15 @@ export const SDK_SCHEMA = {
             },
           },
           {
-            name: "ungrab",
-            channelId: "ctrl",
-            label: "Simulation interaction",
-            schema: {
-              type: "object",
-              properties: {
-                bodyId: { type: "string", minLength: 1, maxLength: 1024 },
-                id: { type: "string", minLength: 1, maxLength: 1024 },
-              },
-              additionalProperties: false,
-            },
-          },
-          {
             name: "release",
             channelId: "ctrl",
-            label: "Simulation interaction",
-            schema: {
-              type: "object",
-              properties: {
-                bodyId: { type: "string", minLength: 1, maxLength: 1024 },
-                id: { type: "string", minLength: 1, maxLength: 1024 },
-              },
-              additionalProperties: false,
-            },
-          },
-          {
-            name: "force",
-            channelId: "ctrl",
-            label: "Simulation interaction",
-            schema: {
-              type: "object",
-              properties: {
-                bodyId: { type: "string", minLength: 1, maxLength: 1024 },
-                id: { type: "string", minLength: 1, maxLength: 1024 },
-                force: {
-                  type: "array",
-                  minItems: 3,
-                  maxItems: 3,
-                  items: { type: "number", minimum: -1000000000, maximum: 1000000000 },
-                },
-              },
-              required: ["force"],
-              additionalProperties: false,
-            },
-          },
-          {
-            name: "impulse",
-            channelId: "ctrl",
-            label: "Simulation interaction",
-            schema: {
-              type: "object",
-              properties: {
-                bodyId: { type: "string", minLength: 1, maxLength: 1024 },
-                id: { type: "string", minLength: 1, maxLength: 1024 },
-                impulse: {
-                  type: "array",
-                  minItems: 3,
-                  maxItems: 3,
-                  items: { type: "number", minimum: -1000000000, maximum: 1000000000 },
-                },
-              },
-              required: ["impulse"],
-              additionalProperties: false,
-            },
-          },
-          {
-            name: "transform",
-            channelId: "ctrl",
-            label: "Simulation interaction",
-            schema: {
-              type: "object",
-              properties: {
-                id: { type: "string", minLength: 1, maxLength: 1024 },
-                bodyId: { type: "string", minLength: 1, maxLength: 1024 },
-                pos: {
-                  type: "array",
-                  minItems: 3,
-                  maxItems: 3,
-                  items: { type: "number", minimum: -1000000000, maximum: 1000000000 },
-                },
-                quat: {
-                  type: "array",
-                  minItems: 4,
-                  maxItems: 4,
-                  items: { type: "number", minimum: -1000000000, maximum: 1000000000 },
-                },
-                scale: {},
-              },
-              additionalProperties: false,
-            },
-          },
-          {
-            name: "render",
-            channelId: "ctrl",
-            label: "Simulation interaction",
-            schema: {
-              type: "object",
-              properties: {
-                width: { type: "integer", minimum: 1, maximum: 4096 },
-                height: { type: "integer", minimum: 1, maximum: 4096 },
-                position: {
-                  type: "array",
-                  minItems: 3,
-                  maxItems: 3,
-                  items: { type: "number", minimum: -1000000000, maximum: 1000000000 },
-                },
-                target: {
-                  type: "array",
-                  minItems: 3,
-                  maxItems: 3,
-                  items: { type: "number", minimum: -1000000000, maximum: 1000000000 },
-                },
-                fovY: { type: "number", minimum: 1, maximum: 179 },
-              },
-              additionalProperties: false,
-            },
-          },
-          {
-            name: "export",
-            channelId: "ctrl",
-            label: "Simulation interaction",
-            schema: {
-              type: "object",
-              properties: { id: { type: "string", minLength: 1, maxLength: 1024 } },
-              additionalProperties: false,
-            },
+            label: "Simulation force drag",
+            schema: { type: "object", additionalProperties: false },
           },
           {
             name: "ctrl",
             channelId: "ctrl",
-            label: "Simulation robots and authoring",
+            label: "Simulation robots",
             schema: {
               type: "object",
               properties: {
@@ -1023,7 +936,7 @@ export const SDK_SCHEMA = {
           {
             name: "actuator",
             channelId: "ctrl",
-            label: "Simulation robots and authoring",
+            label: "Simulation robots",
             schema: {
               type: "object",
               properties: {
@@ -1038,32 +951,44 @@ export const SDK_SCHEMA = {
           {
             name: "pose",
             channelId: "ctrl",
-            label: "Simulation robots and authoring",
+            label: "Simulation robots",
             schema: {
               type: "object",
               properties: {
                 robotId: { type: "string", minLength: 1, maxLength: 1024 },
-                pose: { type: "object", additionalProperties: true },
+                joints: { type: "object", additionalProperties: true },
               },
-              required: ["pose"],
+              required: ["joints"],
               additionalProperties: false,
             },
           },
           {
             name: "ik",
             channelId: "ctrl",
-            label: "Simulation robots and authoring",
+            label: "Simulation robots",
             schema: {
               type: "object",
               properties: {
                 robotId: { type: "string", minLength: 1, maxLength: 1024 },
-                site: { type: "string", minLength: 1, maxLength: 1024 },
                 target: {
                   type: "array",
                   minItems: 3,
                   maxItems: 3,
                   items: { type: "number", minimum: -1000000000, maximum: 1000000000 },
                 },
+                axis: {
+                  type: "array",
+                  minItems: 3,
+                  maxItems: 3,
+                  items: { type: "number", minimum: -1000000000, maximum: 1000000000 },
+                },
+                along: {
+                  type: "array",
+                  minItems: 3,
+                  maxItems: 3,
+                  items: { type: "number", minimum: -1000000000, maximum: 1000000000 },
+                },
+                tolerance: { type: "number", minimum: 0, maximum: 1 },
               },
               required: ["target"],
               additionalProperties: false,
@@ -1072,7 +997,7 @@ export const SDK_SCHEMA = {
           {
             name: "trajectory",
             channelId: "ctrl",
-            label: "Simulation robots and authoring",
+            label: "Simulation robots",
             schema: {
               type: "object",
               properties: {
@@ -1081,7 +1006,15 @@ export const SDK_SCHEMA = {
                   type: "array",
                   minItems: 1,
                   maxItems: 10000,
-                  items: { type: "object", additionalProperties: true },
+                  items: {
+                    type: "object",
+                    properties: {
+                      at: { type: "number", minimum: 0, maximum: 1000000 },
+                      targets: { type: "object", additionalProperties: true },
+                    },
+                    required: ["at", "targets"],
+                    additionalProperties: false,
+                  },
                 },
               },
               required: ["waypoints"],
@@ -1089,79 +1022,61 @@ export const SDK_SCHEMA = {
             },
           },
           {
-            name: "add_robot",
+            name: "grip",
             channelId: "ctrl",
-            label: "Simulation robots and authoring",
+            label: "Simulation robots",
             schema: {
               type: "object",
               properties: {
-                id: { type: "string", minLength: 1, maxLength: 1024 },
-                kind: { type: "string", maxLength: 256 },
-                morphology: { type: "string", maxLength: 256 },
-                urdf: { type: "string", maxLength: 4194304 },
-                pos: {
+                robotId: { type: "string", minLength: 1, maxLength: 1024 },
+                close: { type: "boolean" },
+              },
+              required: ["close"],
+              additionalProperties: false,
+            },
+          },
+          {
+            name: "stop",
+            channelId: "ctrl",
+            label: "Simulation robots",
+            schema: {
+              type: "object",
+              properties: { robotId: { type: "string", minLength: 1, maxLength: 1024 } },
+              additionalProperties: false,
+            },
+          },
+          {
+            name: "add_robot",
+            channelId: "ctrl",
+            label: "Simulation robots",
+            schema: {
+              type: "object",
+              properties: {
+                id: { type: "string", minLength: 1, maxLength: 48 },
+                device: { type: "string", minLength: 1, maxLength: 1024 },
+                definition: { type: "object", additionalProperties: true },
+                at: {
                   type: "array",
                   minItems: 3,
                   maxItems: 3,
                   items: { type: "number", minimum: -1000000000, maximum: 1000000000 },
                 },
-                yaw: { type: "number", minimum: -1000000, maximum: 1000000 },
-                params: { type: "object", additionalProperties: true },
+                yaw: { type: "number", minimum: -1000000000, maximum: 1000000000 },
+                joints: { type: "object", additionalProperties: true },
               },
+              required: ["id", "device", "at"],
               additionalProperties: false,
             },
           },
           {
             name: "remove_robot",
             channelId: "ctrl",
-            label: "Simulation robots and authoring",
+            label: "Simulation robots",
             schema: {
               type: "object",
-              properties: {
-                id: { type: "string", minLength: 1, maxLength: 1024 },
-                robotId: { type: "string", minLength: 1, maxLength: 1024 },
-              },
+              properties: { robotId: { type: "string", minLength: 1, maxLength: 1024 } },
               additionalProperties: false,
             },
-          },
-          {
-            name: "import_robot",
-            channelId: "ctrl",
-            label: "Simulation robots and authoring",
-            schema: {
-              type: "object",
-              properties: {
-                id: { type: "string", minLength: 1, maxLength: 1024 },
-                name: { type: "string", minLength: 1, maxLength: 1024 },
-                urdf: { type: "string", minLength: 1, maxLength: 4194304 },
-                position: {
-                  type: "array",
-                  minItems: 3,
-                  maxItems: 3,
-                  items: { type: "number", minimum: -1000000000, maximum: 1000000000 },
-                },
-              },
-              required: ["urdf"],
-              additionalProperties: false,
-            },
-          },
-          {
-            name: "robot_edit",
-            channelId: "ctrl",
-            label: "Simulation robots and authoring",
-            schema: { type: "object", additionalProperties: true },
-          },
-          {
-            name: "robot_action",
-            channelId: "ctrl",
-            label: "Simulation robots and authoring",
-            schema: { type: "object", additionalProperties: true },
-          },
-          {
-            name: "edit",
-            channelId: "ctrl",
-            label: "Simulation robots and authoring",
-            schema: { type: "object", additionalProperties: true },
           },
         ],
       },
@@ -1433,9 +1348,29 @@ export class RobotControls {
 /** Simulated worlds — lifecycle, interaction, and the robots inside them. Each method is `act(action, payload)` on the embodiment this is bound to. */
 export class SimControls {
   constructor(private readonly a: Actor) {}
-  /** Simulation lifecycle · `sim_mode` */
-  simMode(payload: { mode: "play" | "pause" | "step" }): Promise<unknown> {
-    return this.a.act("sim_mode", payload);
+  /** Simulation lifecycle · `run` */
+  run(): Promise<unknown> {
+    return this.a.act("run", {});
+  }
+  /** Simulation lifecycle · `pause` */
+  pause(): Promise<unknown> {
+    return this.a.act("pause", {});
+  }
+  /** Simulation lifecycle · `step` */
+  step(payload: { n?: number } = {}): Promise<unknown> {
+    return this.a.act("step", payload);
+  }
+  /** Simulation lifecycle · `speed` */
+  speed(payload: { x: number }): Promise<unknown> {
+    return this.a.act("speed", payload);
+  }
+  /** Simulation lifecycle · `reset` */
+  reset(): Promise<unknown> {
+    return this.a.act("reset", {});
+  }
+  /** Simulation lifecycle · `params` */
+  params(payload: { values: Args }): Promise<unknown> {
+    return this.a.act("params", payload);
   }
   /** Simulation lifecycle · `load` */
   load(payload: {
@@ -1443,132 +1378,81 @@ export class SimControls {
   }): Promise<unknown> {
     return this.a.act("load", payload);
   }
-  /** Simulation lifecycle · `reset` */
-  reset(): Promise<unknown> {
-    return this.a.act("reset", {});
-  }
-  /** Simulation lifecycle · `scene` */
-  scene(payload: { colliderUri?: string; splatUri?: string } = {}): Promise<unknown> {
-    return this.a.act("scene", payload);
-  }
   /** Simulation lifecycle · `describe` */
   describe(): Promise<unknown> {
     return this.a.act("describe", {});
   }
-  /** Simulation lifecycle · `scene_graph` */
-  sceneGraph(): Promise<unknown> {
-    return this.a.act("scene_graph", {});
-  }
-  /** Simulation lifecycle · `snapshot` */
-  snapshot(): Promise<unknown> {
-    return this.a.act("snapshot", {});
-  }
-  /** Simulation interaction · `grab` */
-  grab(payload: { bodyId?: string; id?: string; target: number[] }): Promise<unknown> {
+  /** Simulation force drag · `grab` */
+  grab(payload: {
+    body: string;
+    local: number[];
+    target: number[];
+    stiffness?: number;
+    damping?: number;
+    max_force?: number;
+    max_speed?: number;
+  }): Promise<unknown> {
     return this.a.act("grab", payload);
   }
-  /** Simulation interaction · `ungrab` */
-  ungrab(payload: { bodyId?: string; id?: string } = {}): Promise<unknown> {
-    return this.a.act("ungrab", payload);
+  /** Simulation force drag · `drag` */
+  drag(payload: { target: number[] }): Promise<unknown> {
+    return this.a.act("drag", payload);
   }
-  /** Simulation interaction · `release` */
-  release(payload: { bodyId?: string; id?: string } = {}): Promise<unknown> {
-    return this.a.act("release", payload);
+  /** Simulation force drag · `release` */
+  release(): Promise<unknown> {
+    return this.a.act("release", {});
   }
-  /** Simulation interaction · `force` */
-  force(payload: { bodyId?: string; id?: string; force: number[] }): Promise<unknown> {
-    return this.a.act("force", payload);
-  }
-  /** Simulation interaction · `impulse` */
-  impulse(payload: { bodyId?: string; id?: string; impulse: number[] }): Promise<unknown> {
-    return this.a.act("impulse", payload);
-  }
-  /** Simulation interaction · `transform` */
-  transform(
-    payload: {
-      id?: string;
-      bodyId?: string;
-      pos?: number[];
-      quat?: number[];
-      scale?: unknown;
-    } = {},
-  ): Promise<unknown> {
-    return this.a.act("transform", payload);
-  }
-  /** Simulation interaction · `render` */
-  render(
-    payload: {
-      width?: number;
-      height?: number;
-      position?: number[];
-      target?: number[];
-      fovY?: number;
-    } = {},
-  ): Promise<unknown> {
-    return this.a.act("render", payload);
-  }
-  /** Simulation interaction · `export` */
-  export(payload: { id?: string } = {}): Promise<unknown> {
-    return this.a.act("export", payload);
-  }
-  /** Simulation robots and authoring · `ctrl` */
+  /** Simulation robots · `ctrl` */
   ctrl(payload: { robotId?: string; targets: Args }): Promise<unknown> {
     return this.a.act("ctrl", payload);
   }
-  /** Simulation robots and authoring · `actuator` */
+  /** Simulation robots · `actuator` */
   actuator(payload: { robotId?: string; name: string; value: number }): Promise<unknown> {
     return this.a.act("actuator", payload);
   }
-  /** Simulation robots and authoring · `pose` */
-  pose(payload: { robotId?: string; pose: Args }): Promise<unknown> {
+  /** Simulation robots · `pose` */
+  pose(payload: { robotId?: string; joints: Args }): Promise<unknown> {
     return this.a.act("pose", payload);
   }
-  /** Simulation robots and authoring · `ik` */
-  ik(payload: { robotId?: string; site?: string; target: number[] }): Promise<unknown> {
+  /** Simulation robots · `ik` */
+  ik(payload: {
+    robotId?: string;
+    target: number[];
+    axis?: number[];
+    along?: number[];
+    tolerance?: number;
+  }): Promise<unknown> {
     return this.a.act("ik", payload);
   }
-  /** Simulation robots and authoring · `trajectory` */
-  trajectory(payload: { robotId?: string; waypoints: Args[] }): Promise<unknown> {
+  /** Simulation robots · `trajectory` */
+  trajectory(payload: {
+    robotId?: string;
+    waypoints: { at: number; targets: Args }[];
+  }): Promise<unknown> {
     return this.a.act("trajectory", payload);
   }
-  /** Simulation robots and authoring · `add_robot` */
-  addRobot(
-    payload: {
-      id?: string;
-      kind?: string;
-      morphology?: string;
-      urdf?: string;
-      pos?: number[];
-      yaw?: number;
-      params?: Args;
-    } = {},
-  ): Promise<unknown> {
+  /** Simulation robots · `grip` */
+  grip(payload: { robotId?: string; close: boolean }): Promise<unknown> {
+    return this.a.act("grip", payload);
+  }
+  /** Simulation robots · `stop` */
+  stop(payload: { robotId?: string } = {}): Promise<unknown> {
+    return this.a.act("stop", payload);
+  }
+  /** Simulation robots · `add_robot` */
+  addRobot(payload: {
+    id: string;
+    device: string;
+    definition?: Args;
+    at: number[];
+    yaw?: number;
+    joints?: Args;
+  }): Promise<unknown> {
     return this.a.act("add_robot", payload);
   }
-  /** Simulation robots and authoring · `remove_robot` */
-  removeRobot(payload: { id?: string; robotId?: string } = {}): Promise<unknown> {
+  /** Simulation robots · `remove_robot` */
+  removeRobot(payload: { robotId?: string } = {}): Promise<unknown> {
     return this.a.act("remove_robot", payload);
-  }
-  /** Simulation robots and authoring · `import_robot` */
-  importRobot(payload: {
-    id?: string;
-    name?: string;
-    urdf: string;
-    position?: number[];
-  }): Promise<unknown> {
-    return this.a.act("import_robot", payload);
-  }
-  /** Simulation robots and authoring · `robot_edit` */
-  robotEdit(payload: Args = {}): Promise<unknown> {
-    return this.a.act("robot_edit", payload);
-  }
-  /** Simulation robots and authoring · `robot_action` */
-  robotAction(payload: Args = {}): Promise<unknown> {
-    return this.a.act("robot_action", payload);
-  }
-  /** Simulation robots and authoring · `edit` */
-  edit(payload: Args = {}): Promise<unknown> {
-    return this.a.act("edit", payload);
   }
 }
 
