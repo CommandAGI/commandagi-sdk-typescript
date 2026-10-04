@@ -374,17 +374,17 @@ export const SDK_SCHEMA = {
       },
       {
         name: "memory",
-        doc: "The agent's durable memory.",
+        doc: "The agent's durable memory: markdown files under memories/ in the thread's drive.",
         factory: null,
         methods: [
           {
             name: "search",
             tool: "memory_search",
-            doc: "Recall by query.",
+            doc: "Recall by query (the drive's content index over memories/).",
             params: [
               {
                 name: "query",
-                key: "query",
+                key: "q",
                 type: "string",
                 required: true,
                 spread: false,
@@ -398,7 +398,7 @@ export const SDK_SCHEMA = {
           {
             name: "remember",
             tool: "memory_remember",
-            doc: "Store a memory.",
+            doc: "Write a memory file.",
             params: [
               {
                 name: "opts",
@@ -414,18 +414,18 @@ export const SDK_SCHEMA = {
             withThread: false,
           },
           {
-            name: "link",
-            tool: "memory_link",
-            doc: "Relate two memories.",
+            name: "forget",
+            tool: "memory_forget",
+            doc: "Delete a memory file by its path.",
             params: [
               {
-                name: "opts",
-                key: null,
-                type: "object",
-                required: false,
-                spread: true,
+                name: "path",
+                key: "path",
+                type: "string",
+                required: true,
+                spread: false,
                 prefix: null,
-                cli: "spread",
+                cli: "positional",
               },
             ],
             bound: {},
@@ -800,29 +800,24 @@ export const SDK_SCHEMA = {
             },
           },
           {
-            name: "reload_spec",
+            name: "load",
             channelId: "ctrl",
             label: "Simulation lifecycle",
             schema: {
               type: "object",
               properties: {
-                base: { type: "object", additionalProperties: true },
-                spec: {
+                world: {
                   type: "object",
                   properties: {
-                    bodies: {
-                      type: "array",
-                      maxItems: 100000,
-                      items: { type: "object", additionalProperties: true },
-                    },
-                    dynamics: { type: "object", additionalProperties: true },
-                    plan: { type: "object", additionalProperties: true },
+                    name: { type: "string", minLength: 1, maxLength: 1024 },
+                    kind: { type: "string", enum: ["simulation"] },
+                    scene: { type: "object", additionalProperties: true },
                   },
-                  required: ["bodies"],
+                  required: ["name", "kind", "scene"],
                   additionalProperties: true,
                 },
               },
-              required: ["spec", "base"],
+              required: ["world"],
               additionalProperties: false,
             },
           },
@@ -1260,20 +1255,20 @@ export class Embodiments {
   }
 }
 
-/** The agent's durable memory. */
+/** The agent's durable memory: markdown files under memories/ in the thread's drive. */
 export class Memory {
   constructor(private readonly t: Transport) {}
-  /** Recall by query. */
+  /** Recall by query (the drive's content index over memories/). */
   search(query: string): Promise<unknown> {
-    return this.t.call("memory_search", prune({ query: query }));
+    return this.t.call("memory_search", prune({ q: query }));
   }
-  /** Store a memory. */
+  /** Write a memory file. */
   remember(opts: Args = {}): Promise<unknown> {
     return this.t.call("memory_remember", { ...opts });
   }
-  /** Relate two memories. */
-  link(opts: Args = {}): Promise<unknown> {
-    return this.t.call("memory_link", { ...opts });
+  /** Delete a memory file by its path. */
+  forget(path: string): Promise<unknown> {
+    return this.t.call("memory_forget", prune({ path: path }));
   }
 }
 
@@ -1324,7 +1319,7 @@ export abstract class GeneratedClient implements Transport {
   readonly threads = new Threads(this);
   /** Computers, cameras, robots and sims attached to a thread. */
   readonly embodiments = new Embodiments(this);
-  /** The agent's durable memory. */
+  /** The agent's durable memory: markdown files under memories/ in the thread's drive. */
   readonly memory = new Memory(this);
   /** Connected third-party accounts. */
   readonly integrations = new Integrations(this);
@@ -1442,12 +1437,11 @@ export class SimControls {
   simMode(payload: { mode: "play" | "pause" | "step" }): Promise<unknown> {
     return this.a.act("sim_mode", payload);
   }
-  /** Simulation lifecycle · `reload_spec` */
-  reloadSpec(payload: {
-    base: Args;
-    spec: { bodies: Args[]; dynamics?: Args; plan?: Args; [key: string]: unknown };
+  /** Simulation lifecycle · `load` */
+  load(payload: {
+    world: { name: string; kind: "simulation"; scene: Args; [key: string]: unknown };
   }): Promise<unknown> {
-    return this.a.act("reload_spec", payload);
+    return this.a.act("load", payload);
   }
   /** Simulation lifecycle · `reset` */
   reset(): Promise<unknown> {
@@ -1713,16 +1707,22 @@ export const CLI_COMMANDS: readonly Command[] = [
     verb: "search",
     tool: "memory_search",
     params: [{ name: "query", from: "join" }],
-    doc: "Recall by query.",
+    doc: "Recall by query (the drive's content index over memories/).",
   },
   {
     group: "memory",
     verb: "remember",
     tool: "memory_remember",
     spread: true,
-    doc: "Store a memory.",
+    doc: "Write a memory file.",
   },
-  { group: "memory", verb: "link", tool: "memory_link", spread: true, doc: "Relate two memories." },
+  {
+    group: "memory",
+    verb: "forget",
+    tool: "memory_forget",
+    params: [{ name: "path" }],
+    doc: "Delete a memory file by its path.",
+  },
   { group: "integrations", verb: "list", tool: "list_integrations", doc: "What's connected." },
   {
     group: "integrations",
