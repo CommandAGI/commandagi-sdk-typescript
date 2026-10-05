@@ -208,6 +208,27 @@ test("a sheet's library part names its symbol by ref, places each unit, mirrors;
   assert.throws(sheet(jsx("code", { name: "c", source: "c.ts", inputs: { source: "d.ts" } })), /source is the file/);
 });
 
+test("a netlist circuit lists each part's pins and names the pins on each net; it has no sheet", () => {
+  const tree = jsx("group", {
+    name: "Buffer",
+    children: [
+      jsx("part", { name: "U1", value: "LMP7721", pins: ["1", "2", "3"], __source: 1 }),
+      jsx("part", { name: "J1", symbol: "Conn:Header", value: "plate", pins: [{ number: "1", name: "PLATE" }] }),
+      jsx("net", { name: "PLATE", pins: [".J1 > .pin1", ".U1 > .3"], __source: 3 }),
+    ],
+  });
+  const { graph: g } = declarationOf({ default: () => tree });
+  assert.deepEqual(g.nodes.U1!.inputs, { ref: "U1", value: "LMP7721", pins: [{ id: "p1", number: "1" }, { id: "p2", number: "2" }, { id: "p3", number: "3" }] });
+  assert.deepEqual(g.nodes.J1!.inputs.pins, [{ id: "p1", number: "1", name: "PLATE" }]);
+  assert.equal(g.nodes.J1!.inputs.symbol, "Conn:Header");
+  assert.deepEqual(g.nodes.net_PLATE, { id: "net_PLATE", type: "eda.net", label: "PLATE", inputs: { "pins.1": wireTo("J1", "p1"), "pins.2": wireTo("U1", "p3") }, meta: { source: 3 } });
+  const sheet = (...children: unknown[]) => () => declarationOf({ default: jsx("group", { name: "S", children }) });
+  assert.throws(sheet(jsx("part", { name: "U1", pins: ["1"], schX: 0, schY: 0 })), /netlist circuit's; it has no place on the sheet/);
+  assert.throws(sheet(jsx("part", { name: "U1", pins: ["1", "1"] })), /two pins are numbered 1/);
+  assert.throws(sheet(jsx("part", { name: "U1", pins: ["1"] }), jsx("net", { name: "N", pins: [".U1 > .pin2"] })), /U1 has no pin 2/);
+  assert.throws(sheet(jsx("resistor", { name: "R1", schX: 0, schY: 0 }), jsx("net", { name: "N", pins: [".R1 > .pin1"] })), /a net names pins of a netlist circuit's parts/);
+});
+
 test("JSCAD: cuboid minus a centred cylinder is a box and a cut, moves folded into the primitives", () => {
   const { primitives, booleans, transforms } = jscadModeling;
   const main = ({ width }: { width: number }) =>

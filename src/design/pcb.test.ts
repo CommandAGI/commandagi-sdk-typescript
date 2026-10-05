@@ -72,8 +72,43 @@ test("a board refuses, by name, what it cannot say", () => {
   assert.throws(board({}, jsx("component", { name: "R1", footprint: "smd-0805", pcbX: 3 })), /pcbX and pcbY together/);
   assert.throws(board({}, jsx("resistor", { name: "R1" })), /<resistor> is not read on a board/);
   assert.throws(board({ width: 10 }), /width and height together/);
-  assert.throws(board({}, jsx("trace", { layer: "In1.Cu", width: 0.2, points: [[0, 0], [1, 0]] })), /copper layer/);
+  assert.throws(board({}, jsx("trace", { layer: "F.SilkS", width: 0.2, points: [[0, 0], [1, 0]] })), /copper layer/);
+  assert.throws(board({}, jsx("arc", { layer: "F.Cu", width: 0.2, points: [[0, 0], [1, 0]] })), /a list of 3 \[x, y\]/);
+  assert.throws(board({ core: 1, copper: 0.03, width: 5, height: 5 }, jsx("stack", { layers: [] })), /core and copper are a two-layer <stack>/);
+  assert.throws(board({}, jsx("kicad", {}), jsx("kicad", {})), /one <kicad>/);
+  assert.throws(board({}, jsx("text", { at: [0, 0], layer: "F.SilkS", size: 1, thickness: 0.1 })), /give text, or field/);
   assert.throws(board({}, jsx("trace", { layer: "F.Cu", width: 0.2, points: [[0, 0], [1, 0]], from: ".R9 > .pin1" })), /no component or trace R9/);
   assert.throws(board({}, jsx("component", { name: "V1", footprint: "smd-0805" }), jsx("via", { name: "V1", pcbX: 0, pcbY: 0, drill: 0.3, diameter: 0.6 })), /two elements are called V1/);
   assert.throws(() => declarationOf({ default: jsx("board", { schematic: "/abs.sch.json" }) }), /relative to this file/);
+});
+
+test("a board says what a KiCad board holds: its layers, cross-section, drawings, net codes and what each copper object carries", () => {
+  const layers = [{ ordinal: 0, name: "F.Cu", type: "signal" }, { ordinal: 4, name: "In1.Cu", type: "signal" }, { ordinal: 2, name: "B.Cu", type: "signal" }, { ordinal: 25, name: "Edge.Cuts", type: "user" }];
+  const g = board(
+    { layers },
+    jsx("stack", { name: "four-layer", label: "JLC 4-layer", process: { name: "JLC" }, layers: [{ name: "F.Cu", role: "conductor", thickness: 0.035 }], __source: 1 }),
+    jsx("kicad", { version: 20260206, generator: "pcbnew", forms: '(paper "A4")', __source: 2 }),
+    jsx("graphic", { kind: "line", layer: "Edge.Cuts", points: [[0, 0], [40, 0]], width: 0.1, id: "e0", kicad: "(stroke (type solid))" }),
+    jsx("text", { text: "REV A", at: [2, 3], layer: "F.SilkS", size: 1, thickness: 0.15 }),
+    jsx("net", { name: "GND", code: 1 }),
+    jsx("component", { name: "C1", footprint: "Lib:C_0805", library: "Board.pretty", pcbX: 4, pcbY: 5, uuid: "u-c1" }),
+    jsx("trace", { layer: "In1.Cu", width: 0.2, points: [[0, 0], [5, 0]], net: "GND", uuid: "u-t1", kicad: "(locked yes)" }),
+    jsx("arc", { name: "A1", layer: "F.Cu", width: 0.2, points: [[0, 0], [1, 1], [2, 0]], to: ".C1 > .pin1" }),
+    jsx("via", { name: "V1", pcbX: 5, pcbY: 0, drill: 0.3, diameter: 0.6, layers: ["F.Cu", "In1.Cu", "B.Cu"], pads: [".C1 > .pin2"], net: "GND" }),
+    jsx("pour", { layers: ["In1.Cu"], points: [[0, 0], [9, 0], [9, 9]], terminals: [[0, ".V1"]], net: "GND", kicad: "(min_thickness 0.25)" }),
+  )();
+  assert.deepEqual(g.nodes.board!.inputs, { layers, stack: { wire: { node: "stack", port: "stack" } } });
+  assert.deepEqual(g.nodes.stack, { id: "stack", type: "eda.stack", label: "JLC 4-layer", inputs: { id: "four-layer", domain: "pcb", units: "mm", layers: [{ name: "F.Cu", role: "conductor", thickness: 0.035 }], process: { name: "JLC" } }, meta: { source: 1 } });
+  const facts = Object.values(g.nodes).filter((n) => n.type === "eda.boardfact").map((n) => n.inputs);
+  assert.deepEqual(facts, [
+    { fact: "kicad", version: 20260206, generator: "pcbnew", kicad: '(paper "A4")' },
+    { fact: "graphic", id: "e0", kind: "line", points: [{ x: 0, y: 0 }, { x: 40, y: 0 }], widthMm: 0.1, layer: "Edge.Cuts", kicad: "(stroke (type solid))" },
+    { fact: "text", text: "REV A", at: { x: 2, y: 3 }, rot: 0, layer: "F.SilkS", size: 1, sizeX: 1, thickness: 0.15, kind: "text" },
+    { fact: "net", name: "GND", code: 1 },
+  ]);
+  assert.equal(g.nodes.fp_C1!.inputs.uuid, "u-c1");
+  assert.deepEqual(g.nodes.cu_1!.inputs, { kind: "run", points: [{ x: 0, y: 0, id: "start" }, { x: 5, y: 0, id: "end" }], widthMm: 0.2, layer: "In1.Cu", rule: "any", uuid: "u-t1", net: "GND", kicad: "(locked yes)" });
+  assert.deepEqual(g.nodes.A1!.inputs, { kind: "arc", points: [{ x: 0, y: 0, id: "start" }, { x: 1, y: 1, id: "p1" }, { x: 2, y: 0, id: "end" }], widthMm: 0.2, layer: "F.Cu", terminals: [{ point: 2, ref: "C1", number: "1" }] });
+  assert.deepEqual(g.nodes.V1!.inputs.pads, [{ ref: "C1", number: "2" }]);
+  assert.deepEqual(g.nodes.cu_2!.inputs, { kind: "pour", points: [{ x: 0, y: 0 }, { x: 9, y: 0 }, { x: 9, y: 9 }], layers: ["In1.Cu"], terminals: [{ point: 0, via: "V1" }], net: "GND", kicad: "(min_thickness 0.25)" });
 });
