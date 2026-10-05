@@ -114,10 +114,6 @@ export function mediaKind(src: string): "video" | "audio" | "image" | null {
 }
 
 export const VIDEO_TRACK_KINDS = ["video", "audio"] as const;
-export const BLEND_MODES = [
-  "normal", "add", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light",
-  "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity",
-] as const;
 export const EASINGS = ["linear", "easeIn", "easeOut", "easeInOut", "hold"] as const;
 export const TRANSITIONS = [
   "none", "cut", "crossDissolve", "fadeToBlack", "fadeToWhite", "dipToColor", "wipeLeft", "wipeRight", "wipeUp",
@@ -349,7 +345,8 @@ function common(c: DesignElement): Record<string, unknown> {
   return {
     opacity: num(c, "opacity", { min: 0, max: 1 }) ?? 1,
     volume: num(c, "volume", { min: 0 }) ?? 1,
-    blendMode: str(c, "blendMode", BLEND_MODES) ?? "normal",
+    // The blend modes are the compositing set the editor names (its own table); the editor checks the name.
+    blendMode: str(c, "blendMode") ?? "normal",
     ...(fit ? { fitMode: fit } : {}),
     transform,
     color,
