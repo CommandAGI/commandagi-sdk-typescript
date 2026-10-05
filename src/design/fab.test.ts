@@ -9,7 +9,7 @@ import { declarationOf, FAB, jsx } from "./index.js";
 
 const el = (tag: string, props: Record<string, unknown> = {}, ...children: unknown[]) => jsx(tag, { ...props, ...(children.length ? { children } : {}) });
 
-test("a machining setup in JSX is its .camx: records are elements, operations in their order, each __source by its path", () => {
+test("a machining setup in JSX is its setup: records are elements, operations in their order, each __source by its path", () => {
   const file = el(
     "cam",
     { __source: 0 },
@@ -50,7 +50,7 @@ test("a machining setup in JSX is its .camx: records are elements, operations in
   assert.throws(() => declarationOf({ default: el("cam", {}, el("stock", { colour: "red" })) }), /colour is not read/);
 });
 
-test("a slicing setup in JSX is its .slicex: the profile and its overrides on the root, each record one element", () => {
+test("a slicing setup in JSX is its setup: the profile and its overrides on the root, each record one element", () => {
   const file = el(
     "slice",
     { profile: "fdm_pla_0.20_draft", params: { layerHeightMm: 0.2 } },

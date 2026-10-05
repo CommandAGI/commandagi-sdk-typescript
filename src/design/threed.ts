@@ -1,6 +1,6 @@
 /**
- * A 3D DOCUMENT IN JSX — a `.3dx`'s own graph, declared element by element, so the 3D editor opens a `.3d.tsx` with
- * the tools it uses on a `.3dx` and writes each edit back into the file:
+ * A 3D DOCUMENT IN JSX — the document's own graph, declared element by element, so the 3D editor opens a `.3d.tsx`
+ * with all its tools and writes each edit back into the file:
  *
  *   export default () => (
  *     <part name="Mounting plate">
@@ -26,7 +26,7 @@
  *   <FEATURE id name …fields>                 a feature: the tag is its type (extrude, revolve, fillet, chamfer,
  *                                             hole, linearPattern, circularPattern, mirror, transform, box, …);
  *                                             `suppressed`, `consumes` as stored
- *   <feature type id name …fields>            a feature of a type the kernel does not know (a `.3dx` may hold any
+ *   <feature type id name …fields>            a feature of a type the kernel does not know (a document may hold any
  *                                             type; its rebuild names it). A known type is written as its own tag
  *   <sketch id name plane> with children      a sketch: <point id x y>, a segment by its type (<line id a b>,
  *                                             <circle id center radius>, <arc id center start end radius>,
@@ -36,7 +36,7 @@
  *   <slot name value>                         any other field of the document, whole (environment, assembly
  *                                             mates, dynamics, animation, standardParts, decals, …)
  *
- * The reader declares the `.3dx` body exactly (docs/formats.md § the 3D document's body): a feature is a node of
+ * The reader declares the document's graph exactly (docs/formats.md § the 3D document's body): a feature is a node of
  * its type with its fields as ports, a plane a `plane` node, a parameter an `input` node whose `drives` are its
  * bindings, a slot a `3d.<field>` node, the bodies one `3d.bodyMeta` node. The order of the feature elements is
  * the order of the left-hand list (`presentation.order`). Every node carries the element it came from in
@@ -47,7 +47,7 @@
 import { slug } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
 
-/** The feature types a `.3dx` stores, by tag (`packages/domain/3d-core/types.ts` Feature). */
+/** The feature types a 3D document holds, by tag (`packages/domain/3d-core/types.ts` Feature). */
 export const THREED_FEATURES: readonly string[] = [
   "sketch", "extrude", "revolve", "sweep", "loft", "fillet", "chamfer", "shell", "box", "import", "externalPart",
   "cylinder", "sphere", "cone", "makehuman", "linearPattern", "circularPattern", "pathPattern", "mirror",
@@ -62,7 +62,7 @@ const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane
 /** A sketch's segment kinds, by tag. */
 export const SKETCH_SEGMENTS: readonly string[] = ["line", "circle", "arc", "spline", "ellipse", "ellipseArc"];
 const SEGMENTS = new Set(SKETCH_SEGMENTS);
-/** The datum planes every `.3dx` has (`3d-core/document.ts` basePlanes). */
+/** The datum planes every 3D document has (`3d-core/document.ts` basePlanes). */
 export const BUILTIN_PLANES = {
   plane_xy: { name: "Front (XY)", origin: [0, 0, 0], normal: [0, 0, 1], xAxis: [1, 0, 0], builtin: "XY" },
   plane_xz: { name: "Top (XZ)", origin: [0, 0, 0], normal: [0, 1, 0], xAxis: [1, 0, 0], builtin: "XZ" },
@@ -112,7 +112,7 @@ function fields(el: DesignElement, skip: readonly string[] = []): Record<string,
   return out;
 }
 
-/** An id: letters, digits, `_ . -`, with `/` between them (a `.3dx` names a merged code part's features `<code id>/<id>`). */
+/** An id: letters, digits, `_ . -`, with `/` between them (a document names a merged code part's features `<code id>/<id>`). */
 const ID = /^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/;
 function idOf(el: DesignElement): string {
   const id = el.props.id;
@@ -184,7 +184,7 @@ function sketchOf(el: DesignElement): { sketch: Record<string, unknown>; sources
 }
 
 /**
- * The `.3dx` body a <part> or <assembly> element declares: an op graph whose nodes are its parameters, planes,
+ * The graph a <part> or <assembly> element declares: an op graph whose nodes are its parameters, planes,
  * features and slots (docs/formats.md § the 3D document's body).
  */
 export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id: string; nodes: Record<string, Node>; meta: Record<string, unknown> } {
@@ -271,7 +271,7 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
     } else {
       noChildren(el);
       if (el.type === "code") {
-        // A code feature's `inputs` are ports of its node, beside `source` and `consumes` (the `.3dx` body's rule).
+        // A code feature's `inputs` are ports of its node, beside `source` and `consumes` (the document graph's rule).
         const { inputs: codeInputs, ...own } = rest as { inputs?: Record<string, unknown> };
         if (codeInputs !== undefined && (typeof codeInputs !== "object" || Array.isArray(codeInputs) || codeInputs === null))
           throw new Error(`${where(el)}: inputs is an object`);
@@ -302,7 +302,7 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
   for (const k of VIEW_ATTRS) if (root.props[k] !== undefined) view[k] = plain(root.props[k], `${where(root)} ${k}`);
   if (root.type === "assembly") view.isAssembly = true;
   if (order.length) view.presentation = { order };
-  const id = typeof root.props.id === "string" && root.props.id ? root.props.id : `3dx-${slug(name).toLowerCase()}`;
+  const id = typeof root.props.id === "string" && root.props.id ? root.props.id : `3d-${slug(name).toLowerCase()}`;
   return { id, nodes, meta: view };
 }
 

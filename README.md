@@ -107,7 +107,7 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
 - **CAD**: `part`, `assembly`, `instance` (a part declared by another file), `box`, `cylinder`, `sphere`,
   `cone`, `sketch` (`rect`, `circle`, `polygon`, `slot`), `extrude`, `revolve`, `union`, `subtract`,
   `intersect`, `hole`, `fillet`, `chamfer`, `shell`, `copy`, `linearPattern`, `circularPattern`, `mirror`.
-  Each call is one node of the 3D feature graph a `.3dx` holds. Lengths are in mm and angles in degrees.
+  Each call is one node of the 3D document's feature graph. Lengths are in mm and angles in degrees.
 - **EDA**: `circuit`, `board`, `component` (reference, value, footprint, placement; its pins are its
   output ports), `net`, `connect`, and `footprints` (chip `0402`–`1206` for R, C, L, LED and D, plus pin
   headers, after KiCad's library footprints). A circuit is the graph a `.sch.tsx` and its `.pcb.tsx`
@@ -134,8 +134,8 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   `<assembly>`) with `<parameter>`, `<plane>`, one element per feature named by its type (`<sketch>`,
   `<extrude>`, `<revolve>`, `<fillet>`, `<hole>`, `<linearPattern>`, `<transform>` …), a sketch's `<point>`,
   `<line>`, `<circle>`, `<arc>` and `<constraint>` as its children, `<body>` for a body's material and name, and
-  `<slot name value>` for any other field. Each attribute is the field of the same name, as a `.3dx` stores it
-  (millimetres, radians); the reader declares the `.3dx` body itself. The editor writes each edit back into the
+  `<slot name value>` for any other field. Each attribute is the field of the same name, as the 3D document holds
+  it (millimetres, radians); the reader declares the document's graph itself. The editor writes each edit back into the
   file, and refuses (with the line) an edit to an attribute that is an expression or to an element in a loop.
 - **2D documents in JSX** (a `.draw.tsx`, `.paint.tsx`, `.img.tsx` or `.nest.tsx` that the CommandAGI draw, paint,
   photo and nesting editors open and edit): a `<drawing>` of `<layer>`s holding `<rect>`, `<ellipse>`, `<path d>`,
@@ -187,8 +187,8 @@ export default ({ width }: { width: number }) =>
   });
 ```
 
-Put its path in a graph's **code node** (a `.3dx` `code` feature, or a `code` node in a circuit or node
-graph). The editor runs the file in a sandboxed worker, with no network and a time limit, cached by the
+Put its path in a graph's **code node** (a 3D document's `code` feature, or a `code` node in a circuit or
+node graph). The editor runs the file in a sandboxed worker, with no network and a time limit, cached by the
 file's content hash and the node's inputs. The node's other inputs override the `params` defaults, and
 the node outputs what the file declares. The graph editor shows the node as one block naming its file,
 so you change the part by editing the file. A code file may import only `commandagi/design`,
