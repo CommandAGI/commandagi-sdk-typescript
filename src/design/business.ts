@@ -30,6 +30,7 @@
  * element's index in the file): the reader returns, beside the document, where each part of it was written, and an
  * editor writes an edit back into that element. An unknown attribute or child is refused by name, never guessed.
  */
+import type { DeclaredDocument } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
 
 export const Company = "Company";
@@ -105,14 +106,6 @@ export interface BusinessNode {
   one: Record<string, BusinessNode | null>;
   many: Record<string, BusinessNode[]>;
   source?: unknown;
-}
-
-/** What a business file declares: the native document, and where each part was written (by path, "" the root). */
-export interface DeclaredDocument {
-  kind: "company" | "rfc" | "case";
-  document: Record<string, unknown>;
-  /** `entity`, `registrations/0`, `options/1/changes/0`, … → the element's `__source`. */
-  sources: Record<string, unknown>;
 }
 
 const where = (el: DesignElement) => `<${el.type}>`;
@@ -252,15 +245,6 @@ export function documentOf(value: unknown): DeclaredDocument | null {
   if (!isElement(value) || !(value.type in ROOTS)) return null;
   const [kind, read] = ROOTS[value.type as keyof typeof ROOTS];
   const node = readBusinessNode(value);
-  return { kind, document: read(node), sources: sourcesOf(node) };
+  return { format: kind, document: read(node), sources: sourcesOf(node) };
 }
 
-/** The document a module declares: its default export, or that called with `inputs`. */
-export function declaredDocument(mod: Record<string, unknown>, inputs: Record<string, unknown> = {}): DeclaredDocument {
-  let v: unknown = mod.default;
-  if (v === undefined) throw new Error("the file exports nothing (export default a <Company>, an <Rfc> or a <Case>)");
-  if (typeof v === "function") v = (v as (p: unknown) => unknown)(inputs);
-  const doc = documentOf(v);
-  if (!doc) throw new Error("the file declares no company, RFC or case (export default a <Company>, an <Rfc> or a <Case>)");
-  return doc;
-}

@@ -3,7 +3,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { Books, CapTable, Case, Change, Company, Entity, Harm, Option, Registration, Relief, Rfc, declaredDocument, jsx } from "./index.js";
+import { Books, CapTable, Case, Change, Company, Entity, Harm, Option, Registration, Relief, Rfc, declarationOf, documentOf, jsx } from "./index.js";
+
+/** What a module declares, as a run reads it: the document beside an empty graph. */
+const declaredDocument = (mod: Record<string, unknown>) => declarationOf(mod).document!;
 
 test("a <Company> is the .company document: entity, the standard's refs, registrations; sources by path", () => {
   const tree = jsx(Company, {
@@ -18,7 +21,7 @@ test("a <Company> is the .company document: entity, the standard's refs, registr
     ],
   });
   const d = declaredDocument({ default: () => tree });
-  assert.equal(d.kind, "company");
+  assert.equal(d.format, "company");
   assert.deepEqual(d.document, {
     format: "commandagi-company",
     name: "Northwind",
@@ -57,5 +60,5 @@ test("what the vocabulary does not say is refused by name", () => {
   assert.throws(run(jsx(Company, { name: "X", children: [jsx(Books, { journal: "a" }), jsx(Books, { journal: "b" })] })), /two <Books>/);
   assert.throws(run(jsx(Company, {})), /<Company> needs name/);
   assert.throws(run(jsx(Company, { name: "X", files: "X/" })), /files is a list of text/);
-  assert.throws(run(jsx("group", { name: "X" })), /declares no company, RFC or case/);
+  assert.equal(documentOf(jsx("group", { name: "X" })), null);
 });

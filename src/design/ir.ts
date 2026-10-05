@@ -42,6 +42,17 @@ export interface IRGraph {
   meta?: Record<string, unknown>;
 }
 
+/**
+ * A native document a code file declared that is not a graph (a workbook, a page, a company, an RFC, a case): its
+ * `format`, the document itself, and what declared each part (`__source` element indexes, by key: `sheet:<id>`,
+ * `registrations/0` …). A run hands it back beside an empty graph; the editor of that format reads it.
+ */
+export interface DeclaredDocument {
+  format: string;
+  document: Record<string, unknown>;
+  sources: Record<string, unknown>;
+}
+
 /** A parameter a code file declares: `export const params = { width: { default: 40, unit: "mm" } }`. */
 export interface ParamDecl {
   default: unknown;

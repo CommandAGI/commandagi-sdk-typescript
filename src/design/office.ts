@@ -66,16 +66,9 @@
  * node's `meta.source`, as every graph's. Anything else is refused by name, never guessed.
  */
 import { channels } from "./ir.js";
-import type { IRGraph, IRNode } from "./ir.js";
+import type { DeclaredDocument, IRGraph, IRNode } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
 
-/** A native document a code file declared, with where each of its parts was written (element indexes). */
-export interface DeclaredDocument {
-  format: "sheetx" | "pagex";
-  document: Record<string, unknown>;
-  /** What declared each part, by key (`workbook`, `sheet:<id>`, `cell:<id>!A1`, `page`, `block:<id>` …). */
-  sources: Record<string, unknown>;
-}
 
 const where = (el: DesignElement) => `<${el.type}${typeof el.props.name === "string" ? ` name="${el.props.name}"` : typeof el.props.at === "string" ? ` at="${el.props.at}"` : ""}>`;
 

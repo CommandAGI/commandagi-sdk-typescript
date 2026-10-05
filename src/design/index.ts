@@ -23,7 +23,9 @@ import { fromReplicad, isReplicadShape } from "./replicad.js";
 import { fromMedia, MEDIA_ROOTS } from "./media.js";
 import { declareThreeD, isThreeD } from "./threed.js";
 import { fromTwoD, isTwoD } from "./twod.js";
-import { isOfficeRoot, readDeck, readOffice, type DeclaredDocument } from "./office.js";
+import { isOfficeRoot, readDeck, readOffice } from "./office.js";
+import { documentOf } from "./business.js";
+import type { DeclaredDocument } from "./ir.js";
 
 export * from "./ir.js";
 export * from "./graph.js";
@@ -84,13 +86,13 @@ export { jscadModeling, fromJscad, jscadParams } from "./jscad.js";
 export { replicadModule, fromReplicad } from "./replicad.js";
 export { jsx, jsxs, Fragment, isElement, type DesignElement } from "./jsx-runtime.js";
 export { declareVideo, declareSong, fromMedia, mediaKind, pitchOf, pitchName, tempoOf, timeSignatureOf, MEDIA_ROOTS } from "./media.js";
-export { readWorkbook, readPage, readDeck, readOffice, isOfficeRoot, inlineHtml, richText, OFFICE_ROOTS, DECK_TYPES, type DeclaredDocument } from "./office.js";
+export { readWorkbook, readPage, readDeck, readOffice, isOfficeRoot, inlineHtml, richText, OFFICE_ROOTS, DECK_TYPES } from "./office.js";
 
 /** What a code part declares: its graph and the parameters it takes. */
 export interface CodePartResult {
   graph: IRGraph;
   params: Record<string, ParamDecl>;
-  /** A workbook or a page the file declared (`./office.ts`); its graph is then empty. */
+  /** A native document the file declared that is not a graph (a workbook, a page, a company, an RFC, a case); its graph is then empty. */
   document?: DeclaredDocument;
 }
 
@@ -120,10 +122,11 @@ export function declarationOf(
   let value: unknown = mod.default ?? mod.main;
   if (value === undefined) throw new Error("the file exports nothing to declare (export default a part, a circuit, a graph, or a function returning one)");
   if (typeof value === "function") value = opts.replicad ? (value as (r: unknown, p: unknown) => unknown)(opts.replicad, values) : (value as (p: unknown) => unknown)(values);
-  // A workbook or a page is a document of its own, not a graph: it leaves beside an empty graph.
+  // A workbook, a page, a company, an RFC or a case is a document of its own, not a graph: it leaves beside an empty graph.
   const office = isOfficeRoot(value) ? readOffice(value) : null;
-  if (office && "document" in office) return { graph: { id: opts.name ?? "Document", nodes: {} }, params, document: office.document };
-  const graph = office ? office.graph : graphOf(value, opts.name ?? "Part");
+  const document = office ? ("document" in office ? office.document : null) : documentOf(value);
+  if (document) return { graph: { id: opts.name ?? "Document", nodes: {} }, params, document };
+  const graph = graphOf(value, opts.name ?? "Part");
   const problems = checkIR(graph);
   if (problems.length) throw new Error(`the declared graph is not well formed: ${problems.slice(0, 5).join("; ")}`);
   return { graph, params };
