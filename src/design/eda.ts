@@ -1,6 +1,6 @@
 /**
  * EDA — components, nets and the board, declared as the circuit op graph a CommandAGI circuit
- * (`<name>.sch.json` + `<name>.pcb.json`) holds in memory.
+ * (`<name>.sch.tsx` + `<name>.pcb.tsx`) holds in memory.
  *
  *   import { circuit, board, component, net, footprints as fp } from "commandagi/design";
  *

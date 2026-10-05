@@ -32,14 +32,26 @@
  *   <code name source inputs>                                              a code part: the parts another file
  *                                                                          declares (its path relative to this one),
  *                                                                          run with these inputs
+ *   <part name value symbol pins>                                          a part of a netlist circuit (no sheet): its
+ *                                                                          pins by number (["1", "2"], or
+ *                                                                          [{ number: "1", name: "VBAT" }, …])
+ *   <net name pins>                                                        a stored net of a netlist circuit: the pins
+ *                                                                          on it ([".C1 > .pin1", ".U1 > .pin6"])
+ *   … spice={[{ id, model, terminals }]}                                   on any part: the vendor SPICE packages it
+ *                                                                          binds, each formal by pin NUMBER
+ *   <attachment name role file mime>                                       a KiCad file the circuit carries for
+ *                                                                          exchange (its drawing, `role="schematic"`;
+ *                                                                          its project): the file, by its path
  *
  * schX and schY are the sheet's own coordinates: millimetres, Y DOWN (tscircuit's are Y up). schRotation is 0, 90,
  * 180 or 270 degrees; schMirror is "x" or "y". A part with neither schX nor schY is declared and not placed. The
  * symbols are named (`Ideal:R`, `Device:R_Small`): the editor draws its own ideal symbols and reads a library part's
  * pins and body from the library file, so the file holds no artwork and no pin geometry. A library part's pin is
  * named by its number (".U1 > .pin5"); the editor binds it to the unit that has that pin (a pin common to every unit
- * lands on the lowest unit placed). A wire is a binding between two pins, never a coincidence of coordinates. Each node the reader declares carries the element's `source` in
- * `meta.source`. Anything else is refused by name, never guessed.
+ * lands on the lowest unit placed). A wire is a binding between two pins, never a coincidence of coordinates. A netlist
+ * circuit (one a board or a netlist brought in) has no sheet: its parts list their pins, and its nets name the pins on
+ * them. Each node the reader declares carries the element's `source` in `meta.source`. Anything else is refused by
+ * name, never guessed.
  */
 import { channels, currentScope, slug, type Scope } from "./ir.js";
 import { partTypeFor } from "./eda.js";
@@ -48,6 +60,11 @@ import { childElements, type DesignElement } from "./jsx-runtime.js";
 export const SCH_WIRE = "sch.wire";
 export const SCH_JUNCTION = "sch.junction";
 export const SCH_LABEL = "sch.label";
+/** A stored net (a netlist circuit's): its pins on channel `pins`. */
+export const NET = "eda.net";
+/** A file the circuit carries for exchange (the circuit editor reads its text from `file`). */
+export const ATTACHMENT = "eda.source";
+const ROLES = ["schematic", "project", "library", "other"];
 /** The port a placement consumes its part on, and the part's output that offers it (the circuit's own). */
 const PART_PORT = "part";
 const PART_BODY_PORT = "@part";
@@ -85,7 +102,7 @@ export const SHEET_PARTS: Readonly<Record<string, Ideal>> = {
   ground: { symbol: "Ideal:GND", value: null, pins: 1, aliases: { pin1: "1", gnd: "1" }, power: "GND" },
 };
 /** The tags only a schematic has (a board reads resistors, capacitors and inductors too). */
-const SHEET_ONLY = new Set(["voltagesource", "currentsource", "ground", "junction", "netlabel", "part", "unit", "code"]);
+const SHEET_ONLY = new Set(["voltagesource", "currentsource", "ground", "junction", "netlabel", "part", "unit", "code", "net", "attachment"]);
 
 const PLACE_PROPS = ["schX", "schY", "schRotation", "schMirror"];
 const MIRRORS = ["x", "y"];
@@ -127,9 +144,27 @@ interface Placed {
   id: string;
   /** Its placements by unit. */
   units: Map<number, string>;
-  /** The ideal symbol, or null for a library part (its pins are the library's). */
+  /** The ideal symbol, or null for a library part (its pins are the library's) or a netlist part. */
   ideal: Ideal | null;
+  /** A netlist part's pins (it lists them; it has no symbol drawing). */
+  pins?: { id: string; number: string; name?: string }[];
   el: DesignElement;
+}
+
+/** A part's SPICE package bindings (`spice={[{ id, model, terminals: { formal: "pin number" } }]}`), as written. */
+function spiceOf(el: DesignElement): { spice?: unknown } {
+  const v = el.props.spice;
+  if (v === undefined) return {};
+  const ok =
+    Array.isArray(v) &&
+    v.every(
+      (b) =>
+        b && typeof b === "object" && typeof (b as { id?: unknown }).id === "string" && typeof (b as { model?: unknown }).model === "string" &&
+        (b as { terminals?: unknown }).terminals && typeof (b as { terminals?: unknown }).terminals === "object" &&
+        Object.values((b as { terminals: Record<string, unknown> }).terminals).every((n) => typeof n === "string"),
+    );
+  if (!ok) throw new Error(`${where(el)}: spice is a list of { id, model, terminals: { formal: "pin number" } }`);
+  return { spice: plainData(v, `${where(el)} spice`) };
 }
 
 /** Add the placement of `unit` of `part` that `el` declares (its schX, schY, schRotation, schMirror). */
@@ -167,7 +202,7 @@ export function declareSheet(children: unknown): void {
   for (const el of childElements(children)) {
     const ideal = SHEET_PARTS[el.type];
     if (ideal) {
-      refuseUnknown(el, ["name", ...PLACE_PROPS, ...(ideal.value ? [ideal.value] : []), ...(ideal.excitation ? ["excitation"] : [])]);
+      refuseUnknown(el, ["name", "spice", ...PLACE_PROPS, ...(ideal.value ? [ideal.value] : []), ...(ideal.excitation ? ["excitation"] : [])]);
       const ref = el.props.name;
       if (typeof ref !== "string" || !ref) throw new Error(`<${el.type}> needs a name`);
       // The netlist leaves power symbols out by their reference (KiCad's rule), so a ground's says it is one.
@@ -189,6 +224,7 @@ export function declareSheet(children: unknown): void {
           units: 1,
           ...(ideal.power ? { powerSymbol: true } : {}),
           ...(excitation !== undefined ? { excitation } : {}),
+          ...spiceOf(el),
         },
         { id: ref, label: ref, meta: meta(el) },
       );
@@ -199,9 +235,13 @@ export function declareSheet(children: unknown): void {
     }
     switch (el.type) {
       case "part": {
-        refuseUnknown(el, ["name", "symbol", "library", "value", ...PLACE_PROPS]);
+        refuseUnknown(el, ["name", "symbol", "library", "value", "pins", "spice", ...PLACE_PROPS]);
         const ref = str(el, "name", "the part's reference (U1)");
         if (parts.has(ref)) throw new Error(`two parts are called ${ref}`);
+        if (el.props.pins !== undefined) {
+          parts.set(ref, netlistPart(s, el, ref));
+          break;
+        }
         const symbol = str(el, "symbol", 'its library ref ("Device:R_Small")');
         if (!/^[^:]+:[^:]+$/.test(symbol)) throw new Error(`${where(el)}: symbol is a library ref, "Library:Symbol" ("Device:R_Small"), not ${JSON.stringify(symbol)}`);
         const library = str(el, "library", "the path of the .kicad_sym that holds the symbol");
@@ -211,7 +251,7 @@ export function declareSheet(children: unknown): void {
         // The pins are the library's: the editor reads them (and the part's type) from the library file.
         const part = s.add(
           partTypeFor([]),
-          { ref, ...(raw !== undefined ? { value: String(raw) } : {}), symbol, library, pins: [] },
+          { ref, ...(raw !== undefined ? { value: String(raw) } : {}), symbol, library, pins: [], ...spiceOf(el) },
           { id: ref, label: ref, meta: meta(el) },
         );
         const placed: Placed = { ref, id: part.id, units: new Map(), ideal: null, el };
@@ -242,6 +282,8 @@ export function declareSheet(children: unknown): void {
       case "unit":
       case "trace":
       case "netlabel":
+      case "net":
+      case "attachment":
         later.push(el);
         break;
       default:
@@ -299,6 +341,39 @@ export function declareSheet(children: unknown): void {
   }
   for (const el of later) {
     if (el.type === "unit") continue;
+    if (el.type === "attachment") {
+      refuseUnknown(el, ["name", "role", "file", "mime"]);
+      const name = str(el, "name", "the attachment's name (schematic.kicad_sch)");
+      const role = str(el, "role", `one of ${ROLES.join(", ")}`);
+      if (!ROLES.includes(role)) throw new Error(`${where(el)}: role is one of ${ROLES.join(", ")}`);
+      const file = str(el, "file", "the path of the file it carries, relative to this one");
+      if (file.startsWith("/")) throw new Error(`${where(el)}: file is a path relative to this file`);
+      const mime = el.props.mime;
+      if (mime !== undefined && typeof mime !== "string") throw new Error(`${where(el)}: mime is a media type`);
+      s.add(ATTACHMENT, { name, role, ...(mime !== undefined ? { mime } : {}), file }, { id: free(`source_${name}`), label: name, meta: meta(el) });
+      continue;
+    }
+    if (el.type === "net") {
+      refuseUnknown(el, ["name", "pins"]);
+      const name = str(el, "name", "the net's name");
+      const pins = el.props.pins;
+      if (!Array.isArray(pins) || !pins.length) throw new Error(`${where(el)}: pins is a list of pins (".C1 > .pin1")`);
+      const wires = pins.map((sel) => {
+        const p = typeof sel === "string" ? /^\s*\.([A-Za-z0-9_#\-]+)\s*>\s*\.([A-Za-z0-9_+\-]+)\s*$/.exec(sel) : null;
+        if (!p) throw new Error(`${where(el)}: ${JSON.stringify(sel)} is not ".REF > .pin1"`);
+        const part = parts.get(p[1]!);
+        if (!part) throw new Error(`${where(el)}: there is no part ${p[1]}`);
+        const number = /^pin(.+)$/i.exec(p[2]!)?.[1] ?? p[2]!;
+        // A library part's pin by number: the editor reads its pins from the library.
+        if (!part.pins && !part.ideal) return { wire: { node: part.id, port: `${LIBRARY_PIN_PORT}${number}` } };
+        if (!part.pins) throw new Error(`${where(el)}: ${part.ref} is an ideal part drawn on the sheet; a net names pins of a netlist circuit's parts`);
+        const pin = part.pins.find((x) => x.number === number);
+        if (!pin) throw new Error(`${where(el)}: ${part.ref} has no pin ${number}`);
+        return { wire: { node: part.id, port: pin.id } };
+      });
+      s.add(NET, channels("pins", wires), { id: free(`net_${name}`), label: name, meta: meta(el) });
+      continue;
+    }
     if (el.type === "netlabel") {
       refuseUnknown(el, ["net", "connection"]);
       const text = el.props.net;
@@ -320,6 +395,34 @@ export function declareSheet(children: unknown): void {
       else s.add(SCH_WIRE, channels("ends", [{ wire: a }, { wire: b }]), { id: free(`w_${++wires}`), label: "Wire", meta: meta(el) });
     }
   }
+}
+
+/** A part of a netlist circuit: its pins listed (by number, with a name or not), no symbol drawing, no placement. */
+function netlistPart(s: Scope, el: DesignElement, ref: string): Placed {
+  for (const p of [...PLACE_PROPS, "library"])
+    if (el.props[p] !== undefined) throw new Error(`${where(el)}: a part that lists its pins is a netlist circuit's; it has no ${p === "library" ? "library" : "place on the sheet"}`);
+  const raw = el.props.pins;
+  if (!Array.isArray(raw) || !raw.length) throw new Error(`${where(el)}: pins is a list of pin numbers (["1", "2"]) or of { number, name }`);
+  const numbers = new Set<string>();
+  const pins = raw.map((p, i) => {
+    const pin = typeof p === "string" ? { number: p } : p && typeof p === "object" && !Array.isArray(p) ? (p as { number?: unknown; name?: unknown }) : null;
+    if (!pin || typeof pin.number !== "string" || (pin.name !== undefined && typeof pin.name !== "string") || Object.keys(pin).some((k) => k !== "number" && k !== "name"))
+      throw new Error(`${where(el)}: pin ${i} is a number ("1") or { number, name }, not ${JSON.stringify(p)}`);
+    // A mechanical pad has no number (""); a numbered pin is one pin.
+    // A pin number may repeat (a power pin each unit of a part shares, a mechanical pad with no number).
+    numbers.add(pin.number);
+    return { id: `p${i + 1}`, number: pin.number, ...(pin.name !== undefined ? { name: pin.name as string } : {}) };
+  });
+  const symbol = el.props.symbol;
+  if (symbol !== undefined && (typeof symbol !== "string" || !symbol)) throw new Error(`${where(el)}: symbol is a library ref ("Device:R")`);
+  const raw2 = el.props.value;
+  if (raw2 !== undefined && typeof raw2 !== "string" && typeof raw2 !== "number") throw new Error(`${where(el)}: value is a value ("LM358", 1000), not ${JSON.stringify(raw2)}`);
+  const part = s.add(
+    partTypeFor(pins),
+    { ref, ...(raw2 !== undefined ? { value: String(raw2) } : {}), ...(symbol !== undefined ? { symbol } : {}), pins, ...spiceOf(el) },
+    { id: ref, label: ref, meta: meta(el) },
+  );
+  return { ref, id: part.id, units: new Map(), ideal: null, pins, el };
 }
 
 /** Whether a JSX circuit is a schematic: its root is a <group>, or it places a symbol or uses a tag only a schematic has. */
