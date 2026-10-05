@@ -12,7 +12,7 @@
  *       <operation id="op-1" op="mill_adaptive" profile="adaptive_wood" params={{ toolDiameterMm: 3.175 }}
  *         region={{ boundary: [[27, 25], [63, 25], [63, 45], [27, 45]], depthMm: 3 }} />
  *       <operation id="op-2" op="mill_contour" profile="contour_wood" tabs={{ count: 4, lengthMm: 5, heightMm: 1.5 }} />
- *       <runsOn unit="cloud://global/worlds/fab-cell/world.json#cnc-1" channel="gcode" name="cnc 3018 / 01" />
+ *       <runsOn unit="cloud://global/worlds/fab-cell/world.tsx#cnc-1" channel="gcode" name="cnc 3018 / 01" />
  *     </cam>
  *   );
  *
@@ -21,7 +21,7 @@
  *     <slice profile="fdm_pla_0.20_draft" params={{ layerHeightMm: 0.2 }}>
  *       <source fileId="carrier.stl" name="carrier.stl" />
  *       <spool materialId="pla" diameterMm={1.75} />
- *       <machine unit="cloud://global/worlds/fab-cell/world.json#printer-1" channel="gcode" name="ender-3 v3 se / 01" />
+ *       <machine unit="cloud://global/worlds/fab-cell/world.tsx#printer-1" channel="gcode" name="ender-3 v3 se / 01" />
  *     </slice>
  *   );
  *

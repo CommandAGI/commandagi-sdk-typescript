@@ -18,7 +18,7 @@ test("a machining setup in JSX is its setup: records are elements, operations in
     el("fixture", { name: "clamp", xMm: -14, yMm: 25, wMm: 20, dMm: 20, zMm: 4 }),
     el("operation", { id: "op-2", op: "mill_contour", profile: "contour_wood", tabs: { count: 4, lengthMm: 5, heightMm: 1.5 }, __source: 3 }),
     el("operation", { id: "op-1", op: "mill_pocket", profile: "pocket_wood", enabled: false, params: { toolDiameterMm: 3.175 } }),
-    el("runsOn", { unit: "cloud://global/worlds/fab-cell/world.json#cnc-1", channel: "gcode", name: "cnc" }),
+    el("runsOn", { unit: "cloud://global/worlds/fab-cell/world.tsx#cnc-1", channel: "gcode", name: "cnc" }),
   );
   const { graph, document } = declarationOf({ default: () => file });
   assert.deepEqual(graph.nodes, {});
@@ -33,7 +33,7 @@ test("a machining setup in JSX is its setup: records are elements, operations in
       { id: "op-2", op: "mill_contour", profile: "contour_wood", tabs: { count: 4, lengthMm: 5, heightMm: 1.5 } },
       { id: "op-1", op: "mill_pocket", profile: "pocket_wood", enabled: false, params: { toolDiameterMm: 3.175 } },
     ],
-    runsOn: { unit: "cloud://global/worlds/fab-cell/world.json#cnc-1", channel: "gcode", name: "cnc" },
+    runsOn: { unit: "cloud://global/worlds/fab-cell/world.tsx#cnc-1", channel: "gcode", name: "cnc" },
   });
   assert.deepEqual(FAB.cam.fromTree(FAB.cam.toTree(doc as never)), doc, "both ways");
   const native = { source: null, design: null, stock: { materialId: "aluminium", thicknessMm: null, xMm: null, yMm: null }, part: null, machine: { post: "grbl", maxSpindleRpm: null, maxFeedMmPerMin: null, spindlePowerKw: null }, fixtures: [], operations: [{ id: "op-1", op: "face", profile: "p", enabled: true, params: {}, tabs: null, region: null }], runsOn: null };
@@ -56,7 +56,7 @@ test("a slicing setup in JSX is its setup: the profile and its overrides on the 
     { profile: "fdm_pla_0.20_draft", params: { layerHeightMm: 0.2 } },
     el("source", { fileId: "carrier.stl", name: "carrier.stl" }),
     el("spool", { materialId: "pla", diameterMm: 1.75 }),
-    el("machine", { unit: "cloud://global/worlds/fab-cell/world.json#printer-1", channel: "gcode", name: "ender" }),
+    el("machine", { unit: "cloud://global/worlds/fab-cell/world.tsx#printer-1", channel: "gcode", name: "ender" }),
   );
   const { document } = declarationOf({ default: file });
   assert.equal(document!.format, "slice");
@@ -66,7 +66,7 @@ test("a slicing setup in JSX is its setup: the profile and its overrides on the 
     params: { layerHeightMm: 0.2 },
     source: { fileId: "carrier.stl", name: "carrier.stl" },
     spool: { materialId: "pla", diameterMm: 1.75 },
-    machine: { unit: "cloud://global/worlds/fab-cell/world.json#printer-1", channel: "gcode", name: "ender" },
+    machine: { unit: "cloud://global/worlds/fab-cell/world.tsx#printer-1", channel: "gcode", name: "ender" },
   });
   assert.deepEqual(FAB.slice.fromTree(FAB.slice.toTree(doc as never)), doc, "both ways");
   assert.deepEqual(FAB.slice.toTree({ profile: "p", params: {}, source: null, design: null, spool: { materialId: "pla", diameterMm: 1.75 }, machine: null }).attrs, { profile: "p" }, "empty overrides are not written");

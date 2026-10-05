@@ -5,22 +5,22 @@
  *   // worlds/shop/world.tsx
  *   export default () => (
  *     <world name="Shop" kind="physical">
- *       <unit uid="arm" name="arm" device="../../devices/so-101/definition.json" position={[0, 0, 0]} rotation={0} />
+ *       <unit uid="arm" name="arm" device="../../devices/so-101/definition.tsx" position={[0, 0, 0]} rotation={0} />
  *     </world>
  *   );
  *
  * A record is an element and its fields are the element's attributes, verbatim; a list of records is the parent's
  * children (`units` → `<unit>`, `channels` → `<channel>`, a scene's `bodies` → `<body>`). The tags:
  *
- *   <world name kind description? from? model?>   world.json             <space origin_mm size_mm>, <unit uid …>,
+ *   <world name kind description? from? model?>   world.tsx             <space origin_mm size_mm>, <unit uid …>,
  *                                                                        <view …>, <scene …> (<body id …> children)
- *   <device name …>                               definition.json        <channel id dir medium format transport …>
- *   <dashboard name …>                            <name>.dashboard.json  <param id type …>, one layout: <split axis
+ *   <device name …>                               definition.tsx        <channel id dir medium format transport …>
+ *   <dashboard name …>                            <name>.dashboard.tsx   <param id type …>, one layout: <split axis
  *                                                                        ratio> of two <split>|<pane id kind …>, or
  *                                                                        one <pane>; <region side tab …>
- *   <geoproject id name …>                        <name>.geox            <dateRange start end>, <camera …>,
+ *   <geoproject id name …>                        <name>.geo.tsx         <dateRange start end>, <camera …>,
  *                                                                        <reference role path …>
- *   <opgraph name>                                <name>.opgraph         <node id type x y …ports>, <wire from to>
+ *   <opgraph name>                                <name>.opgraph.tsx     <node id type x y …ports>, <wire from to>
  *
  * A node graph is the editor's op graph itself (no carrier): `<node id="blur" type="blur" x={300} y={80} radius={6} />`
  * is the node `{ id: "blur", type: "blur", inputs: { radius: 6 }, meta: { x: 300, y: 80 } }`, and
@@ -41,7 +41,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v =
 const childrenOf = (t: DocTree, tag: string) => t.children.filter((c) => c.tag === tag);
 const leaf = (tag: string, attrs: Record<string, unknown>): DocTree => ({ tag, attrs, children: [] });
 
-// ── world.json ──────────────────────────────────────────────────────────────────────────────────────────────────
+// ── world.tsx ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** The fields of a unit in a world's file (packages/domain/world/worlds.js). */
 export const UNIT_FIELDS = ["uid", "name", "device", "domain", "size_mm", "support", "channels", "manualUrl", "position", "rotation"] as const;
@@ -91,7 +91,7 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
   },
 };
 
-// ── definition.json ─────────────────────────────────────────────────────────────────────────────────────────────
+// ── definition.tsx ─────────────────────────────────────────────────────────────────────────────────────────────
 
 export interface DeviceDoc {
   name: string;
@@ -117,7 +117,7 @@ export const deviceVocabulary: Vocabulary<DeviceDoc> = {
   },
 };
 
-// ── <name>.dashboard.json ───────────────────────────────────────────────────────────────────────────────────────
+// ── <name>.dashboard.tsx ───────────────────────────────────────────────────────────────────────────────────────
 
 export interface DashboardDoc {
   format: "commandagi-dashboard";
@@ -188,7 +188,7 @@ export const dashboardVocabulary: Vocabulary<DashboardDoc> = {
   },
 };
 
-// ── <name>.geox (the geo project's manifest) ────────────────────────────────────────────────────────────────────
+// ── <name>.geo.tsx (the geo project's manifest) ────────────────────────────────────────────────────────────────────
 
 const GEO_FIELDS = ["id", "name", "createdAt", "updatedAt", "description", "defaultWorkspace", "metadata"] as const;
 export interface GeoProjectDoc {
@@ -240,7 +240,7 @@ export const geoVocabulary: Vocabulary<GeoProjectDoc> = {
   },
 };
 
-// ── <name>.opgraph: the node graph ─────────────────────────────────────────────────────────────────────────────
+// ── <name>.opgraph.tsx: the node graph ─────────────────────────────────────────────────────────────────────────────
 
 /** The graph id and domain a node graph has unless its file says another (the node-graph editor's new graph). */
 export const NODE_GRAPH_ID = "nodegraph";
