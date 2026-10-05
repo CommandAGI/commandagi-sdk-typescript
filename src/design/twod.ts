@@ -2,10 +2,10 @@
  * 2D DOCUMENTS IN JSX — a drawing, a paint document, a photo and a nest, declared as the nodes the CommandAGI 2D
  * editors draw and edit (no second model). The root names the document:
  *
- *   <drawing>    a `.drawx`: layers of shapes                     (`.draw.tsx`)
- *   <painting>   a `.paintx`: a layer stack of brush strokes      (`.paint.tsx`)
- *   <photo>      a `.imgx`: pixel layers, adjustments, filters    (`.img.tsx`)
- *   <nest>       a `.nestx`: flat parts nested on a sheet         (`.nest.tsx`)
+ *   <drawing>    layers of shapes                     (`.draw.tsx`)
+ *   <painting>   a layer stack of brush strokes       (`.paint.tsx`)
+ *   <photo>      pixel layers, adjustments, filters   (`.img.tsx`)
+ *   <nest>       flat parts nested on a sheet         (`.nest.tsx`)
  *
  *   export default () => (
  *     <drawing name="Poster" width={800} height={600} background="#ffffff">
@@ -20,11 +20,12 @@
  *   );
  *
  * ONE RULE FOR EVERY TAG: an element is one node, its attributes are the node's inputs by their own names, and its
- * children are the nodes it takes, in order. So a file says what the editor's own file says, and an edit in the
+ * children are the nodes it takes, in order. So a file says what the editor's document holds, and an edit in the
  * editor is one attribute or one element. The few encodings (each for a reason):
  *
  *   drawing   a top-level `<group>` is written `<layer>` (the editor's layers panel lists them); a path's `subpaths`
- *             is `d`, an SVG path (M L C Q Z, absolute); a brush stroke's points are `[x, y]` pairs. A modifier
+ *             is `d`, an SVG path (M L C Q Z, absolute); a brush stroke's points are `[x, y]` pairs; an `<image>`
+ *             or a `<raster-layer>` names its image file by `src`. A modifier
  *             (`<blur>`, `<transform>`, `<fill>`, …) wraps the one node it takes; `<boolean>` its shapes; `<clip>` its
  *             content then its mask.
  *   painting  `<layer>`, `<fill>`, `<group>` are the stack, bottom first; a layer's `<stroke>` children are the
@@ -32,10 +33,12 @@
  *             `[x, y, pressure, t, tiltX, tiltY]`): free-hand data is a points array, written once.
  *   photo     `<raster>`, `<fill>`, `<gradient>`, `<group>` and one tag per adjustment (`<exposure ev={0.35} />`,
  *             `<hsl>`, `<levels>`, …) are the stack; a raster's children are its filters (`<gaussianBlur radius={3} />`).
+ *             In a painting or a photo, a `<mask>` child of a layer (or of a stroke or a filter) holds the one layer
+ *             that masks it (`<mask><gradient /></mask>`).
  *   nest      `<sheet>`, `<stock>`, `<options>` and one `<part>` per part.
  *
- * PIXELS ARE NOT CODE: a raster layer names its image file by relative path (`src="scan.png"`, the file beside the
- * document), as a `.paintx` / `.imgx` does. Nothing here holds encoded pixels. `label`, `disabled` and `id` set the
+ * PIXELS ARE NOT CODE: a raster layer, a placed image or a pixel layer names its image file by relative path
+ * (`src="scan.png"`, the file beside the document). Nothing here holds encoded pixels. `label`, `disabled` and `id` set the
  * node's own fields. Each node carries the element's `source` in `meta.source`. A tag the vocabulary does not have
  * is refused by name.
  */
@@ -95,7 +98,9 @@ const kids = (el: DesignElement) => childElements(el.props.children);
 const DRAW_SOURCES = new Set(["rect", "ellipse", "polygon", "path", "text", "brush-stroke"]);
 /** Modifiers: the one node each takes is its child, on port `in`. */
 const DRAW_MODIFIERS = new Set(["transform", "offset", "array", "mirror", "stroke", "fill", "blur", "levels", "threshold", "adjust", "crop", "bucket-fill"]);
-const DRAW_LATER = new Set(["image", "raster-layer", "sketch", "connector", "draw.instance"]);
+/** Pixels a drawing places: each names its image file (`src`). */
+const DRAW_PIXELS = new Set(["image", "raster-layer"]);
+const DRAW_LATER = new Set(["sketch", "connector", "draw.instance"]);
 
 /** An SVG path's `d` (absolute M L H V C Q Z) as the editor's subpaths. */
 export function subpathsOf(d: string, what: string): unknown[] {
@@ -187,6 +192,11 @@ function declareDrawn(s: Scope, el: DesignElement, top: boolean): NodeRef {
     if (t === "brush-stroke" && a.points !== undefined) a.points = pairs(a.points, `${where(el)} points`);
     return add(s, el, t, a);
   }
+  if (DRAW_PIXELS.has(t)) {
+    if (kids(el).length) throw new Error(`${where(el)} takes no children`);
+    if (el.props.src === undefined) throw new Error(`${where(el)}: src names its image file by relative path ("photo.png")`);
+    return add(s, el, t, { ...attrs(el, ["src"]), __asset: asset(el.props.src, el) });
+  }
   if (DRAW_MODIFIERS.has(t)) {
     const [input, ...rest] = kids(el);
     if (!input || rest.length) throw new Error(`${where(el)} wraps the one node it changes`);
@@ -198,14 +208,14 @@ function declareDrawn(s: Scope, el: DesignElement, top: boolean): NodeRef {
     if (!content || !mask || rest.length) throw new Error(`${where(el)} takes its content, then its mask`);
     return add(s, el, t, { ...attrs(el), content: declareDrawn(s, content, false), mask: declareDrawn(s, mask, false) });
   }
-  if (DRAW_LATER.has(t)) throw new Error(`<${t}> is not declared in code yet (a drawing in code holds shapes, groups and modifiers)`);
+  if (DRAW_LATER.has(t)) throw new Error(`<${t}> is not declared in code yet (a drawing in code holds shapes, images, groups and modifiers)`);
   throw new Error(`<${t}> is not read in a drawing (see commandagi/design twod)`);
 }
 
 function drawing(root: DesignElement, name: string): Declaration {
   const a = attrs(root, ["name", "width", "height", "background"]);
   if (Object.keys(a).length) throw new Error(`<drawing>: ${Object.keys(a)[0]} is not read (a drawing has name, width, height, background)`);
-  // A drawing with no name of its own declares none (as a `.drawx` may); the file's name only names the graph.
+  // A drawing with no name of its own declares none; the file's name only names the graph.
   const own = typeof root.props.name === "string" ? root.props.name : undefined;
   const m: Record<string, unknown> = own !== undefined ? { name: own } : {};
   for (const k of ["width", "height", "background"] as const) if (root.props[k] !== undefined) m[k] = plainData(root.props[k], `<drawing> ${k}`);
@@ -313,6 +323,34 @@ const PHOTO: StackKind = {
   },
 };
 
+/**
+ * A layer's (or a stroke's, or a filter's) `<mask>`: the one stack layer it holds, declared outside the stack and
+ * wired to the node's `mask` port. A mask is any layer the stack could hold (a `<gradient>`, a `<raster src>`, a
+ * `<fill>`, a `<group>` …). The `<mask>` element is not a node: where it was written is the masked node's
+ * `meta.sources.mask`.
+ */
+function maskOf(s: Scope, kind: StackKind, el: DesignElement): { inputs: { mask?: NodeRef }; at?: unknown } {
+  const masks = kids(el).filter((c) => c.type === "mask");
+  if (!masks.length) return { inputs: {} };
+  if (masks.length > 1) throw new Error(`${where(el)} has one <mask>`);
+  const m = masks[0]!;
+  if (Object.keys(attrs(m)).length) throw new Error(`<mask> in ${where(el)} has no attributes (write them on the layer it holds)`);
+  const held = kids(m);
+  if (held.length !== 1) throw new Error(`<mask> in ${where(el)} holds one layer`);
+  return { inputs: { mask: declareStack(s, kind, held)[0]! }, at: m.source };
+}
+
+/** Declare `el` as one node of `type`, masked by its `<mask>` when it has one. */
+function addMasked(s: Scope, kind: StackKind, el: DesignElement, type: string, inputs: Record<string, unknown>): NodeRef {
+  const mask = maskOf(s, kind, el);
+  const ref = add(s, el, type, { ...inputs, ...mask.inputs });
+  if (mask.at !== undefined) {
+    const node = ref.node as IRNode;
+    node.meta = { ...node.meta, sources: { mask: mask.at } };
+  }
+  return ref;
+}
+
 function declareStack(s: Scope, kind: StackKind, children: DesignElement[]): NodeRef[] {
   const slots: NodeRef[] = [];
   for (const el of children) {
@@ -322,14 +360,14 @@ function declareStack(s: Scope, kind: StackKind, children: DesignElement[]): Nod
       throw new Error(`<${el.type}> is not read in a ${kind.root} (see commandagi/design twod)`);
     }
     const stack: DesignElement[] = [], chain: DesignElement[] = [];
-    for (const c of kids(el)) (kind.chain(c) ? chain : stack).push(c);
+    for (const c of kids(el)) if (c.type !== "mask") (kind.chain(c) ? chain : stack).push(c);
     if (stack.length && layer.type !== `${kind.prefix}.group`) throw new Error(`${where(el)}: only a <group> holds layers`);
     const inner = layer.type === `${kind.prefix}.group` ? declareStack(s, kind, stack) : [];
-    let top = add(s, el, layer.type, { ...layer.inputs, ...channels("layers", inner) });
+    let top = addMasked(s, kind, el, layer.type, { ...layer.inputs, ...channels("layers", inner) });
     // Each chain member carries the layer's fields: the stack reads them off whichever member is on top.
     const carried: Record<string, unknown> = { ...COMMON_DEFAULTS };
     for (const k of COMMON) if (layer.inputs[k] !== undefined) carried[k] = layer.inputs[k];
-    for (const c of chain) top = add(s, c, kind.chainType, { ...carried, ...kind.chain(c)!, src: top });
+    for (const c of chain) top = addMasked(s, kind, c, kind.chainType, { ...carried, ...kind.chain(c)!, src: top });
     slots.push(top);
   }
   return slots;
