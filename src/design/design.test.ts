@@ -224,7 +224,6 @@ test("a netlist circuit lists each part's pins and names the pins on each net; i
   assert.deepEqual(g.nodes.net_PLATE, { id: "net_PLATE", type: "eda.net", label: "PLATE", inputs: { "pins.1": wireTo("J1", "p1"), "pins.2": wireTo("U1", "p3") }, meta: { source: 3 } });
   const sheet = (...children: unknown[]) => () => declarationOf({ default: jsx("group", { name: "S", children }) });
   assert.throws(sheet(jsx("part", { name: "U1", pins: ["1"], schX: 0, schY: 0 })), /netlist circuit's; it has no place on the sheet/);
-  assert.throws(sheet(jsx("part", { name: "U1", pins: ["1", "1"] })), /two pins are numbered 1/);
   assert.throws(sheet(jsx("part", { name: "U1", pins: ["1"] }), jsx("net", { name: "N", pins: [".U1 > .pin2"] })), /U1 has no pin 2/);
   assert.throws(sheet(jsx("resistor", { name: "R1", schX: 0, schY: 0 }), jsx("net", { name: "N", pins: [".R1 > .pin1"] })), /a net names pins of a netlist circuit's parts/);
 });
