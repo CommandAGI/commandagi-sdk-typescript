@@ -23,8 +23,8 @@
  *                                                      of the editor's own land patterns, BOARD_FOOTPRINTS), where it
  *                                                      sits, its rotation (degrees) and its side ("top" or "bottom").
  *                                                      With no pcbX and pcbY it has a footprint and is not placed.
- *   <trace name layer width rule points from to>       a copper run: its points ([[x, y], …]), on one copper layer,
- *                                                      with a finished width; `rule` is "any", "45" or "90".
+ *   <trace name layer width points from to>            a copper run: its points ([[x, y], …]), on one copper layer,
+ *                                                      with a finished width.
  *                                                      `from` and `to` say what its first and last points land on.
  *   <via name pcbX pcbY drill diameter layers>         a plated barrel; `layers` defaults to ["F.Cu", "B.Cu"].
  *
@@ -213,12 +213,10 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
           { id: `fp_${ref}`, label: ref, meta: meta(el) },
         );
       } else if (el.type === "trace") {
-        refuseUnknown(el, ["name", "layer", "width", "rule", "points", "from", "to"]);
+        refuseUnknown(el, ["name", "layer", "width", "points", "from", "to"]);
         const pts = points(el);
         const layer = el.props.layer;
         if (typeof layer !== "string" || !COPPER.has(layer)) throw new Error(`${where(el)}: layer is a copper layer ("F.Cu" or "B.Cu")`);
-        const rule = el.props.rule ?? "any";
-        if (!["any", "45", "90"].includes(rule as string)) throw new Error(`${where(el)}: rule is "any", "45" or "90"`);
         const terminals = [
           ...(el.props.from !== undefined ? [end(el.props.from, el, 0)] : []),
           ...(el.props.to !== undefined ? [end(el.props.to, el, pts.length - 1)] : []),
@@ -230,7 +228,8 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
             points: pts.map((p, i) => ({ ...p, id: tracePointId(i, pts.length) })),
             widthMm: positive(el, "width", true),
             layer,
-            rule,
+            // The board view routes and re-routes it under any angle; a KiCad segment says no rule.
+            rule: "any",
             ...(terminals.length ? { terminals } : {}),
           },
           { id: idOf.get(el)!, label: "Trace", meta: meta(el) },
