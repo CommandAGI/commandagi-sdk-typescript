@@ -117,6 +117,12 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   placed with `schX` / `schY` (the sheet's millimetres, Y down) and `schRotation`, `<junction>`, `<trace from to>`
   and `<netlabel net connection>`. They declare the circuit's own sheet. The editor writes each edit back into the
   file; an attribute that is an expression is never replaced with a literal (the edit is refused with its line).
+- **Office documents in JSX** (a `<name>.sheet.tsx`, `.page.tsx` or `.deck.tsx` the sheets, docs and decks editors
+  open and edit): a `<workbook>` of `<sheet>`s with `<cell at value|formula …format>`, `<column>` and `<row>`; a
+  `<page>` of `<h1>`–`<h3>`, `<p>`, `<bullet>`, `<numbered>`, `<todo>`, `<quote>`, `<pre>`, `<divider>` and
+  `<image>`, whose text is their children (marks `<b> <i> <u> <s> <code> <a> <br />`); a `<deck>` of `<slide
+  layout>`s with `<text>`, `<shape>` and `<image>` boxes (`x y w h`). They declare the editors' own documents; the
+  editor writes each edit back into the file and refuses an edit to what the code computes.
 - **Any graph**: `graph`, `node(type, inputs)`, `input` (a graph input), `code` (a node that runs another
   file), `channels(set, values)` (the numbered ports `set.1 … set.N`).
 - **Importers** read other frameworks into the same graph: tscircuit JSX (`<board>`, `<resistor>`, `<led>`,
