@@ -1,5 +1,5 @@
 /**
- * TASKS AND PROJECTS IN JSX — a `.task` and a `.project` written as the elements the tasks and projects apps edit
+ * TASKS AND PROJECTS IN JSX — a `.task.tsx` and a `.project.tsx`, written as the elements the tasks and projects apps edit
  * (docs/formats.md § editor documents and § the ontology's files, in the CommandAGI repository).
  *
  *   // Tasks/Ship it.task.tsx
@@ -118,7 +118,7 @@ export const taskVocabulary: Vocabulary<TaskDoc> = {
   },
   fromTree(t) {
     const subtasks = t.children.filter((c) => c.tag === "subtask").map((c) => c.attrs.ref);
-    for (const ref of subtasks) if (typeof ref !== "string" || !ref) throw new Error(`<subtask> ref is a path to a .task file, not ${JSON.stringify(ref)}`);
+    for (const ref of subtasks) if (typeof ref !== "string" || !ref) throw new Error(`<subtask> ref is a path to a .task.tsx file, not ${JSON.stringify(ref)}`);
     return { ...(fieldsOf(t.attrs, where(t)) as { id: string }), ...(subtasks.length ? { subtasks: subtasks as string[] } : {}) };
   },
   toTree(d) {

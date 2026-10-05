@@ -1,7 +1,7 @@
 /**
- * A COMPANY, AN RFC OR A CASE IN JSX — the same documents the CommandAGI company app and contract editor open as
- * `<Name>.company`, `<name>.rfc` and `<name>.case`, declared as code (`<Name>.company.tsx`, `<name>.rfc.tsx`,
- * `<name>.case.tsx`). The reader gives back the native document itself: no second model.
+ * A COMPANY, AN RFC OR A CASE IN JSX — the documents the CommandAGI company app and contract editor open, declared
+ * as code (`<Name>.company.tsx`, `<name>.rfc.tsx`, `<name>.case.tsx`). The reader gives back the document the apps
+ * use: no second model.
  *
  *   import { Company, Entity, Registration, Books, CapTable, People, Calendar, Matters } from "commandagi/design";
  *
@@ -183,7 +183,7 @@ function sourcesOf(node: BusinessNode, at = "", out: Record<string, unknown> = {
   return out;
 }
 
-/** A `.company` document from a `<Company>` (docs/formats.md § companies). */
+/** A company document from a `<Company>` (docs/formats.md § companies). */
 export function companyOf(node: BusinessNode): Record<string, unknown> {
   const p = node.props, one = node.one;
   const entity = one.entity

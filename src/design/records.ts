@@ -1,5 +1,5 @@
 /**
- * SIGNED RECORDS IN JSX — a market contract (`.contract`) and a product instance (`.instance`) written as elements
+ * SIGNED RECORDS IN JSX — a market contract (`.contract.tsx`) and a product instance (`.instance.tsx`), written as elements
  * (docs/formats.md § a contract record and a product instance in code, in the CommandAGI repository).
  *
  *   // Contracts/Bench time.contract.tsx

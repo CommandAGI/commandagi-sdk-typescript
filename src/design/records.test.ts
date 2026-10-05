@@ -1,4 +1,4 @@
-// Signed records in JSX declare the plain bodies of a `.contract` and a `.instance`. Pinned here: a contract's terms
+// Signed records in JSX declare a contract record and a product instance. Pinned here: a contract's terms
 // are one attribute and come back byte-for-byte (nulls and empty strings kept), parties and events are children in
 // order, both ways; an event chain out of order and a field with no attribute are refused by name.
 import assert from "node:assert/strict";
