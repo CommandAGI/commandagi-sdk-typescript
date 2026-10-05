@@ -178,7 +178,8 @@ export const dashboardVocabulary: Vocabulary<DashboardDoc> = {
         used.add(n.paneId);
         return leaf("pane", { id: n.paneId, ...(d.panes?.[n.paneId] ?? {}) });
       }
-      return { tag: "split", attrs: { axis: n.axis, ratio: n.ratio }, children: n.children.map(layout) };
+      // A split's ratio to a thousandth, as a saved tab has it: a ratio the code computes (1 / 3) is the same split.
+      return { tag: "split", attrs: { axis: n.axis, ratio: typeof n.ratio === "number" ? Math.round(n.ratio * 1000) / 1000 : n.ratio }, children: n.children.map(layout) };
     };
     const children = [...(d.params ?? []).map((p) => leaf("param", { ...p })), layout(d.layout)];
     for (const id of Object.keys(d.panes ?? {})) if (!used.has(id)) throw new Error(`pane ${id} is in no part of the layout, so a dashboard in code cannot hold it`);
