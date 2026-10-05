@@ -117,6 +117,11 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   placed with `schX` / `schY` (the sheet's millimetres, Y down) and `schRotation`, `<junction>`, `<trace from to>`
   and `<netlabel net connection>`. They declare the circuit's own sheet. The editor writes each edit back into the
   file; an attribute that is an expression is never replaced with a literal (the edit is refused with its line).
+- **A video or a song in JSX** (a `<name>.vid.tsx` the video editor opens, a `<name>.mus.tsx` the music studio
+  opens; both write each edit back): `<video>` with `<track>`, `<clip src="media/take.mp4" start in out>` (media
+  stay files, named by path), `<title>`, `<transition>`, `<effect>`, `<keyframe>` and `<marker>`; `<song tempo
+  timeSignature>` with `<track>`, `<synth>`, the effects (`<gain>`, `<filter>`, `<delay>`, `<reverb>`, `<eq>`),
+  `<clip>` and `<note pitch="C4" start duration velocity>`. Seconds on a video's timeline, beats in a song.
 - **Any graph**: `graph`, `node(type, inputs)`, `input` (a graph input), `code` (a node that runs another
   file), `channels(set, values)` (the numbered ports `set.1 … set.N`).
 - **Importers** read other frameworks into the same graph: tscircuit JSX (`<board>`, `<resistor>`, `<led>`,
