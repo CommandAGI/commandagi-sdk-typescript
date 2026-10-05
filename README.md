@@ -117,6 +117,13 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   placed with `schX` / `schY` (the sheet's millimetres, Y down) and `schRotation`, `<junction>`, `<trace from to>`
   and `<netlabel net connection>`. They declare the circuit's own sheet. The editor writes each edit back into the
   file; an attribute that is an expression is never replaced with a literal (the edit is refused with its line).
+- **2D documents in JSX** (a `.draw.tsx`, `.paint.tsx`, `.img.tsx` or `.nest.tsx` that the CommandAGI draw, paint,
+  photo and nesting editors open and edit): a `<drawing>` of `<layer>`s holding `<rect>`, `<ellipse>`, `<path d>`,
+  `<text>`, `<group>` and modifiers (`<blur>`, `<transform>` … wrap what they change); a `<painting>` whose `<layer>`s
+  hold `<stroke points>` (`[x, y, pressure, t]` each); a `<photo>` of `<raster src>` layers (their filters inside
+  them) and adjustment tags (`<exposure ev>`, `<hsl>` …); a `<nest>` of `<sheet>`, `<stock>`, `<options>` and `<part>`.
+  An element is one node of the editor's own document and its attributes are that node's inputs. A pixel layer
+  names its image file (`src`); pixels are never code. The editor writes each edit back into the file.
 - **Any graph**: `graph`, `node(type, inputs)`, `input` (a graph input), `code` (a node that runs another
   file), `channels(set, values)` (the numbered ports `set.1 … set.N`).
 - **Importers** read other frameworks into the same graph: tscircuit JSX (`<board>`, `<resistor>`, `<led>`,
