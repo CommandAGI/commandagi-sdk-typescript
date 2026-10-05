@@ -38,6 +38,23 @@ test("a drawing declares the composite, its layers as groups, shapes with their 
   assert.deepEqual(g.nodes.rect!.meta, { source: 2 });
 });
 
+test("a drawing's placed image and raster layer name their image files by src", () => {
+  const g = run(
+    h("drawing", { width: 100, height: 80 },
+      h("layer", { name: "Pictures" },
+        h("image", { src: "photos/harbour.jpg", x: 10, y: 20, w: 40, h: 30 }),
+        h("raster-layer", { src: "scan.png" }),
+      ),
+    ),
+  );
+  assert.deepEqual(g.nodes.image!.inputs, { x: 10, y: 20, w: 40, h: 30, __asset: { kind: "file", $file: "photos/harbour.jpg", mime: "image/jpeg" } });
+  assert.deepEqual(g.nodes["raster-layer"]!.inputs, { __asset: { kind: "file", $file: "scan.png", mime: "image/png" } });
+  const drawn = (child: unknown) => () => run(h("drawing", {}, h("layer", {}, child)));
+  assert.throws(drawn(h("image", { src: "data:image/png;base64,AAAA" })), /src names an image file by relative path/);
+  assert.throws(drawn(h("raster-layer", { src: "/home/a.png" })), /src is a path relative to this file/);
+  assert.throws(drawn(h("image", { x: 1 })), /src names its image file/);
+});
+
 test("a paint document's strokes chain onto their layer and carry its fields; a layer's pixels are its image file", () => {
   const g = run(
     h("painting", { name: "Sketch", width: 100, height: 80, background: [1, 1, 1, 1] },
@@ -69,6 +86,23 @@ test("a photo's adjustments are tags whose attributes are the adjustment; a rast
   assert.deepEqual(g.nodes["photo.adjust"]!.inputs, { name: "Exposure", adjustment: { type: "exposure", ev: 0.35, offset: 0, gamma: 1 } });
   assert.deepEqual(g.nodes["photo.filter"]!.inputs, { name: "Photo", visible: true, opacity: 1, blend: "normal", filter: { type: "gaussianBlur", radius: 3 }, src: wire("photo.raster") });
   assert.deepEqual(g.nodes.doc!.inputs["layers.1"], wire("photo.filter"));
+});
+
+test("a <mask> is the one layer it holds, wired to the mask port of the node it masks (a layer or a chain member)", () => {
+  const g = run(
+    h("photo", {},
+      h("exposure", { name: "Sky", ev: -0.5 }, h("mask", { __source: 9 }, h("gradient", {}))),
+      h("raster", { src: "a.png" }, h("gaussianBlur", { radius: 2 }, h("mask", {}, h("fill", { color: [1, 1, 1, 1] })))),
+    ),
+  );
+  assert.deepEqual(g.nodes["photo.adjust"]!.inputs.mask, wire("photo.gradient"));
+  assert.deepEqual(g.nodes["photo.adjust"]!.meta, { sources: { mask: 9 } });
+  assert.deepEqual(g.nodes["photo.filter"]!.inputs.mask, wire("photo.fill"));
+  assert.equal(g.nodes["photo.raster"]!.inputs.mask, undefined);
+  assert.deepEqual(Object.keys(g.nodes.doc!.inputs).filter((k) => k.startsWith("layers.")), ["layers.1", "layers.2"]);
+  assert.throws(() => run(h("photo", {}, h("exposure", {}, h("mask", {})))), /holds one layer/);
+  const p = run(h("painting", {}, h("layer", {}, h("stroke", { points: [] }), h("mask", {}, h("fill", {})))));
+  assert.deepEqual(p.nodes["paint.layer"]!.inputs.mask, wire("paint.fill"));
 });
 
 test("a nest declares its sheet, stock, options and parts", () => {
