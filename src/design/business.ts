@@ -48,7 +48,7 @@ export const Case = "Case";
 export const Harm = "Harm";
 export const Relief = "Relief";
 
-type Kind = "text" | "texts" | "bool" | "record" | "data";
+type Kind = "text" | "texts" | "bool" | "record" | "data" | "amount";
 interface TagSpec {
   props: Record<string, Kind>;
   required?: readonly string[];
@@ -95,8 +95,8 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
     },
     many: { harms: "Harm", relief: "Relief" },
   },
-  Harm: { props: { id: "text", interest: "text", description: "text", amount: "text" }, required: ["id"] },
-  Relief: { props: { kind: "text", description: "text", harmIds: "texts", amount: "text", days: "text" }, required: ["kind"] },
+  Harm: { props: { id: "text", interest: "text", description: "text", amount: "amount" }, required: ["id"] },
+  Relief: { props: { kind: "text", description: "text", harmIds: "texts", amount: "amount", days: "amount" }, required: ["kind"] },
 };
 
 /** One element as read: its attributes, its children by field, and where it was written. */
@@ -116,6 +116,10 @@ function value(el: DesignElement, prop: string, kind: Kind): unknown {
   switch (kind) {
     case "text":
       if (typeof v !== "string") throw bad("text");
+      return v;
+    // An amount is as the form typed it (text) or as a file stored it (a number); each is kept as it is.
+    case "amount":
+      if (typeof v !== "string" && (typeof v !== "number" || !Number.isFinite(v))) throw bad("text or a number");
       return v;
     case "texts":
       if (!Array.isArray(v) || !v.every((x) => typeof x === "string")) throw bad("a list of text");

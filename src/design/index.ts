@@ -93,6 +93,8 @@ export { readWorkbook, readPage, readDeck, readOffice, isOfficeRoot, inlineHtml,
 export * from "./documents.js";
 export * from "./ontology.js";
 export * from "./tasks.js";
+export * from "./records.js";
+export * from "./fab.js";
 
 /** What a code part declares: its graph and the parameters it takes. */
 export interface CodePartResult {

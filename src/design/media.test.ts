@@ -57,6 +57,32 @@ test("a <video> declares sources, clips, tracks and the composite the video edit
   assert.throws(video(jsx("clip", { src: "a.mp4", out: 2, trackers: [] })), /prop trackers is not read/);
 });
 
+test("a clip's <intro> and <outro> are its intro and outro animations (animIn, animOut), each with its element", () => {
+  const tree = jsx("video", {
+    children: [
+      jsx("track", {
+        name: "V1",
+        children: [
+          jsx("title", {
+            text: "Hi",
+            duration: 2,
+            __source: 0,
+            children: [jsx("intro", { preset: "rise", duration: 0.34, __source: 1 }), jsx("outro", { preset: "fade", __source: 2 })],
+          }),
+        ],
+      }),
+    ],
+  });
+  const clip = declarationOf({ default: () => tree }).graph.nodes.clip_Title!;
+  assert.deepEqual(clip.inputs.animIn, { preset: "rise", duration: 0.34 });
+  assert.deepEqual(clip.inputs.animOut, { preset: "fade", duration: 1 }, "a second when the duration is not given");
+  assert.deepEqual(clip.meta, { source: 0, sources: { intro: 1, outro: 2 } });
+  const titled = (...children: unknown[]) => () => declarationOf({ default: jsx("video", { children: [jsx("track", { children: [jsx("title", { duration: 1, children })] })] }) });
+  assert.throws(titled(jsx("intro", { preset: "wobble" })), /preset is one of/);
+  assert.throws(titled(jsx("intro", { preset: "fade" }), jsx("intro", { preset: "pop" })), /a clip has one <intro>/);
+  assert.throws(titled(jsx("outro", {})), /<outro> names its preset/);
+});
+
 test("a <song> declares the chain synth → effects → track → master, with each clip's notes inline", () => {
   const tree = jsx("song", {
     name: "Loop",

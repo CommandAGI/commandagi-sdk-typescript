@@ -28,7 +28,7 @@
  *
  * Media files are named by path relative to the file (`src`), never inlined; the editor reads them. Times on a
  * video's timeline are seconds; times in a song are beats. Each node carries the element that declared it in
- * `meta.source`; what a node holds that is not a node (a clip's effects, transition and keyframes; a midi clip's
+ * `meta.source`; what a node holds that is not a node (a clip's effects, transition, intro, outro and keyframes; a midi clip's
  * notes; a video's markers) carries its element in `meta.sources`, by key. Anything else is refused by name.
  */
 import { slug, Declaration, type IRGraph, type IRNode } from "./ir.js";
@@ -113,7 +113,19 @@ export function mediaKind(src: string): "video" | "audio" | "image" | null {
   return (ext && VIDEO_EXT[ext]) || null;
 }
 
-export const VIDEO_TRACK_KINDS = ["video", "audio"] as const;
+export const VIDEO_TRACK_KINDS = ["video", "audio", "midi"] as const;
+/** A `<shape>` clip's shape (the video editor's stickers) and its look; `content` is the glyph of an emoji or star, or SVG path data. */
+export const SHAPE_KINDS = ["emoji", "rect", "ellipse", "triangle", "star", "arrow", "heart", "speech", "svg"] as const;
+export const SHAPE_LOOK = { fill: "#ffd166", stroke: "#00000000", strokeWidth: 0 } as const;
+/** A shape's content when not given: the star's glyph, else none. */
+export const shapeContent = (kind: string): string => (kind === "star" ? "⭐" : "");
+/** A `<midi>` clip's instruments (the video editor's synth voices) and its defaults. */
+export const MIDI_INSTRUMENTS = [
+  "grandPiano", "electricPiano", "synthLead", "synthPad", "strings", "organ", "bass", "pluck", "bell", "sawLead", "squareLead",
+  "superSaw", "reeseBass", "subBass", "fmBell", "musicBox", "marimba", "vibraphone", "kalimba", "harp", "clav", "brass", "flute",
+  "choir", "glass", "sineLead", "pwmPad", "pluckSynth", "eightBit", "drumKit",
+] as const;
+export const MIDI_CLIP = { instrument: "grandPiano", gain: 0.8 } as const;
 export const EASINGS = ["linear", "easeIn", "easeOut", "easeInOut", "hold"] as const;
 export const TRANSITIONS = [
   "none", "cut", "crossDissolve", "fadeToBlack", "fadeToWhite", "dipToColor", "wipeLeft", "wipeRight", "wipeUp",
@@ -125,6 +137,8 @@ export const EFFECT_TYPES = [
   "mirror", "vignette", "glow", "grayscale", "sepia", "invert", "posterize", "edges", "chromaticAberration", "bulge",
   "duotone", "colorWheels", "mask",
 ] as const;
+/** A clip's intro and outro animations (`<intro preset duration>`, `<outro preset duration>`; the video editor's presets). */
+export const ANIM_PRESETS = ["fade", "slideL", "slideR", "slideU", "slideD", "pop", "rise", "spin"] as const;
 /** The properties a clip's keyframes animate (an effect's keyframes name a `param` of it). */
 export const ANIMATABLE = ["opacity", "volume", "transform.x", "transform.y", "transform.scaleX", "transform.scaleY", "transform.rotation"] as const;
 
@@ -144,7 +158,7 @@ export const TITLE_TEXT = {
   strokeWidth: 0,
 } as const;
 export const VIDEO_SETTINGS = { width: 1920, height: 1080, fps: 30, sampleRate: 48000, background: "#000000" } as const;
-const TRACK_HEIGHT = { video: 64, audio: 48 } as const;
+const TRACK_HEIGHT = { video: 64, audio: 48, midi: 56 } as const;
 
 const CLIP_PROPS = ["name", "start", "duration", "in", "out", "speed", "opacity", "volume", "blendMode", "fitMode", ...Object.keys(CLIP_TRANSFORM), ...Object.keys(CLIP_COLOR)];
 
@@ -153,9 +167,12 @@ interface Keyed {
   at: unknown;
 }
 
-/** A clip's children: its transition, its effects (each with its keyframes) and its keyframes. */
+/** A clip's children: its transition, its intro and outro, its effects (each with its keyframes) and its keyframes. */
 function clipChildren(clip: DesignElement, clipId: string, sources: Record<string, unknown>) {
   let transitionIn: { kind: string; duration: number; params?: Record<string, number | string> } = { kind: "none", duration: 0 };
+  const anims: { animIn?: { preset: string; duration: number }; animOut?: { preset: string; duration: number } } = {};
+  const notes: { id: string; pitch: number; start: number; duration: number; velocity: number }[] = [];
+  const noteId = idMaker();
   const effects: { id: string; type: string; enabled: boolean; params: Record<string, number>; colors?: Record<string, string> }[] = [];
   const keyframes: { property: string; keys: { id: string; time: number; value: number; easing: string }[] }[] = [];
   const fxId = idMaker();
@@ -180,6 +197,29 @@ function clipChildren(clip: DesignElement, clipId: string, sources: Record<strin
         sawTransition = true;
         transitionIn = { kind: str(el, "kind", TRANSITIONS) ?? "crossDissolve", duration: num(el, "duration", { min: 0 }) ?? 0.5 };
         sources.transition = sourceMeta(el);
+        break;
+      }
+      case "note": {
+        if (clip.type !== "midi") throw new Error(`<note> is read in a <midi> clip, not a <${clip.type}>`);
+        refuseUnknown(el, ["pitch", "start", "duration", "velocity"]);
+        const pitch = pitchOf(el.props.pitch);
+        if (pitch === null) throw new Error(`<note>: pitch is a MIDI number 0–127 or a name like "C4", not ${JSON.stringify(el.props.pitch)}`);
+        const start = num(el, "start", { min: 0 }), duration = num(el, "duration", { min: 0 });
+        if (start === undefined || duration === undefined) throw new Error(`<note>: a note has a start and a duration (seconds in the clip)`);
+        const id = noteId(`note_${clipId}`);
+        notes.push({ id, pitch, start, duration, velocity: num(el, "velocity", { min: 0, max: 1 }) ?? 0.8 });
+        sources[`note:${id}`] = sourceMeta(el);
+        break;
+      }
+      case "intro":
+      case "outro": {
+        refuseUnknown(el, ["preset", "duration"]);
+        const key = el.type === "intro" ? "animIn" : "animOut";
+        if (anims[key]) throw new Error(`${where(clip)}: a clip has one <${el.type}>`);
+        const preset = str(el, "preset", ANIM_PRESETS);
+        if (!preset) throw new Error(`<${el.type}> names its preset (${ANIM_PRESETS.join(", ")})`);
+        anims[key] = { preset, duration: num(el, "duration", { min: 0 }) ?? 1 };
+        sources[el.type] = sourceMeta(el);
         break;
       }
       case "effect": {
@@ -214,10 +254,10 @@ function clipChildren(clip: DesignElement, clipId: string, sources: Record<strin
         break;
       }
       default:
-        throw new Error(`<${el.type}> is not read in a <${clip.type}> (a clip holds <transition>, <effect> and <keyframe>)`);
+        throw new Error(`<${el.type}> is not read in a <${clip.type}> (a clip holds <transition>, <intro>, <outro>, <effect> and <keyframe>; a <midi> clip its <note>s)`);
     }
   }
-  return { transitionIn, effects, keyframes };
+  return { transitionIn, ...anims, effects, keyframes, notes };
 }
 
 /** Declare a video (`<video>` and its tracks) as the video editor's own op graph. */
@@ -249,8 +289,8 @@ export function declareVideo(root: DesignElement): Declaration {
     }
     if (tr.type !== "track") throw new Error(`<${tr.type}> is not read in a <video> (it holds <track> and <marker>)`);
     refuseUnknown(tr, ["name", "kind", "muted", "hidden", "locked", "volume", "height"]);
-    const kind = (str(tr, "kind", VIDEO_TRACK_KINDS) ?? "video") as "video" | "audio";
-    const trackName = str(tr, "name") ?? (kind === "audio" ? "A" : "V");
+    const kind = (str(tr, "kind", VIDEO_TRACK_KINDS) ?? "video") as (typeof VIDEO_TRACK_KINDS)[number];
+    const trackName = str(tr, "name") ?? (kind === "audio" ? "A" : kind === "midi" ? "M" : "V");
     const trackId = id(`track_${trackName}`);
     const clipWires: unknown[] = [];
     for (const c of childElements(tr.props.children)) {
@@ -303,13 +343,47 @@ export function declareVideo(root: DesignElement): Declaration {
         if (tw !== undefined) text.typewriter = tw;
         inputs = { kind: "text", name: clipName, start: num(c, "start", { min: 0 }) ?? 0, duration, inPoint: 0, speed: 1, ...common(c), volume: 1, text };
         inputs.source = null;
-      } else throw new Error(`<${c.type}> is not read on a <track> (it holds <clip> and <title>)`);
+      } else if (c.type === "shape" || c.type === "adjustment") {
+        // A shape and an adjustment layer are synthetic: no media, no in/out, speed 1, no sound.
+        const own = c.type === "shape" ? ["kind", "content", ...Object.keys(SHAPE_LOOK)] : [];
+        refuseUnknown(c, [...CLIP_PROPS.filter((p) => p !== "in" && p !== "out" && p !== "speed" && p !== "volume"), ...own]);
+        if (kind !== "video") throw new Error(`${where(c)}: a <${c.type}> goes on a video track`);
+        clipName = str(c, "name") ?? (c.type === "shape" ? "Sticker" : "Adjustment");
+        const duration = num(c, "duration", { min: 0 });
+        if (duration === undefined) throw new Error(`${where(c)}: give its duration in seconds`);
+        inputs = { kind: c.type, name: clipName, start: num(c, "start", { min: 0 }) ?? 0, duration, inPoint: 0, speed: 1, ...common(c), volume: 1 };
+        if (c.type === "shape") {
+          const sk = str(c, "kind", SHAPE_KINDS);
+          if (!sk) throw new Error(`${where(c)}: a <shape> names its kind (${SHAPE_KINDS.join(", ")})`);
+          inputs.sticker = {
+            kind: sk,
+            content: str(c, "content") ?? shapeContent(sk),
+            fill: str(c, "fill") ?? SHAPE_LOOK.fill,
+            stroke: str(c, "stroke") ?? SHAPE_LOOK.stroke,
+            strokeWidth: num(c, "strokeWidth", { min: 0 }) ?? SHAPE_LOOK.strokeWidth,
+          };
+        }
+        inputs.source = null;
+      } else if (c.type === "midi") {
+        refuseUnknown(c, [...CLIP_PROPS.filter((p) => p !== "in" && p !== "out" && p !== "speed"), ...Object.keys(MIDI_CLIP)]);
+        if (kind !== "midi") throw new Error(`${where(c)}: a <midi> clip goes on a midi track (kind="midi")`);
+        clipName = str(c, "name") ?? "MIDI";
+        const duration = num(c, "duration", { min: 0 });
+        if (duration === undefined) throw new Error(`${where(c)}: give its duration in seconds`);
+        inputs = { kind: "midi", name: clipName, start: num(c, "start", { min: 0 }) ?? 0, duration, inPoint: 0, speed: 1, ...common(c) };
+        inputs.source = null;
+      } else throw new Error(`<${c.type}> is not read on a <track> (it holds <clip>, <title>, <shape>, <adjustment> and <midi>)`);
+      if (kind === "midi" && c.type !== "midi") throw new Error(`${where(c)}: a midi track holds <midi> clips`);
       const clipId = id(`clip_${clipName}`);
       const kids = clipChildren(c, clipId, sources);
       inputs.transitionIn = kids.transitionIn;
+      if (kids.animIn) inputs.animIn = kids.animIn;
+      if (kids.animOut) inputs.animOut = kids.animOut;
       inputs.effects = kids.effects;
       inputs.trackers = [];
       if (kids.keyframes.length) inputs.keyframes = kids.keyframes;
+      if (c.type === "midi")
+        inputs.midi = { notes: kids.notes, instrument: str(c, "instrument", MIDI_INSTRUMENTS) ?? MIDI_CLIP.instrument, gain: num(c, "gain", { min: 0 }) ?? MIDI_CLIP.gain };
       const { source, ...rest } = inputs;
       nodes[clipId] = node(clipId, "video.clip", { ...rest, source }, clipName, metaOf(c, sources));
       clipWires.push(wire(clipId, "frames"));

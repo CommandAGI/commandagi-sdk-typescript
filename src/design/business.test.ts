@@ -51,6 +51,10 @@ test("an <Rfc> is its draft and, once opened, its id; a <Case> is its harms and 
   assert.deepEqual(rfc.sources, { "options/0/changes/0": 7 });
   const kase = declaredDocument({ default: jsx(Case, { respondent: "Acme", children: [jsx(Harm, { id: "h1", interest: "property", amount: "4200" }), jsx(Relief, { kind: "restitution", harmIds: ["h1"] })] }) });
   assert.deepEqual(kase.document, { draft: { respondent: "Acme", harms: [{ id: "h1", interest: "property", amount: "4200" }], relief: [{ kind: "restitution", harmIds: ["h1"] }] } });
+  // An amount a file stored as a number stays a number (the form types text; both are kept as they are).
+  const stored = declaredDocument({ default: jsx(Case, { children: [jsx(Harm, { id: "h1", amount: 4200 }), jsx(Relief, { kind: "exclusion", amount: 10.5, days: 30 })] }) });
+  assert.deepEqual(stored.document, { draft: { harms: [{ id: "h1", amount: 4200 }], relief: [{ kind: "exclusion", amount: 10.5, days: 30 }] } });
+  assert.throws(() => declaredDocument({ default: jsx(Case, { children: jsx(Harm, { id: "h1", amount: true }) }) }), /<Harm>: amount is text or a number, not true/);
 });
 
 test("what the vocabulary does not say is refused by name", () => {

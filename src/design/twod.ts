@@ -205,10 +205,11 @@ function declareDrawn(s: Scope, el: DesignElement, top: boolean): NodeRef {
 function drawing(root: DesignElement, name: string): Declaration {
   const a = attrs(root, ["name", "width", "height", "background"]);
   if (Object.keys(a).length) throw new Error(`<drawing>: ${Object.keys(a)[0]} is not read (a drawing has name, width, height, background)`);
-  const title = typeof root.props.name === "string" ? root.props.name : name;
-  const m: Record<string, unknown> = { name: title };
+  // A drawing with no name of its own declares none (as a `.drawx` may); the file's name only names the graph.
+  const own = typeof root.props.name === "string" ? root.props.name : undefined;
+  const m: Record<string, unknown> = own !== undefined ? { name: own } : {};
   for (const k of ["width", "height", "background"] as const) if (root.props[k] !== undefined) m[k] = plainData(root.props[k], `<drawing> ${k}`);
-  const s = new Scope(`draw:${slug(title)}`, m);
+  const s = new Scope(`draw:${slug(own ?? name)}`, m);
   withScope(s, () => {
     const layers = kids(root).map((c) => declareDrawn(s, c, true));
     const comp = s.add(

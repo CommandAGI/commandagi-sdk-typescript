@@ -20,10 +20,14 @@
  * The tags (each attribute is the field of the same name; nothing is renamed):
  *   <part name> | <assembly name>             the document; <assembly> opens in the assembly mode (`isAssembly`)
  *   <parameter name value unit comment min max step bindings>    a parameter; `bindings` [{ target, field }]
- *   <plane id name origin normal xAxis>       a datum plane (the three built-in planes are always there)
+ *   <part builtinPlanes={[…]}>                the built-in planes the document has (plane_xy, plane_xz, plane_yz);
+ *                                             absent: all three, `builtinPlanes={[]}`: none
+ *   <plane id name origin normal xAxis>       a datum plane
  *   <FEATURE id name …fields>                 a feature: the tag is its type (extrude, revolve, fillet, chamfer,
  *                                             hole, linearPattern, circularPattern, mirror, transform, box, …);
  *                                             `suppressed`, `consumes` as stored
+ *   <feature type id name …fields>            a feature of a type the kernel does not know (a `.3dx` may hold any
+ *                                             type; its rebuild names it). A known type is written as its own tag
  *   <sketch id name plane> with children      a sketch: <point id x y>, a segment by its type (<line id a b>,
  *                                             <circle id center radius>, <arc id center start end radius>,
  *                                             <spline>, <ellipse>, <ellipseArc>), <constraint id kind entities
@@ -37,7 +41,8 @@
  * bindings, a slot a `3d.<field>` node, the bodies one `3d.bodyMeta` node. The order of the feature elements is
  * the order of the left-hand list (`presentation.order`). Every node carries the element it came from in
  * `meta.source`; a sketch's entities and the bodies are listed by key in `meta.sources`. Units are millimetres
- * and radians, as stored. Anything else is refused by name, never guessed.
+ * and radians, as stored. An id is letters, digits, `_ . -`, with `/` between them (a merged code part's features
+ * are `<code id>/<id>`). Anything else is refused by name, never guessed.
  */
 import { slug } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
@@ -52,6 +57,8 @@ export const THREED_FEATURES: readonly string[] = [
   "pcbTrace", "copperPour", "generateVia", "platedHole", "code",
 ];
 const FEATURES = new Set(THREED_FEATURES);
+/** Tags with a meaning of their own: never a `<feature type>`. */
+const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "point", "constraint", "projection", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input"]);
 /** A sketch's segment kinds, by tag. */
 export const SKETCH_SEGMENTS: readonly string[] = ["line", "circle", "arc", "spline", "ellipse", "ellipseArc"];
 const SEGMENTS = new Set(SKETCH_SEGMENTS);
@@ -105,10 +112,12 @@ function fields(el: DesignElement, skip: readonly string[] = []): Record<string,
   return out;
 }
 
+/** An id: letters, digits, `_ . -`, with `/` between them (a `.3dx` names a merged code part's features `<code id>/<id>`). */
+const ID = /^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)*$/;
 function idOf(el: DesignElement): string {
   const id = el.props.id;
   if (typeof id !== "string" || !id) throw new Error(`${where(el)} needs an id`);
-  if (slug(id) !== id) throw new Error(`${where(el)}: an id is letters, digits, _ . - (${JSON.stringify(id)})`);
+  if (!ID.test(id)) throw new Error(`${where(el)}: an id is letters, digits, _ . - with / between them (${JSON.stringify(id)})`);
   return id;
 }
 
@@ -181,7 +190,8 @@ function sketchOf(el: DesignElement): { sketch: Record<string, unknown>; sources
 export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id: string; nodes: Record<string, Node>; meta: Record<string, unknown> } {
   if (!isThreeD(root)) throw new Error("a 3D document is one <part> or <assembly> element");
   for (const k of Object.keys(root.props))
-    if (!["children", "key", "name", "id"].includes(k) && !VIEW_ATTRS.has(k)) throw new Error(`${where(root)}: prop ${k} is not read on a 3D document`);
+    if (!["children", "key", "name", "id", "builtinPlanes"].includes(k) && !VIEW_ATTRS.has(k)) throw new Error(`${where(root)}: prop ${k} is not read on a 3D document`);
+  const builtins = builtinPlanesOf(root);
   const name = typeof root.props.name === "string" && root.props.name ? root.props.name : fallbackName;
   const nodes: Record<string, Node> = {};
   const owner = new Map<string, string>();
@@ -236,13 +246,20 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
       nodes[field] = { id: field, type: `3d.${field}`, inputs, ...meta(el) };
     } else if (FEATURES.has(el.type)) {
       declared.push(el);
+    } else if (el.type === "feature") {
+      const t = el.props.type;
+      if (typeof t !== "string" || !/^[A-Za-z_][\w.-]*$/.test(t)) throw new Error(`${where(el)} needs the feature's type`);
+      if (FEATURES.has(t) || NOT_FEATURES.has(t)) throw new Error(`${where(el)}: a ${t} is written <${t}>`);
+      declared.push(el);
     } else throw new Error(`<${el.type}> is not read in a 3D document (see commandagi/design threed)`);
   }
   for (const el of declared) {
     const id = idOf(el);
     claim(id, `feature "${id}"`);
-    if ("type" in el.props) throw new Error(`${where(el)}: the tag is the feature's type`);
-    const { name: label, suppressed, ...rest } = fields(el, ["id"]);
+    const generic = el.type === "feature";
+    if (!generic && "type" in el.props) throw new Error(`${where(el)}: the tag is the feature's type`);
+    const type = generic ? (el.props.type as string) : el.type;
+    const { name: label, suppressed, ...rest } = fields(el, generic ? ["id", "type"] : ["id"]);
     if (suppressed !== undefined && typeof suppressed !== "boolean") throw new Error(`${where(el)}: suppressed is true or false`);
     let inputs = rest;
     let sources: Record<string, unknown> | undefined;
@@ -264,7 +281,7 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
     }
     nodes[id] = {
       id,
-      type: el.type,
+      type,
       label: typeof label === "string" ? label : id,
       ...(suppressed !== undefined ? { disabled: suppressed as boolean } : {}),
       inputs,
@@ -273,7 +290,7 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
     order.push(id);
   }
   for (const [id, p] of Object.entries(BUILTIN_PLANES)) {
-    if (owner.has(id)) continue;
+    if (owner.has(id) || !builtins.has(id)) continue;
     const { name: label, ...inputs } = p;
     nodes[id] = { id, type: "plane", label, inputs: JSON.parse(JSON.stringify(inputs)) };
   }
@@ -287,6 +304,16 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
   if (order.length) view.presentation = { order };
   const id = typeof root.props.id === "string" && root.props.id ? root.props.id : `3dx-${slug(name).toLowerCase()}`;
   return { id, nodes, meta: view };
+}
+
+/** The built-in planes a root says the document has (`builtinPlanes`); absent: all three. */
+function builtinPlanesOf(root: DesignElement): Set<string> {
+  const v = root.props.builtinPlanes;
+  if (v === undefined) return new Set(Object.keys(BUILTIN_PLANES));
+  if (!Array.isArray(v) || v.some((x) => typeof x !== "string" || !(x in BUILTIN_PLANES)))
+    throw new Error(`${where(root)}: builtinPlanes lists built-in planes (${Object.keys(BUILTIN_PLANES).join(", ")})`);
+  if (new Set(v).size !== v.length) throw new Error(`${where(root)}: builtinPlanes names a plane twice`);
+  return new Set(v as string[]);
 }
 
 /** Slots whose value is an object: each field is a port of the slot's node; any other slot holds its value whole. */
