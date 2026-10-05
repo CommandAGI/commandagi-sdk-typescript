@@ -92,6 +92,7 @@ export { declareVideo, declareSong, fromMedia, mediaKind, pitchOf, pitchName, te
 export { readWorkbook, readPage, readDeck, readOffice, isOfficeRoot, inlineHtml, richText, OFFICE_ROOTS, DECK_TYPES } from "./office.js";
 export * from "./documents.js";
 export * from "./ontology.js";
+export * from "./tasks.js";
 
 /** What a code part declares: its graph and the parameters it takes. */
 export interface CodePartResult {
