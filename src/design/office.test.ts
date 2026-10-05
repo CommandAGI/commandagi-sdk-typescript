@@ -12,9 +12,9 @@ test("a <workbook> declares the workbook JSON: cells by A1 reference, formats, s
       el("workbook", { title: "Budget" }, el("sheet", { name: "Q1", frozenRows: 1 }, el("column", { at: "B", width: 120 }), el("cell", { at: "a1", value: "Item", bold: true }), el("cell", { at: "B2", formula: "=1+1" }))),
   });
   assert.deepEqual(graph.nodes, {});
-  assert.equal(document?.format, "sheetx");
+  assert.equal(document?.format, "workbook");
   assert.deepEqual(document?.document, {
-    format: "sheetx",
+    format: "workbook",
     version: 1,
     sheets: [{ id: "sheet-1", name: "Q1", kind: "grid", rows: 200, cols: 26, cells: { A1: { v: "Item", fmt: { bold: true } }, B2: { f: "=1+1" } }, colWidths: { 1: 120 }, frozen: { rows: 1, cols: 0 } }],
     meta: { title: "Budget" },
