@@ -117,6 +117,15 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   placed with `schX` / `schY` (the sheet's millimetres, Y down) and `schRotation`, `<junction>`, `<trace from to>`
   and `<netlabel net connection>`. They declare the circuit's own sheet. The editor writes each edit back into the
   file; an attribute that is an expression is never replaced with a literal (the edit is refused with its line).
+- **The ontology's files in JSX** (CommandAGI opens them where it opens their JSON, and writes each edit back into
+  the code): a world (`worlds/<name>/world.tsx`: `<world name kind>` with `<space>`, `<unit uid name device
+  position rotation>`, `<view>`, `<scene>` and its `<body>`s), a device definition (`devices/<name>/definition.tsx`:
+  `<device>` with its `<channel>`s and their bounds), a dashboard (`<name>.dashboard.tsx`: `<dashboard>` with
+  `<param>`s, one layout of `<split axis ratio>` and `<pane id kind …>`, and `<region side …>`s), a geo project
+  (`<name>.geo.tsx`: `<geoproject>` with `<dateRange>`, `<camera>`, `<reference>`) and a node graph
+  (`<name>.opgraph.tsx`: `<opgraph>` with `<node id type x y …ports>` and `<wire from="a:out" to="b:in">`). A
+  record is an element and its fields are its attributes, verbatim. `documentOf(graph)` gives the document's JSON.
+  A code form declares; the application that reads it checks and enforces it as it does the JSON.
 - **Any graph**: `graph`, `node(type, inputs)`, `input` (a graph input), `code` (a node that runs another
   file), `channels(set, values)` (the numbered ports `set.1 … set.N`).
 - **Importers** read other frameworks into the same graph: tscircuit JSX (`<board>`, `<resistor>`, `<led>`,
