@@ -177,6 +177,37 @@ test("JSX that places symbols declares the circuit's own sheet: placements, wire
   assert.throws(sheet(jsx("resistor", { name: "R1", schX: 0, schY: 0, footprint: "0603" })), /footprint is not read on a schematic/);
 });
 
+test("a sheet's library part names its symbol by ref, places each unit, mirrors; a code part is a code node", () => {
+  const tree = jsx("group", {
+    name: "Rail",
+    children: [
+      jsx("part", { name: "U1", symbol: "Amplifier_Operational:LM358", library: "opamps.kicad_sym", value: "LM358", schX: 50.8, schY: 25.4, schMirror: "x" }),
+      jsx("unit", { part: "U1", unit: 2, schX: 101.6, schY: 25.4, schRotation: 180, __source: 2 }),
+      jsx("resistor", { name: "R1", resistance: "10k", schX: 76.2, schY: 50.8, schMirror: "y" }),
+      jsx("code", { name: "blinker", source: "blinker.circuit.ts", inputs: { resistor: "330" }, __source: 4 }),
+      jsx("trace", { from: ".U1 > .pin7", to: ".R1 > .pin1" }),
+      jsx("netlabel", { net: "OUT", connection: ".U1 > .1" }),
+    ],
+  });
+  const { graph: g } = declarationOf({ default: () => tree });
+  assert.deepEqual(g.nodes.U1!.inputs, { ref: "U1", value: "LM358", symbol: "Amplifier_Operational:LM358", library: "opamps.kicad_sym", pins: [] }, "the pins are the library's");
+  assert.deepEqual(g.nodes.sym_U1_1!.inputs, { unit: 1, style: 1, at: { x: 50.8, y: 25.4 }, rot: 0, mirror: "x", part: wireTo("U1", "@part") });
+  assert.deepEqual(g.nodes.sym_U1_2!.inputs, { unit: 2, style: 1, at: { x: 101.6, y: 25.4 }, rot: 180, mirror: "", part: wireTo("U1", "@part") });
+  assert.deepEqual(g.nodes.sym_U1_2!.meta, { source: 2 }, "a unit's placement maps to its <unit> element");
+  assert.equal(g.nodes.sym_R1_1!.inputs.mirror, "y");
+  assert.deepEqual(g.nodes.w_1!.inputs, { "ends.1": wireTo("U1", "pin:7"), "ends.2": wireTo("sym_R1_1", "p1") }, "a library pin by number, bound by the editor");
+  assert.deepEqual(g.nodes.lbl_OUT!.inputs.on, wireTo("U1", "pin:1"));
+  assert.deepEqual(g.nodes.blinker, { id: "blinker", type: "code", label: "blinker.circuit.ts", inputs: { source: "blinker.circuit.ts", resistor: "330" }, meta: { source: 4 } });
+  const sheet = (...children: unknown[]) => () => declarationOf({ default: jsx("group", { name: "S", children }) });
+  assert.throws(sheet(jsx("part", { name: "U1", symbol: "LM358", library: "a.kicad_sym" })), /library ref/);
+  assert.throws(sheet(jsx("part", { name: "U1", symbol: "A:B" })), /library is the path/);
+  assert.throws(sheet(jsx("resistor", { name: "R1", schX: 0, schY: 0 }), jsx("unit", { part: "R1", unit: 2, schX: 1, schY: 1 })), /one unit/);
+  assert.throws(sheet(jsx("part", { name: "U1", symbol: "A:B", library: "a.kicad_sym" }), jsx("unit", { part: "U1", unit: 1, schX: 1, schY: 1 })), /unit is 2 or more/);
+  assert.throws(sheet(jsx("part", { name: "U1", symbol: "A:B", library: "a.kicad_sym" }), jsx("unit", { part: "U1", unit: 2 })), /give it schX and schY/);
+  assert.throws(sheet(jsx("resistor", { name: "R1", schX: 0, schY: 0, schMirror: "z" })), /schMirror is "x" or "y"/);
+  assert.throws(sheet(jsx("code", { name: "c", source: "c.ts", inputs: { source: "d.ts" } })), /source is the file/);
+});
+
 test("JSCAD: cuboid minus a centred cylinder is a box and a cut, moves folded into the primitives", () => {
   const { primitives, booleans, transforms } = jscadModeling;
   const main = ({ width }: { width: number }) =>

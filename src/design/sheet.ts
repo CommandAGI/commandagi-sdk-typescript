@@ -23,11 +23,22 @@
  *   <trace from to> or <trace path={[…]}>                                  wires: ".R1 > .pin2", ".J1" (a junction),
  *                                                                          "net.GND" (a label naming that net)
  *   <netlabel net connection>                                              a label naming the net of a pin
+ *   <part name symbol library value>                                       a library part: its symbol named by its
+ *                                                                          library ref ("Device:R_Small") in a
+ *                                                                          .kicad_sym the file names by path
+ *   <unit part unit schX schY schRotation schMirror>                       where another unit of a part sits
+ *                                                                          (U1B: unit={2}); the part's own schX and
+ *                                                                          schY place unit 1
+ *   <code name source inputs>                                              a code part: the parts another file
+ *                                                                          declares (its path relative to this one),
+ *                                                                          run with these inputs
  *
  * schX and schY are the sheet's own coordinates: millimetres, Y DOWN (tscircuit's are Y up). schRotation is 0, 90,
- * 180 or 270 degrees. A part with neither schX nor schY is declared and not placed. The symbols are named
- * (`Ideal:R`, …): the editor draws its own ideal symbols, so the file holds no artwork. A wire is a binding between
- * two pins, never a coincidence of coordinates. Each node the reader declares carries the element's `source` in
+ * 180 or 270 degrees; schMirror is "x" or "y". A part with neither schX nor schY is declared and not placed. The
+ * symbols are named (`Ideal:R`, `Device:R_Small`): the editor draws its own ideal symbols and reads a library part's
+ * pins and body from the library file, so the file holds no artwork and no pin geometry. A library part's pin is
+ * named by its number (".U1 > .pin5"); the editor binds it to the unit that has that pin (a pin common to every unit
+ * lands on the lowest unit placed). A wire is a binding between two pins, never a coincidence of coordinates. Each node the reader declares carries the element's `source` in
  * `meta.source`. Anything else is refused by name, never guessed.
  */
 import { channels, currentScope, slug, type Scope } from "./ir.js";
@@ -74,11 +85,17 @@ export const SHEET_PARTS: Readonly<Record<string, Ideal>> = {
   ground: { symbol: "Ideal:GND", value: null, pins: 1, aliases: { pin1: "1", gnd: "1" }, power: "GND" },
 };
 /** The tags only a schematic has (a board reads resistors, capacitors and inductors too). */
-const SHEET_ONLY = new Set(["voltagesource", "currentsource", "ground", "junction", "netlabel"]);
+const SHEET_ONLY = new Set(["voltagesource", "currentsource", "ground", "junction", "netlabel", "part", "unit", "code"]);
 
-const PLACE_PROPS = ["schX", "schY", "schRotation"];
+const PLACE_PROPS = ["schX", "schY", "schRotation", "schMirror"];
+const MIRRORS = ["x", "y"];
+/** A library part's wire end before the editor reads its library: the part node, and the pin by number. */
+export const LIBRARY_PIN_PORT = "pin:";
+/** The node a code part declares (the graph's own `code` op): it runs another file. */
+const CODE_OP = "code";
 const meta = (el: DesignElement) => (el.source === undefined ? undefined : { source: el.source });
-const where = (el: DesignElement) => `<${el.type}${typeof el.props.name === "string" ? ` name="${el.props.name}"` : ""}>`;
+const where = (el: DesignElement) =>
+  `<${el.type}${typeof el.props.name === "string" ? ` name="${el.props.name}"` : typeof el.props.part === "string" ? ` part="${el.props.part}"` : ""}>`;
 
 function refuseUnknown(el: DesignElement, allowed: string[]): void {
   for (const k of Object.keys(el.props)) {
@@ -106,9 +123,38 @@ function plainData(v: unknown, what: string): unknown {
 
 interface Placed {
   ref: string;
-  placement: string | null;
-  ideal: Ideal;
+  /** The part node's id. */
+  id: string;
+  /** Its placements by unit. */
+  units: Map<number, string>;
+  /** The ideal symbol, or null for a library part (its pins are the library's). */
+  ideal: Ideal | null;
   el: DesignElement;
+}
+
+/** Add the placement of `unit` of `part` that `el` declares (its schX, schY, schRotation, schMirror). */
+function place(s: Scope, part: Placed, unit: number, el: DesignElement, pins: readonly string[]): void {
+  const x = num(el, "schX"), y = num(el, "schY"), rot = num(el, "schRotation");
+  const mirror = el.props.schMirror;
+  if (x === undefined && y === undefined) {
+    if (rot !== undefined || mirror !== undefined) throw new Error(`${where(el)}: ${rot !== undefined ? "schRotation" : "schMirror"} needs schX and schY`);
+    if (el.type === "unit") throw new Error(`${where(el)}: a unit is placed: give it schX and schY`);
+    return;
+  }
+  if (rot !== undefined && ![0, 90, 180, 270].includes(rot)) throw new Error(`${where(el)}: schRotation is 0, 90, 180 or 270`);
+  if (mirror !== undefined && !MIRRORS.includes(mirror as string)) throw new Error(`${where(el)}: schMirror is "x" or "y"`);
+  const id = s.add(
+    schSymbolTypeFor(pins),
+    { unit, style: 1, at: { x: x ?? 0, y: y ?? 0 }, rot: rot ?? 0, mirror: (mirror as string | undefined) ?? "", [PART_PORT]: { wire: { node: part.id, port: PART_BODY_PORT } } },
+    { id: `sym_${part.ref}_${unit}`, label: part.ref, meta: meta(el) },
+  ).id;
+  part.units.set(unit, id);
+}
+
+function str(el: DesignElement, prop: string, what: string): string {
+  const v = el.props[prop];
+  if (typeof v !== "string" || !v.trim()) throw new Error(`${where(el)}: ${prop} is ${what}`);
+  return v;
 }
 
 /** Declare a schematic's elements (the root's children) into the current circuit scope. */
@@ -146,20 +192,44 @@ export function declareSheet(children: unknown): void {
         },
         { id: ref, label: ref, meta: meta(el) },
       );
-      const x = num(el, "schX"), y = num(el, "schY"), rot = num(el, "schRotation");
-      let placement: string | null = null;
-      if (x !== undefined || y !== undefined) {
-        if (rot !== undefined && ![0, 90, 180, 270].includes(rot)) throw new Error(`${where(el)}: schRotation is 0, 90, 180 or 270`);
-        placement = s.add(
-          schSymbolTypeFor(pins.map((p) => p.id)),
-          { unit: 1, style: 1, at: { x: x ?? 0, y: y ?? 0 }, rot: rot ?? 0, mirror: "", [PART_PORT]: { wire: { node: part.id, port: PART_BODY_PORT } } },
-          { id: `sym_${ref}_1`, label: ref, meta: meta(el) },
-        ).id;
-      } else if (rot !== undefined) throw new Error(`${where(el)}: schRotation needs schX and schY`);
-      parts.set(ref, { ref, placement, ideal, el });
+      const placed: Placed = { ref, id: part.id, units: new Map(), ideal, el };
+      place(s, placed, 1, el, pins.map((p) => p.id));
+      parts.set(ref, placed);
       continue;
     }
     switch (el.type) {
+      case "part": {
+        refuseUnknown(el, ["name", "symbol", "library", "value", ...PLACE_PROPS]);
+        const ref = str(el, "name", "the part's reference (U1)");
+        if (parts.has(ref)) throw new Error(`two parts are called ${ref}`);
+        const symbol = str(el, "symbol", 'its library ref ("Device:R_Small")');
+        if (!/^[^:]+:[^:]+$/.test(symbol)) throw new Error(`${where(el)}: symbol is a library ref, "Library:Symbol" ("Device:R_Small"), not ${JSON.stringify(symbol)}`);
+        const library = str(el, "library", "the path of the .kicad_sym that holds the symbol");
+        if (!/\.kicad_sym$/i.test(library)) throw new Error(`${where(el)}: library names a .kicad_sym file, not ${JSON.stringify(library)}`);
+        const raw = el.props.value;
+        if (raw !== undefined && typeof raw !== "string" && typeof raw !== "number") throw new Error(`${where(el)}: value is a value ("LM358", 1000), not ${JSON.stringify(raw)}`);
+        // The pins are the library's: the editor reads them (and the part's type) from the library file.
+        const part = s.add(
+          partTypeFor([]),
+          { ref, ...(raw !== undefined ? { value: String(raw) } : {}), symbol, library, pins: [] },
+          { id: ref, label: ref, meta: meta(el) },
+        );
+        const placed: Placed = { ref, id: part.id, units: new Map(), ideal: null, el };
+        place(s, placed, 1, el, []);
+        parts.set(ref, placed);
+        break;
+      }
+      case "code": {
+        refuseUnknown(el, ["name", "source", "inputs"]);
+        const name = str(el, "name", "the code part's id");
+        const source = str(el, "source", "the path of the file it runs, relative to this one");
+        const inputs = el.props.inputs === undefined ? {} : plainData(el.props.inputs, `${where(el)} inputs`);
+        if (typeof inputs !== "object" || inputs === null || Array.isArray(inputs)) throw new Error(`${where(el)}: inputs is an object of the file's parameters`);
+        if ("source" in inputs) throw new Error(`${where(el)}: source is the file, not one of its inputs`);
+        if (s.nodes[name]) throw new Error(`two nodes are called ${name}`);
+        s.add(CODE_OP, { source, ...(inputs as Record<string, unknown>) }, { id: name, label: source.split("/").pop() ?? source, meta: meta(el) });
+        break;
+      }
       case "junction": {
         refuseUnknown(el, ["name", "schX", "schY"]);
         const name = el.props.name;
@@ -169,6 +239,7 @@ export function declareSheet(children: unknown): void {
         junctions.set(name, id);
         break;
       }
+      case "unit":
       case "trace":
       case "netlabel":
         later.push(el);
@@ -192,11 +263,16 @@ export function declareSheet(children: unknown): void {
     if (!p) throw new Error(`${where(el)}: ${JSON.stringify(sel)} is not ".REF > .pin", ".JUNCTION" or "net.NAME"`);
     const part = parts.get(p[1]!);
     if (!part) throw new Error(`${where(el)}: there is no part ${p[1]}`);
-    if (!part.placement) throw new Error(`${where(el)}: ${part.ref} is not on the sheet (give it schX and schY)`);
+    if (!part.units.size) throw new Error(`${where(el)}: ${part.ref} is not on the sheet (give it schX and schY)`);
+    if (!part.ideal) {
+      // A library part's pin by number (".pin5" or ".5"); the editor binds it to the unit that has it.
+      const number = /^pin(.+)$/i.exec(p[2]!)?.[1] ?? p[2]!;
+      return { node: part.id, port: `${LIBRARY_PIN_PORT}${number}` };
+    }
     const key = p[2]!.toLowerCase();
     const number = part.ideal.aliases[key] ?? (/^\d+$/.test(key) ? key : undefined);
     if (!number || Number(number) > part.ideal.pins) throw new Error(`${where(el)}: ${part.ref} has no pin ${p[2]}`);
-    return { node: part.placement, port: `p${number}` };
+    return { node: part.units.get(1)!, port: `p${number}` };
   };
   /** A free id `base`, `base_2`, … (ids are deterministic: the same file declares the same ids). */
   const free = (base: string) => {
@@ -207,7 +283,22 @@ export function declareSheet(children: unknown): void {
   const label = (text: string, on: { node: string; port: string }, el: DesignElement) =>
     s.add(SCH_LABEL, { text, on: { wire: on } }, { id: free(`lbl_${text}`), label: text, meta: meta(el) });
 
+  // Units first: a wire may land on any unit's pin.
   for (const el of later) {
+    if (el.type !== "unit") continue;
+    refuseUnknown(el, ["part", "unit", ...PLACE_PROPS]);
+    const ref = str(el, "part", "the reference of the part whose unit it places");
+    const part = parts.get(ref);
+    if (!part) throw new Error(`${where(el)}: there is no part ${ref}`);
+    const unit = el.props.unit;
+    if (typeof unit !== "number" || !Number.isInteger(unit) || unit < 2)
+      throw new Error(`${where(el)}: unit is 2 or more (the part's own schX and schY place unit 1)`);
+    if (part.ideal) throw new Error(`${where(el)}: ${ref} is an ideal part, which has one unit`);
+    if (part.units.has(unit)) throw new Error(`${where(el)}: unit ${unit} of ${ref} is placed twice`);
+    place(s, part, unit, el, []);
+  }
+  for (const el of later) {
+    if (el.type === "unit") continue;
     if (el.type === "netlabel") {
       refuseUnknown(el, ["net", "connection"]);
       const text = el.props.net;
