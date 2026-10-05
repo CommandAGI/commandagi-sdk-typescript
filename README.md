@@ -112,6 +112,11 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   output ports), `net`, `connect`, and `footprints` (chip `0402`–`1206` for R, C, L, LED and D, plus pin
   headers, after KiCad's library footprints). A circuit is the graph a `.sch.json` + `.pcb.json` pair
   holds. Nets say what is meant to connect; nothing is routed.
+- **A schematic in JSX** (a `<name>.sch.tsx` the CommandAGI circuit editor opens and edits): a `<group>` with
+  `<resistor>`, `<capacitor>`, `<inductor>`, `<voltagesource>`, `<currentsource>`, `<ground name="#PWR1">`, each
+  placed with `schX` / `schY` (the sheet's millimetres, Y down) and `schRotation`, `<junction>`, `<trace from to>`
+  and `<netlabel net connection>`. They declare the circuit's own sheet. The editor writes each edit back into the
+  file; an attribute that is an expression is never replaced with a literal (the edit is refused with its line).
 - **Any graph**: `graph`, `node(type, inputs)`, `input` (a graph input), `code` (a node that runs another
   file), `channels(set, values)` (the numbered ports `set.1 … set.N`).
 - **Importers** read other frameworks into the same graph: tscircuit JSX (`<board>`, `<resistor>`, `<led>`,
