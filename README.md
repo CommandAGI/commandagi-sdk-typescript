@@ -117,6 +117,13 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   placed with `schX` / `schY` (the sheet's millimetres, Y down) and `schRotation`, `<junction>`, `<trace from to>`
   and `<netlabel net connection>`. They declare the circuit's own sheet. The editor writes each edit back into the
   file; an attribute that is an expression is never replaced with a literal (the edit is refused with its line).
+- **A 3D document in JSX** (a `<name>.3d.tsx` the CommandAGI 3D editor opens and edits): a `<part>` (or
+  `<assembly>`) with `<parameter>`, `<plane>`, one element per feature named by its type (`<sketch>`,
+  `<extrude>`, `<revolve>`, `<fillet>`, `<hole>`, `<linearPattern>`, `<transform>` …), a sketch's `<point>`,
+  `<line>`, `<circle>`, `<arc>` and `<constraint>` as its children, `<body>` for a body's material and name, and
+  `<slot name value>` for any other field. Each attribute is the field of the same name, as a `.3dx` stores it
+  (millimetres, radians); the reader declares the `.3dx` body itself. The editor writes each edit back into the
+  file, and refuses (with the line) an edit to an attribute that is an expression or to an element in a loop.
 - **Any graph**: `graph`, `node(type, inputs)`, `input` (a graph input), `code` (a node that runs another
   file), `channels(set, values)` (the numbered ports `set.1 … set.N`).
 - **Importers** read other frameworks into the same graph: tscircuit JSX (`<board>`, `<resistor>`, `<led>`,
