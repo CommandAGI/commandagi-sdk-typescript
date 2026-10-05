@@ -15,12 +15,12 @@ const documentOf = (mod: Record<string, unknown>) => {
   return document!;
 };
 
-test("a world in JSX is its world.json: units, space and a scene's bodies are elements; each __source keyed by its path", () => {
+test("a world in JSX declares its world: units, space and a scene's bodies are elements; each __source keyed by its path", () => {
   const file = el(
     "world",
     { name: "Shop", kind: "simulation", __source: 0 },
     el("space", { origin_mm: [0, 0, 0], size_mm: [4000, 3000, 2500] }),
-    el("unit", { uid: "arm", name: "arm", device: "../../devices/so-101/definition.json", position: [100, 0, 0], rotation: 90, __source: 2 }),
+    el("unit", { uid: "arm", name: "arm", device: "../../devices/so-101/definition.tsx", position: [100, 0, 0], rotation: 90, __source: 2 }),
     el("scene", { hz: 240 }, el("body", { id: "cube", shape: { type: "box", hx: 0.02 }, at: [0, 0, 1] })),
   );
   const { format, document: world, sources } = documentOf({ default: () => file });
@@ -30,7 +30,7 @@ test("a world in JSX is its world.json: units, space and a scene's bodies are el
     name: "Shop",
     kind: "simulation",
     space: { origin_mm: [0, 0, 0], size_mm: [4000, 3000, 2500] },
-    units: [{ uid: "arm", name: "arm", device: "../../devices/so-101/definition.json", position: [100, 0, 0], rotation: 90 }],
+    units: [{ uid: "arm", name: "arm", device: "../../devices/so-101/definition.tsx", position: [100, 0, 0], rotation: 90 }],
     scene: { hz: 240, bodies: [{ id: "cube", shape: { type: "box", hx: 0.02 }, at: [0, 0, 1] }] },
   });
   assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(world as never)), world, "both ways");
