@@ -123,7 +123,7 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   standard's parts, which ref their files (`<Books journal>`, `<CapTable ocf>`, `<People folder>`, `<Calendar
   folder>`, `<Matters folder>`); `<Rfc title target body id>` with `<Option title summary>` and `<Change op
   parameter value …>`; `<Case respondent … id>` with `<Harm>` and `<Relief>`. Import the tags from
-  `commandagi/design`; `documentOf` reads them into the native document (`.company`, the RFC or case draft).
+  `commandagi/design`; `documentOf` reads them into the document the apps use (the company, the RFC or case draft).
 
 - **A video or a song in JSX** (a `<name>.vid.tsx` the video editor opens, a `<name>.mus.tsx` the music studio
   opens; both write each edit back): `<video>` with `<track>`, `<clip src="media/take.mp4" start in out>` (media

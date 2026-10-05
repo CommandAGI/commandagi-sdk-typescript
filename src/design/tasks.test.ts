@@ -14,7 +14,7 @@ test("a task in JSX is its body: fields are attributes, subtasks are <subtask re
     "task",
     { id: "ship", title: "Ship it", status: "doing", priority: "high", assignees: ["agent:writer"], dueAt: "2026-10-20", readme: "Ship it.md", __source: 0 },
     el("subtask", { ref: "Ship it/Draft.task.tsx", __source: 1 }),
-    el("subtask", { ref: "Ship it/Send.task" }),
+    el("subtask", { ref: "Ship it/Send.task.tsx" }),
   );
   const { graph, document } = declarationOf({ default: () => file });
   assert.deepEqual(graph.nodes, {}, "a task leaves beside an empty graph");
@@ -29,7 +29,7 @@ test("a task in JSX is its body: fields are attributes, subtasks are <subtask re
     assignees: ["agent:writer"],
     dueAt: Date.UTC(2026, 9, 20),
     readme: "Ship it.md",
-    subtasks: ["Ship it/Draft.task.tsx", "Ship it/Send.task"],
+    subtasks: ["Ship it/Draft.task.tsx", "Ship it/Send.task.tsx"],
   });
   const tree = TASKS.task.toTree(doc as never);
   assert.equal(tree.attrs.dueAt, "2026-10-20", "a time is written as a date when it is midnight UTC");
@@ -37,9 +37,9 @@ test("a task in JSX is its body: fields are attributes, subtasks are <subtask re
   assert.deepEqual(TASKS.task.toTree({ id: "a", labels: [], assignees: [] }).attrs, { id: "a" }, "a field that says nothing is not written");
 
   assert.throws(() => declarationOf({ default: el("task", { title: "no id" }) }), /<task> needs id/);
-  assert.throws(() => declarationOf({ default: el("task", { id: "a", subtasks: ["x.task"] }) }), /subtasks is not read/);
+  assert.throws(() => declarationOf({ default: el("task", { id: "a", subtasks: ["x.task.tsx"] }) }), /subtasks is not read/);
   assert.throws(() => declarationOf({ default: el("task", { id: "a" }, el("task", { id: "b" })) }), /<task> stands in .*not in <task>|a task in code is one <task> element/);
-  assert.throws(() => declarationOf({ default: el("task", { id: "a" }, el("subtask", { ref: "x.task" }), el("subtask", { ref: "x.task" })) }), /two <subtask> in <task> have ref "x.task"/);
+  assert.throws(() => declarationOf({ default: el("task", { id: "a" }, el("subtask", { ref: "x.task.tsx" }), el("subtask", { ref: "x.task.tsx" })) }), /two <subtask> in <task> have ref "x.task.tsx"/);
   assert.throws(() => declarationOf({ default: el("task", { id: "a", dueAt: "next week" }) }), /dueAt is a date/);
 });
 
