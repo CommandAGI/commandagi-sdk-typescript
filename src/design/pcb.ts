@@ -14,12 +14,14 @@
  *   );
  *
  * The tags:
- *   <board schematic width height core copper thickness layers>
+ *   <board schematic width height core copper thickness layers surface>
  *                                     the root. `schematic` is the schematic file, relative to this one. A width ×
  *                                     height rectangle outline from (0, 0); core and copper make a two-layer
  *                                     cross-section (mm); thickness is the finished thickness when no cross-section
  *                                     says it; layers is the layer table ([{ ordinal, name, type, userName }], the
- *                                     editor's blank board's when absent).
+ *                                     editor's blank board's when absent). `surface` puts the board on the faces of a
+ *                                     CAD part: { cadRef, domain, trims, curvedTrims } (the part's file, relative to
+ *                                     this one, and its faces unfolded into charts, as the Surfaces view picks them).
  *   <stack name label domain units process layers overallThickness>
  *                                     the cross-section, layer by layer (top first), when it is more than core and
  *                                     copper: each { name, role, thickness, material, copperWeightOz, ply, … }.
@@ -33,7 +35,7 @@
  *                                     (`setup`, `paper`, …): s-expression text. `kicad` on another element is that
  *                                     element's own carried forms.
  *   <net name code>                   the KiCad net code of the schematic's net `name`.
- *   <component name footprint library pcbX pcbY pcbRotation layer uuid kicad>
+ *   <component name footprint library pcbX pcbY pcbRotation layer chart uuid kicad>
  *                                     the schematic's part `name` on this board: its footprint (one of the editor's
  *                                     own land patterns, BOARD_FOOTPRINTS, or a library footprint by its ref,
  *                                     "Package_SO:SOIC-8", in the `.pretty` folder `library` names: its
@@ -41,9 +43,12 @@
  *                                     "bottom"), its KiCad uuid, the KiCad forms that say which instance it is
  *                                     (its schematic path). With no pcbX and pcbY it is not placed. The editor
  *                                     reads a library footprint's pads, artwork and attributes from its file. A
- *                                     footprint ref with no library is named only: no pads yet, not placed.
- *   <trace name layer width points from to net uuid segmentUuids kicad>
+ *                                     footprint ref with no library is named only: no pads yet, not placed. On a
+ *                                     board with a `surface`, `chart` names the face it sits on.
+ *   <trace name layer width points from to net surface uuid segmentUuids kicad>
  *                                     a copper run: its points ([[x, y], …]) on one copper layer, a finished width.
+ *                                     `surface` (true) runs it on the board's surface: its points are in the unfolded
+ *                                     charts.
  *   <arc name layer width points from to net uuid kicad>
  *                                     a circular copper arc: start, a point on it, end.
  *   <via name pcbX pcbY drill diameter layers pads net uuid kicad>
@@ -175,7 +180,7 @@ const FACTS = new Set(["graphic", "text", "dimension", "kicad", "net"]);
 
 /** Declare a board in code (its root is `<board schematic="…">`). */
 export function declareBoardFile(root: DesignElement, name?: string): Declaration {
-  refuseUnknown(root, ["schematic", "name", "width", "height", "core", "copper", "thickness", "layers"]);
+  refuseUnknown(root, ["schematic", "name", "width", "height", "core", "copper", "thickness", "layers", "surface"]);
   const schematic = root.props.schematic;
   if (typeof schematic !== "string" || !schematic.trim() || schematic.startsWith("/"))
     throw new Error(`<board>: schematic is the schematic file's path, relative to this file`);
@@ -198,7 +203,13 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
     if (stacks.length && core !== undefined) throw new Error("<board>: core and copper are a two-layer <stack>; give one or the other");
     if (thickness !== undefined && core !== undefined) throw new Error("<board>: core and copper say the thickness");
     if (core !== undefined && w === undefined) throw new Error("<board>: core and copper need the outline (width and height)");
-    const hasBoard = w !== undefined || thickness !== undefined || layers !== undefined || stacks.length > 0 || children.some((el) => el.type === "graphic" || el.type === "text" || el.type === "dimension" || el.type === "kicad");
+    const surface = plain(
+      root,
+      "surface",
+      (v) => isObject(v) && typeof (v as { cadRef?: unknown }).cadRef === "string" && isObject((v as { domain?: unknown }).domain) && Object.keys(v as object).every((k) => ["cadRef", "domain", "trims", "curvedTrims"].includes(k)),
+      "the CAD faces the board is on: { cadRef, domain, trims, curvedTrims }",
+    ) as { cadRef: string; domain: unknown } | undefined;
+    const hasBoard = w !== undefined || thickness !== undefined || layers !== undefined || surface !== undefined || stacks.length > 0 || children.some((el) => el.type === "graphic" || el.type === "text" || el.type === "dimension" || el.type === "kicad");
 
     let stackThickness: number | undefined;
     if (core !== undefined && copper !== undefined) {
@@ -242,6 +253,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
           ...(w !== undefined && h !== undefined
             ? { boardArtwork: { graphics: [{ id: "outline", kind: "rect", points: [{ x: 0, y: 0 }, { x: w, y: h }], widthMm: 0.05, layer: "Edge.Cuts", filled: false }], texts: [] } }
             : {}),
+          ...(surface !== undefined ? { surfaceMount: surface } : {}),
         },
         { id: "board", label: "Board", meta: meta(root) },
       );
@@ -325,7 +337,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
         case "stack":
           break;
         case "component": {
-          refuseUnknown(el, ["name", "footprint", "library", "pcbX", "pcbY", "pcbRotation", "layer", "uuid", "kicad"]);
+          refuseUnknown(el, ["name", "footprint", "library", "pcbX", "pcbY", "pcbRotation", "layer", "chart", "uuid", "kicad"]);
           const ref = el.props.name as string;
           const fp = el.props.footprint;
           const library = el.props.library;
@@ -343,12 +355,16 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
           if (side !== undefined && side !== "top" && side !== "bottom") throw new Error(`${where(el)}: layer is "top" or "bottom"`);
           if ((x === undefined) !== (y === undefined)) throw new Error(`${where(el)}: give pcbX and pcbY together`);
           if (x === undefined && (rot !== undefined || side !== undefined)) throw new Error(`${where(el)}: pcbRotation and layer need pcbX and pcbY`);
+          const chart = text(el, "chart");
+          if (chart !== undefined && !surface) throw new Error(`${where(el)}: chart names a face of the board's surface, and the <board> has no surface`);
+          if (chart !== undefined && x === undefined) throw new Error(`${where(el)}: chart needs pcbX and pcbY`);
           s.add(
             BOARD_PART,
             {
               ref,
               ...(library !== undefined ? { footprint: fp, library: (library as string).replace(/\/$/, "") } : named ? { footprint: fp } : { footprint: `Authored:${fp}` }),
               ...(x !== undefined ? { placement: { x, y, rot: rot ?? 0, side: side ?? "top" } } : {}),
+              ...(chart !== undefined ? { surfaceMount: { chart } } : {}),
               ...uuidOf(el),
               ...kicad(el),
             },
@@ -358,7 +374,10 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
         }
         case "trace":
         case "arc": {
-          refuseUnknown(el, ["name", "layer", "width", "points", "from", "to", "net", "uuid", "kicad", ...(el.type === "trace" ? ["segmentUuids"] : [])]);
+          refuseUnknown(el, ["name", "layer", "width", "points", "from", "to", "net", "uuid", "kicad", ...(el.type === "trace" ? ["segmentUuids", "surface"] : [])]);
+          const onSurface = el.props.surface;
+          if (onSurface !== undefined && onSurface !== true) throw new Error(`${where(el)}: surface is true or left out`);
+          if (onSurface && !surface) throw new Error(`${where(el)}: surface runs the trace on the board's surface, and the <board> has no surface`);
           const pts = el.type === "arc" ? pointList(el, "points", 3, 3) : points(el);
           const layer = el.props.layer;
           if (typeof layer !== "string" || !COPPER.test(layer)) throw new Error(`${where(el)}: layer is a copper layer ("F.Cu", "In1.Cu", "B.Cu")`);
@@ -375,6 +394,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
               ...(el.type === "trace" ? { rule: "any" } : {}),
               ...(terminals.length ? { terminals } : {}),
               ...(segmentUuids !== undefined ? { segmentUuids } : {}),
+              ...(onSurface ? { mount: { kind: "unwrap", domain: surface!.domain } } : {}),
               ...uuidOf(el),
               ...netOf(el),
               ...kicad(el),

@@ -110,8 +110,8 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   Each call is one node of the 3D feature graph a `.3dx` holds. Lengths are in mm and angles in degrees.
 - **EDA**: `circuit`, `board`, `component` (reference, value, footprint, placement; its pins are its
   output ports), `net`, `connect`, and `footprints` (chip `0402`–`1206` for R, C, L, LED and D, plus pin
-  headers, after KiCad's library footprints). A circuit is the graph a `.sch.json` + `.pcb.json` pair
-  holds. Nets say what is meant to connect; nothing is routed.
+  headers, after KiCad's library footprints). A circuit is the graph a `.sch.tsx` and its `.pcb.tsx`
+  hold. Nets say what is meant to connect; nothing is routed.
 - **A schematic in JSX** (a `<name>.sch.tsx` the CommandAGI circuit editor opens and edits): a `<group>` with
   `<resistor>`, `<capacitor>`, `<inductor>`, `<voltagesource>`, `<currentsource>`, `<ground name="#PWR1">`, each
   placed with `schX` / `schY` (the sheet's millimetres, Y down) and `schRotation`, `<junction>`, `<trace from to>`
@@ -201,7 +201,7 @@ network, no file writes and bounded time and memory; Python parts under the Pyod
 
 ```bash
 commandagi code eval bracket.part.ts --input width=80     # prints its op graph and a summary as JSON
-commandagi code eval Blinker.sch.json --no-ir --out blinker.json
+commandagi code eval blinker.circuit.ts --no-ir --out blinker.json
 ```
 
 An agent connected to the host over MCP does the same with the `evaluate_code` tool.

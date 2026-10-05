@@ -79,7 +79,7 @@ test("a board refuses, by name, what it cannot say", () => {
   assert.throws(board({}, jsx("text", { at: [0, 0], layer: "F.SilkS", size: 1, thickness: 0.1 })), /give text, or field/);
   assert.throws(board({}, jsx("trace", { layer: "F.Cu", width: 0.2, points: [[0, 0], [1, 0]], from: ".R9 > .pin1" })), /no component or trace R9/);
   assert.throws(board({}, jsx("component", { name: "V1", footprint: "smd-0805" }), jsx("via", { name: "V1", pcbX: 0, pcbY: 0, drill: 0.3, diameter: 0.6 })), /two elements are called V1/);
-  assert.throws(() => declarationOf({ default: jsx("board", { schematic: "/abs.sch.json" }) }), /relative to this file/);
+  assert.throws(() => declarationOf({ default: jsx("board", { schematic: "/abs.sch.tsx" }) }), /relative to this file/);
 });
 
 test("a board says what a KiCad board holds: its layers, cross-section, drawings, net codes and what each copper object carries", () => {
@@ -111,4 +111,18 @@ test("a board says what a KiCad board holds: its layers, cross-section, drawings
   assert.deepEqual(g.nodes.A1!.inputs, { kind: "arc", points: [{ x: 0, y: 0, id: "start" }, { x: 1, y: 1, id: "p1" }, { x: 2, y: 0, id: "end" }], widthMm: 0.2, layer: "F.Cu", terminals: [{ point: 2, ref: "C1", number: "1" }] });
   assert.deepEqual(g.nodes.V1!.inputs.pads, [{ ref: "C1", number: "2" }]);
   assert.deepEqual(g.nodes.cu_2!.inputs, { kind: "pour", points: [{ x: 0, y: 0 }, { x: 9, y: 0 }, { x: 9, y: 9 }], layers: ["In1.Cu"], terminals: [{ point: 0, via: "V1" }], net: "GND", kicad: "(min_thickness 0.25)" });
+});
+
+test("a board on the faces of a CAD part: its surface, each component's face and the runs on it", () => {
+  const surface = { cadRef: "../case.3dx", domain: { charts: [{ id: "top" }] } };
+  const g = board(
+    { surface },
+    jsx("component", { name: "R1", footprint: "smd-0805", pcbX: 4, pcbY: 5, chart: "top" }),
+    jsx("trace", { layer: "F.Cu", width: 0.3, points: [[4, 5], [9, 5]], from: ".R1 > .pin1", surface: true }),
+  )();
+  assert.deepEqual(g.nodes.board!.inputs.surfaceMount, surface);
+  assert.deepEqual(g.nodes.fp_R1!.inputs.surfaceMount, { chart: "top" });
+  assert.deepEqual(g.nodes.cu_1!.inputs.mount, { kind: "unwrap", domain: surface.domain });
+  assert.throws(() => board({}, jsx("component", { name: "R1", footprint: "smd-0805", pcbX: 4, pcbY: 5, chart: "top" }))(), /has no surface/);
+  assert.throws(() => board({}, jsx("trace", { layer: "F.Cu", width: 0.3, points: [[4, 5], [9, 5]], surface: true }))(), /has no surface/);
 });

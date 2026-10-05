@@ -93,7 +93,7 @@ test("hole() is a cylinder cut entering at a point along -axis", () => {
 });
 
 test("a circuit: the part type is the engine's pin-signature hash; nets join by name and by connection", () => {
-  // The same pins as the Rail monitor demo's C1 (eda.part.fe2410c4 in its .sch.json).
+  // The same pins as the Rail monitor demo's C1 (in its Rail monitor.sch.tsx).
   assert.equal(partTypeFor([{ id: "p1", number: "1", name: "1" }, { id: "p2", number: "2", name: "2" }]), "eda.part.fe2410c4");
 
   const g = circuit("Blinker", () => {
