@@ -1,5 +1,5 @@
 /**
- * OFFICE DOCUMENTS IN JSX — a workbook (`.sheetx`), a page (`.pagex`) and a deck (`.deckx`), declared as the very
+ * OFFICE DOCUMENTS IN JSX — a workbook (`.sheet.tsx`), a page (`.page.tsx`) and a deck (`.deck.tsx`), declared as the very
  * document the CommandAGI sheets, docs and decks editors open. Nothing here is a second model: a `<workbook>` reads
  * to the workbook JSON the grid edits, a `<page>` to the page's block list, and a `<deck>` to the deck's own op graph
  * (`deck.doc`, `deck.slide`, `deck.text` …).
@@ -115,7 +115,7 @@ const A1 = /^([A-Z]{1,3})([1-9]\d{0,6})$/;
 const colIndex = (letters: string) => [...letters].reduce((n, ch) => n * 26 + (ch.charCodeAt(0) - 64), 0) - 1;
 const ALIGN = ["left", "center", "right"] as const;
 
-/** A `<workbook>` as the workbook JSON the sheets editor opens (`.sheetx`), with where each part was written. */
+/** A `<workbook>` as the workbook JSON the sheets editor opens, with where each part was written. */
 export function readWorkbook(root: DesignElement): DeclaredDocument {
   only(root, ["title"]);
   const sources: Record<string, unknown> = { workbook: root.source };
@@ -179,7 +179,7 @@ export function readWorkbook(root: DesignElement): DeclaredDocument {
   });
   if (!sheets.length) throw new Error("a <workbook> holds at least one <sheet>");
   const title = str(root, "title");
-  return { format: "sheetx", document: { format: "sheetx", version: 1, sheets, ...(title !== undefined ? { meta: { title } } : {}) }, sources };
+  return { format: "workbook", document: { format: "workbook", version: 1, sheets, ...(title !== undefined ? { meta: { title } } : {}) }, sources };
 }
 
 // ── Page ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -233,7 +233,7 @@ function plainText(children: unknown, at: string): string {
   return parts.join("");
 }
 
-/** A `<page>` as the page the docs editor opens (`.pagex`), with where each block was written. */
+/** A `<page>` as the page the docs editor opens, with where each block was written. */
 export function readPage(root: DesignElement): DeclaredDocument {
   only(root, ["title"]);
   const sources: Record<string, unknown> = { page: root.source };
@@ -260,7 +260,7 @@ export function readPage(root: DesignElement): DeclaredDocument {
     }
   });
   const title = str(root, "title");
-  return { format: "pagex", document: { format: "pagex", version: 1, blocks, ...(title !== undefined ? { meta: { title } } : {}) }, sources };
+  return { format: "page", document: { format: "page", version: 1, blocks, ...(title !== undefined ? { meta: { title } } : {}) }, sources };
 }
 
 // ── Deck ───────────────────────────────────────────────────────────────────────────────────────────────────────
