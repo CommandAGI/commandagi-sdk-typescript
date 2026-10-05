@@ -26,6 +26,8 @@ import { fromTwoD, isTwoD } from "./twod.js";
 import { isOfficeRoot, readDeck, readOffice } from "./office.js";
 import { documentOf } from "./business.js";
 import type { DeclaredDocument } from "./ir.js";
+import { ontologyDocumentOf } from "./documents.js";
+import { declareOpGraph, isOpGraph } from "./ontology.js";
 
 export * from "./ir.js";
 export * from "./graph.js";
@@ -88,6 +90,8 @@ export { replicadModule, fromReplicad } from "./replicad.js";
 export { jsx, jsxs, Fragment, isElement, type DesignElement } from "./jsx-runtime.js";
 export { declareVideo, declareSong, fromMedia, mediaKind, pitchOf, pitchName, tempoOf, timeSignatureOf, MEDIA_ROOTS } from "./media.js";
 export { readWorkbook, readPage, readDeck, readOffice, isOfficeRoot, inlineHtml, richText, OFFICE_ROOTS, DECK_TYPES } from "./office.js";
+export * from "./documents.js";
+export * from "./ontology.js";
 
 /** What a code part declares: its graph and the parameters it takes. */
 export interface CodePartResult {
@@ -123,9 +127,10 @@ export function declarationOf(
   let value: unknown = mod.default ?? mod.main;
   if (value === undefined) throw new Error("the file exports nothing to declare (export default a part, a circuit, a graph, or a function returning one)");
   if (typeof value === "function") value = opts.replicad ? (value as (r: unknown, p: unknown) => unknown)(opts.replicad, values) : (value as (p: unknown) => unknown)(values);
-  // A workbook, a page, a company, an RFC or a case is a document of its own, not a graph: it leaves beside an empty graph.
+  // A workbook, a page, a company, an RFC, a case, a world, a definition, a dashboard or a geo project is a document of
+  // its own, not a graph: it leaves beside an empty graph.
   const office = isOfficeRoot(value) ? readOffice(value) : null;
-  const document = office ? ("document" in office ? office.document : null) : documentOf(value);
+  const document = office ? ("document" in office ? office.document : null) : (documentOf(value) ?? ontologyDocumentOf(value));
   if (document) return { graph: { id: opts.name ?? "Document", nodes: {} }, params, document };
   const graph = graphOf(value, opts.name ?? "Part");
   const problems = checkIR(graph);
@@ -141,6 +146,7 @@ export function graphOf(value: unknown, name = "Part"): IRGraph {
   if (isThreeD(value)) return declareThreeD(value, name) as IRGraph;
   if (isTwoD(value)) return fromTwoD(value, name).ir;
   if (isOfficeRoot(value) && value.type === "deck") return readDeck(value);
+  if (isOpGraph(value)) return declareOpGraph(value).ir;
   if (isElement(value) || (Array.isArray(value) && value.some(isElement))) return fromTscircuit(value).ir;
   if (isSolid(value) || (Array.isArray(value) && value.length && value.every(isSolid))) return fromJscad(value, name).ir;
   if (isReplicadShape(value)) return fromReplicad(value, name).ir;

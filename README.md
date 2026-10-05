@@ -155,6 +155,16 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   millimetres, Y down), `<trace layer width points from to>` and `<via pcbX pcbY drill diameter>`. A trace's ends say
   which pin, via or trace point they land on. The circuit editor joins it onto its schematic and writes each board
   edit back into the file.
+- **The ontology's files in JSX** (CommandAGI opens them where it opens their JSON, and writes each edit back into
+  the code): a world (`worlds/<name>/world.tsx`: `<world name kind>` with `<space>`, `<unit uid name device
+  position rotation>`, `<view>`, `<scene>` and its `<body>`s), a device definition (`devices/<name>/definition.tsx`:
+  `<device>` with its `<channel>`s and their bounds), a dashboard (`<name>.dashboard.tsx`: `<dashboard>` with
+  `<param>`s, one layout of `<split axis ratio>` and `<pane id kind …>`, and `<region side …>`s), a geo project
+  (`<name>.geo.tsx`: `<geoproject>` with `<dateRange>`, `<camera>`, `<reference>`) and a node graph
+  (`<name>.opgraph.tsx`: `<opgraph>` with `<node id type x y …ports>` and `<wire from="a:out" to="b:in">`). A
+  record is an element and its fields are its attributes, verbatim. `declarationOf` gives `{ format, document,
+  sources }` (a node graph: the op graph itself).
+  A code form declares; the application that reads it checks and enforces it as it does the JSON.
 - **Any graph**: `graph`, `node(type, inputs)`, `input` (a graph input), `code` (a node that runs another
   file), `channels(set, values)` (the numbered ports `set.1 … set.N`).
 - **Importers** read other frameworks into the same graph: tscircuit JSX (`<board>`, `<resistor>`, `<led>`,
