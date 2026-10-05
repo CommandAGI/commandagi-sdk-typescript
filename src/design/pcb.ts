@@ -20,7 +20,7 @@
  *                                     cross-section (mm); thickness is the finished thickness when no cross-section
  *                                     says it; layers is the layer table ([{ ordinal, name, type, userName }], the
  *                                     editor's blank board's when absent).
- *   <stack name label domain units process layers>
+ *   <stack name label domain units process layers overallThickness>
  *                                     the cross-section, layer by layer (top first), when it is more than core and
  *                                     copper: each { name, role, thickness, material, copperWeightOz, ply, … }.
  *   <graphic kind layer points width filled id kicad>
@@ -40,7 +40,8 @@
  *                                     `SOIC-8.kicad_mod`), where it sits, its rotation (degrees), its side ("top" or
  *                                     "bottom"), its KiCad uuid, the KiCad forms that say which instance it is
  *                                     (its schematic path). With no pcbX and pcbY it is not placed. The editor
- *                                     reads a library footprint's pads, artwork and attributes from its file.
+ *                                     reads a library footprint's pads, artwork and attributes from its file. A
+ *                                     footprint ref with no library is named only: no pads yet, not placed.
  *   <trace name layer width points from to net uuid segmentUuids kicad>
  *                                     a copper run: its points ([[x, y], …]) on one copper layer, a finished width.
  *   <arc name layer width points from to net uuid kicad>
@@ -218,7 +219,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
       );
     }
     for (const el of stacks) {
-      refuseUnknown(el, ["name", "label", "domain", "units", "process", "layers"]);
+      refuseUnknown(el, ["name", "label", "domain", "units", "process", "layers", "overallThickness"]);
       const stackLayers = plain(el, "layers", (v) => Array.isArray(v) && v.every((l) => isObject(l) && typeof (l as { name?: unknown }).name === "string" && typeof (l as { role?: unknown }).role === "string"), "the layers, top first: [{ name, role, thickness, … }, …]");
       if (stackLayers === undefined) throw new Error("<stack> needs layers");
       const domain = text(el, "domain") ?? "pcb", units = text(el, "units") ?? "mm";
@@ -227,7 +228,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
       const process = plain(el, "process", isObject, "an object ({ name, … })");
       s.add(
         "eda.stack",
-        { id: text(el, "name") ?? "stack", domain, units, layers: stackLayers, ...(process !== undefined ? { process } : {}) },
+        { id: text(el, "name") ?? "stack", domain, units, layers: stackLayers, ...(process !== undefined ? { process } : {}), ...(el.props.overallThickness !== undefined ? { overallThickness: positive(el, "overallThickness") } : {}) },
         { id: "stack", label: text(el, "label") ?? "Cross-section", meta: meta(el) },
       );
     }
@@ -331,8 +332,12 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
           if (library !== undefined) {
             if (typeof library !== "string" || !/\.pretty\/?$/i.test(library)) throw new Error(`${where(el)}: library names a footprint library folder (a .pretty), not ${JSON.stringify(library)}`);
             if (typeof fp !== "string" || !/^[^:]+:[^:/]+$/.test(fp)) throw new Error(`${where(el)}: a library footprint is its ref, "Library:Footprint" ("Package_SO:SOIC-8"), not ${JSON.stringify(fp)}`);
-          } else if (typeof fp !== "string" || !(BOARD_FOOTPRINTS as readonly string[]).includes(fp))
-            throw new Error(`${where(el)}: footprint is one of ${BOARD_FOOTPRINTS.join(", ")}, or a library footprint with its library, not ${JSON.stringify(fp)}`);
+          } else if (typeof fp !== "string" || (!(BOARD_FOOTPRINTS as readonly string[]).includes(fp) && !/^[^:]+:[^:/]+$/.test(fp)))
+            throw new Error(`${where(el)}: footprint is one of ${BOARD_FOOTPRINTS.join(", ")}, or a library footprint by its ref ("Package_SO:SOIC-8") with its library, not ${JSON.stringify(fp)}`);
+          // A library footprint named with no library is named only: its pads are not on the board yet, so it is not placed.
+          const named = library === undefined && !(BOARD_FOOTPRINTS as readonly string[]).includes(fp as string);
+          if (named && (el.props.pcbX !== undefined || el.props.pcbY !== undefined))
+            throw new Error(`${where(el)}: a footprint is placed with its pads: name its library (a .pretty folder)`);
           const x = num(el, "pcbX"), y = num(el, "pcbY"), rot = num(el, "pcbRotation");
           const side = el.props.layer;
           if (side !== undefined && side !== "top" && side !== "bottom") throw new Error(`${where(el)}: layer is "top" or "bottom"`);
@@ -342,7 +347,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
             BOARD_PART,
             {
               ref,
-              ...(library !== undefined ? { footprint: fp, library: (library as string).replace(/\/$/, "") } : { footprint: `Authored:${fp}` }),
+              ...(library !== undefined ? { footprint: fp, library: (library as string).replace(/\/$/, "") } : named ? { footprint: fp } : { footprint: `Authored:${fp}` }),
               ...(x !== undefined ? { placement: { x, y, rot: rot ?? 0, side: side ?? "top" } } : {}),
               ...uuidOf(el),
               ...kicad(el),

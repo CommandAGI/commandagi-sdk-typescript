@@ -37,6 +37,8 @@
  *                                                                          [{ number: "1", name: "VBAT" }, …])
  *   <net name pins>                                                        a stored net of a netlist circuit: the pins
  *                                                                          on it ([".C1 > .pin1", ".U1 > .pin6"])
+ *   … spice={[{ id, model, terminals }]}                                   on any part: the vendor SPICE packages it
+ *                                                                          binds, each formal by pin NUMBER
  *   <attachment name role file mime>                                       a KiCad file the circuit carries for
  *                                                                          exchange (its drawing, `role="schematic"`;
  *                                                                          its project): the file, by its path
@@ -149,6 +151,22 @@ interface Placed {
   el: DesignElement;
 }
 
+/** A part's SPICE package bindings (`spice={[{ id, model, terminals: { formal: "pin number" } }]}`), as written. */
+function spiceOf(el: DesignElement): { spice?: unknown } {
+  const v = el.props.spice;
+  if (v === undefined) return {};
+  const ok =
+    Array.isArray(v) &&
+    v.every(
+      (b) =>
+        b && typeof b === "object" && typeof (b as { id?: unknown }).id === "string" && typeof (b as { model?: unknown }).model === "string" &&
+        (b as { terminals?: unknown }).terminals && typeof (b as { terminals?: unknown }).terminals === "object" &&
+        Object.values((b as { terminals: Record<string, unknown> }).terminals).every((n) => typeof n === "string"),
+    );
+  if (!ok) throw new Error(`${where(el)}: spice is a list of { id, model, terminals: { formal: "pin number" } }`);
+  return { spice: plainData(v, `${where(el)} spice`) };
+}
+
 /** Add the placement of `unit` of `part` that `el` declares (its schX, schY, schRotation, schMirror). */
 function place(s: Scope, part: Placed, unit: number, el: DesignElement, pins: readonly string[]): void {
   const x = num(el, "schX"), y = num(el, "schY"), rot = num(el, "schRotation");
@@ -184,7 +202,7 @@ export function declareSheet(children: unknown): void {
   for (const el of childElements(children)) {
     const ideal = SHEET_PARTS[el.type];
     if (ideal) {
-      refuseUnknown(el, ["name", ...PLACE_PROPS, ...(ideal.value ? [ideal.value] : []), ...(ideal.excitation ? ["excitation"] : [])]);
+      refuseUnknown(el, ["name", "spice", ...PLACE_PROPS, ...(ideal.value ? [ideal.value] : []), ...(ideal.excitation ? ["excitation"] : [])]);
       const ref = el.props.name;
       if (typeof ref !== "string" || !ref) throw new Error(`<${el.type}> needs a name`);
       // The netlist leaves power symbols out by their reference (KiCad's rule), so a ground's says it is one.
@@ -206,6 +224,7 @@ export function declareSheet(children: unknown): void {
           units: 1,
           ...(ideal.power ? { powerSymbol: true } : {}),
           ...(excitation !== undefined ? { excitation } : {}),
+          ...spiceOf(el),
         },
         { id: ref, label: ref, meta: meta(el) },
       );
@@ -216,7 +235,7 @@ export function declareSheet(children: unknown): void {
     }
     switch (el.type) {
       case "part": {
-        refuseUnknown(el, ["name", "symbol", "library", "value", "pins", ...PLACE_PROPS]);
+        refuseUnknown(el, ["name", "symbol", "library", "value", "pins", "spice", ...PLACE_PROPS]);
         const ref = str(el, "name", "the part's reference (U1)");
         if (parts.has(ref)) throw new Error(`two parts are called ${ref}`);
         if (el.props.pins !== undefined) {
@@ -232,7 +251,7 @@ export function declareSheet(children: unknown): void {
         // The pins are the library's: the editor reads them (and the part's type) from the library file.
         const part = s.add(
           partTypeFor([]),
-          { ref, ...(raw !== undefined ? { value: String(raw) } : {}), symbol, library, pins: [] },
+          { ref, ...(raw !== undefined ? { value: String(raw) } : {}), symbol, library, pins: [], ...spiceOf(el) },
           { id: ref, label: ref, meta: meta(el) },
         );
         const placed: Placed = { ref, id: part.id, units: new Map(), ideal: null, el };
@@ -390,7 +409,7 @@ function netlistPart(s: Scope, el: DesignElement, ref: string): Placed {
     if (!pin || typeof pin.number !== "string" || (pin.name !== undefined && typeof pin.name !== "string") || Object.keys(pin).some((k) => k !== "number" && k !== "name"))
       throw new Error(`${where(el)}: pin ${i} is a number ("1") or { number, name }, not ${JSON.stringify(p)}`);
     // A mechanical pad has no number (""); a numbered pin is one pin.
-    if (pin.number && numbers.has(pin.number)) throw new Error(`${where(el)}: two pins are numbered ${pin.number}`);
+    // A pin number may repeat (a power pin each unit of a part shares, a mechanical pad with no number).
     numbers.add(pin.number);
     return { id: `p${i + 1}`, number: pin.number, ...(pin.name !== undefined ? { name: pin.name as string } : {}) };
   });
@@ -400,7 +419,7 @@ function netlistPart(s: Scope, el: DesignElement, ref: string): Placed {
   if (raw2 !== undefined && typeof raw2 !== "string" && typeof raw2 !== "number") throw new Error(`${where(el)}: value is a value ("LM358", 1000), not ${JSON.stringify(raw2)}`);
   const part = s.add(
     partTypeFor(pins),
-    { ref, ...(raw2 !== undefined ? { value: String(raw2) } : {}), ...(symbol !== undefined ? { symbol } : {}), pins },
+    { ref, ...(raw2 !== undefined ? { value: String(raw2) } : {}), ...(symbol !== undefined ? { symbol } : {}), pins, ...spiceOf(el) },
     { id: ref, label: ref, meta: meta(el) },
   );
   return { ref, id: part.id, units: new Map(), ideal: null, pins, el };
