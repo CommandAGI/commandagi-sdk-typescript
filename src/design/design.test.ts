@@ -29,6 +29,7 @@ import {
   part,
   partTypeFor,
   replicadModule,
+  schSymbolTypeFor,
   sketch,
   subtract,
   type IRGraph,
@@ -149,6 +150,31 @@ test("tscircuit JSX declares the same circuit: board-centred Y-up placement, LED
   assert.deepEqual(nets.GND, { "pins.1": wireTo("part_D1", "p1") }, "the cathode is pad 1 of the LED land pattern");
   assert.deepEqual(nets["Net-(R1-Pad2)"], { "pins.1": wireTo("part_R1", "p2"), "pins.2": wireTo("part_D1", "p2") });
   assert.throws(() => declarationOf({ default: jsx("board", { width: 10, height: 10, children: [jsx("crystal", { name: "Y1" })] }) }), /<crystal> is not read/);
+});
+
+test("JSX that places symbols declares the circuit's own sheet: placements, wires bound to pins, labels; __source rides along", () => {
+  const tree = jsx("group", {
+    name: "Divider",
+    children: [
+      jsx("voltagesource", { name: "V1", voltage: "9", schX: 114.3, schY: 114.3, __source: 1 }),
+      jsx("resistor", { name: "R1", resistance: "3k", schX: 114.3, schY: 88.9, schRotation: 90 }),
+      jsx("ground", { name: "#PWR1", schX: 139.7, schY: 114.3 }),
+      jsx("trace", { from: ".V1 > .pos", to: ".R1 > .pin1", __source: 4 }),
+      jsx("trace", { from: ".V1 > .neg", to: "net.GND" }),
+    ],
+  });
+  const { graph: g } = declarationOf({ default: () => tree });
+  assert.deepEqual(g.nodes.sym_R1_1!.inputs, { unit: 1, style: 1, at: { x: 114.3, y: 88.9 }, rot: 90, mirror: "", part: wireTo("R1", "@part") });
+  assert.equal(g.nodes.sym_R1_1!.type, schSymbolTypeFor(["p1", "p2"]));
+  assert.deepEqual(g.nodes.w_1!.inputs, { "ends.1": wireTo("sym_V1_1", "p1"), "ends.2": wireTo("sym_R1_1", "p1") });
+  assert.deepEqual(g.nodes.w_1!.meta, { source: 4 });
+  assert.deepEqual(g.nodes.V1!.meta, { source: 1 }, "__source is not a prop: it becomes the node's meta.source");
+  assert.deepEqual(g.nodes.lbl_GND!.inputs, { text: "GND", on: wireTo("sym_V1_1", "p2") });
+  assert.equal(g.nodes.PWR1!.inputs.powerSymbol, true);
+  const sheet = (...children: unknown[]) => () => declarationOf({ default: jsx("group", { name: "S", children }) });
+  assert.throws(sheet(jsx("ground", { name: "GND1", schX: 0, schY: 0 })), /starts with #/);
+  assert.throws(sheet(jsx("resistor", { name: "R1" }), jsx("resistor", { name: "R2", schX: 0, schY: 0 }), jsx("trace", { from: ".R1 > .pin1", to: ".R2 > .pin1" })), /R1 is not on the sheet/);
+  assert.throws(sheet(jsx("resistor", { name: "R1", schX: 0, schY: 0, footprint: "0603" })), /footprint is not read on a schematic/);
 });
 
 test("JSCAD: cuboid minus a centred cylinder is a box and a cut, moves folded into the primitives", () => {

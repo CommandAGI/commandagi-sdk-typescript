@@ -21,12 +21,14 @@
  *   <trace from to> or <trace path={[…]}>        ".R1 > .pin1", ".U1 > .VCC", "net.GND"
  *   <net name>                                   declares a net by name
  * Footprint strings: "0402" "0603" "0805" "1206" "soic8" "soic14" "soic16" "sot23" "pinrowN".
- * Schematic placement (`schX`, `schY`) is accepted and not used: the importer declares the netlist and the
- * board. tscircuit's autorouter is an engine and is not here, so traces are nets (the ratsnest shows them).
+ * A tree that places symbols (`schX`, `schY`) or uses a schematic tag is a schematic instead (`./sheet.ts`): its
+ * traces are wires of the sheet. tscircuit's autorouter is an engine and is not here, so on a board traces are nets
+ * (the ratsnest shows them).
  */
 import type { Declaration } from "./ir.js";
 import { board, circuit, connect, footprints, net, part, partByRef, type Footprint, type PartRef } from "./eda.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
+import { declareSheet, isSheet } from "./sheet.js";
 
 const TWO_PIN = { pin1: "1", pin2: "2", left: "1", right: "2" };
 /** tscircuit numbers a diode's pins anode first; the land pattern (KiCad's) puts the cathode on pad 1. */
@@ -57,20 +59,31 @@ function footprintOf(v: unknown, kind: "R" | "C" | "L" | "LED" | "D" | "chip", o
   throw new Error(`${owner}: footprint ${JSON.stringify(v)} is not one this importer knows`);
 }
 
-const KNOWN_PROPS = new Set(["name", "footprint", "pcbX", "pcbY", "pcbRotation", "layer", "schX", "schY", "schRotation", "children", "key"]);
+const KNOWN_PROPS = new Set(["name", "footprint", "pcbX", "pcbY", "pcbRotation", "layer", "children", "key"]);
 function refuseUnknown(el: DesignElement, extra: string[]): void {
   for (const k of Object.keys(el.props))
     if (!KNOWN_PROPS.has(k) && !extra.includes(k)) throw new Error(`<${el.type} name="${String(el.props.name ?? "")}">: prop ${k} is not read by this importer`);
 }
 
-/** Declare a tscircuit element tree (its root is a `<board>`) as a circuit. */
+/**
+ * Declare a tscircuit element tree as a circuit. Its root is a `<board>`, or a `<group>` (a circuit with no board).
+ * A tree that places symbols or uses a schematic tag is a schematic (`./sheet.ts`); otherwise its traces are nets.
+ */
 export function fromTscircuit(root: unknown, name?: string): Declaration {
-  const boards = isElement(root) ? [root] : childElements(root);
-  const b = boards.find((e) => e.type === "board");
-  if (!b || boards.length !== 1) throw new Error("a tscircuit design is one <board> element");
+  const roots = isElement(root) ? [root] : childElements(root);
+  const b = roots[0];
+  if (!b || roots.length !== 1 || (b.type !== "board" && b.type !== "group")) throw new Error("a tscircuit design is one <board> or <group> element");
+  const title = name ?? String(b.props.name ?? "Circuit");
+  if (isSheet(b)) {
+    const outline = b.type === "board" ? { width: length(b.props.width, "<board> width"), height: length(b.props.height, "<board> height") } : null;
+    return circuit(title, () => {
+      if (outline) board(outline);
+      declareSheet(b.props.children);
+    });
+  }
   const w = length(b.props.width, "<board> width");
   const h = length(b.props.height, "<board> height");
-  return circuit(name ?? String(b.props.name ?? "Circuit"), () => {
+  return circuit(title, () => {
     board({ width: w, height: h });
     const at = (el: DesignElement) =>
       el.props.pcbX === undefined && el.props.pcbY === undefined

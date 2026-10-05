@@ -72,6 +72,7 @@ export {
   type At,
 } from "./eda.js";
 export { fromTscircuit } from "./tscircuit.js";
+export { schSymbolTypeFor, SHEET_PARTS } from "./sheet.js";
 export { jscadModeling, fromJscad, jscadParams } from "./jscad.js";
 export { replicadModule, fromReplicad } from "./replicad.js";
 export { jsx, jsxs, Fragment, isElement, type DesignElement } from "./jsx-runtime.js";
