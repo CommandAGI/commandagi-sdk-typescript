@@ -1,5 +1,5 @@
 /**
- * CAD — parts, sketches, features and assemblies, declared as the 3D feature graph a `.3dx` holds.
+ * CAD — parts, sketches, features and assemblies, declared as a 3D document's feature graph.
  *
  *   import { part, box, cylinder, sketch, extrude, subtract } from "commandagi/design";
  *
@@ -32,7 +32,7 @@ export type AxisName = "X" | "Y" | "Z";
 /** How a solid combines with the bodies that exist when it runs. */
 export type Operation = "new" | "add" | "cut" | "intersect";
 
-/** The built-in datum planes every `.3dx` has. */
+/** The built-in datum planes every 3D document has. */
 export const PLANES: Record<PlaneName, string> = { XY: "plane_xy", XZ: "plane_xz", YZ: "plane_yz" };
 const rad = (deg: number) => (deg * Math.PI) / 180;
 const axisRef = (axis: AxisName) => ({ type: "datumAxis", axis });

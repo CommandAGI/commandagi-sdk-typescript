@@ -1,5 +1,5 @@
 /**
- * MACHINE JOBS IN JSX — a machining setup (`.camx`) and a slicing setup (`.slicex`) written as the elements the 3D
+ * MACHINE JOBS IN JSX — a machining setup (`.cam.tsx`) and a slicing setup (`.slice.tsx`) written as the elements the 3D
  * app's CAM and slicing modes edit (docs/formats.md § machine jobs, in the CommandAGI repository).
  *
  *   // Bracket plate.cam.tsx
@@ -41,7 +41,7 @@ export const CAM_PART_FIELDS = ["footprintXMm", "footprintYMm", "atXMm", "atYMm"
 export const CAM_MACHINE_FIELDS = ["post", "maxSpindleRpm", "maxFeedMmPerMin", "spindlePowerKw"] as const;
 export const CAM_FIXTURE_FIELDS = ["name", "xMm", "yMm", "wMm", "dMm", "zMm"] as const;
 export const CAM_OPERATION_FIELDS = ["id", "op", "profile", "enabled", "params", "tabs", "region"] as const;
-/** A unit's channel a job runs on (`runsOn` of a `.camx`, `machine` of a `.slicex`). */
+/** A unit's channel a job runs on (`runsOn` of a machining setup, `machine` of a slicing setup). */
 export const TARGET_FIELDS = ["unit", "channel", "name"] as const;
 export const SPOOL_FIELDS = ["materialId", "diameterMm"] as const;
 

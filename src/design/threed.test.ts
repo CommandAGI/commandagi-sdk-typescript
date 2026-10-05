@@ -1,4 +1,4 @@
-// A 3D document in JSX declares the `.3dx` body itself: features as nodes of their type with their fields as ports,
+// A 3D document in JSX declares the document's graph itself: features as nodes of their type with their fields as ports,
 // a sketch's entities in its `sketch` port, parameters as inputs whose drives are their bindings, the built-in planes,
 // bodies and slots; `__source` rides to `meta.source` / `meta.sources`. The Python SDK declares the same nodes
 // (sdk/python tests/test_threed.py holds the same expectations).
@@ -34,9 +34,9 @@ const plate = () =>
     ],
   });
 
-test("a <part> declares the .3dx body: features, a sketch's entities, parameters, planes, bodies and slots", () => {
+test("a <part> declares the document's graph: features, a sketch's entities, parameters, planes, bodies and slots", () => {
   const { graph } = declarationOf({ default: plate });
-  assert.equal(graph.id, "3dx-plate");
+  assert.equal(graph.id, "3d-plate");
   assert.deepEqual(graph.meta, { name: "Plate", units: "mm", presentation: { order: ["sketch1", "extrude1", "fillet1"] } });
   const n = graph.nodes;
   assert.deepEqual(n.depth, { id: "depth", type: "input", label: "depth", inputs: { value: 6, unit: "mm", drives: [{ target: "extrude1", field: "distance" }] }, meta: { source: 1 } });
@@ -68,7 +68,7 @@ test("an <assembly> opens as an assembly; what a 3D document cannot say is refus
   assert.throws(() => declarationOf({ default: jsx("part", { name: "P", builtinPlanes: ["XY"] }) }), /builtinPlanes lists built-in planes/);
 });
 
-test("what a .3dx may hold: a subset of the built-in planes, an id with /, a feature of a type the kernel does not know", () => {
+test("what a 3D document may hold: a subset of the built-in planes, an id with /, a feature of a type the kernel does not know", () => {
   const graph = (props: Record<string, unknown>, ...children: unknown[]) => declarationOf({ default: jsx("part", { name: "P", ...props, children }) }).graph;
   const planes = (g: ReturnType<typeof graph>) => Object.values(g.nodes).filter((n) => n.type === "plane").map((n) => n.id).sort();
   assert.deepEqual(planes(graph({})), ["plane_xy", "plane_xz", "plane_yz"]);
