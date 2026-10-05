@@ -21,6 +21,7 @@
  *   <trace from to> or <trace path={[…]}>        ".R1 > .pin1", ".U1 > .VCC", "net.GND"
  *   <net name>                                   declares a net by name
  * Footprint strings: "0402" "0603" "0805" "1206" "soic8" "soic14" "soic16" "sot23" "pinrowN".
+ * A `<board>` that names its schematic is a board in code instead (`./pcb.ts`).
  * A tree that places symbols (`schX`, `schY`) or uses a schematic tag is a schematic instead (`./sheet.ts`): its
  * traces are wires of the sheet. tscircuit's autorouter is an engine and is not here, so on a board traces are nets
  * (the ratsnest shows them).
@@ -29,6 +30,7 @@ import type { Declaration } from "./ir.js";
 import { board, circuit, connect, footprints, net, part, partByRef, type Footprint, type PartRef } from "./eda.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
 import { declareSheet, isSheet } from "./sheet.js";
+import { declareBoardFile, isBoardFile } from "./pcb.js";
 
 const TWO_PIN = { pin1: "1", pin2: "2", left: "1", right: "2" };
 /** tscircuit numbers a diode's pins anode first; the land pattern (KiCad's) puts the cathode on pad 1. */
@@ -73,6 +75,7 @@ export function fromTscircuit(root: unknown, name?: string): Declaration {
   const roots = isElement(root) ? [root] : childElements(root);
   const b = roots[0];
   if (!b || roots.length !== 1 || (b.type !== "board" && b.type !== "group")) throw new Error("a tscircuit design is one <board> or <group> element");
+  if (isBoardFile(b)) return declareBoardFile(b, name);
   const title = name ?? String(b.props.name ?? "Circuit");
   if (isSheet(b)) {
     const outline = b.type === "board" ? { width: length(b.props.width, "<board> width"), height: length(b.props.height, "<board> height") } : null;

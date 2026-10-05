@@ -82,6 +82,7 @@ export { schSymbolTypeFor, SHEET_PARTS } from "./sheet.js";
 export * from "./business.js";
 export { declareThreeD, isThreeD, THREED_FEATURES, SKETCH_SEGMENTS, BUILTIN_PLANES } from "./threed.js";
 export { fromTwoD, isTwoD, subpathsOf, TWOD_ROOTS, PHOTO_ADJUSTMENTS, PHOTO_FILTERS } from "./twod.js";
+export { declareBoardFile, isBoardFile, tracePointId, BOARD_FOOTPRINTS, BOARD_PART } from "./pcb.js";
 export { jscadModeling, fromJscad, jscadParams } from "./jscad.js";
 export { replicadModule, fromReplicad } from "./replicad.js";
 export { jsx, jsxs, Fragment, isElement, type DesignElement } from "./jsx-runtime.js";

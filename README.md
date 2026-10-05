@@ -150,6 +150,11 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   `<image>`, whose text is their children (marks `<b> <i> <u> <s> <code> <a> <br />`); a `<deck>` of `<slide
   layout>`s with `<text>`, `<shape>` and `<image>` boxes (`x y w h`). They declare the editors' own documents; the
   editor writes each edit back into the file and refuses an edit to what the code computes.
+- **A board in JSX** (a `<name>.pcb.tsx`): a `<board schematic="Divider.sch.tsx" width height core copper>` with
+  `<component name footprint pcbX pcbY pcbRotation layer>` (the schematic's parts on the board, the board's
+  millimetres, Y down), `<trace layer width points from to>` and `<via pcbX pcbY drill diameter>`. A trace's ends say
+  which pin, via or trace point they land on. The circuit editor joins it onto its schematic and writes each board
+  edit back into the file.
 - **Any graph**: `graph`, `node(type, inputs)`, `input` (a graph input), `code` (a node that runs another
   file), `channels(set, values)` (the numbered ports `set.1 … set.N`).
 - **Importers** read other frameworks into the same graph: tscircuit JSX (`<board>`, `<resistor>`, `<led>`,
