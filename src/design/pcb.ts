@@ -18,11 +18,15 @@
  *                                                      one. The outline is a width × height rectangle from (0, 0);
  *                                                      core and copper are the cross-section's thicknesses (mm).
  *                                                      A board with no width and height declares no outline yet.
- *   <component name footprint pcbX pcbY pcbRotation layer>
+ *   <component name footprint library pcbX pcbY pcbRotation layer>
  *                                                      the schematic's part `name` on this board: its footprint (one
- *                                                      of the editor's own land patterns, BOARD_FOOTPRINTS), where it
- *                                                      sits, its rotation (degrees) and its side ("top" or "bottom").
- *                                                      With no pcbX and pcbY it has a footprint and is not placed.
+ *                                                      of the editor's own land patterns, BOARD_FOOTPRINTS, or a
+ *                                                      library footprint by its ref, "Package_SO:SOIC-8", in the
+ *                                                      `.pretty` folder `library` names: its `SOIC-8.kicad_mod`),
+ *                                                      where it sits, its rotation (degrees) and its side ("top" or
+ *                                                      "bottom"). With no pcbX and pcbY it has a footprint and is not
+ *                                                      placed. The editor reads a library footprint's pads from its
+ *                                                      file; this one holds no pad geometry.
  *   <trace name layer width points from to>            a copper run: its points ([[x, y], …]), on one copper layer,
  *                                                      with a finished width.
  *                                                      `from` and `to` say what its first and last points land on.
@@ -197,11 +201,15 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
 
     for (const el of children) {
       if (el.type === "component") {
-        refuseUnknown(el, ["name", "footprint", "pcbX", "pcbY", "pcbRotation", "layer"]);
+        refuseUnknown(el, ["name", "footprint", "library", "pcbX", "pcbY", "pcbRotation", "layer"]);
         const ref = el.props.name as string;
         const fp = el.props.footprint;
-        if (typeof fp !== "string" || !(BOARD_FOOTPRINTS as readonly string[]).includes(fp))
-          throw new Error(`${where(el)}: footprint is one of ${BOARD_FOOTPRINTS.join(", ")}, not ${JSON.stringify(fp)}`);
+        const library = el.props.library;
+        if (library !== undefined) {
+          if (typeof library !== "string" || !/\.pretty\/?$/i.test(library)) throw new Error(`${where(el)}: library names a footprint library folder (a .pretty), not ${JSON.stringify(library)}`);
+          if (typeof fp !== "string" || !/^[^:]+:[^:/]+$/.test(fp)) throw new Error(`${where(el)}: a library footprint is its ref, "Library:Footprint" ("Package_SO:SOIC-8"), not ${JSON.stringify(fp)}`);
+        } else if (typeof fp !== "string" || !(BOARD_FOOTPRINTS as readonly string[]).includes(fp))
+          throw new Error(`${where(el)}: footprint is one of ${BOARD_FOOTPRINTS.join(", ")}, or a library footprint with its library, not ${JSON.stringify(fp)}`);
         const x = num(el, "pcbX"), y = num(el, "pcbY"), rot = num(el, "pcbRotation");
         const side = el.props.layer;
         if (side !== undefined && side !== "top" && side !== "bottom") throw new Error(`${where(el)}: layer is "top" or "bottom"`);
@@ -209,7 +217,11 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
         if (x === undefined && (rot !== undefined || side !== undefined)) throw new Error(`${where(el)}: pcbRotation and layer need pcbX and pcbY`);
         s.add(
           BOARD_PART,
-          { ref, footprint: `Authored:${fp}`, ...(x !== undefined ? { placement: { x, y, rot: rot ?? 0, side: side ?? "top" } } : {}) },
+          {
+            ref,
+            ...(library !== undefined ? { footprint: fp, library: (library as string).replace(/\/$/, "") } : { footprint: `Authored:${fp}` }),
+            ...(x !== undefined ? { placement: { x, y, rot: rot ?? 0, side: side ?? "top" } } : {}),
+          },
           { id: `fp_${ref}`, label: ref, meta: meta(el) },
         );
       } else if (el.type === "trace") {

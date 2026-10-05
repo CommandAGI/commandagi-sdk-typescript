@@ -59,6 +59,13 @@ test("a trace's end names a via or another trace's point by name, written before
   assert.deepEqual(g.nodes.VIA1!.inputs, { kind: "via", points: [{ x: 5, y: 0 }], drillMm: 0.3, padDiameterMm: 0.6, layers: ["F.Cu", "B.Cu"] });
 });
 
+test("a library footprint is its ref and the .pretty folder that holds it; its pads are the library's", () => {
+  const g = board({}, jsx("component", { name: "U1", footprint: "Package_SO:SOIC-8", library: "footprints.pretty", pcbX: 12, pcbY: 8, pcbRotation: 90 }))();
+  assert.deepEqual(g.nodes.fp_U1!.inputs, { ref: "U1", footprint: "Package_SO:SOIC-8", library: "footprints.pretty", placement: { x: 12, y: 8, rot: 90, side: "top" } });
+  assert.throws(board({}, jsx("component", { name: "U1", footprint: "SOIC-8", library: "footprints.pretty" })), /its ref, "Library:Footprint"/);
+  assert.throws(board({}, jsx("component", { name: "U1", footprint: "Package_SO:SOIC-8", library: "SOIC-8.kicad_mod" })), /a footprint library folder \(a \.pretty\)/);
+});
+
 test("a board refuses, by name, what it cannot say", () => {
   assert.throws(board({}, jsx("component", { name: "R1", footprint: "0603" })), /footprint is one of smd-0805/);
   assert.throws(board({}, jsx("component", { name: "R1", footprint: "smd-0805", schX: 3 })), /schX is the schematic's/);
