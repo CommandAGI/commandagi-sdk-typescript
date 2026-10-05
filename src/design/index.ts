@@ -23,6 +23,7 @@ import { fromReplicad, isReplicadShape } from "./replicad.js";
 import { fromMedia, MEDIA_ROOTS } from "./media.js";
 import { declareThreeD, isThreeD } from "./threed.js";
 import { fromTwoD, isTwoD } from "./twod.js";
+import { isOfficeRoot, readDeck, readOffice, type DeclaredDocument } from "./office.js";
 
 export * from "./ir.js";
 export * from "./graph.js";
@@ -83,11 +84,14 @@ export { jscadModeling, fromJscad, jscadParams } from "./jscad.js";
 export { replicadModule, fromReplicad } from "./replicad.js";
 export { jsx, jsxs, Fragment, isElement, type DesignElement } from "./jsx-runtime.js";
 export { declareVideo, declareSong, fromMedia, mediaKind, pitchOf, pitchName, tempoOf, timeSignatureOf, MEDIA_ROOTS } from "./media.js";
+export { readWorkbook, readPage, readDeck, readOffice, isOfficeRoot, inlineHtml, richText, OFFICE_ROOTS, DECK_TYPES, type DeclaredDocument } from "./office.js";
 
 /** What a code part declares: its graph and the parameters it takes. */
 export interface CodePartResult {
   graph: IRGraph;
   params: Record<string, ParamDecl>;
+  /** A workbook or a page the file declared (`./office.ts`); its graph is then empty. */
+  document?: DeclaredDocument;
 }
 
 /**
@@ -116,7 +120,10 @@ export function declarationOf(
   let value: unknown = mod.default ?? mod.main;
   if (value === undefined) throw new Error("the file exports nothing to declare (export default a part, a circuit, a graph, or a function returning one)");
   if (typeof value === "function") value = opts.replicad ? (value as (r: unknown, p: unknown) => unknown)(opts.replicad, values) : (value as (p: unknown) => unknown)(values);
-  const graph = graphOf(value, opts.name ?? "Part");
+  // A workbook or a page is a document of its own, not a graph: it leaves beside an empty graph.
+  const office = isOfficeRoot(value) ? readOffice(value) : null;
+  if (office && "document" in office) return { graph: { id: opts.name ?? "Document", nodes: {} }, params, document: office.document };
+  const graph = office ? office.graph : graphOf(value, opts.name ?? "Part");
   const problems = checkIR(graph);
   if (problems.length) throw new Error(`the declared graph is not well formed: ${problems.slice(0, 5).join("; ")}`);
   return { graph, params };
@@ -129,6 +136,7 @@ export function graphOf(value: unknown, name = "Part"): IRGraph {
   if (isElement(value) && MEDIA_ROOTS.has(value.type)) return fromMedia(value).ir;
   if (isThreeD(value)) return declareThreeD(value, name) as IRGraph;
   if (isTwoD(value)) return fromTwoD(value, name).ir;
+  if (isOfficeRoot(value) && value.type === "deck") return readDeck(value);
   if (isElement(value) || (Array.isArray(value) && value.some(isElement))) return fromTscircuit(value).ir;
   if (isSolid(value) || (Array.isArray(value) && value.length && value.every(isSolid))) return fromJscad(value, name).ir;
   if (isReplicadShape(value)) return fromReplicad(value, name).ir;

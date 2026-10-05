@@ -144,6 +144,12 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   them) and adjustment tags (`<exposure ev>`, `<hsl>` …); a `<nest>` of `<sheet>`, `<stock>`, `<options>` and `<part>`.
   An element is one node of the editor's own document and its attributes are that node's inputs. A pixel layer
   names its image file (`src`); pixels are never code. The editor writes each edit back into the file.
+- **Office documents in JSX** (a `<name>.sheet.tsx`, `.page.tsx` or `.deck.tsx` the sheets, docs and decks editors
+  open and edit): a `<workbook>` of `<sheet>`s with `<cell at value|formula …format>`, `<column>` and `<row>`; a
+  `<page>` of `<h1>`–`<h3>`, `<p>`, `<bullet>`, `<numbered>`, `<todo>`, `<quote>`, `<pre>`, `<divider>` and
+  `<image>`, whose text is their children (marks `<b> <i> <u> <s> <code> <a> <br />`); a `<deck>` of `<slide
+  layout>`s with `<text>`, `<shape>` and `<image>` boxes (`x y w h`). They declare the editors' own documents; the
+  editor writes each edit back into the file and refuses an edit to what the code computes.
 - **Any graph**: `graph`, `node(type, inputs)`, `input` (a graph input), `code` (a node that runs another
   file), `channels(set, values)` (the numbered ports `set.1 … set.N`).
 - **Importers** read other frameworks into the same graph: tscircuit JSX (`<board>`, `<resistor>`, `<led>`,
