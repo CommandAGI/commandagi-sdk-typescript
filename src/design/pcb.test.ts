@@ -114,7 +114,7 @@ test("a board says what a KiCad board holds: its layers, cross-section, drawings
 });
 
 test("a board on the faces of a CAD part: its surface, each component's face and the runs on it", () => {
-  const surface = { cadRef: "../case.3dx", domain: { charts: [{ id: "top" }] } };
+  const surface = { cadRef: "../case.3d.tsx", domain: { charts: [{ id: "top" }] } };
   const g = board(
     { surface },
     jsx("component", { name: "R1", footprint: "smd-0805", pcbX: 4, pcbY: 5, chart: "top" }),

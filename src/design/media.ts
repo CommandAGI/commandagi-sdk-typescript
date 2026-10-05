@@ -1,6 +1,6 @@
 /**
  * A VIDEO OR A SONG IN JSX — the media editors' own documents, declared as the nodes the CommandAGI video editor
- * (`.vidx`: `video.source`, `video.clip`, `video.track`, `video.composite`) and music studio (`.musx`: `midiClip`,
+ * (`.vid.tsx`: `video.source`, `video.clip`, `video.track`, `video.composite`) and music studio (`.mus.tsx`: `midiClip`,
  * `instrument`, `fx.*`, `track`, `master`) store and edit. No second model: the editor opens what this declares.
  *
  *   export default () => (
