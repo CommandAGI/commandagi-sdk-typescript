@@ -22,6 +22,7 @@ import { fromJscad, isSolid, jscadParams } from "./jscad.js";
 import { fromReplicad, isReplicadShape } from "./replicad.js";
 import { fromMedia, MEDIA_ROOTS } from "./media.js";
 import { declareThreeD, isThreeD } from "./threed.js";
+import { fromTwoD, isTwoD } from "./twod.js";
 
 export * from "./ir.js";
 export * from "./graph.js";
@@ -77,6 +78,7 @@ export { fromTscircuit } from "./tscircuit.js";
 export { schSymbolTypeFor, SHEET_PARTS } from "./sheet.js";
 export * from "./business.js";
 export { declareThreeD, isThreeD, THREED_FEATURES, SKETCH_SEGMENTS, BUILTIN_PLANES } from "./threed.js";
+export { fromTwoD, isTwoD, subpathsOf, TWOD_ROOTS, PHOTO_ADJUSTMENTS, PHOTO_FILTERS } from "./twod.js";
 export { jscadModeling, fromJscad, jscadParams } from "./jscad.js";
 export { replicadModule, fromReplicad } from "./replicad.js";
 export { jsx, jsxs, Fragment, isElement, type DesignElement } from "./jsx-runtime.js";
@@ -126,6 +128,7 @@ export function graphOf(value: unknown, name = "Part"): IRGraph {
   if (isIRGraph(value)) return value;
   if (isElement(value) && MEDIA_ROOTS.has(value.type)) return fromMedia(value).ir;
   if (isThreeD(value)) return declareThreeD(value, name) as IRGraph;
+  if (isTwoD(value)) return fromTwoD(value, name).ir;
   if (isElement(value) || (Array.isArray(value) && value.some(isElement))) return fromTscircuit(value).ir;
   if (isSolid(value) || (Array.isArray(value) && value.length && value.every(isSolid))) return fromJscad(value, name).ir;
   if (isReplicadShape(value)) return fromReplicad(value, name).ir;
