@@ -20,6 +20,8 @@ import { isElement } from "./jsx-runtime.js";
 import { fromTscircuit } from "./tscircuit.js";
 import { fromJscad, isSolid, jscadParams } from "./jscad.js";
 import { fromReplicad, isReplicadShape } from "./replicad.js";
+import { declareDocument, isDocumentElement } from "./documents.js";
+import { declareOpGraph } from "./ontology.js";
 
 export * from "./ir.js";
 export * from "./graph.js";
@@ -76,6 +78,8 @@ export { schSymbolTypeFor, SHEET_PARTS } from "./sheet.js";
 export { jscadModeling, fromJscad, jscadParams } from "./jscad.js";
 export { replicadModule, fromReplicad } from "./replicad.js";
 export { jsx, jsxs, Fragment, isElement, type DesignElement } from "./jsx-runtime.js";
+export * from "./documents.js";
+export * from "./ontology.js";
 
 /** What a code part declares: its graph and the parameters it takes. */
 export interface CodePartResult {
@@ -119,6 +123,7 @@ export function declarationOf(
 export function graphOf(value: unknown, name = "Part"): IRGraph {
   if (value instanceof Declaration) return value.ir;
   if (isIRGraph(value)) return value;
+  if (isDocumentElement(value)) return (value.type === "opgraph" ? declareOpGraph(value) : declareDocument(value)).ir;
   if (isElement(value) || (Array.isArray(value) && value.some(isElement))) return fromTscircuit(value).ir;
   if (isSolid(value) || (Array.isArray(value) && value.length && value.every(isSolid))) return fromJscad(value, name).ir;
   if (isReplicadShape(value)) return fromReplicad(value, name).ir;
