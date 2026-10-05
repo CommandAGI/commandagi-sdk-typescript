@@ -117,6 +117,13 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   placed with `schX` / `schY` (the sheet's millimetres, Y down) and `schRotation`, `<junction>`, `<trace from to>`
   and `<netlabel net connection>`. They declare the circuit's own sheet. The editor writes each edit back into the
   file; an attribute that is an expression is never replaced with a literal (the edit is refused with its line).
+- **A company, an RFC or a case in JSX** (`<Name>.company.tsx`, `<name>.rfc.tsx`, `<name>.case.tsx`, which the
+  company app and the contract editor open and edit): `<Company name about files dashboard>` with `<Entity
+  jurisdiction form formed fiscalYearEnd …>`, `<Registration kind jurisdiction id issued expires file>` and the
+  standard's parts, which ref their files (`<Books journal>`, `<CapTable ocf>`, `<People folder>`, `<Calendar
+  folder>`, `<Matters folder>`); `<Rfc title target body id>` with `<Option title summary>` and `<Change op
+  parameter value …>`; `<Case respondent … id>` with `<Harm>` and `<Relief>`. Import the tags from
+  `commandagi/design`; `documentOf` reads them into the native document (`.company`, the RFC or case draft).
 - **Any graph**: `graph`, `node(type, inputs)`, `input` (a graph input), `code` (a node that runs another
   file), `channels(set, values)` (the numbered ports `set.1 … set.N`).
 - **Importers** read other frameworks into the same graph: tscircuit JSX (`<board>`, `<resistor>`, `<led>`,
