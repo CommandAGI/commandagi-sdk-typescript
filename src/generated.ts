@@ -373,6 +373,57 @@ export const SDK_SCHEMA = {
         ],
       },
       {
+        name: "billing",
+        doc: "Resold third-party services, charged at the provider's price (docs/billing.md).",
+        factory: null,
+        methods: [
+          {
+            name: "prices",
+            tool: "quote_passthrough",
+            doc: "Every pass-through price, with its source and date.",
+            params: [],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "quote",
+            tool: "quote_passthrough",
+            doc: 'What a service costs before you buy it: {price: "twilio/us-sms", months?, units?, oneTime?}.',
+            params: [
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "charges",
+            tool: "list_passthrough_charges",
+            doc: "The account's pass-through line items, monthly items and balance.",
+            params: [
+              {
+                name: "limit",
+                key: "limit",
+                type: "integer",
+                required: false,
+                spread: false,
+                prefix: null,
+                cli: "flag",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+        ],
+      },
+      {
         name: "memory",
         doc: "The agent's durable memory: markdown files under memories/ in the thread's drive.",
         factory: null,
@@ -1170,6 +1221,23 @@ export class Embodiments {
   }
 }
 
+/** Resold third-party services, charged at the provider's price (docs/billing.md). */
+export class Billing {
+  constructor(private readonly t: Transport) {}
+  /** Every pass-through price, with its source and date. */
+  prices(): Promise<unknown> {
+    return this.t.call("quote_passthrough", {});
+  }
+  /** What a service costs before you buy it: {price: "twilio/us-sms", months?, units?, oneTime?}. */
+  quote(opts: Args = {}): Promise<unknown> {
+    return this.t.call("quote_passthrough", { ...opts });
+  }
+  /** The account's pass-through line items, monthly items and balance. */
+  charges(limit?: number): Promise<unknown> {
+    return this.t.call("list_passthrough_charges", prune({ limit: limit }));
+  }
+}
+
 /** The agent's durable memory: markdown files under memories/ in the thread's drive. */
 export class Memory {
   constructor(private readonly t: Transport) {}
@@ -1234,6 +1302,8 @@ export abstract class GeneratedClient implements Transport {
   readonly threads = new Threads(this);
   /** Computers, cameras, robots and sims attached to a thread. */
   readonly embodiments = new Embodiments(this);
+  /** Resold third-party services, charged at the provider's price (docs/billing.md). */
+  readonly billing = new Billing(this);
   /** The agent's durable memory: markdown files under memories/ in the thread's drive. */
   readonly memory = new Memory(this);
   /** Connected third-party accounts. */
@@ -1585,6 +1655,26 @@ export const CLI_COMMANDS: readonly Command[] = [
     tool: "describe_world",
     params: [{ name: "threadId", from: "flag" }],
     doc: "The live sim/robot world: robots, objects and poses the runtime reports.",
+  },
+  {
+    group: "billing",
+    verb: "prices",
+    tool: "quote_passthrough",
+    doc: "Every pass-through price, with its source and date.",
+  },
+  {
+    group: "billing",
+    verb: "quote",
+    tool: "quote_passthrough",
+    spread: true,
+    doc: 'What a service costs before you buy it: {price: "twilio/us-sms", months?, units?, oneTime?}.',
+  },
+  {
+    group: "billing",
+    verb: "charges",
+    tool: "list_passthrough_charges",
+    params: [{ name: "limit", from: "flag", number: true }],
+    doc: "The account's pass-through line items, monthly items and balance.",
   },
   {
     group: "memory",
