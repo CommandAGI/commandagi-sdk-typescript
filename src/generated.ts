@@ -934,6 +934,48 @@ export const SDK_SCHEMA = {
           },
         ],
       },
+      {
+        name: "vpn",
+        doc: "The VPN overlay (docs/vpn.md): its nodes and exits, and egress from an exit's address.",
+        factory: null,
+        methods: [
+          {
+            name: "status",
+            tool: "vpn_status",
+            doc: "The account's nodes, the exits it may use, the ACL and the exit grants.",
+            params: [],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "fetch",
+            tool: "vpn_fetch",
+            doc: "Fetch a URL from a VPN exit's address (method, headers, body, exit in opts); refused without an exit grant.",
+            params: [
+              {
+                name: "url",
+                key: "url",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+        ],
+      },
     ],
   },
   session: {
@@ -1670,6 +1712,19 @@ export class Phone {
   }
 }
 
+/** The VPN overlay (docs/vpn.md): its nodes and exits, and egress from an exit's address. */
+export class Vpn {
+  constructor(private readonly t: Transport) {}
+  /** The account's nodes, the exits it may use, the ACL and the exit grants. */
+  status(): Promise<unknown> {
+    return this.t.call("vpn_status", {});
+  }
+  /** Fetch a URL from a VPN exit's address (method, headers, body, exit in opts); refused without an exit grant. */
+  fetch(url: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("vpn_fetch", { ...prune({ url: url }), ...opts });
+  }
+}
+
 /**
  * Everything above the transport. The hand-written client (./client.ts) implements `call` over
  * /mcp and `withThread`; every method here is sugar over those two.
@@ -1691,6 +1746,8 @@ export abstract class GeneratedClient implements Transport {
   readonly web = new Web(this);
   /** The account's phone lines (docs/phone.md). An agent texts and calls only under a phone grant its owner made. */
   readonly phone = new Phone(this);
+  /** The VPN overlay (docs/vpn.md): its nodes and exits, and egress from an exit's address. */
+  readonly vpn = new Vpn(this);
   /** A single connected social account, bound: cagi.social('tiktok', '@brand').post(fileId). */
   social(platform: string, account?: string): Social {
     return new Social(this, platform, account);
@@ -2192,5 +2249,19 @@ export const CLI_COMMANDS: readonly Command[] = [
     tool: "place_call",
     params: [{ name: "lineId" }, { name: "to" }, { name: "bridgeTo", from: "flag" }],
     doc: "Click-to-call: ring the line's forward-to number (or a number your grant lists), then connect to `to`.",
+  },
+  {
+    group: "vpn",
+    verb: "status",
+    tool: "vpn_status",
+    doc: "The account's nodes, the exits it may use, the ACL and the exit grants.",
+  },
+  {
+    group: "vpn",
+    verb: "fetch",
+    tool: "vpn_fetch",
+    params: [{ name: "url" }],
+    spread: true,
+    doc: "Fetch a URL from a VPN exit's address (method, headers, body, exit in opts); refused without an exit grant.",
   },
 ];
