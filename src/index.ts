@@ -14,7 +14,7 @@
  * namespaces and control vocabularies are generated from the CommandAGI SDK schema
  * (./commandagi-sdk.schema.json), identically for every language; `call(tool, args)` reaches any tool.
  */
-export { CommandAGI, CommandAGIError, createClient, type CommandAGIConfig } from "./client.js";
+export { CommandAGI, CommandAGIError, createClient, type CommandAGIConfig, type ToolContent } from "./client.js";
 export { Session, type Frame, type ControlChannel } from "./session.js";
 export * from "./generated.js";
 export { CommandAGI as default } from "./client.js";

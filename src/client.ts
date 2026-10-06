@@ -21,6 +21,9 @@ export interface CommandAGIConfig {
 }
 
 /** A tool call that failed — carries the tool name and the platform's error detail. */
+/** One content part of a tool's answer: text, or an image (base64 bytes and their media type). */
+export type ToolContent = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
+
 export class CommandAGIError extends Error {
   constructor(
     public readonly tool: string,
@@ -88,6 +91,35 @@ export class CommandAGI extends GeneratedClient {
     } catch {
       return text as unknown as T;
     }
+  }
+
+  /**
+   * Run a platform tool and return its content parts as they are: text, and images (base64) — what a tool that SEES
+   * answers with (`computer_screenshot`, `computer_act`). Refusals throw as in `call`.
+   */
+  async callContent(tool: string, args: Args = {}): Promise<ToolContent[]> {
+    const res = await this.fetchImpl(this.baseUrl + "/mcp", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: "Bearer " + this.apiKey,
+        "mcp-protocol-version": "2025-06-18",
+      },
+      body: JSON.stringify({ jsonrpc: "2.0", id: ++this.id, method: "tools/call", params: { name: tool, arguments: args } }),
+    });
+    let j: { error?: { message?: string }; result?: { isError?: boolean; content?: ToolContent[] } } = {};
+    try {
+      j = (await res.json()) as typeof j;
+    } catch {
+      throw new CommandAGIError(tool, `${tool}: non-JSON response (HTTP ${res.status})`);
+    }
+    if (j.error) throw new CommandAGIError(tool, `${tool}: ${j.error.message ?? "tool error"}`, j.error);
+    const content = j.result?.content ?? [];
+    if (j.result?.isError) {
+      const text = content.map((c) => (c.type === "text" ? c.text : "")).join("\n");
+      throw new CommandAGIError(tool, `${tool}: ${text}`, text);
+    }
+    return content;
   }
 
   /** Default `threadId` to the client's own thread when the caller didn't name one. */

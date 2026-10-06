@@ -9,7 +9,7 @@
  *   - FRAMES arrive over the thread's WebSocket (`/rt/thread/:id`) as `frame` messages; the socket opens
  *     on the first frame request and is read-only (control never rides it).
  */
-import type { CommandAGI } from "./client.js";
+import type { CommandAGI, ToolContent } from "./client.js";
 import { DesktopControls, RobotControls, SimControls, type Actor, type Args } from "./generated.js";
 
 /** One frame from a channel of this embodiment: `url` is a `data:` URL or an https URL. */
@@ -63,6 +63,34 @@ export class Session implements Actor {
   /** Send one declared action to this embodiment. Refusals (undeclared, invalid payload) throw. */
   act(action: string, payload: Args = {}): Promise<unknown> {
     return this.client.embodiments.act(this.embodimentId, action, payload, this.threadId);
+  }
+
+  // ─── computer use (docs/computer-use.md in the CommandAGI repository) ───────────────────────────────
+
+  /**
+   * See a computer: its screen now, as the frame an agent acts in. `text` names the frame's id and size and the
+   * coordinate rule (coordinates are pixels of this frame); `image` is its bytes.
+   */
+  async screenshot(): Promise<{ text: string; image: Uint8Array; mimeType: string }> {
+    const parts = await this.client.callContent("computer_screenshot", { threadId: this.threadId, embodimentId: this.embodimentId });
+    return { text: textOf(parts), ...imageOf(parts) };
+  }
+
+  /**
+   * One computer-use action (`click`, `drag`, `type`, `key` … in pixels of the latest frame), answered with what it
+   * changed (`{ status, changed, region, settle, frame }`) and the frame after it. The host records the action
+   * before it sends it and sends it once.
+   */
+  async computer(action: string, payload: Args = {}): Promise<{ result: unknown; image: Uint8Array | null; mimeType: string | null }> {
+    const parts = await this.client.callContent("computer_act", { threadId: this.threadId, embodimentId: this.embodimentId, action, payload });
+    let result: unknown = textOf(parts);
+    try {
+      result = JSON.parse(result as string);
+    } catch {
+      /* the answer was not JSON: keep its text */
+    }
+    const img = parts.some((p) => p.type === "image") ? imageOf(parts) : { image: null, mimeType: null };
+    return { result, ...img };
   }
 
   /** The controls this embodiment declares right now. Empty until its runtime has connected. */
@@ -196,4 +224,11 @@ export class Session implements Actor {
   async [Symbol.asyncDispose](): Promise<void> {
     await this.stop();
   }
+}
+
+const textOf = (parts: ToolContent[]) => parts.map((p) => (p.type === "text" ? p.text : "")).join("\n");
+function imageOf(parts: ToolContent[]): { image: Uint8Array; mimeType: string } {
+  const img = parts.find((p): p is Extract<ToolContent, { type: "image" }> => p.type === "image");
+  if (!img) throw new Error("commandagi: the answer has no image");
+  return { image: Uint8Array.from(atob(img.data), (c) => c.charCodeAt(0)), mimeType: img.mimeType };
 }
