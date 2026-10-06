@@ -476,6 +476,121 @@ export const SDK_SCHEMA = {
         ],
       },
       {
+        name: "postal",
+        doc: "Paper mail (docs/postal.md): letters from a .letter.tsx in your files, and mailboxes that receive and scan mail.",
+        factory: null,
+        methods: [
+          {
+            name: "quote",
+            tool: "postal_quote",
+            doc: "What mailing the letter would cost, and how it would go. Costs nothing.",
+            params: [
+              {
+                name: "source",
+                key: "source",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "send",
+            tool: "postal_send",
+            doc: "Mail the letter: charged first, recorded before it is sent, never retried. An agent needs a postal grant.",
+            params: [
+              {
+                name: "source",
+                key: "source",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "status",
+            tool: "postal_status",
+            doc: "A sent piece's state and records; without a piece, the sent pieces.",
+            params: [
+              {
+                name: "piece",
+                key: "piece",
+                type: "string",
+                required: false,
+                spread: false,
+                prefix: null,
+                cli: "flag",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "cancel",
+            tool: "postal_cancel",
+            doc: "Cancel a piece before it is printed; the charge comes back.",
+            params: [
+              {
+                name: "piece",
+                key: "piece",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "inbox",
+            tool: "postal_inbox",
+            doc: "Your mailboxes, or one mailbox's received pieces with their scans.",
+            params: [
+              {
+                name: "mailbox",
+                key: "mailbox",
+                type: "string",
+                required: false,
+                spread: false,
+                prefix: null,
+                cli: "flag",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+        ],
+      },
+      {
         name: "social",
         doc: "A single connected social account, bound: cagi.social('tiktok', '@brand').post(fileId).",
         factory: [
@@ -1200,6 +1315,31 @@ export class Integrations {
   }
 }
 
+/** Paper mail (docs/postal.md): letters from a .letter.tsx in your files, and mailboxes that receive and scan mail. */
+export class Postal {
+  constructor(private readonly t: Transport) {}
+  /** What mailing the letter would cost, and how it would go. Costs nothing. */
+  quote(source: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("postal_quote", { ...prune({ source: source }), ...opts });
+  }
+  /** Mail the letter: charged first, recorded before it is sent, never retried. An agent needs a postal grant. */
+  send(source: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("postal_send", { ...prune({ source: source }), ...opts });
+  }
+  /** A sent piece's state and records; without a piece, the sent pieces. */
+  status(piece?: string): Promise<unknown> {
+    return this.t.call("postal_status", prune({ piece: piece }));
+  }
+  /** Cancel a piece before it is printed; the charge comes back. */
+  cancel(piece: string): Promise<unknown> {
+    return this.t.call("postal_cancel", prune({ piece: piece }));
+  }
+  /** Your mailboxes, or one mailbox's received pieces with their scans. */
+  inbox(mailbox?: string): Promise<unknown> {
+    return this.t.call("postal_inbox", prune({ mailbox: mailbox }));
+  }
+}
+
 /** A single connected social account, bound: cagi.social('tiktok', '@brand').post(fileId). */
 export class Social {
   constructor(
@@ -1238,6 +1378,8 @@ export abstract class GeneratedClient implements Transport {
   readonly memory = new Memory(this);
   /** Connected third-party accounts. */
   readonly integrations = new Integrations(this);
+  /** Paper mail (docs/postal.md): letters from a .letter.tsx in your files, and mailboxes that receive and scan mail. */
+  readonly postal = new Postal(this);
   /** A single connected social account, bound: cagi.social('tiktok', '@brand').post(fileId). */
   social(platform: string, account?: string): Social {
     return new Social(this, platform, account);
@@ -1615,6 +1757,43 @@ export const CLI_COMMANDS: readonly Command[] = [
     params: [{ name: "integration" }],
     spread: true,
     doc: "Drive a provider's API (method/path/query/body).",
+  },
+  {
+    group: "postal",
+    verb: "quote",
+    tool: "postal_quote",
+    params: [{ name: "source" }],
+    spread: true,
+    doc: "What mailing the letter would cost, and how it would go. Costs nothing.",
+  },
+  {
+    group: "postal",
+    verb: "send",
+    tool: "postal_send",
+    params: [{ name: "source" }],
+    spread: true,
+    doc: "Mail the letter: charged first, recorded before it is sent, never retried. An agent needs a postal grant.",
+  },
+  {
+    group: "postal",
+    verb: "status",
+    tool: "postal_status",
+    params: [{ name: "piece", from: "flag" }],
+    doc: "A sent piece's state and records; without a piece, the sent pieces.",
+  },
+  {
+    group: "postal",
+    verb: "cancel",
+    tool: "postal_cancel",
+    params: [{ name: "piece" }],
+    doc: "Cancel a piece before it is printed; the charge comes back.",
+  },
+  {
+    group: "postal",
+    verb: "inbox",
+    tool: "postal_inbox",
+    params: [{ name: "mailbox", from: "flag" }],
+    doc: "Your mailboxes, or one mailbox's received pieces with their scans.",
   },
   {
     group: "social",
