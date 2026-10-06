@@ -109,9 +109,10 @@ export function treeOfElement(root: DesignElement, v: Vocabulary<any>): DocTree 
     const seen = new Map<string, number>();
     for (const c of children) {
       const r = v.tags[c.tag]!;
-      const id = r.key ? `${c.tag}#${String(c.attrs[r.key])}` : r.single ? c.tag : null;
+      // A record whose key is not written is told apart by its place (as `identities` does).
+      const id = r.key && c.attrs[r.key] !== undefined ? `${c.tag}#${String(c.attrs[r.key])}` : r.single ? c.tag : null;
       if (!id) continue;
-      if (seen.has(id)) throw new Error(r.key ? `two <${c.tag}> in <${el.type}> have ${r.key} "${String(c.attrs[r.key])}"` : `<${el.type}> has one <${c.tag}>`);
+      if (seen.has(id)) throw new Error(r.key && c.attrs[r.key] !== undefined ? `two <${c.tag}> in <${el.type}> have ${r.key} "${String(c.attrs[r.key])}"` : `<${el.type}> has one <${c.tag}>`);
       seen.set(id, 1);
     }
     return { tag: el.type, attrs, children, ...(el.source !== undefined ? { source: el.source } : {}) };

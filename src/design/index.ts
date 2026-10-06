@@ -96,6 +96,7 @@ export * from "./tasks.js";
 export * from "./records.js";
 export * from "./fab.js";
 export * from "./postal.js";
+export * from "./pdf.js";
 
 /** What a code part declares: its graph and the parameters it takes. */
 export interface CodePartResult {
