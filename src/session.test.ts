@@ -101,3 +101,28 @@ test("ready() resolves once the embodiment declares controls", async () => {
   const controls = await cagi.session("th", "emb").ready({ pollMs: 1 });
   assert.deepEqual(controls, [{ channelId: "ctrl", actions: ["reset"] }]);
 });
+
+test("a computer's screenshot and action answers keep their images (the agent sees what it acts on)", async () => {
+  const png = btoa("PNG-bytes");
+  const calls: { tool: string; args: Record<string, unknown> }[] = [];
+  const answers: Record<string, unknown[]> = {
+    computer_screenshot: [{ type: "text", text: "frame f-1a2b3c4d 1280×720; coordinates are its pixels" }, { type: "image", data: png, mimeType: "image/png" }],
+    computer_act: [{ type: "text", text: JSON.stringify({ status: "sent", changed: true, region: { x: 1, y: 2, width: 3, height: 4 } }) }, { type: "image", data: png, mimeType: "image/png" }],
+  };
+  const fetchImpl = (async (_url: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body));
+    calls.push({ tool: body.params.name, args: body.params.arguments });
+    return { async json() { return { jsonrpc: "2.0", id: 1, result: { content: answers[body.params.name] } }; } } as unknown as Response;
+  }) as unknown as typeof fetch;
+  const s = new CommandAGI({ apiKey: "cagi_test", fetchImpl }).session("th_world", "emb_pc");
+  const shot = await s.screenshot();
+  assert.match(shot.text, /1280×720/);
+  assert.equal(new TextDecoder().decode(shot.image), "PNG-bytes");
+  const done = await s.computer("click", { x: 412, y: 300 });
+  assert.deepEqual((done.result as { changed: boolean }).changed, true);
+  assert.equal(done.mimeType, "image/png");
+  assert.deepEqual(calls.map((c) => [c.tool, c.args]), [
+    ["computer_screenshot", { threadId: "th_world", embodimentId: "emb_pc" }],
+    ["computer_act", { threadId: "th_world", embodimentId: "emb_pc", action: "click", payload: { x: 412, y: 300 } }],
+  ]);
+});

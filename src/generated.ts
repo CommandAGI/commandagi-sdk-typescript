@@ -572,17 +572,30 @@ export const SDK_SCHEMA = {
     vocabularies: [
       {
         name: "desktop",
-        doc: "Computers — pointer, keyboard and waits.",
+        doc: "Computers — pointer, keyboard and waits, in pixels of the latest frame (docs/computer-use.md).",
         actions: [
           {
             name: "click",
-            channelId: "pointer",
-            label: "Pointer",
+            channelId: "computer",
+            label:
+              "Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first.",
             schema: {
               type: "object",
               properties: {
-                x: { type: "number", minimum: -100000, maximum: 100000 },
-                y: { type: "number", minimum: -100000, maximum: 100000 },
+                x: { type: "number", description: "pixel column of the latest frame", minimum: 0 },
+                y: { type: "number", description: "pixel row of the latest frame", minimum: 0 },
+                mods: {
+                  type: "string",
+                  maxLength: 40,
+                  description:
+                    "modifiers held during the action: shift, ctrl, alt, super, joined by +",
+                },
+                basis: {
+                  type: "string",
+                  maxLength: 10,
+                  description:
+                    "the id of the frame this action was planned on; refused as stale if the screen changed since",
+                },
               },
               required: ["x", "y"],
               additionalProperties: false,
@@ -590,13 +603,53 @@ export const SDK_SCHEMA = {
           },
           {
             name: "double_click",
-            channelId: "pointer",
-            label: "Pointer",
+            channelId: "computer",
+            label:
+              "Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first.",
             schema: {
               type: "object",
               properties: {
-                x: { type: "number", minimum: -100000, maximum: 100000 },
-                y: { type: "number", minimum: -100000, maximum: 100000 },
+                x: { type: "number", description: "pixel column of the latest frame", minimum: 0 },
+                y: { type: "number", description: "pixel row of the latest frame", minimum: 0 },
+                mods: {
+                  type: "string",
+                  maxLength: 40,
+                  description:
+                    "modifiers held during the action: shift, ctrl, alt, super, joined by +",
+                },
+                basis: {
+                  type: "string",
+                  maxLength: 10,
+                  description:
+                    "the id of the frame this action was planned on; refused as stale if the screen changed since",
+                },
+              },
+              required: ["x", "y"],
+              additionalProperties: false,
+            },
+          },
+          {
+            name: "triple_click",
+            channelId: "computer",
+            label:
+              "Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first.",
+            schema: {
+              type: "object",
+              properties: {
+                x: { type: "number", description: "pixel column of the latest frame", minimum: 0 },
+                y: { type: "number", description: "pixel row of the latest frame", minimum: 0 },
+                mods: {
+                  type: "string",
+                  maxLength: 40,
+                  description:
+                    "modifiers held during the action: shift, ctrl, alt, super, joined by +",
+                },
+                basis: {
+                  type: "string",
+                  maxLength: 10,
+                  description:
+                    "the id of the frame this action was planned on; refused as stale if the screen changed since",
+                },
               },
               required: ["x", "y"],
               additionalProperties: false,
@@ -604,13 +657,26 @@ export const SDK_SCHEMA = {
           },
           {
             name: "right_click",
-            channelId: "pointer",
-            label: "Pointer",
+            channelId: "computer",
+            label:
+              "Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first.",
             schema: {
               type: "object",
               properties: {
-                x: { type: "number", minimum: -100000, maximum: 100000 },
-                y: { type: "number", minimum: -100000, maximum: 100000 },
+                x: { type: "number", description: "pixel column of the latest frame", minimum: 0 },
+                y: { type: "number", description: "pixel row of the latest frame", minimum: 0 },
+                mods: {
+                  type: "string",
+                  maxLength: 40,
+                  description:
+                    "modifiers held during the action: shift, ctrl, alt, super, joined by +",
+                },
+                basis: {
+                  type: "string",
+                  maxLength: 10,
+                  description:
+                    "the id of the frame this action was planned on; refused as stale if the screen changed since",
+                },
               },
               required: ["x", "y"],
               additionalProperties: false,
@@ -618,13 +684,26 @@ export const SDK_SCHEMA = {
           },
           {
             name: "middle_click",
-            channelId: "pointer",
-            label: "Pointer",
+            channelId: "computer",
+            label:
+              "Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first.",
             schema: {
               type: "object",
               properties: {
-                x: { type: "number", minimum: -100000, maximum: 100000 },
-                y: { type: "number", minimum: -100000, maximum: 100000 },
+                x: { type: "number", description: "pixel column of the latest frame", minimum: 0 },
+                y: { type: "number", description: "pixel row of the latest frame", minimum: 0 },
+                mods: {
+                  type: "string",
+                  maxLength: 40,
+                  description:
+                    "modifiers held during the action: shift, ctrl, alt, super, joined by +",
+                },
+                basis: {
+                  type: "string",
+                  maxLength: 10,
+                  description:
+                    "the id of the frame this action was planned on; refused as stale if the screen changed since",
+                },
               },
               required: ["x", "y"],
               additionalProperties: false,
@@ -632,63 +711,146 @@ export const SDK_SCHEMA = {
           },
           {
             name: "move",
-            channelId: "pointer",
-            label: "Pointer",
+            channelId: "computer",
+            label:
+              "Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first.",
             schema: {
               type: "object",
               properties: {
-                x: { type: "number", minimum: -100000, maximum: 100000 },
-                y: { type: "number", minimum: -100000, maximum: 100000 },
+                x: { type: "number", description: "pixel column of the latest frame", minimum: 0 },
+                y: { type: "number", description: "pixel row of the latest frame", minimum: 0 },
+                basis: {
+                  type: "string",
+                  maxLength: 10,
+                  description:
+                    "the id of the frame this action was planned on; refused as stale if the screen changed since",
+                },
               },
               required: ["x", "y"],
               additionalProperties: false,
             },
           },
           {
-            name: "scroll",
-            channelId: "pointer",
-            label: "Pointer",
+            name: "drag",
+            channelId: "computer",
+            label:
+              "Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first.",
             schema: {
               type: "object",
               properties: {
-                x: { type: "number", minimum: -100000, maximum: 100000 },
-                y: { type: "number", minimum: -100000, maximum: 100000 },
-                dx: { type: "number", minimum: -100000, maximum: 100000 },
-                dy: { type: "number", minimum: -100000, maximum: 100000 },
+                x: { type: "number", description: "pixel column of the latest frame", minimum: 0 },
+                y: { type: "number", description: "pixel row of the latest frame", minimum: 0 },
+                toX: {
+                  type: "number",
+                  description: "pixel column of the latest frame",
+                  minimum: 0,
+                },
+                toY: { type: "number", description: "pixel row of the latest frame", minimum: 0 },
+                mods: {
+                  type: "string",
+                  maxLength: 40,
+                  description:
+                    "modifiers held during the action: shift, ctrl, alt, super, joined by +",
+                },
+                basis: {
+                  type: "string",
+                  maxLength: 10,
+                  description:
+                    "the id of the frame this action was planned on; refused as stale if the screen changed since",
+                },
               },
-              required: ["dy"],
+              required: ["x", "y", "toX", "toY"],
               additionalProperties: false,
             },
           },
           {
-            name: "type",
-            channelId: "keyboard",
-            label: "Keyboard",
+            name: "scroll",
+            channelId: "computer",
+            label:
+              "Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first.",
             schema: {
               type: "object",
-              properties: { text: { type: "string", maxLength: 131072 } },
-              required: ["text"],
+              properties: {
+                x: { type: "number", description: "pixel column of the latest frame", minimum: 0 },
+                y: { type: "number", description: "pixel row of the latest frame", minimum: 0 },
+                dx: { type: "integer", minimum: -50, maximum: 50 },
+                dy: {
+                  type: "integer",
+                  minimum: -50,
+                  maximum: 50,
+                  description: "wheel notches; positive scrolls down",
+                },
+                mods: {
+                  type: "string",
+                  maxLength: 40,
+                  description:
+                    "modifiers held during the action: shift, ctrl, alt, super, joined by +",
+                },
+                basis: {
+                  type: "string",
+                  maxLength: 10,
+                  description:
+                    "the id of the frame this action was planned on; refused as stale if the screen changed since",
+                },
+              },
+              required: [],
               additionalProperties: false,
             },
           },
           {
             name: "key",
-            channelId: "keyboard",
-            label: "Keyboard",
+            channelId: "computer",
+            label:
+              "Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first.",
             schema: {
               type: "object",
-              properties: { key: { type: "string", minLength: 1, maxLength: 256 } },
+              properties: {
+                key: {
+                  type: "string",
+                  minLength: 1,
+                  maxLength: 64,
+                  description: "a key or a combo: enter, ctrl+l, ctrl+shift+t",
+                },
+                basis: {
+                  type: "string",
+                  maxLength: 10,
+                  description:
+                    "the id of the frame this action was planned on; refused as stale if the screen changed since",
+                },
+              },
               required: ["key"],
               additionalProperties: false,
             },
           },
           {
-            name: "wait",
-            channelId: "ctrl",
-            label: "Control",
+            name: "type",
+            channelId: "computer",
+            label:
+              "Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first.",
             schema: {
               type: "object",
-              properties: { ms: { type: "number", minimum: 0, maximum: 600000 } },
+              properties: {
+                text: { type: "string", minLength: 1, maxLength: 500 },
+                basis: {
+                  type: "string",
+                  maxLength: 10,
+                  description:
+                    "the id of the frame this action was planned on; refused as stale if the screen changed since",
+                },
+              },
+              required: ["text"],
+              additionalProperties: false,
+            },
+          },
+          {
+            name: "wait",
+            channelId: "computer",
+            label:
+              "Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first.",
+            schema: {
+              type: "object",
+              properties: { ms: { type: "integer", minimum: 0, maximum: 10000 } },
+              required: [],
               additionalProperties: false,
             },
           },
@@ -1263,42 +1425,66 @@ export abstract class GeneratedClient implements Transport {
   }
 }
 
-/** Computers — pointer, keyboard and waits. Each method is `act(action, payload)` on the embodiment this is bound to. */
+/** Computers — pointer, keyboard and waits, in pixels of the latest frame (docs/computer-use.md). Each method is `act(action, payload)` on the embodiment this is bound to. */
 export class DesktopControls {
   constructor(private readonly a: Actor) {}
-  /** Pointer · `click` */
-  click(payload: { x: number; y: number }): Promise<unknown> {
+  /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `click` */
+  click(payload: { x: number; y: number; mods?: string; basis?: string }): Promise<unknown> {
     return this.a.act("click", payload);
   }
-  /** Pointer · `double_click` */
-  doubleClick(payload: { x: number; y: number }): Promise<unknown> {
+  /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `double_click` */
+  doubleClick(payload: { x: number; y: number; mods?: string; basis?: string }): Promise<unknown> {
     return this.a.act("double_click", payload);
   }
-  /** Pointer · `right_click` */
-  rightClick(payload: { x: number; y: number }): Promise<unknown> {
+  /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `triple_click` */
+  tripleClick(payload: { x: number; y: number; mods?: string; basis?: string }): Promise<unknown> {
+    return this.a.act("triple_click", payload);
+  }
+  /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `right_click` */
+  rightClick(payload: { x: number; y: number; mods?: string; basis?: string }): Promise<unknown> {
     return this.a.act("right_click", payload);
   }
-  /** Pointer · `middle_click` */
-  middleClick(payload: { x: number; y: number }): Promise<unknown> {
+  /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `middle_click` */
+  middleClick(payload: { x: number; y: number; mods?: string; basis?: string }): Promise<unknown> {
     return this.a.act("middle_click", payload);
   }
-  /** Pointer · `move` */
-  move(payload: { x: number; y: number }): Promise<unknown> {
+  /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `move` */
+  move(payload: { x: number; y: number; basis?: string }): Promise<unknown> {
     return this.a.act("move", payload);
   }
-  /** Pointer · `scroll` */
-  scroll(payload: { x?: number; y?: number; dx?: number; dy: number }): Promise<unknown> {
+  /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `drag` */
+  drag(payload: {
+    x: number;
+    y: number;
+    toX: number;
+    toY: number;
+    mods?: string;
+    basis?: string;
+  }): Promise<unknown> {
+    return this.a.act("drag", payload);
+  }
+  /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `scroll` */
+  scroll(
+    payload: {
+      x?: number;
+      y?: number;
+      dx?: number;
+      dy?: number;
+      mods?: string;
+      basis?: string;
+    } = {},
+  ): Promise<unknown> {
     return this.a.act("scroll", payload);
   }
-  /** Keyboard · `type` */
-  type(payload: { text: string }): Promise<unknown> {
-    return this.a.act("type", payload);
-  }
-  /** Keyboard · `key` */
-  key(payload: { key: string }): Promise<unknown> {
+  /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `key` */
+  key(payload: { key: string; basis?: string }): Promise<unknown> {
     return this.a.act("key", payload);
   }
-  /** Control · `wait` */
+  /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `type` */
+  type(payload: { text: string; basis?: string }): Promise<unknown> {
+    return this.a.act("type", payload);
+  }
+  /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `wait` */
   wait(payload: { ms?: number } = {}): Promise<unknown> {
     return this.a.act("wait", payload);
   }
