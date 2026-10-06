@@ -476,6 +476,129 @@ export const SDK_SCHEMA = {
         ],
       },
       {
+        name: "web",
+        doc: "Web search through many providers, one shape (docs/search.md): each result names who returned it; each call says what it cost.",
+        factory: null,
+        methods: [
+          {
+            name: "search",
+            tool: "web_search",
+            doc: "Search: kind search | news | academic | code | social | images | video; provider, limit, since, domains … in opts.",
+            params: [
+              {
+                name: "query",
+                key: "query",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "join",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "fetch",
+            tool: "web_fetch",
+            doc: "One page as clean text.",
+            params: [
+              {
+                name: "url",
+                key: "url",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "crawl",
+            tool: "web_crawl",
+            doc: "Many pages of one site (pages in opts).",
+            params: [
+              {
+                name: "url",
+                key: "url",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "answer",
+            tool: "web_answer",
+            doc: "An answer with citations; depth research for a long report.",
+            params: [
+              {
+                name: "question",
+                key: "question",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "join",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "providers",
+            tool: "web_providers",
+            doc: "The providers: what each offers and costs, and whether you can call it.",
+            params: [],
+            bound: {},
+            withThread: false,
+          },
+        ],
+      },
+      {
         name: "social",
         doc: "A single connected social account, bound: cagi.social('tiktok', '@brand').post(fileId).",
         factory: [
@@ -1200,6 +1323,31 @@ export class Integrations {
   }
 }
 
+/** Web search through many providers, one shape (docs/search.md): each result names who returned it; each call says what it cost. */
+export class Web {
+  constructor(private readonly t: Transport) {}
+  /** Search: kind search | news | academic | code | social | images | video; provider, limit, since, domains … in opts. */
+  search(query: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("web_search", { ...prune({ query: query }), ...opts });
+  }
+  /** One page as clean text. */
+  fetch(url: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("web_fetch", { ...prune({ url: url }), ...opts });
+  }
+  /** Many pages of one site (pages in opts). */
+  crawl(url: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("web_crawl", { ...prune({ url: url }), ...opts });
+  }
+  /** An answer with citations; depth research for a long report. */
+  answer(question: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("web_answer", { ...prune({ question: question }), ...opts });
+  }
+  /** The providers: what each offers and costs, and whether you can call it. */
+  providers(): Promise<unknown> {
+    return this.t.call("web_providers", {});
+  }
+}
+
 /** A single connected social account, bound: cagi.social('tiktok', '@brand').post(fileId). */
 export class Social {
   constructor(
@@ -1238,6 +1386,8 @@ export abstract class GeneratedClient implements Transport {
   readonly memory = new Memory(this);
   /** Connected third-party accounts. */
   readonly integrations = new Integrations(this);
+  /** Web search through many providers, one shape (docs/search.md): each result names who returned it; each call says what it cost. */
+  readonly web = new Web(this);
   /** A single connected social account, bound: cagi.social('tiktok', '@brand').post(fileId). */
   social(platform: string, account?: string): Social {
     return new Social(this, platform, account);
@@ -1615,6 +1765,44 @@ export const CLI_COMMANDS: readonly Command[] = [
     params: [{ name: "integration" }],
     spread: true,
     doc: "Drive a provider's API (method/path/query/body).",
+  },
+  {
+    group: "web",
+    verb: "search",
+    tool: "web_search",
+    params: [{ name: "query", from: "join" }],
+    spread: true,
+    doc: "Search: kind search | news | academic | code | social | images | video; provider, limit, since, domains … in opts.",
+  },
+  {
+    group: "web",
+    verb: "fetch",
+    tool: "web_fetch",
+    params: [{ name: "url" }],
+    spread: true,
+    doc: "One page as clean text.",
+  },
+  {
+    group: "web",
+    verb: "crawl",
+    tool: "web_crawl",
+    params: [{ name: "url" }],
+    spread: true,
+    doc: "Many pages of one site (pages in opts).",
+  },
+  {
+    group: "web",
+    verb: "answer",
+    tool: "web_answer",
+    params: [{ name: "question", from: "join" }],
+    spread: true,
+    doc: "An answer with citations; depth research for a long report.",
+  },
+  {
+    group: "web",
+    verb: "providers",
+    tool: "web_providers",
+    doc: "The providers: what each offers and costs, and whether you can call it.",
   },
   {
     group: "social",
