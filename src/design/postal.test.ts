@@ -29,3 +29,23 @@ test("a letter in JSX: <to>, <from> and <paragraph text> children; both ways", (
   assert.throws(() => declarationOf({ default: el("letter", { mailClass: "express" }) }), /mailClass is "first" or "standard"/);
   assert.throws(() => declarationOf({ default: el("letter", {}, el("to", {}), el("to", {})) }), /<letter> has one <to>/);
 });
+
+test("a postcard in JSX: <to>, <from>, one <front image> and the message's <paragraph>s; both ways", () => {
+  const file = el(
+    "postcard",
+    {},
+    el("to", { name: "Ada Lovelace", line1: "500 Elm St", city: "Austin", region: "TX", postalCode: "78702", country: "US" }),
+    el("front", { image: "Austin.jpg" }),
+    el("paragraph", { text: "Greetings from Austin!" }),
+  );
+  const doc = declarationOf({ default: file }).document!;
+  assert.equal(doc.format, "postcard");
+  assert.deepEqual(doc.document, {
+    to: { name: "Ada Lovelace", line1: "500 Elm St", city: "Austin", region: "TX", postalCode: "78702", country: "US" },
+    front: "Austin.jpg",
+    paragraphs: ["Greetings from Austin!"],
+  });
+  assert.deepEqual(POSTAL.postcard.fromTree(POSTAL.postcard.toTree(doc.document as never)), doc.document, "both ways");
+  assert.throws(() => declarationOf({ default: el("postcard", {}, el("front", {})) }), /image/);
+  assert.throws(() => declarationOf({ default: el("postcard", { color: true }) }), /color/);
+});

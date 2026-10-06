@@ -651,13 +651,13 @@ export const SDK_SCHEMA = {
       },
       {
         name: "postal",
-        doc: "Paper mail (docs/postal.md): letters from a .letter.tsx in your files, and mailboxes that receive and scan mail.",
+        doc: "Paper mail (docs/postal.md): letters from a .letter.tsx and postcards from a .postcard.tsx in your files, and mailboxes that receive and scan mail.",
         factory: null,
         methods: [
           {
             name: "quote",
             tool: "postal_quote",
-            doc: "What mailing the letter would cost, and how it would go. Costs nothing.",
+            doc: "What mailing the letter or postcard would cost, and how it would go. Costs nothing.",
             params: [
               {
                 name: "source",
@@ -684,7 +684,7 @@ export const SDK_SCHEMA = {
           {
             name: "send",
             tool: "postal_send",
-            doc: "Mail the letter: charged first, recorded before it is sent, never retried. An agent needs a postal grant.",
+            doc: "Mail the letter or postcard: charged first, recorded before it is sent, never retried. An agent needs a postal grant.",
             params: [
               {
                 name: "source",
@@ -1325,6 +1325,60 @@ export const SDK_SCHEMA = {
             },
           },
           {
+            name: "mouse_down",
+            channelId: "computer",
+            label:
+              "Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first.",
+            schema: {
+              type: "object",
+              properties: {
+                x: { type: "number", description: "pixel column of the latest frame", minimum: 0 },
+                y: { type: "number", description: "pixel row of the latest frame", minimum: 0 },
+                button: {
+                  type: "string",
+                  enum: ["left", "right", "middle"],
+                  description:
+                    "the button (default left); it stays down until mouse_up, and stop releases it",
+                },
+                basis: {
+                  type: "string",
+                  maxLength: 10,
+                  description:
+                    "the id of the frame this action was planned on; refused as stale if the screen changed since",
+                },
+              },
+              required: [],
+              additionalProperties: false,
+            },
+          },
+          {
+            name: "mouse_up",
+            channelId: "computer",
+            label:
+              "Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first.",
+            schema: {
+              type: "object",
+              properties: {
+                x: { type: "number", description: "pixel column of the latest frame", minimum: 0 },
+                y: { type: "number", description: "pixel row of the latest frame", minimum: 0 },
+                button: {
+                  type: "string",
+                  enum: ["left", "right", "middle"],
+                  description:
+                    "the button (default left); it stays down until mouse_up, and stop releases it",
+                },
+                basis: {
+                  type: "string",
+                  maxLength: 10,
+                  description:
+                    "the id of the frame this action was planned on; refused as stale if the screen changed since",
+                },
+              },
+              required: [],
+              additionalProperties: false,
+            },
+          },
+          {
             name: "key",
             channelId: "computer",
             label:
@@ -1931,14 +1985,14 @@ export class Web {
   }
 }
 
-/** Paper mail (docs/postal.md): letters from a .letter.tsx in your files, and mailboxes that receive and scan mail. */
+/** Paper mail (docs/postal.md): letters from a .letter.tsx and postcards from a .postcard.tsx in your files, and mailboxes that receive and scan mail. */
 export class Postal {
   constructor(private readonly t: Transport) {}
-  /** What mailing the letter would cost, and how it would go. Costs nothing. */
+  /** What mailing the letter or postcard would cost, and how it would go. Costs nothing. */
   quote(source: string, opts: Args = {}): Promise<unknown> {
     return this.t.call("postal_quote", { ...prune({ source: source }), ...opts });
   }
-  /** Mail the letter: charged first, recorded before it is sent, never retried. An agent needs a postal grant. */
+  /** Mail the letter or postcard: charged first, recorded before it is sent, never retried. An agent needs a postal grant. */
   send(source: string, opts: Args = {}): Promise<unknown> {
     return this.t.call("postal_send", { ...prune({ source: source }), ...opts });
   }
@@ -2046,7 +2100,7 @@ export abstract class GeneratedClient implements Transport {
   readonly integrations = new Integrations(this);
   /** Web search through many providers, one shape (docs/search.md): each result names who returned it; each call says what it cost. */
   readonly web = new Web(this);
-  /** Paper mail (docs/postal.md): letters from a .letter.tsx in your files, and mailboxes that receive and scan mail. */
+  /** Paper mail (docs/postal.md): letters from a .letter.tsx and postcards from a .postcard.tsx in your files, and mailboxes that receive and scan mail. */
   readonly postal = new Postal(this);
   /** The account's phone lines (docs/phone.md). An agent texts and calls only under a phone grant its owner made. */
   readonly phone = new Phone(this);
@@ -2127,6 +2181,18 @@ export class DesktopControls {
     } = {},
   ): Promise<unknown> {
     return this.a.act("scroll", payload);
+  }
+  /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `mouse_down` */
+  mouseDown(
+    payload: { x?: number; y?: number; button?: "left" | "right" | "middle"; basis?: string } = {},
+  ): Promise<unknown> {
+    return this.a.act("mouse_down", payload);
+  }
+  /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `mouse_up` */
+  mouseUp(
+    payload: { x?: number; y?: number; button?: "left" | "right" | "middle"; basis?: string } = {},
+  ): Promise<unknown> {
+    return this.a.act("mouse_up", payload);
   }
   /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `key` */
   key(payload: { key: string; basis?: string }): Promise<unknown> {
@@ -2518,7 +2584,7 @@ export const CLI_COMMANDS: readonly Command[] = [
     tool: "postal_quote",
     params: [{ name: "source" }],
     spread: true,
-    doc: "What mailing the letter would cost, and how it would go. Costs nothing.",
+    doc: "What mailing the letter or postcard would cost, and how it would go. Costs nothing.",
   },
   {
     group: "postal",
@@ -2526,7 +2592,7 @@ export const CLI_COMMANDS: readonly Command[] = [
     tool: "postal_send",
     params: [{ name: "source" }],
     spread: true,
-    doc: "Mail the letter: charged first, recorded before it is sent, never retried. An agent needs a postal grant.",
+    doc: "Mail the letter or postcard: charged first, recorded before it is sent, never retried. An agent needs a postal grant.",
   },
   {
     group: "postal",

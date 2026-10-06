@@ -1,7 +1,7 @@
 /**
- * A LETTER IN JSX — a `.letter.tsx`, the paper letter that CommandAGI's postal mail prints and mails (docs/postal.md
- * in the CommandAGI repository). The file is the letter: the postal pane edits it, an agent writes it, and a send
- * names it.
+ * A LETTER OR A POSTCARD IN JSX — a `.letter.tsx` or a `.postcard.tsx`, the paper mail that CommandAGI's postal mail
+ * prints and mails (docs/postal.md in the CommandAGI repository). The file is the piece: the postal pane edits it, an
+ * agent writes it, and a send names it.
  *
  *   // Letters/Welcome.letter.tsx
  *   export default () => (
@@ -17,6 +17,20 @@
  * The addresses are one `<to>` and one `<from>`; the body is `<paragraph text>` children, in order, one per
  * paragraph, so an edit to one paragraph changes one line. Nothing adds a default: what the file does not say, the
  * letter does not have (the postal code fills black-and-white, single-sided, first class when it sends).
+ *
+ *   // Cards/Austin.postcard.tsx
+ *   export default () => (
+ *     <postcard>
+ *       <to name="Ada Lovelace" line1="500 Elm St" city="Austin" region="TX" postalCode="78702" country="US" />
+ *       <from name="Northwind Survey" line1="1 Main St" city="Portland" region="OR" postalCode="97201" country="US" />
+ *       <front image="Austin.jpg" />
+ *       <paragraph text="Greetings from Austin!" />
+ *     </postcard>
+ *   );
+ *
+ * A postcard is 4x6 inches (A6 in Europe), colour, first class. `<front image>` is a ref: a JPEG or PNG relative to
+ * the postcard's folder (or an absolute address); it covers the front edge to edge. The `<paragraph>`s are the message
+ * on the back, left of the address the provider prints.
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
 
@@ -95,5 +109,50 @@ export const letterVocabulary: Vocabulary<LetterDoc> = {
 
 registerVocabulary(letterVocabulary);
 
-/** The vocabulary of a letter, by format. */
-export const POSTAL = { letter: letterVocabulary } as const;
+/** A postcard as the postal pane edits it. `front` is the ref of its front image. */
+export interface PostcardDoc {
+  to?: LetterAddress;
+  from?: LetterAddress;
+  front?: string;
+  paragraphs: string[];
+}
+
+export const postcardVocabulary: Vocabulary<PostcardDoc> = {
+  format: "postcard",
+  noun: "a postcard",
+  root: "postcard",
+  tags: {
+    postcard: { parents: [], attrs: [] },
+    to: { parents: ["postcard"], single: true, attrs: ADDRESS_FIELDS },
+    from: { parents: ["postcard"], single: true, attrs: ADDRESS_FIELDS },
+    front: { parents: ["postcard"], single: true, required: ["image"], attrs: ["image"] },
+    paragraph: { parents: ["postcard"], required: ["text"], attrs: ["text"] },
+  },
+  fromTree(t) {
+    check(t);
+    const to = t.children.find((c) => c.tag === "to");
+    const from = t.children.find((c) => c.tag === "from");
+    const front = t.children.find((c) => c.tag === "front");
+    if (front && typeof front.attrs.image !== "string") throw new Error("<front> image is the ref of a JPEG or PNG");
+    return {
+      ...(to ? { to: { ...to.attrs } as LetterAddress } : {}),
+      ...(from ? { from: { ...from.attrs } as LetterAddress } : {}),
+      ...(front ? { front: front.attrs.image as string } : {}),
+      paragraphs: t.children.filter((c) => c.tag === "paragraph").map((c) => c.attrs.text as string),
+    };
+  },
+  toTree(d) {
+    const children: DocTree[] = [];
+    if (d.to) children.push({ tag: "to", attrs: fields(d.to as Record<string, unknown>, ADDRESS_FIELDS), children: [] });
+    if (d.from) children.push({ tag: "from", attrs: fields(d.from as Record<string, unknown>, ADDRESS_FIELDS), children: [] });
+    if (d.front) children.push({ tag: "front", attrs: { image: d.front }, children: [] });
+    for (const text of d.paragraphs ?? []) children.push({ tag: "paragraph", attrs: { text }, children: [] });
+    return { tag: "postcard", attrs: {}, children };
+  },
+  empty: () => ({ paragraphs: [] }),
+};
+
+registerVocabulary(postcardVocabulary);
+
+/** The vocabularies of postal mail, by format. */
+export const POSTAL = { letter: letterVocabulary, postcard: postcardVocabulary } as const;
