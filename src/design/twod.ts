@@ -28,11 +28,11 @@
  *             or a `<raster-layer>` names its image file by `src`. A modifier
  *             (`<blur>`, `<transform>`, `<fill>`, …) wraps the one node it takes; `<boolean>` its shapes; `<clip>` its
  *             content then its mask.
- *   painting  `<layer>`, `<fill>`, `<group>` are the stack, bottom first; a layer's `<stroke>` children are the
+ *   painting  `<layer>`, `<fill>`, `<group>` and the photo's adjustment tags are the stack, bottom first; a layer's `<stroke>` children are the
  *             strokes painted on it, oldest first. A stroke's points are `[x, y, pressure, t]` (with tilt,
  *             `[x, y, pressure, t, tiltX, tiltY]`): free-hand data is a points array, written once.
  *   photo     `<raster>`, `<fill>`, `<gradient>`, `<group>` and one tag per adjustment (`<exposure ev={0.35} />`,
- *             `<hsl>`, `<levels>`, …) are the stack; a raster's children are its filters (`<gaussianBlur radius={3} />`).
+ *             `<hsl>`, `<levels>`, `<develop exposure={0.3} contrast={12} />`, …) are the stack; a raster's children are its filters (`<gaussianBlur radius={3} />`).
  *             In a painting or a photo, a `<mask>` child of a layer (or of a stroke or a filter) holds the one layer
  *             that masks it (`<mask><gradient /></mask>`).
  *   nest      `<sheet>`, `<stock>`, `<options>` and one `<part>` per part.
@@ -238,7 +238,7 @@ function drawing(root: DesignElement, name: string): Declaration {
 const COMMON = ["name", "visible", "opacity", "blend", "clip", "locked"] as const;
 const COMMON_DEFAULTS = { name: "Layer", visible: true, opacity: 1, blend: "normal" } as const;
 
-export const PHOTO_ADJUSTMENTS = ["exposure", "levels", "curves", "hsl", "vibrance", "colorBalance", "blackWhite", "invert", "threshold", "posterize"] as const;
+export const PHOTO_ADJUSTMENTS = ["exposure", "levels", "curves", "hsl", "vibrance", "colorBalance", "blackWhite", "invert", "threshold", "posterize", "develop"] as const;
 export const PHOTO_FILTERS = ["gaussianBlur", "unsharpMask", "sharpen", "noise"] as const;
 
 const MIME: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", bmp: "image/bmp" };
@@ -273,6 +273,13 @@ interface StackKind {
   chainType: string;
 }
 
+/** An adjustment tag as a layer: the layer's own fields, and the rest as its `adjustment`. */
+function adjustmentLayer(el: DesignElement, type: string): { type: string; inputs: Record<string, unknown> } {
+  const common: Record<string, unknown> = {}, adjustment: Record<string, unknown> = { type: el.type };
+  for (const [k, v] of Object.entries(attrs(el))) ((COMMON as readonly string[]).includes(k) ? common : adjustment)[k] = v;
+  return { type, inputs: { ...common, adjustment } };
+}
+
 const PAINT: StackKind = {
   root: "painting",
   prefix: "paint",
@@ -284,6 +291,7 @@ const PAINT: StackKind = {
     }
     if (el.type === "fill") return { type: "paint.fill", inputs: attrs(el) };
     if (el.type === "group") return { type: "paint.group", inputs: attrs(el) };
+    if ((PHOTO_ADJUSTMENTS as readonly string[]).includes(el.type)) return adjustmentLayer(el, "paint.adjust");
     return null;
   },
   chain(el) {
@@ -307,12 +315,7 @@ const PHOTO: StackKind = {
     if (el.type === "fill") return { type: "photo.fill", inputs: attrs(el) };
     if (el.type === "gradient") return { type: "photo.gradient", inputs: attrs(el) };
     if (el.type === "group") return { type: "photo.group", inputs: attrs(el) };
-    if ((PHOTO_ADJUSTMENTS as readonly string[]).includes(el.type)) {
-      const a = attrs(el);
-      const common: Record<string, unknown> = {}, adjustment: Record<string, unknown> = { type: el.type };
-      for (const [k, v] of Object.entries(a)) ((COMMON as readonly string[]).includes(k) ? common : adjustment)[k] = v;
-      return { type: "photo.adjust", inputs: { ...common, adjustment } };
-    }
+    if ((PHOTO_ADJUSTMENTS as readonly string[]).includes(el.type)) return adjustmentLayer(el, "photo.adjust");
     return null;
   },
   chain(el) {
