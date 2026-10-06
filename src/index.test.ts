@@ -65,6 +65,23 @@ test("social(platform, account).post maps to the post tool with the account boun
   );
 });
 
+test("postal.send takes a typed provider: Lob is the default (omitted), Click2Mail when named", async () => {
+  const { f, calls } = fakeFetch({ ok: true });
+  const cagi = createClient({ apiKey: "cagi_test", fetchImpl: f });
+  await cagi.postal.send("Letters/Ada.letter.tsx");
+  await cagi.postal.send("Letters/Ada.letter.tsx", { provider: "click2mail" });
+  // @ts-expect-error: only the providers that exist type-check
+  await cagi.postal.quote("Letters/Ada.letter.tsx", { provider: "stannp" });
+  assert.deepEqual(
+    calls.map((c) => [c.body.params.name, c.body.params.arguments]),
+    [
+      ["postal_send", { source: "Letters/Ada.letter.tsx" }],
+      ["postal_send", { source: "Letters/Ada.letter.tsx", provider: "click2mail" }],
+      ["postal_quote", { source: "Letters/Ada.letter.tsx", provider: "stannp" }],
+    ],
+  );
+});
+
 test("an isError result throws a CommandAGIError carrying the tool name", async () => {
   const { f } = fakeFetch({ error: "tool_not_allowed" }, { isError: true });
   const cagi = createClient({ apiKey: "cagi_test", fetchImpl: f });

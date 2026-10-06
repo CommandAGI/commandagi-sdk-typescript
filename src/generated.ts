@@ -27,6 +27,24 @@ export const SDK_SCHEMA = {
       "POST {baseUrl}/mcp — JSON-RPC 2.0 `tools/call` {name, arguments}, `authorization: Bearer {apiKey}`; the result's text content is JSON. `call(tool, args)` reaches ANY platform tool by name.",
     root: [
       {
+        name: "constraints",
+        tool: "agent_constraints",
+        doc: "Inspect or impose an immutable device-action state machine for this thread's agent.",
+        params: [
+          {
+            name: "opts",
+            key: null,
+            type: "object",
+            required: false,
+            spread: true,
+            prefix: null,
+            cli: "spread",
+          },
+        ],
+        bound: {},
+        withThread: true,
+      },
+      {
         name: "whoami",
         tool: "whoami",
         doc: "The account this key belongs to.",
@@ -117,6 +135,49 @@ export const SDK_SCHEMA = {
       },
     ],
     namespaces: [
+      {
+        name: "computer",
+        doc: "Computer input with per-action authority and private variable references.",
+        factory: null,
+        methods: [
+          {
+            name: "screenshot",
+            tool: "computer_screenshot",
+            doc: "Observe the computer's current screen.",
+            params: [
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: true,
+          },
+          {
+            name: "act",
+            tool: "computer_act",
+            doc: "One action/payload or an ordered actions array. Stops on first failure. Type a granted variable with text: '${env:NAME}'.",
+            params: [
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: true,
+          },
+        ],
+      },
       {
         name: "threads",
         doc: "Agent threads — the unit of work.",
@@ -657,7 +718,7 @@ export const SDK_SCHEMA = {
           {
             name: "quote",
             tool: "postal_quote",
-            doc: "What mailing the letter or postcard would cost, and how it would go. Costs nothing.",
+            doc: "What mailing the letter or postcard would cost, and how it would go (its choices: the providers that can mail it). Costs nothing.",
             params: [
               {
                 name: "source",
@@ -676,6 +737,18 @@ export const SDK_SCHEMA = {
                 spread: true,
                 prefix: null,
                 cli: "spread",
+                options: {
+                  provider: {
+                    type: "string",
+                    enum: ["lob", "click2mail"],
+                    doc: "Who prints and posts it: lob (the default; the US and every other country) or click2mail (US only). Omitted: automatic, the best provider for the destination in the account's postal.providers order, Lob first.",
+                  },
+                  ownerId: {
+                    type: "string",
+                    enum: null,
+                    doc: "An organisation's id, to act for it. Omitted: your own account.",
+                  },
+                },
               },
             ],
             bound: {},
@@ -703,6 +776,18 @@ export const SDK_SCHEMA = {
                 spread: true,
                 prefix: null,
                 cli: "spread",
+                options: {
+                  provider: {
+                    type: "string",
+                    enum: ["lob", "click2mail"],
+                    doc: "Who prints and posts it: lob (the default; the US and every other country) or click2mail (US only). Omitted: automatic, the best provider for the destination in the account's postal.providers order, Lob first.",
+                  },
+                  ownerId: {
+                    type: "string",
+                    enum: null,
+                    doc: "An organisation's id, to act for it. Omitted: your own account.",
+                  },
+                },
               },
             ],
             bound: {},
@@ -1412,6 +1497,11 @@ export const SDK_SCHEMA = {
               type: "object",
               properties: {
                 text: { type: "string", minLength: 1, maxLength: 500 },
+                textRef: {
+                  type: "string",
+                  pattern: "^\\$\\{env:[A-Za-z_][A-Za-z0-9_]*\\}$",
+                  description: "private input reference; records keep this instead of text",
+                },
                 basis: {
                   type: "string",
                   maxLength: 10,
@@ -1844,6 +1934,19 @@ function prune(a: Args): Args {
   return out;
 }
 
+/** Computer input with per-action authority and private variable references. */
+export class Computer {
+  constructor(private readonly t: Transport) {}
+  /** Observe the computer's current screen. */
+  screenshot(opts: Args = {}): Promise<unknown> {
+    return this.t.call("computer_screenshot", this.t.withThread({ ...opts }));
+  }
+  /** One action/payload or an ordered actions array. Stops on first failure. Type a granted variable with text: '${env:NAME}'. */
+  act(opts: Args = {}): Promise<unknown> {
+    return this.t.call("computer_act", this.t.withThread({ ...opts }));
+  }
+}
+
 /** Agent threads — the unit of work. */
 export class Threads {
   constructor(private readonly t: Transport) {}
@@ -1985,15 +2088,31 @@ export class Web {
   }
 }
 
+/** The options of `postal.quote`. */
+export interface PostalQuoteOptions {
+  /** Who prints and posts it: lob (the default; the US and every other country) or click2mail (US only). Omitted: automatic, the best provider for the destination in the account's postal.providers order, Lob first. */
+  provider?: "lob" | "click2mail";
+  /** An organisation's id, to act for it. Omitted: your own account. */
+  ownerId?: string;
+}
+
+/** The options of `postal.send`. */
+export interface PostalSendOptions {
+  /** Who prints and posts it: lob (the default; the US and every other country) or click2mail (US only). Omitted: automatic, the best provider for the destination in the account's postal.providers order, Lob first. */
+  provider?: "lob" | "click2mail";
+  /** An organisation's id, to act for it. Omitted: your own account. */
+  ownerId?: string;
+}
+
 /** Paper mail (docs/postal.md): letters from a .letter.tsx and postcards from a .postcard.tsx in your files, and mailboxes that receive and scan mail. */
 export class Postal {
   constructor(private readonly t: Transport) {}
-  /** What mailing the letter or postcard would cost, and how it would go. Costs nothing. */
-  quote(source: string, opts: Args = {}): Promise<unknown> {
+  /** What mailing the letter or postcard would cost, and how it would go (its choices: the providers that can mail it). Costs nothing. */
+  quote(source: string, opts: PostalQuoteOptions = {}): Promise<unknown> {
     return this.t.call("postal_quote", { ...prune({ source: source }), ...opts });
   }
   /** Mail the letter or postcard: charged first, recorded before it is sent, never retried. An agent needs a postal grant. */
-  send(source: string, opts: Args = {}): Promise<unknown> {
+  send(source: string, opts: PostalSendOptions = {}): Promise<unknown> {
     return this.t.call("postal_send", { ...prune({ source: source }), ...opts });
   }
   /** A sent piece's state and records; without a piece, the sent pieces. */
@@ -2088,6 +2207,8 @@ export class Vpn {
 export abstract class GeneratedClient implements Transport {
   abstract call<T = unknown>(tool: string, args?: Args): Promise<T>;
   abstract withThread(args: Args): Args;
+  /** Computer input with per-action authority and private variable references. */
+  readonly computer = new Computer(this);
   /** Agent threads — the unit of work. */
   readonly threads = new Threads(this);
   /** Computers, cameras, robots and sims attached to a thread. */
@@ -2109,6 +2230,10 @@ export abstract class GeneratedClient implements Transport {
   /** A single connected social account, bound: cagi.social('tiktok', '@brand').post(fileId). */
   social(platform: string, account?: string): Social {
     return new Social(this, platform, account);
+  }
+  /** Inspect or impose an immutable device-action state machine for this thread's agent. */
+  constraints(opts: Args = {}): Promise<unknown> {
+    return this.call("agent_constraints", this.withThread({ ...opts }));
   }
   /** The account this key belongs to. */
   whoami(): Promise<unknown> {
@@ -2199,7 +2324,7 @@ export class DesktopControls {
     return this.a.act("key", payload);
   }
   /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `type` */
-  type(payload: { text: string; basis?: string }): Promise<unknown> {
+  type(payload: { text: string; textRef?: string; basis?: string }): Promise<unknown> {
     return this.a.act("type", payload);
   }
   /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `wait` */
@@ -2384,6 +2509,13 @@ export interface Command {
 
 /** ONE ROW PER SCHEMA METHOD — generated, so the CLI cannot drift from the SDK. */
 export const CLI_COMMANDS: readonly Command[] = [
+  {
+    group: "",
+    verb: "constraints",
+    tool: "agent_constraints",
+    spread: true,
+    doc: "Inspect or impose an immutable device-action state machine for this thread's agent.",
+  },
   { group: "", verb: "whoami", tool: "whoami", doc: "The account this key belongs to." },
   {
     group: "",
@@ -2412,6 +2544,20 @@ export const CLI_COMMANDS: readonly Command[] = [
     tool: "post",
     spread: true,
     doc: "Publish a file to a connected social account.",
+  },
+  {
+    group: "computer",
+    verb: "screenshot",
+    tool: "computer_screenshot",
+    spread: true,
+    doc: "Observe the computer's current screen.",
+  },
+  {
+    group: "computer",
+    verb: "act",
+    tool: "computer_act",
+    spread: true,
+    doc: "One action/payload or an ordered actions array. Stops on first failure. Type a granted variable with text: '${env:NAME}'.",
   },
   { group: "threads", verb: "list", tool: "list_threads", doc: "Your threads." },
   {
@@ -2584,7 +2730,7 @@ export const CLI_COMMANDS: readonly Command[] = [
     tool: "postal_quote",
     params: [{ name: "source" }],
     spread: true,
-    doc: "What mailing the letter or postcard would cost, and how it would go. Costs nothing.",
+    doc: "What mailing the letter or postcard would cost, and how it would go (its choices: the providers that can mail it). Costs nothing.",
   },
   {
     group: "postal",

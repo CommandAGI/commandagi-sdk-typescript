@@ -89,7 +89,10 @@ This package, the Python SDK (`pip install commandagi`) and the CLI all come fro
 
 - **Tools**: `cagi.threads`, `cagi.embodiments`, `cagi.memory`, `cagi.integrations`,
   `cagi.social(platform, account)`, `whoami`, `search`, `run` and `post`. Each one is a typed wrapper
-  over `call(tool, args)`.
+  over `call(tool, args)`. Where the schema names a method's options, they are a typed interface:
+  `cagi.postal.send("Letters/Ada.letter.tsx", { provider: "click2mail" })` (`PostalSendOptions`; the
+  provider is `"lob"`, the default, or `"click2mail"`, US only; omitted, the account's
+  `postal.providers` order picks it).
 - **Control vocabularies** on a live `Session`: `session.desktop` for computers, `session.robot` for
   physical robots, and `session.sim` for simulated worlds. Each method sends one action. The platform
   checks it against what the embodiment currently declares, which `session.controls()` lists; for
