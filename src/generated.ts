@@ -738,6 +738,202 @@ export const SDK_SCHEMA = {
           },
         ],
       },
+      {
+        name: "phone",
+        doc: "The account's phone lines (docs/phone.md). An agent texts and calls only under a phone grant its owner made.",
+        factory: null,
+        methods: [
+          {
+            name: "lines",
+            tool: "list_phone_lines",
+            doc: "The lines you own or may use.",
+            params: [
+              {
+                name: "ownerId",
+                key: "ownerId",
+                type: "string",
+                required: false,
+                spread: false,
+                prefix: null,
+                cli: "flag",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "conversations",
+            tool: "list_phone_conversations",
+            doc: "A line's conversations, newest first.",
+            params: [
+              {
+                name: "lineId",
+                key: "lineId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "read",
+            tool: "read_phone_conversation",
+            doc: "One conversation's records (phone/<line>/<correspondent>.jsonl); `after` is a record id or an ISO time.",
+            params: [
+              {
+                name: "lineId",
+                key: "lineId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "correspondent",
+                key: "correspondent",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "after",
+                key: "after",
+                type: "string",
+                required: false,
+                spread: false,
+                prefix: null,
+                cli: "flag",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "quote",
+            tool: "quote_phone_number",
+            doc: "What buying a number charges now, monthly and per use. Buys nothing.",
+            params: [
+              {
+                name: "e164",
+                key: "e164",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "country",
+                key: "country",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "provider",
+                key: "provider",
+                type: "string",
+                required: false,
+                spread: false,
+                prefix: null,
+                cli: "flag",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "text",
+            tool: "send_text",
+            doc: "Send a text (an MMS with drive-file media). Recorded before it is sent; never retried.",
+            params: [
+              {
+                name: "lineId",
+                key: "lineId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "to",
+                key: "to",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "body",
+                key: "body",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "media",
+                key: "media",
+                type: "array",
+                required: false,
+                spread: false,
+                prefix: null,
+                cli: "json",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "call",
+            tool: "place_call",
+            doc: "Click-to-call: ring the line's forward-to number (or a number your grant lists), then connect to `to`.",
+            params: [
+              {
+                name: "lineId",
+                key: "lineId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "to",
+                key: "to",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "bridgeTo",
+                key: "bridgeTo",
+                type: "string",
+                required: false,
+                spread: false,
+                prefix: null,
+                cli: "flag",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+        ],
+      },
     ],
   },
   session: {
@@ -1439,6 +1635,41 @@ export class Social {
   }
 }
 
+/** The account's phone lines (docs/phone.md). An agent texts and calls only under a phone grant its owner made. */
+export class Phone {
+  constructor(private readonly t: Transport) {}
+  /** The lines you own or may use. */
+  lines(ownerId?: string): Promise<unknown> {
+    return this.t.call("list_phone_lines", prune({ ownerId: ownerId }));
+  }
+  /** A line's conversations, newest first. */
+  conversations(lineId: string): Promise<unknown> {
+    return this.t.call("list_phone_conversations", prune({ lineId: lineId }));
+  }
+  /** One conversation's records (phone/<line>/<correspondent>.jsonl); `after` is a record id or an ISO time. */
+  read(lineId: string, correspondent: string, after?: string): Promise<unknown> {
+    return this.t.call(
+      "read_phone_conversation",
+      prune({ lineId: lineId, correspondent: correspondent, after: after }),
+    );
+  }
+  /** What buying a number charges now, monthly and per use. Buys nothing. */
+  quote(e164: string, country: string, provider?: string): Promise<unknown> {
+    return this.t.call(
+      "quote_phone_number",
+      prune({ e164: e164, country: country, provider: provider }),
+    );
+  }
+  /** Send a text (an MMS with drive-file media). Recorded before it is sent; never retried. */
+  text(lineId: string, to: string, body: string, media?: unknown[]): Promise<unknown> {
+    return this.t.call("send_text", prune({ lineId: lineId, to: to, body: body, media: media }));
+  }
+  /** Click-to-call: ring the line's forward-to number (or a number your grant lists), then connect to `to`. */
+  call(lineId: string, to: string, bridgeTo?: string): Promise<unknown> {
+    return this.t.call("place_call", prune({ lineId: lineId, to: to, bridgeTo: bridgeTo }));
+  }
+}
+
 /**
  * Everything above the transport. The hand-written client (./client.ts) implements `call` over
  * /mcp and `withThread`; every method here is sugar over those two.
@@ -1458,6 +1689,8 @@ export abstract class GeneratedClient implements Transport {
   readonly integrations = new Integrations(this);
   /** Web search through many providers, one shape (docs/search.md): each result names who returned it; each call says what it cost. */
   readonly web = new Web(this);
+  /** The account's phone lines (docs/phone.md). An agent texts and calls only under a phone grant its owner made. */
+  readonly phone = new Phone(this);
   /** A single connected social account, bound: cagi.social('tiktok', '@brand').post(fileId). */
   social(platform: string, account?: string): Social {
     return new Social(this, platform, account);
@@ -1917,5 +2150,47 @@ export const CLI_COMMANDS: readonly Command[] = [
     params: [{ name: "method" }, { name: "path" }],
     spread: true,
     doc: "Raw API call as this account.",
+  },
+  {
+    group: "phone",
+    verb: "lines",
+    tool: "list_phone_lines",
+    params: [{ name: "ownerId", from: "flag" }],
+    doc: "The lines you own or may use.",
+  },
+  {
+    group: "phone",
+    verb: "conversations",
+    tool: "list_phone_conversations",
+    params: [{ name: "lineId" }],
+    doc: "A line's conversations, newest first.",
+  },
+  {
+    group: "phone",
+    verb: "read",
+    tool: "read_phone_conversation",
+    params: [{ name: "lineId" }, { name: "correspondent" }, { name: "after", from: "flag" }],
+    doc: "One conversation's records (phone/<line>/<correspondent>.jsonl); `after` is a record id or an ISO time.",
+  },
+  {
+    group: "phone",
+    verb: "quote",
+    tool: "quote_phone_number",
+    params: [{ name: "e164" }, { name: "country" }, { name: "provider", from: "flag" }],
+    doc: "What buying a number charges now, monthly and per use. Buys nothing.",
+  },
+  {
+    group: "phone",
+    verb: "text",
+    tool: "send_text",
+    params: [{ name: "lineId" }, { name: "to" }, { name: "body" }, { name: "media", from: "json" }],
+    doc: "Send a text (an MMS with drive-file media). Recorded before it is sent; never retried.",
+  },
+  {
+    group: "phone",
+    verb: "call",
+    tool: "place_call",
+    params: [{ name: "lineId" }, { name: "to" }, { name: "bridgeTo", from: "flag" }],
+    doc: "Click-to-call: ring the line's forward-to number (or a number your grant lists), then connect to `to`.",
   },
 ];
