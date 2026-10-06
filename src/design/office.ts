@@ -44,18 +44,25 @@
  *                                                           one cell: `value` (text, a number, true/false) or a
  *                                                           `formula` that starts with "="
  *   <column at width>  <row at height>                      a column's width or a row's height, in pixels
- *   <page title>                                            the page
- *   <h1> <h2> <h3> <p> <bullet> <numbered> <quote>          a text block; its children are its text
+ *   <page title paper font>                                 the page; paper "letter" or "a4", font "sans", "serif"
+ *                                                           or "mono" (a few typefaces, not a font menu)
+ *   <h1> <h2> <h3> <p> <quote align>                        a text block; its children are its text; align "left",
+ *                                                           "center", "right" or "justify"
+ *   <bullet> <numbered>                                     a list item
  *   <todo checked>                                          a checklist item
  *   <pre lang>                                              a code block: its text as a string ({"…"})
  *   <divider />  <image src alt />                          a rule, a picture
  *   <b> <i> <u> <s> <code> <a href> <br />                  marks inside a text block
- *   <deck name width height>                                the deck (1280 × 720 slide units unless it says)
+ *   <deck name width height style>                          the deck (1280 × 720 slide units unless it says); style
+ *                                                           "plain", "ink", "editorial" or "signal" (plain unless it says)
  *   <slide layout name notes background hidden>             a slide on a layout, by the layout's name
  *   <text placeholder x y w h rotation fontSize color bold italic underline align valign>
  *                                                           a text box; its children are its text (a <p> per
  *                                                           paragraph, or text for one)
  *   <shape shape x y w h fill stroke strokeWidth cornerRadius>  <image src x y w h fit alt>
+ *                                                           every element also takes opacity, label, locked (the
+ *                                                           editor does not move it) and group (elements with one
+ *                                                           group name select and move as one)
  *
  * THE TEXT OF A BLOCK IS ITS CHILDREN, never a prop: long prose stays readable, and an edit to one sentence changes
  * one line when each sentence is on a line of its own (the editors write it so). JSX joins the lines of a text with
@@ -185,6 +192,12 @@ export function readWorkbook(root: DesignElement): DeclaredDocument {
 // ── Page ───────────────────────────────────────────────────────────────────────────────────────────────────────
 
 const TEXT_BLOCKS: Record<string, string> = { h1: "h1", h2: "h2", h3: "h3", p: "p", bullet: "ul", numbered: "ol", todo: "todo", quote: "quote" };
+/** The blocks that take an alignment. */
+const ALIGNED = new Set(["h1", "h2", "h3", "p", "quote"]);
+const BLOCK_ALIGN = ["left", "center", "right", "justify"] as const;
+/** The page's paper and its typefaces: a few, chosen once, not a font menu. */
+export const PAPERS = ["letter", "a4"] as const;
+export const PAGE_FONTS = ["sans", "serif", "mono"] as const;
 const MARKS = new Set(["b", "i", "u", "s", "code"]);
 
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -235,15 +248,15 @@ function plainText(children: unknown, at: string): string {
 
 /** A `<page>` as the page the docs editor opens, with where each block was written. */
 export function readPage(root: DesignElement): DeclaredDocument {
-  only(root, ["title"]);
+  only(root, ["title", "paper", "font"]);
   const sources: Record<string, unknown> = { page: root.source };
   const blocks = childElements(root.props.children).map((el, i) => {
     const id = `block-${i + 1}`;
     sources[`block:${id}`] = el.source;
     const type = TEXT_BLOCKS[el.type];
     if (type) {
-      only(el, type === "todo" ? ["checked"] : []);
-      return defined({ id, type, html: inlineHtml(el.props.children, `<${el.type}>`), checked: type === "todo" ? (bool(el, "checked") ?? false) : undefined });
+      only(el, type === "todo" ? ["checked"] : ALIGNED.has(el.type) ? ["align"] : []);
+      return defined({ id, type, html: inlineHtml(el.props.children, `<${el.type}>`), checked: type === "todo" ? (bool(el, "checked") ?? false) : undefined, align: ALIGNED.has(el.type) ? oneOf(el, "align", BLOCK_ALIGN) : undefined });
     }
     switch (el.type) {
       case "pre":
@@ -260,7 +273,8 @@ export function readPage(root: DesignElement): DeclaredDocument {
     }
   });
   const title = str(root, "title");
-  return { format: "page", document: { format: "page", version: 1, blocks, ...(title !== undefined ? { meta: { title } } : {}) }, sources };
+  const setup = defined({ paper: oneOf(root, "paper", PAPERS), font: oneOf(root, "font", PAGE_FONTS) });
+  return { format: "page", document: { format: "page", version: 1, blocks, ...(title !== undefined ? { meta: { title } } : {}), ...(Object.keys(setup).length ? { page: setup } : {}) }, sources };
 }
 
 // ── Deck ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -268,7 +282,9 @@ export function readPage(root: DesignElement): DeclaredDocument {
 /** The deck's node types (the decks editor's own). */
 export const DECK_TYPES = { doc: "deck.doc", slide: "deck.slide", text: "deck.text", image: "deck.image", shape: "deck.shape" } as const;
 const BOX = ["x", "y", "w", "h", "rotation"] as const;
-const COMMON = [...BOX, "placeholder", "z", "visible", "opacity", "label"];
+const COMMON = [...BOX, "placeholder", "z", "visible", "opacity", "label", "locked", "group"];
+/** The deck's styles: a few curated looks (the decks editor's own themes), not a theme editor. */
+export const DECK_STYLES = ["plain", "ink", "editorial", "signal"] as const;
 
 interface Run {
   text: string;
@@ -316,7 +332,7 @@ export function richText(children: unknown, at: string): { paragraphs: { runs: R
 /** A `<deck>` as the deck's op graph: `doc`, then `slide-N`, then `slide-N.M` for its elements. A slide names its
  *  layout by name (`layout`); the editor binds that name to its stock layouts. */
 export function readDeck(root: DesignElement): IRGraph {
-  only(root, ["name", "width", "height", "dpi"]);
+  only(root, ["name", "width", "height", "dpi", "style"]);
   const nodes: Record<string, IRNode> = {};
   const meta = (el: DesignElement) => (el.source === undefined ? {} : { meta: { source: el.source } });
   const slides = childElements(root.props.children).map((el, i) => {
@@ -326,7 +342,7 @@ export function readDeck(root: DesignElement): IRGraph {
     const elements = childElements(el.props.children).map((c, k) => {
       const eid = `${id}.${k + 1}`;
       const box = defined(Object.fromEntries(BOX.map((p) => [p, num(c, p)])));
-      const common = defined({ box: Object.keys(box).length ? box : undefined, placeholder: str(c, "placeholder"), z: num(c, "z"), visible: bool(c, "visible"), opacity: num(c, "opacity"), label: str(c, "label") });
+      const common = defined({ box: Object.keys(box).length ? box : undefined, placeholder: str(c, "placeholder"), z: num(c, "z"), visible: bool(c, "visible"), opacity: num(c, "opacity"), label: str(c, "label"), locked: bool(c, "locked"), group: str(c, "group") });
       let type: string, inputs: Record<string, unknown>;
       switch (c.type) {
         case "text":
@@ -362,7 +378,7 @@ export function readDeck(root: DesignElement): IRGraph {
     return { wire: { node: id, port: "out" } };
   });
   const name = str(root, "name") ?? "Deck";
-  nodes.doc = { id: "doc", type: DECK_TYPES.doc, inputs: defined({ name, width: num(root, "width") ?? 1280, height: num(root, "height") ?? 720, dpi: num(root, "dpi"), ...channels("slides", slides) }), ...meta(root) };
+  nodes.doc = { id: "doc", type: DECK_TYPES.doc, inputs: defined({ name, width: num(root, "width") ?? 1280, height: num(root, "height") ?? 720, dpi: num(root, "dpi"), style: oneOf(root, "style", DECK_STYLES), ...channels("slides", slides) }), ...meta(root) };
   return { id: `deck:${name}`, nodes, outputs: ["doc"], meta: { domain: "deck", name } };
 }
 
