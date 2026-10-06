@@ -657,7 +657,7 @@ export const SDK_SCHEMA = {
           {
             name: "quote",
             tool: "postal_quote",
-            doc: "What mailing the letter or postcard would cost, and how it would go. Costs nothing.",
+            doc: "What mailing the letter or postcard would cost, and how it would go (its choices: the providers that can mail it). Costs nothing.",
             params: [
               {
                 name: "source",
@@ -676,6 +676,18 @@ export const SDK_SCHEMA = {
                 spread: true,
                 prefix: null,
                 cli: "spread",
+                options: {
+                  provider: {
+                    type: "string",
+                    enum: ["lob", "click2mail"],
+                    doc: "Who prints and posts it: lob (the default; the US and every other country) or click2mail (US only). Omitted: automatic, the best provider for the destination in the account's postal.providers order, Lob first.",
+                  },
+                  ownerId: {
+                    type: "string",
+                    enum: null,
+                    doc: "An organisation's id, to act for it. Omitted: your own account.",
+                  },
+                },
               },
             ],
             bound: {},
@@ -703,6 +715,18 @@ export const SDK_SCHEMA = {
                 spread: true,
                 prefix: null,
                 cli: "spread",
+                options: {
+                  provider: {
+                    type: "string",
+                    enum: ["lob", "click2mail"],
+                    doc: "Who prints and posts it: lob (the default; the US and every other country) or click2mail (US only). Omitted: automatic, the best provider for the destination in the account's postal.providers order, Lob first.",
+                  },
+                  ownerId: {
+                    type: "string",
+                    enum: null,
+                    doc: "An organisation's id, to act for it. Omitted: your own account.",
+                  },
+                },
               },
             ],
             bound: {},
@@ -1985,15 +2009,31 @@ export class Web {
   }
 }
 
+/** The options of `postal.quote`. */
+export interface PostalQuoteOptions {
+  /** Who prints and posts it: lob (the default; the US and every other country) or click2mail (US only). Omitted: automatic, the best provider for the destination in the account's postal.providers order, Lob first. */
+  provider?: "lob" | "click2mail";
+  /** An organisation's id, to act for it. Omitted: your own account. */
+  ownerId?: string;
+}
+
+/** The options of `postal.send`. */
+export interface PostalSendOptions {
+  /** Who prints and posts it: lob (the default; the US and every other country) or click2mail (US only). Omitted: automatic, the best provider for the destination in the account's postal.providers order, Lob first. */
+  provider?: "lob" | "click2mail";
+  /** An organisation's id, to act for it. Omitted: your own account. */
+  ownerId?: string;
+}
+
 /** Paper mail (docs/postal.md): letters from a .letter.tsx and postcards from a .postcard.tsx in your files, and mailboxes that receive and scan mail. */
 export class Postal {
   constructor(private readonly t: Transport) {}
-  /** What mailing the letter or postcard would cost, and how it would go. Costs nothing. */
-  quote(source: string, opts: Args = {}): Promise<unknown> {
+  /** What mailing the letter or postcard would cost, and how it would go (its choices: the providers that can mail it). Costs nothing. */
+  quote(source: string, opts: PostalQuoteOptions = {}): Promise<unknown> {
     return this.t.call("postal_quote", { ...prune({ source: source }), ...opts });
   }
   /** Mail the letter or postcard: charged first, recorded before it is sent, never retried. An agent needs a postal grant. */
-  send(source: string, opts: Args = {}): Promise<unknown> {
+  send(source: string, opts: PostalSendOptions = {}): Promise<unknown> {
     return this.t.call("postal_send", { ...prune({ source: source }), ...opts });
   }
   /** A sent piece's state and records; without a piece, the sent pieces. */
@@ -2584,7 +2624,7 @@ export const CLI_COMMANDS: readonly Command[] = [
     tool: "postal_quote",
     params: [{ name: "source" }],
     spread: true,
-    doc: "What mailing the letter or postcard would cost, and how it would go. Costs nothing.",
+    doc: "What mailing the letter or postcard would cost, and how it would go (its choices: the providers that can mail it). Costs nothing.",
   },
   {
     group: "postal",
