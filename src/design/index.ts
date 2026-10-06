@@ -95,6 +95,7 @@ export * from "./ontology.js";
 export * from "./tasks.js";
 export * from "./records.js";
 export * from "./fab.js";
+export * from "./postal.js";
 
 /** What a code part declares: its graph and the parameters it takes. */
 export interface CodePartResult {
