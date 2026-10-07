@@ -120,3 +120,43 @@ test("a <song> declares the chain synth → effects → track → master, with e
   assert.throws(song(jsx("synth", {}), jsx("clip", { children: [jsx("note", { pitch: "H2" })] })), /pitch is a MIDI number/);
   assert.throws(song(jsx("sampler", {})), /<sampler> is not read on a <track>/);
 });
+
+test("a video says a clip's crop, a LUT by file, transition settings, audio effects (clip, track, master) and a bezier key", () => {
+  const g = declarationOf({
+    default: jsx("video", {
+      children: [
+        jsx("track", {
+          name: "V1",
+          children: [
+            jsx("clip", {
+              src: "a.mp4",
+              out: 2,
+              cropLeft: 0.1,
+              children: [
+                jsx("transition", { kind: "iris", duration: 1, align: "end", shape: 2 }),
+                jsx("effect", { type: "lut", src: "looks/a.cube", amount: 0.5 }),
+                jsx("delay", { time: 0.2 }),
+                jsx("keyframe", { property: "opacity", time: 0, value: 1, easing: "bezier", bezier: [0.4, 0, 0.2, 1] }),
+              ],
+            }),
+            jsx("distortion", { amount: 0.2 }),
+          ],
+        }),
+        jsx("reverb", { mix: 0.1, enabled: false }),
+      ],
+    }),
+  }).graph;
+  const clip = g.nodes["clip_a.mp4"]!;
+  assert.deepEqual(clip.inputs.crop, { top: 0, right: 0, bottom: 0, left: 0.1 });
+  assert.deepEqual(clip.inputs.transitionIn, { kind: "iris", duration: 1, params: { align: "end", shape: 2 } });
+  assert.deepEqual(clip.inputs.effects, [{ id: "fx_lut", type: "lut", enabled: true, params: { amount: 0.5 }, src: "looks/a.cube" }]);
+  assert.deepEqual(clip.inputs.audioEffects, [{ id: "afx_delay", type: "delay", enabled: true, params: { time: 0.2, feedback: 0.4, mix: 0.35 } }]);
+  assert.deepEqual((clip.inputs.keyframes as { keys: unknown[] }[])[0]!.keys[0], { id: "kf_clip_a.mp4", time: 0, value: 1, easing: "bezier", bezier: [0.4, 0, 0.2, 1] });
+  assert.deepEqual(g.nodes.track_V1!.inputs.audioEffects, [{ id: "afx_distortion", type: "distortion", enabled: true, params: { amount: 0.2, mix: 1 } }]);
+  assert.deepEqual(g.nodes.composite!.inputs.masterEffects, [{ id: "afx_reverb", type: "reverb", enabled: false, params: { decay: 2, mix: 0.1 } }]);
+  const video = (...children: unknown[]) => () => declarationOf({ default: jsx("video", { children: [jsx("track", { children })] }) });
+  assert.throws(video(jsx("clip", { src: "a.mp4", out: 1, children: [jsx("effect", { type: "lut" })] })), /a LUT names its \.cube file/);
+  assert.throws(video(jsx("title", { duration: 1, children: [jsx("eq", {})] })), /has no sound/);
+  assert.throws(video(jsx("clip", { src: "a.mp4", out: 1, children: [jsx("filter", { mode: "notch" })] })), /mode is one of lowpass, highpass, bandpass/);
+  assert.throws(video(jsx("clip", { src: "a.mp4", out: 1, cropTop: 0.6 })), /cropTop is at most 0\.49/);
+});

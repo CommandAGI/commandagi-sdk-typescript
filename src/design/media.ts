@@ -28,7 +28,7 @@
  *
  * Media files are named by path relative to the file (`src`), never inlined; the editor reads them. Times on a
  * video's timeline are seconds; times in a song are beats. Each node carries the element that declared it in
- * `meta.source`; what a node holds that is not a node (a clip's effects, transition, intro, outro and keyframes; a midi clip's
+ * `meta.source`; what a node holds that is not a node (a clip's effects, audio effects, transition, intro, outro and keyframes; a midi clip's
  * notes; a video's markers) carries its element in `meta.sources`, by key. Anything else is refused by name.
  */
 import { slug, Declaration, type IRGraph, type IRNode } from "./ir.js";
@@ -126,7 +126,7 @@ export const MIDI_INSTRUMENTS = [
   "choir", "glass", "sineLead", "pwmPad", "pluckSynth", "eightBit", "drumKit",
 ] as const;
 export const MIDI_CLIP = { instrument: "grandPiano", gain: 0.8 } as const;
-export const EASINGS = ["linear", "easeIn", "easeOut", "easeInOut", "hold"] as const;
+export const EASINGS = ["linear", "easeIn", "easeOut", "easeInOut", "hold", "bezier"] as const;
 export const TRANSITIONS = [
   "none", "cut", "crossDissolve", "fadeToBlack", "fadeToWhite", "dipToColor", "wipeLeft", "wipeRight", "wipeUp",
   "wipeDown", "diagonalWipe", "barnDoors", "iris", "diamond", "clockWipe", "pixelDissolve", "pushLeft", "pushRight",
@@ -135,8 +135,54 @@ export const TRANSITIONS = [
 export const EFFECT_TYPES = [
   "brightnessContrast", "saturation", "hueRotate", "gaussianBlur", "sharpen", "pixelate", "chromaKey", "twist", "wave",
   "mirror", "vignette", "glow", "grayscale", "sepia", "invert", "posterize", "edges", "chromaticAberration", "bulge",
-  "duotone", "colorWheels", "mask",
+  "duotone", "colorWheels", "mask", "lut",
 ] as const;
+/** A transition's alignment on the cut: it starts at the cut, is centred on it, or ends at it. */
+export const TRANSITION_ALIGN = ["start", "center", "end"] as const;
+/**
+ * A video's audio effects (a clip's, a track's or the master's chain), by tag: each prop and its default. The tags are
+ * the song's where a song has one (`gain`, `filter`, `delay`, `reverb`, `eq`); a delay's time is seconds in a video.
+ */
+export const VIDEO_AUDIO_EFFECTS: Readonly<Record<string, Readonly<Record<string, number | string>>>> = {
+  gain: { gain: 1 },
+  eq: { lowGain: 0, midGain: 0, highGain: 0 },
+  filter: { mode: "lowpass", freq: 1200, q: 1 },
+  delay: { time: 0.3, feedback: 0.4, mix: 0.35 },
+  reverb: { decay: 2, mix: 0.35 },
+  compressor: { threshold: -24, ratio: 4, attack: 0.003, release: 0.25 },
+  distortion: { amount: 0.4, mix: 1 },
+};
+export const FILTER_MODES = ["lowpass", "highpass", "bandpass"] as const;
+/** A filter's frequency and Q when not written, by mode (the editor's defaults for a new one). */
+export const FILTER_DEFAULTS: Readonly<Record<string, { frequency: number; q: number }>> = {
+  lowpass: { frequency: 1200, q: 1 },
+  highpass: { frequency: 300, q: 1 },
+  bandpass: { frequency: 1500, q: 2 },
+};
+/** The bounds of an audio effect's props (min, max). */
+const AUDIO_BOUNDS: Readonly<Record<string, readonly [number, number]>> = {
+  gain: [0, 16], lowGain: [-40, 40], midGain: [-40, 40], highGain: [-40, 40], freq: [10, 24000], q: [0.0001, 100],
+  time: [0, 2], feedback: [0, 0.95], mix: [0, 1], decay: [0.01, 20], threshold: [-100, 0], ratio: [1, 20], attack: [0, 1],
+  release: [0, 1], amount: [0, 1],
+};
+/** One audio effect element as the editor's effect: the tag's engine type (a filter is its mode) and its params. */
+function audioEffect(el: DesignElement, makeId: (base: string) => string): { id: string; type: string; enabled: boolean; params: Record<string, number> } {
+  const spec = VIDEO_AUDIO_EFFECTS[el.type]!;
+  refuseUnknown(el, [...Object.keys(spec), "enabled"]);
+  const params: Record<string, number> = {};
+  let type = el.type;
+  if (el.type === "filter") {
+    type = str(el, "mode", FILTER_MODES) ?? "lowpass";
+    const d = FILTER_DEFAULTS[type]!;
+    params.frequency = num(el, "freq", { min: AUDIO_BOUNDS.freq![0], max: AUDIO_BOUNDS.freq![1] }) ?? d.frequency;
+    params.q = num(el, "q", { min: AUDIO_BOUNDS.q![0], max: AUDIO_BOUNDS.q![1] }) ?? d.q;
+  } else
+    for (const [k, d] of Object.entries(spec)) {
+      const [min, max] = AUDIO_BOUNDS[k]!;
+      params[k] = num(el, k, { min, max }) ?? (d as number);
+    }
+  return { id: makeId(`afx_${type}`), type, enabled: bool(el, "enabled") ?? true, params };
+}
 /** A clip's intro and outro animations (`<intro preset duration>`, `<outro preset duration>`; the video editor's presets). */
 export const ANIM_PRESETS = ["fade", "slideL", "slideR", "slideU", "slideD", "pop", "rise", "spin"] as const;
 /** The properties a clip's keyframes animate (an effect's keyframes name a `param` of it). */
@@ -160,7 +206,9 @@ export const TITLE_TEXT = {
 export const VIDEO_SETTINGS = { width: 1920, height: 1080, fps: 30, sampleRate: 48000, background: "#000000" } as const;
 const TRACK_HEIGHT = { video: 64, audio: 48, midi: 56 } as const;
 
-const CLIP_PROPS = ["name", "start", "duration", "in", "out", "speed", "opacity", "volume", "blendMode", "fitMode", ...Object.keys(CLIP_TRANSFORM), ...Object.keys(CLIP_COLOR)];
+/** A clip's crop: the fraction of its picture hidden at each edge (the editor's `crop`). */
+export const CLIP_CROP = { cropTop: "top", cropRight: "right", cropBottom: "bottom", cropLeft: "left" } as const;
+const CLIP_PROPS = ["name", "start", "duration", "in", "out", "speed", "opacity", "volume", "blendMode", "fitMode", ...Object.keys(CLIP_TRANSFORM), ...Object.keys(CLIP_COLOR), ...Object.keys(CLIP_CROP)];
 
 interface Keyed {
   key: string;
@@ -170,11 +218,13 @@ interface Keyed {
 /** A clip's children: its transition, its intro and outro, its effects (each with its keyframes) and its keyframes. */
 function clipChildren(clip: DesignElement, clipId: string, sources: Record<string, unknown>) {
   let transitionIn: { kind: string; duration: number; params?: Record<string, number | string> } = { kind: "none", duration: 0 };
+  const audioEffects: ReturnType<typeof audioEffect>[] = [];
+  const afxId = idMaker();
   const anims: { animIn?: { preset: string; duration: number }; animOut?: { preset: string; duration: number } } = {};
   const notes: { id: string; pitch: number; start: number; duration: number; velocity: number }[] = [];
   const noteId = idMaker();
-  const effects: { id: string; type: string; enabled: boolean; params: Record<string, number>; colors?: Record<string, string> }[] = [];
-  const keyframes: { property: string; keys: { id: string; time: number; value: number; easing: string }[] }[] = [];
+  const effects: { id: string; type: string; enabled: boolean; params: Record<string, number>; colors?: Record<string, string>; src?: string }[] = [];
+  const keyframes: { property: string; keys: { id: string; time: number; value: number; easing: string; bezier?: number[] }[] }[] = [];
   const fxId = idMaker();
   const kfId = idMaker();
   const keyframe = (el: DesignElement, property: string) => {
@@ -184,7 +234,14 @@ function clipChildren(clip: DesignElement, clipId: string, sources: Record<strin
     const id = kfId(`kf_${clipId}`);
     let track = keyframes.find((k) => k.property === property);
     if (!track) keyframes.push((track = { property, keys: [] }));
-    track.keys.push({ id, time, value, easing: str(el, "easing", EASINGS) ?? "linear" });
+    const easing = str(el, "easing", EASINGS) ?? "linear";
+    const bezier = el.props.bezier;
+    if (bezier !== undefined && easing !== "bezier") throw new Error(`${where(el)}: bezier is read with easing="bezier"`);
+    if (easing === "bezier") {
+      if (!Array.isArray(bezier) || bezier.length !== 4 || bezier.some((v) => typeof v !== "number" || !Number.isFinite(v)) || [bezier[0], bezier[2]].some((x) => (x as number) < 0 || (x as number) > 1))
+        throw new Error(`${where(el)}: an easing "bezier" names its curve: bezier={[x1, y1, x2, y2]} (x1 and x2 from 0 to 1)`);
+    }
+    track.keys.push({ id, time, value, easing, ...(easing === "bezier" ? { bezier: [...(bezier as number[])] } : {}) });
     track.keys.sort((a, b) => a.time - b.time);
     sources[`keyframe:${id}`] = sourceMeta(el);
   };
@@ -192,10 +249,16 @@ function clipChildren(clip: DesignElement, clipId: string, sources: Record<strin
   for (const el of childElements(clip.props.children)) {
     switch (el.type) {
       case "transition": {
-        refuseUnknown(el, ["kind", "duration"]);
+        refuseUnknown(el, ["kind", "duration", "align", "color", "shape"]);
         if (sawTransition) throw new Error(`${where(clip)}: a clip has one <transition> (into it)`);
         sawTransition = true;
         transitionIn = { kind: str(el, "kind", TRANSITIONS) ?? "crossDissolve", duration: num(el, "duration", { min: 0 }) ?? 0.5 };
+        const params: Record<string, number | string> = {};
+        const align = str(el, "align", TRANSITION_ALIGN), color = str(el, "color"), shape = num(el, "shape", { min: 0 });
+        if (align !== undefined) params.align = align;
+        if (color !== undefined) params.color = color;
+        if (shape !== undefined) params.shape = shape;
+        if (Object.keys(params).length) transitionIn.params = params;
         sources.transition = sourceMeta(el);
         break;
       }
@@ -227,19 +290,25 @@ function clipChildren(clip: DesignElement, clipId: string, sources: Record<strin
         if (!type) throw new Error(`${where(clip)}: an <effect> names its type`);
         const id = fxId(`fx_${type}`);
         const params: Record<string, number> = {};
+        let src: string | undefined;
+        if (type === "lut") {
+          src = str(el, "src");
+          if (!src) throw new Error(`<effect type="lut">: a LUT names its .cube file (src="looks/film.cube", relative to this file)`);
+          if (/^[a-z]+:|^\//i.test(src)) throw new Error(`<effect type="lut">: src is a path relative to this file, not ${src}`);
+        } else if (el.props.src !== undefined) throw new Error(`<effect type="${type}">: src is read on a LUT (type="lut")`);
         for (const [k, v] of Object.entries(el.props)) {
-          if (["children", "key", "type", "enabled", "colors"].includes(k)) continue;
+          if (["children", "key", "type", "enabled", "colors", "src"].includes(k)) continue;
           if (typeof v !== "number" || !Number.isFinite(v)) throw new Error(`<effect type="${type}">: ${k} is a number, not ${JSON.stringify(v)}`);
           params[k] = v;
         }
         const colors = el.props.colors;
         if (colors !== undefined && (typeof colors !== "object" || colors === null || Object.values(colors).some((c) => typeof c !== "string")))
           throw new Error(`<effect type="${type}">: colors is { name: "#rrggbb" }`);
-        effects.push({ id, type, enabled: bool(el, "enabled") ?? true, params, ...(colors ? { colors: { ...(colors as Record<string, string>) } } : {}) });
+        effects.push({ id, type, enabled: bool(el, "enabled") ?? true, params, ...(colors ? { colors: { ...(colors as Record<string, string>) } } : {}), ...(src !== undefined ? { src } : {}) });
         sources[`effect:${id}`] = sourceMeta(el);
         for (const k of childElements(el.props.children)) {
           if (k.type !== "keyframe") throw new Error(`<${k.type}> is not read in an <effect> (its keyframes are <keyframe param time value>)`);
-          refuseUnknown(k, ["param", "time", "value", "easing"]);
+          refuseUnknown(k, ["param", "time", "value", "easing", "bezier"]);
           const param = str(k, "param");
           if (!param) throw new Error(`${where(k)}: an effect's keyframe names its param`);
           keyframe(k, `effect.${id}.${param}`);
@@ -247,17 +316,25 @@ function clipChildren(clip: DesignElement, clipId: string, sources: Record<strin
         break;
       }
       case "keyframe": {
-        refuseUnknown(el, ["property", "time", "value", "easing"]);
+        refuseUnknown(el, ["property", "time", "value", "easing", "bezier"]);
         const property = str(el, "property", ANIMATABLE);
         if (!property) throw new Error(`${where(el)}: a keyframe names its property (${ANIMATABLE.join(", ")})`);
         keyframe(el, property);
         break;
       }
       default:
-        throw new Error(`<${el.type}> is not read in a <${clip.type}> (a clip holds <transition>, <intro>, <outro>, <effect> and <keyframe>; a <midi> clip its <note>s)`);
+        if (VIDEO_AUDIO_EFFECTS[el.type]) {
+          if ((clip.type !== "clip" && clip.type !== "midi") || (clip.type === "clip" && mediaKind(String(clip.props.src ?? "")) === "image"))
+            throw new Error(`<${el.type}> is an audio effect: ${where(clip)} has no sound`);
+          const fx = audioEffect(el, afxId);
+          audioEffects.push(fx);
+          sources[`audio:${fx.id}`] = sourceMeta(el);
+          break;
+        }
+        throw new Error(`<${el.type}> is not read in a <${clip.type}> (a clip holds <transition>, <intro>, <outro>, <effect>, <keyframe> and audio effects (${Object.keys(VIDEO_AUDIO_EFFECTS).join(", ")}); a <midi> clip its <note>s)`);
     }
   }
-  return { transitionIn, ...anims, effects, keyframes, notes };
+  return { transitionIn, ...anims, effects, audioEffects, keyframes, notes };
 }
 
 /** Declare a video (`<video>` and its tracks) as the video editor's own op graph. */
@@ -277,7 +354,15 @@ export function declareVideo(root: DesignElement): Declaration {
   const trackWires: unknown[] = [];
   const markers: { id: string; time: number; name: string; color: string }[] = [];
   const compositeSources: Record<string, unknown> = {};
+  const masterEffects: ReturnType<typeof audioEffect>[] = [];
+  const masterId = idMaker();
   for (const tr of childElements(root.props.children)) {
+    if (VIDEO_AUDIO_EFFECTS[tr.type]) {
+      const fx = audioEffect(tr, masterId);
+      masterEffects.push(fx);
+      compositeSources[`audio:${fx.id}`] = sourceMeta(tr);
+      continue;
+    }
     if (tr.type === "marker") {
       refuseUnknown(tr, ["name", "time", "color"]);
       const time = num(tr, "time", { min: 0 });
@@ -287,13 +372,22 @@ export function declareVideo(root: DesignElement): Declaration {
       compositeSources[`marker:${mid}`] = sourceMeta(tr);
       continue;
     }
-    if (tr.type !== "track") throw new Error(`<${tr.type}> is not read in a <video> (it holds <track> and <marker>)`);
+    if (tr.type !== "track") throw new Error(`<${tr.type}> is not read in a <video> (it holds <track>, <marker> and the master's audio effects)`);
     refuseUnknown(tr, ["name", "kind", "muted", "hidden", "locked", "volume", "height"]);
     const kind = (str(tr, "kind", VIDEO_TRACK_KINDS) ?? "video") as (typeof VIDEO_TRACK_KINDS)[number];
     const trackName = str(tr, "name") ?? (kind === "audio" ? "A" : kind === "midi" ? "M" : "V");
     const trackId = id(`track_${trackName}`);
     const clipWires: unknown[] = [];
+    const trackEffects: ReturnType<typeof audioEffect>[] = [];
+    const trackSources: Record<string, unknown> = {};
+    const trackFxId = idMaker();
     for (const c of childElements(tr.props.children)) {
+      if (VIDEO_AUDIO_EFFECTS[c.type]) {
+        const fx = audioEffect(c, trackFxId);
+        trackEffects.push(fx);
+        trackSources[`audio:${fx.id}`] = sourceMeta(c);
+        continue;
+      }
       const sources: Record<string, unknown> = {};
       let inputs: Record<string, unknown>;
       let clipName: string;
@@ -365,14 +459,14 @@ export function declareVideo(root: DesignElement): Declaration {
         }
         inputs.source = null;
       } else if (c.type === "midi") {
-        refuseUnknown(c, [...CLIP_PROPS.filter((p) => p !== "in" && p !== "out" && p !== "speed"), ...Object.keys(MIDI_CLIP)]);
+        refuseUnknown(c, [...CLIP_PROPS.filter((p) => p !== "in" && p !== "out" && p !== "speed" && !(p in CLIP_CROP)), ...Object.keys(MIDI_CLIP)]);
         if (kind !== "midi") throw new Error(`${where(c)}: a <midi> clip goes on a midi track (kind="midi")`);
         clipName = str(c, "name") ?? "MIDI";
         const duration = num(c, "duration", { min: 0 });
         if (duration === undefined) throw new Error(`${where(c)}: give its duration in seconds`);
         inputs = { kind: "midi", name: clipName, start: num(c, "start", { min: 0 }) ?? 0, duration, inPoint: 0, speed: 1, ...common(c) };
         inputs.source = null;
-      } else throw new Error(`<${c.type}> is not read on a <track> (it holds <clip>, <title>, <shape>, <adjustment> and <midi>)`);
+      } else throw new Error(`<${c.type}> is not read on a <track> (it holds <clip>, <title>, <shape>, <adjustment>, <midi> and audio effects)`);
       if (kind === "midi" && c.type !== "midi") throw new Error(`${where(c)}: a midi track holds <midi> clips`);
       const clipId = id(`clip_${clipName}`);
       const kids = clipChildren(c, clipId, sources);
@@ -380,6 +474,7 @@ export function declareVideo(root: DesignElement): Declaration {
       if (kids.animIn) inputs.animIn = kids.animIn;
       if (kids.animOut) inputs.animOut = kids.animOut;
       inputs.effects = kids.effects;
+      if (kids.audioEffects.length) inputs.audioEffects = kids.audioEffects;
       inputs.trackers = [];
       if (kids.keyframes.length) inputs.keyframes = kids.keyframes;
       if (c.type === "midi")
@@ -397,12 +492,13 @@ export function declareVideo(root: DesignElement): Declaration {
       height: num(tr, "height", { min: 16 }) ?? TRACK_HEIGHT[kind],
       volume: num(tr, "volume", { min: 0 }) ?? 1,
     };
+    if (trackEffects.length) trackInputs.audioEffects = trackEffects;
     clipWires.forEach((w, i) => (trackInputs[`clips.${i + 1}`] = w));
-    nodes[trackId] = node(trackId, "video.track", trackInputs, trackName, metaOf(tr));
+    nodes[trackId] = node(trackId, "video.track", trackInputs, trackName, metaOf(tr, trackSources));
     trackWires.push(wire(trackId, "frames"));
   }
   const projectId = slug(`proj_${name}`);
-  const composite: Record<string, unknown> = { id: projectId, name, settings, ...(markers.length ? { markers } : {}), createdAt: 0, updatedAt: 0 };
+  const composite: Record<string, unknown> = { id: projectId, name, settings, ...(markers.length ? { markers } : {}), ...(masterEffects.length ? { masterEffects } : {}), createdAt: 0, updatedAt: 0 };
   trackWires.forEach((w, i) => (composite[`tracks.${i + 1}`] = w));
   nodes.composite = node("composite", "video.composite", composite, name, metaOf(root, compositeSources));
   const graph: IRGraph = { id: projectId, nodes, outputs: ["composite"], meta: { kind: "video" } };
@@ -416,6 +512,9 @@ function common(c: DesignElement): Record<string, unknown> {
   const color: Record<string, number> = {};
   for (const [k, d] of Object.entries(CLIP_COLOR)) color[k] = num(c, k, { min: k === "hue" ? -180 : -1, max: k === "hue" ? 180 : 1 }) ?? d;
   const fit = str(c, "fitMode", ["fit", "fill", "stretch"]);
+  const crop: Record<string, number> = {};
+  for (const [k, edge] of Object.entries(CLIP_CROP)) crop[edge] = num(c, k, { min: 0, max: 0.49 }) ?? 0;
+  const cropped = Object.keys(CLIP_CROP).some((k) => c.props[k] !== undefined);
   return {
     opacity: num(c, "opacity", { min: 0, max: 1 }) ?? 1,
     volume: num(c, "volume", { min: 0 }) ?? 1,
@@ -424,6 +523,7 @@ function common(c: DesignElement): Record<string, unknown> {
     ...(fit ? { fitMode: fit } : {}),
     transform,
     color,
+    ...(cropped ? { crop } : {}),
   };
 }
 
