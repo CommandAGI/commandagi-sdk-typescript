@@ -23,7 +23,9 @@
  * children are the nodes it takes, in order. So a file says what the editor's document holds, and an edit in the
  * editor is one attribute or one element. The few encodings (each for a reason):
  *
- *   drawing   a top-level `<group>` is written `<layer>` (the editor's layers panel lists them); a path's `subpaths`
+ *   drawing   the drawing is its first artboard; each `<artboard name width height background>` after its layers is
+ *             another, holding its own `<layer>`s (one `composite` each; `meta.pages` lists them in order). A
+ *             top-level `<group>` is written `<layer>` (the editor's layers panel lists them); a path's `subpaths`
  *             is `d`, an SVG path (M L C Q Z, absolute); a brush stroke's points are `[x, y]` pairs; an `<image>`
  *             or a `<raster-layer>` names its image file by `src`. A modifier
  *             (`<blur>`, `<transform>`, `<fill>`, …) wraps the one node it takes; `<boolean>` its shapes; `<clip>` its
@@ -212,8 +214,11 @@ function declareDrawn(s: Scope, el: DesignElement, top: boolean): NodeRef {
   throw new Error(`<${t}> is not read in a drawing (see commandagi/design twod)`);
 }
 
+/** An artboard's own fields, and a drawing's (the drawing is its first artboard). */
+const BOARD = ["name", "width", "height", "background"] as const;
+
 function drawing(root: DesignElement, name: string): Declaration {
-  const a = attrs(root, ["name", "width", "height", "background"]);
+  const a = attrs(root, [...BOARD]);
   if (Object.keys(a).length) throw new Error(`<drawing>: ${Object.keys(a)[0]} is not read (a drawing has name, width, height, background)`);
   // A drawing with no name of its own declares none; the file's name only names the graph.
   const own = typeof root.props.name === "string" ? root.props.name : undefined;
@@ -221,13 +226,43 @@ function drawing(root: DesignElement, name: string): Declaration {
   for (const k of ["width", "height", "background"] as const) if (root.props[k] !== undefined) m[k] = plainData(root.props[k], `<drawing> ${k}`);
   const s = new Scope(`draw:${slug(own ?? name)}`, m);
   withScope(s, () => {
-    const layers = kids(root).map((c) => declareDrawn(s, c, true));
+    // The drawing is its first artboard: its layers are its own; each `<artboard>` after them is another artboard.
+    const children = kids(root);
+    const boards = children.filter((c) => c.type === "artboard");
+    const firstBoard = children.findIndex((c) => c.type === "artboard");
+    if (firstBoard >= 0 && children.slice(firstBoard).some((c) => c.type !== "artboard"))
+      throw new Error(`<drawing>: its layers come before its <artboard>s (the drawing is the first artboard)`);
+    const layers = children.filter((c) => c.type !== "artboard").map((c) => declareDrawn(s, c, true));
     const comp = s.add(
       "composite",
       { ...(m.background !== undefined ? { background: m.background } : {}), ...channels("layers", layers) },
       { id: "composite", label: "Output", meta: meta(root) },
     );
     s.output(comp);
+    if (!boards.length) return;
+    const page = (compositeId: string, name: string, fields: Record<string, unknown>) => ({ id: compositeId, name, ...fields, compositeId });
+    const pages = [page("composite", own ?? "Artboard 1", { ...(m.width !== undefined ? { width: m.width } : {}), ...(m.height !== undefined ? { height: m.height } : {}), ...(m.background !== undefined ? { background: m.background } : {}) })];
+    boards.forEach((b, i) => {
+      const extra = attrs(b, [...BOARD]);
+      if (Object.keys(extra).length) throw new Error(`${where(b)}: ${Object.keys(extra)[0]} is not read (an artboard has name, width, height, background)`);
+      const boardName = typeof b.props.name === "string" ? b.props.name : `Artboard ${i + 2}`;
+      const fields: Record<string, unknown> = {};
+      for (const k of ["width", "height", "background"] as const) if (b.props[k] !== undefined) fields[k] = plainData(b.props[k], `${where(b)} ${k}`);
+      const boardLayers = kids(b).map((c) => {
+        if (c.type === "artboard") throw new Error(`${where(b)}: an <artboard> is a child of the <drawing>, not of another artboard`);
+        return declareDrawn(s, c, true);
+      });
+      const id = b.props.id;
+      if (id !== undefined && typeof id !== "string") throw new Error(`${where(b)}: id is a string`);
+      const ref = s.add(
+        "composite",
+        { ...(fields.background !== undefined ? { background: fields.background } : {}), ...channels("layers", boardLayers) },
+        { ...(id ? { id } : {}), label: boardName, meta: meta(b) },
+      );
+      s.output(ref);
+      pages.push(page(ref.id, boardName, fields));
+    });
+    s.meta.pages = pages;
   });
   return new Declaration("drawing", s.build());
 }

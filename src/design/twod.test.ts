@@ -38,6 +38,30 @@ test("a drawing declares the composite, its layers as groups, shapes with their 
   assert.deepEqual(g.nodes.rect!.meta, { source: 2 });
 });
 
+test("a drawing is its first artboard; each <artboard> after its layers is another, with its own composite and page", () => {
+  const g = run(
+    h("drawing", { name: "Card", width: 400, height: 300, background: "#ffffff" },
+      h("layer", { name: "Front" }, h("rect", { x: 1, y: 2, w: 3, h: 4 })),
+      h("artboard", { name: "Back", width: 400, height: 300, background: "#eeeeee", __source: 9 },
+        h("layer", { name: "Text" }, h("ellipse", { cx: 5, cy: 6, rx: 7, ry: 7 })),
+      ),
+      h("artboard", { width: 200, height: 100 }),
+    ),
+  );
+  assert.deepEqual(g.outputs, ["composite", "Back", "Artboard_3"]);
+  assert.deepEqual(g.meta!.pages, [
+    { id: "composite", name: "Card", width: 400, height: 300, background: "#ffffff", compositeId: "composite" },
+    { id: "Back", name: "Back", width: 400, height: 300, background: "#eeeeee", compositeId: "Back" },
+    { id: "Artboard_3", name: "Artboard 3", width: 200, height: 100, compositeId: "Artboard_3" },
+  ]);
+  assert.deepEqual(g.nodes.Back, { id: "Back", type: "composite", label: "Back", inputs: { background: "#eeeeee", "layers.1": wire("group_2") }, meta: { source: 9 } });
+  assert.deepEqual(g.nodes.group_2!.inputs, { name: "Text", "children.1": wire("ellipse") });
+  assert.equal(run(h("drawing", {}, h("layer", {}))).meta!.pages, undefined, "one artboard: no pages");
+  assert.throws(() => run(h("drawing", {}, h("artboard", {}), h("layer", {}))), /its layers come before its <artboard>s/);
+  assert.throws(() => run(h("drawing", {}, h("artboard", { x: 4 }))), /x is not read \(an artboard has name, width, height, background\)/);
+  assert.throws(() => run(h("drawing", {}, h("layer", {}, h("artboard", {})))), /<artboard> is not read in a drawing/);
+});
+
 test("a drawing's placed image and raster layer name their image files by src", () => {
   const g = run(
     h("drawing", { width: 100, height: 80 },
