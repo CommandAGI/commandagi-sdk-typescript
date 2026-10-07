@@ -24,11 +24,16 @@
  *       </bookmark>
  *       <label from={1} style="r" />
  *       <attach src="data.csv" description="The figures" />
+ *       <header right="{file}" size={8} />
+ *       <footer center="Page {page} of {pages}" pages="2-" />
+ *       <bates prefix="ACME-" digits={6} position="bottom-right" />
  *     </pdf>
  *   );
  *
  * The rule of the ontology's files: a record is an element and its fields are the element's attributes, verbatim.
- * Pages and page numbers are 1-based, as a person counts them. Coordinates are PDF points (1/72 inch) from the
+ * Pages and page numbers are 1-based, as a person counts them. A header or footer is drawn on every page (or
+ * `pages`, "2-10"): text in the left, center and right slots, with `{page}`, `{pages}`, `{date}` and `{file}` in it;
+ * `margin` is from its edge of the shown page, `inset` from the sides. Bates numbers run from `start` on every page. Coordinates are PDF points (1/72 inch) from the
  * page's lower-left corner; a colour is [r, g, b], each 0..1. A `src` is a ref: a path relative to this file's
  * folder, or an address. Nothing adds a default: what the file does not say, the PDF does not have.
  */
@@ -86,6 +91,9 @@ const REQUIRED: Readonly<Record<string, readonly string[]>> = {
 export const PDF_FIELDS = ["title", "author", "subject", "keywords", "creator"] as const;
 export const PAGE_FIELDS = ["id", "src", "n", "rotate", "size", "width", "height"] as const;
 export const BOOKMARK_FIELDS = ["id", "title", "page", "top", "open", "bold", "italic", "color", "url"] as const;
+export const BAND_FIELDS = ["left", "center", "right", "size", "color", "family", "margin", "inset", "pages", "start", "date"] as const;
+export const BATES_FIELDS = ["prefix", "suffix", "start", "digits", "position", "size", "color", "family", "margin", "inset"] as const;
+export const BATES_POSITIONS = ["top-left", "top-center", "top-right", "bottom-left", "bottom-center", "bottom-right"] as const;
 
 export type PdfRect = [number, number, number, number];
 export type PdfColor = [number, number, number];
@@ -136,6 +144,38 @@ export interface PdfAttachment {
   description?: string;
   mimeType?: string;
 }
+/** A header or footer: its slots' text (with `{page}`, `{pages}`, `{date}`, `{file}`) and how it is set. */
+export interface PdfBand {
+  left?: string;
+  center?: string;
+  right?: string;
+  size?: number;
+  color?: PdfColor;
+  family?: "sans" | "serif" | "mono";
+  /** Points from its edge of the shown page (the top for a header, the bottom for a footer). */
+  margin?: number;
+  /** Points from the left and right edges. */
+  inset?: number;
+  /** Which pages ("2-10, 12"); every page when absent. */
+  pages?: string;
+  /** What `{page}` says on the first page it is drawn on. */
+  start?: number;
+  /** What `{date}` says. */
+  date?: string;
+}
+export interface PdfBates {
+  prefix?: string;
+  suffix?: string;
+  start?: number;
+  digits?: number;
+  position?: (typeof BATES_POSITIONS)[number];
+  size?: number;
+  color?: PdfColor;
+  family?: "sans" | "serif" | "mono";
+  margin?: number;
+  inset?: number;
+}
+
 /** A PDF in code as the PDF app edits it. */
 export interface PdfDoc {
   title?: string;
@@ -148,6 +188,9 @@ export interface PdfDoc {
   bookmarks?: PdfBookmark[];
   labels?: PdfLabel[];
   attachments?: PdfAttachment[];
+  header?: PdfBand;
+  footer?: PdfBand;
+  bates?: PdfBates;
 }
 
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
@@ -191,6 +234,18 @@ function checkPage(p: DocTree): void {
   for (const c of p.children) checkMark(c);
 }
 
+function checkBand(t: DocTree): void {
+  const a = t.attrs, where = `<${t.tag}>`;
+  if (t.tag !== "bates" && !["left", "center", "right"].some((k) => typeof a[k] === "string" && (a[k] as string).trim())) throw new Error(`${where} has text in left, center or right`);
+  for (const k of ["left", "center", "right", "pages", "date", "prefix", "suffix"]) if (a[k] !== undefined && typeof a[k] !== "string") throw new Error(`${where} ${k} is text`);
+  for (const k of ["size", "margin", "inset"]) if (a[k] !== undefined && !(isNum(a[k]) && (a[k] as number) >= 0)) throw new Error(`${where} ${k} is points, 0 or more`);
+  if (a.color !== undefined && !isColor(a.color)) throw new Error(`${where} color is [r, g, b], each 0 to 1`);
+  if (a.family !== undefined && !["sans", "serif", "mono"].includes(a.family as string)) throw new Error(`${where} family is "sans", "serif" or "mono"`);
+  if (a.start !== undefined && !(Number.isInteger(a.start) && (a.start as number) >= 0)) throw new Error(`${where} start is a whole number`);
+  if (a.digits !== undefined && !(Number.isInteger(a.digits) && (a.digits as number) >= 1 && (a.digits as number) <= 15)) throw new Error("<bates> digits is 1 to 15");
+  if (a.position !== undefined && !(BATES_POSITIONS as readonly string[]).includes(a.position as string)) throw new Error(`<bates> position is ${BATES_POSITIONS.join(", ")}`);
+}
+
 function bookmarkOf(t: DocTree): PdfBookmark {
   const b = own(t.attrs, BOOKMARK_FIELDS) as unknown as PdfBookmark;
   if (typeof b.title !== "string") throw new Error("<bookmark> title is text");
@@ -212,6 +267,9 @@ const tags: Vocabulary["tags"] = {
   bookmark: { parents: ["pdf", "bookmark"], key: "id", required: ["title"], attrs: BOOKMARK_FIELDS },
   label: { parents: ["pdf"], required: ["from"], attrs: ["from", "style", "prefix", "start"] },
   attach: { parents: ["pdf"], required: ["src"], attrs: ["src", "name", "description", "mimeType"] },
+  header: { parents: ["pdf"], attrs: BAND_FIELDS },
+  footer: { parents: ["pdf"], attrs: BAND_FIELDS },
+  bates: { parents: ["pdf"], attrs: BATES_FIELDS },
 };
 
 export const pdfVocabulary: Vocabulary<PdfDoc> = {
@@ -226,6 +284,7 @@ export const pdfVocabulary: Vocabulary<PdfDoc> = {
     const bookmarks: PdfBookmark[] = [];
     const labels: PdfLabel[] = [];
     const attachments: PdfAttachment[] = [];
+    const bands: Pick<PdfDoc, "header" | "footer" | "bates"> = {};
     for (const c of t.children) {
       if (c.tag === "page") {
         checkPage(c);
@@ -245,6 +304,11 @@ export const pdfVocabulary: Vocabulary<PdfDoc> = {
         if (l.style !== undefined && !["D", "r", "R", "a", "A"].includes(l.style)) throw new Error('<label> style is "D" (1 2 3), "r" (i ii), "R" (I II), "a" (a b) or "A" (A B)');
         labels.push(l);
       } else if (c.tag === "attach") attachments.push(own(c.attrs, ["src", "name", "description", "mimeType"]) as unknown as PdfAttachment);
+      else if (c.tag === "header" || c.tag === "footer" || c.tag === "bates") {
+        if (bands[c.tag]) throw new Error(`a PDF has one <${c.tag}>`);
+        checkBand(c);
+        bands[c.tag] = own(c.attrs, c.tag === "bates" ? BATES_FIELDS : BAND_FIELDS) as never;
+      }
     }
     return {
       ...(own(t.attrs, PDF_FIELDS) as Partial<PdfDoc>),
@@ -253,6 +317,7 @@ export const pdfVocabulary: Vocabulary<PdfDoc> = {
       ...(bookmarks.length ? { bookmarks } : {}),
       ...(labels.length ? { labels } : {}),
       ...(attachments.length ? { attachments } : {}),
+      ...bands,
     };
   },
   toTree(d) {
@@ -268,6 +333,10 @@ export const pdfVocabulary: Vocabulary<PdfDoc> = {
     for (const b of d.bookmarks ?? []) children.push(bookmarkTree(b));
     for (const l of d.labels ?? []) children.push({ tag: "label", attrs: own(l as unknown as Record<string, unknown>, ["from", "style", "prefix", "start"]), children: [] });
     for (const a of d.attachments ?? []) children.push({ tag: "attach", attrs: own(a as unknown as Record<string, unknown>, ["src", "name", "description", "mimeType"]), children: [] });
+    for (const tag of ["header", "footer", "bates"] as const) {
+      const b = d[tag];
+      if (b) children.push({ tag, attrs: own(b as unknown as Record<string, unknown>, tag === "bates" ? BATES_FIELDS : BAND_FIELDS), children: [] });
+    }
     return { tag: "pdf", attrs: own(d as unknown as Record<string, unknown>, PDF_FIELDS), children };
   },
   empty: () => ({ pages: [] }),

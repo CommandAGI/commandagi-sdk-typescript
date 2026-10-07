@@ -25,6 +25,9 @@ test("a PDF in JSX: pages by ref and blank, marks with replies, fills, nested bo
     el("bookmark", { title: "Terms", page: 2 }, el("bookmark", { title: "Payment", page: 2, top: 500 })),
     el("label", { from: 1, style: "r" }),
     el("attach", { src: "data.csv" }),
+    el("header", { right: "{file}", size: 8 }),
+    el("footer", { center: "Page {page} of {pages}", pages: "2-" }),
+    el("bates", { prefix: "ACME-", digits: 6, position: "bottom-right" }),
   );
   const doc = declarationOf({ default: file }).document!;
   assert.equal(doc.format, "pdf");
@@ -50,6 +53,9 @@ test("a PDF in JSX: pages by ref and blank, marks with replies, fills, nested bo
     bookmarks: [{ title: "Terms", page: 2, children: [{ title: "Payment", page: 2, top: 500 }] }],
     labels: [{ from: 1, style: "r" }],
     attachments: [{ src: "data.csv" }],
+    header: { right: "{file}", size: 8 },
+    footer: { center: "Page {page} of {pages}", pages: "2-" },
+    bates: { prefix: "ACME-", digits: 6, position: "bottom-right" },
   });
   assert.deepEqual(PDF.pdf.fromTree(PDF.pdf.toTree(doc.document as never)), doc.document, "both ways");
 });
@@ -64,4 +70,7 @@ test("a PDF in JSX refuses what it cannot say", () => {
   assert.throws(bad(el("page", { size: "a4" }, el("signature", { rect: [0, 0, 10, 10], typed: "A", image: "s.png" }))), /one of typed, image or strokes/);
   assert.throws(bad(el("page", { size: "a4" }, el("bogus", {}))), /<bogus> is not a tag of a PDF/);
   assert.throws(bad(el("bookmark", { title: "x", page: 0 })), /page is a page number/);
+  assert.throws(bad(el("footer", { size: 9 })), /<footer> has text in left, center or right/);
+  assert.throws(bad(el("bates", { position: "middle" })), /<bates> position is top-left/);
+  assert.throws(bad(el("header", { left: "a" }), el("header", { left: "b" })), /a PDF has one <header>/);
 });
