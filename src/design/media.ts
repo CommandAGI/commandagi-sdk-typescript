@@ -16,18 +16,26 @@
  *   );
  *
  *   export default () => (
- *     <song name="Loop" tempo={120} timeSignature="4/4" bars={8}>
+ *     <song name="Loop" tempo={120} timeSignature="4/4" bars={8} cycleStart={0} cycleEnd={16}>
  *       <track name="Keys">
  *         <synth wave="triangle" />
  *         <clip name="Keys 1" start={0} length={4}>
  *           <note pitch="C4" start={0} duration={1} velocity={0.8} />
  *         </clip>
  *       </track>
+ *       <track name="Tone">
+ *         <clip src="media/tone.wav" start={4} length={2} in={0.25} volume={0.8} />
+ *       </track>
+ *       <track name="Bells">
+ *         <sampler src="media/tone.wav" root="A4" />
+ *         <clip name="Bells 1" start={0} length={4} />
+ *       </track>
  *     </song>
  *   );
  *
  * Media files are named by path relative to the file (`src`), never inlined; the editor reads them. Times on a
- * video's timeline are seconds; times in a song are beats. Each node carries the element that declared it in
+ * video's timeline are seconds; times in a song are beats (an audio clip's `in`, where it starts in its file, is
+ * seconds, as on a video). Each node carries the element that declared it in
  * `meta.source`; what a node holds that is not a node (a clip's effects, transition, intro, outro and keyframes; a midi clip's
  * notes; a video's markers) carries its element in `meta.sources`, by key. Anything else is refused by name.
  */
@@ -458,6 +466,10 @@ export const SONG_EFFECTS: Readonly<Record<string, { type: string; name: string;
 };
 export const SONG_TRACK = { volumeDb: 0, pan: 0, mute: false, solo: false } as const;
 export const SONG_MASTER = { volumeDb: 0, tempo: 120, timeSignature: "4/4", bars: 8 } as const;
+/** A sampler's defaults: the file sounds at its root pitch (A4) at full gain. */
+export const SAMPLER = { root: 69, gain: 1 } as const;
+/** An audio clip's defaults: from the file's start (`in`, seconds), at its own level (`volume`). */
+export const AUDIO_CLIP = { in: 0, volume: 1, loop: false } as const;
 
 /** A time signature written "3/4" → { num: 3, den: 4 }. */
 export function timeSignatureOf(v: unknown): { num: number; den: number } | null {
@@ -482,9 +494,24 @@ export function tempoOf(v: unknown): { atBeat: number; bpm: number }[] | null {
   return out[0]!.atBeat <= 0 ? out : null;
 }
 
-/** Declare a song (`<song>` and its tracks) as the music studio's own op graph. */
+/** A sound file named by a path relative to the song (`src`), checked to be one. */
+function soundSrc(el: DesignElement): string {
+  const src = str(el, "src");
+  if (!src) throw new Error(`<${el.type}> names its sound file (src="media/tone.wav", relative to this file)`);
+  if (/^[a-z]+:|^\//i.test(src)) throw new Error(`${where(el)}: src is a path relative to this file, not ${src}`);
+  if (mediaKind(src) !== "audio") throw new Error(`${where(el)}: ${src} is not a sound file this studio reads`);
+  return src;
+}
+/** A file's name without its folder and extension: an audio clip's name when it gives none. */
+const stemOf = (src: string) => src.replace(/^.*\//, "").replace(/\.[^.]+$/, "");
+
+/**
+ * Declare a song (`<song>` and its tracks) as the music studio's own op graph. A track plays a `<synth>` or a
+ * `<sampler>` (an instrument: its `<clip>`s hold notes), or holds audio clips (`<clip src>`: a sound file placed on
+ * the song, played by the track's player); effects follow the instrument or the player.
+ */
 export function declareSong(root: DesignElement): Declaration {
-  refuseUnknown(root, ["name", ...Object.keys(SONG_MASTER)]);
+  refuseUnknown(root, ["name", "cycleStart", "cycleEnd", ...Object.keys(SONG_MASTER)]);
   const name = str(root, "name") ?? "Song";
   const tempo = root.props.tempo === undefined ? [{ atBeat: 0, bpm: SONG_MASTER.tempo }] : tempoOf(root.props.tempo);
   if (!tempo) throw new Error(`<song>: tempo is beats per minute (120), or [{ atBeat: 0, bpm: 120 }, …] sorted by beat`);
@@ -500,31 +527,54 @@ export function declareSong(root: DesignElement): Declaration {
     timeSig,
     bars: num(root, "bars", { min: 1 }) ?? SONG_MASTER.bars,
   };
+  const cycleStart = num(root, "cycleStart", { min: 0 }), cycleEnd = num(root, "cycleEnd", { min: 0 });
+  if ((cycleStart === undefined) !== (cycleEnd === undefined)) throw new Error(`<song>: a cycle names both its cycleStart and its cycleEnd (beats)`);
+  if (cycleStart !== undefined && cycleEnd !== undefined) {
+    if (!(cycleEnd > cycleStart)) throw new Error(`<song>: cycleEnd (${cycleEnd}) comes after cycleStart (${cycleStart})`);
+    master.cycle = { start: cycleStart, end: cycleEnd };
+  }
   let order = 0;
   for (const tr of childElements(root.props.children)) {
     if (tr.type !== "track") throw new Error(`<${tr.type}> is not read in a <song> (it holds <track>)`);
     refuseUnknown(tr, ["name", "colorIndex", ...Object.keys(SONG_TRACK)]);
     const trackName = str(tr, "name") ?? `Track ${order + 1}`;
     const trackId = id(`track_${trackName}`);
+    const children = childElements(tr.props.children);
+    // A track without an instrument that holds anything is an audio track: its player comes first in the chain.
+    const audioTrack = children.length > 0 && !children.some((el) => el.type === "synth" || el.type === "sampler");
     let upstream: string | null = null;
     const clips: string[] = [];
     let instrument: string | null = null;
-    for (const el of childElements(tr.props.children)) {
+    let player: string | null = null;
+    if (audioTrack) {
+      player = id(`player_${trackName}`);
+      nodes[player] = node(player, "player", { name: trackName });
+      upstream = player;
+    }
+    for (const el of children) {
       const fx = SONG_EFFECTS[el.type];
-      if (el.type === "synth") {
-        if (instrument) throw new Error(`${where(tr)}: a track plays one <synth>`);
-        refuseUnknown(el, ["name", ...Object.keys(SYNTH), ...Object.keys(ENVELOPE)]);
-        const spec: Record<string, unknown> = { kind: "synth" };
-        spec.wave = str(el, "wave", WAVES) ?? SYNTH.wave;
-        for (const k of ["gain", "detune", "voices", "transpose"] as const) spec[k] = num(el, k) ?? SYNTH[k];
+      if (el.type === "synth" || el.type === "sampler") {
+        if (instrument) throw new Error(`${where(tr)}: a track plays one instrument (a <synth> or a <sampler>)`);
         const env: Record<string, number> = {};
+        let spec: Record<string, unknown>;
+        if (el.type === "synth") {
+          refuseUnknown(el, ["name", ...Object.keys(SYNTH), ...Object.keys(ENVELOPE)]);
+          spec = { kind: "synth" };
+          spec.wave = str(el, "wave", WAVES) ?? SYNTH.wave;
+          for (const k of ["gain", "detune", "voices", "transpose"] as const) spec[k] = num(el, k) ?? SYNTH[k];
+        } else {
+          refuseUnknown(el, ["name", "src", "root", "gain", ...Object.keys(ENVELOPE)]);
+          const baseNote = el.props.root === undefined ? SAMPLER.root : pitchOf(el.props.root);
+          if (baseNote === null) throw new Error(`<sampler>: root is the pitch the file sounds at, a MIDI number (0–127) or a name ("A4"), not ${JSON.stringify(el.props.root)}`);
+          spec = { kind: "sampler", src: soundSrc(el), baseNote, gain: num(el, "gain", { min: 0 }) ?? SAMPLER.gain };
+        }
         for (const [k, d] of Object.entries(ENVELOPE)) env[k] = num(el, k, { min: 0 }) ?? d;
         spec.env = env;
         instrument = id(`inst_${trackName}`);
         nodes[instrument] = node(instrument, "instrument", { name: str(el, "name") ?? trackName, spec }, undefined, metaOf(el));
         upstream = instrument;
       } else if (fx) {
-        if (!upstream) throw new Error(`<${el.type}> comes after the track's <synth> (the chain runs synth → effects → track)`);
+        if (!upstream) throw new Error(`<${el.type}> comes after the track's instrument (the chain runs instrument → effects → track)`);
         refuseUnknown(el, ["name", ...Object.keys(fx.spec)]);
         const spec: Record<string, unknown> = { type: el.type };
         for (const [k, d] of Object.entries(fx.spec))
@@ -532,7 +582,31 @@ export function declareSong(root: DesignElement): Declaration {
         const fid = id(`fx_${trackName}_${el.type}`);
         nodes[fid] = node(fid, fx.type, { name: str(el, "name") ?? fx.name, spec, audio: wire(upstream, "audio") }, undefined, metaOf(el));
         upstream = fid;
+      } else if (el.type === "clip" && player && el.props.src !== undefined) {
+        refuseUnknown(el, ["name", "src", "start", "length", "in", "volume", "loop"]);
+        if (childElements(el.props.children).length) throw new Error(`${where(el)}: an audio clip holds no notes (notes go in a clip on a track with a <synth> or a <sampler>)`);
+        const src = soundSrc(el);
+        const clipName = str(el, "name") ?? stemOf(src);
+        const cid = id(`clip_${clipName}`);
+        nodes[cid] = node(
+          cid,
+          "sample",
+          {
+            name: clipName,
+            src,
+            start: num(el, "start", { min: 0 }) ?? 0,
+            length: num(el, "length", { min: 0 }) ?? 4,
+            offsetSeconds: num(el, "in", { min: 0 }) ?? AUDIO_CLIP.in,
+            gain: num(el, "volume", { min: 0 }) ?? AUDIO_CLIP.volume,
+            loop: bool(el, "loop") ?? AUDIO_CLIP.loop,
+          },
+          undefined,
+          metaOf(el),
+        );
+        clips.push(cid);
       } else if (el.type === "clip") {
+        if (el.props.src !== undefined)
+          throw new Error(`${where(tr)}: a track that plays an instrument holds clips of notes; an audio clip (src) goes on a track without one`);
         refuseUnknown(el, ["name", "start", "length", "loop"]);
         const clipName = str(el, "name") ?? `${trackName} ${clips.length + 1}`;
         const cid = id(`clip_${clipName}`);
@@ -549,10 +623,14 @@ export function declareSong(root: DesignElement): Declaration {
         }
         nodes[cid] = node(cid, "midiClip", { name: clipName, start: num(el, "start", { min: 0 }) ?? 0, length: num(el, "length", { min: 0 }) ?? 4, notes, loop: bool(el, "loop") ?? false }, undefined, metaOf(el, sources));
         clips.push(cid);
-      } else throw new Error(`<${el.type}> is not read on a <track> (it holds <synth>, effects (${Object.keys(SONG_EFFECTS).join(", ")}) and <clip>)`);
+      } else throw new Error(`<${el.type}> is not read on a <track> (it holds a <synth> or a <sampler>, effects (${Object.keys(SONG_EFFECTS).join(", ")}) and <clip>)`);
     }
-    if (clips.length && !instrument) throw new Error(`${where(tr)}: its clips need a <synth> to play them`);
     if (instrument) clips.forEach((c, i) => (nodes[instrument!]!.inputs[`midi.${i + 1}`] = wire(c, "midi")));
+    if (player) {
+      const notes = clips.find((c) => nodes[c]!.type === "midiClip");
+      if (notes) throw new Error(`${where(tr)}: its clips need a <synth> or a <sampler> to play them`);
+      clips.forEach((c, i) => (nodes[player!]!.inputs[`audio.${i + 1}`] = wire(c, "audio")));
+    }
     const trackInputs: Record<string, unknown> = {
       name: trackName,
       volumeDb: num(tr, "volumeDb") ?? SONG_TRACK.volumeDb,
