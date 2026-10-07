@@ -56,13 +56,25 @@
  *   <deck name width height style>                          the deck (1280 × 720 slide units unless it says); style
  *                                                           "plain", "ink", "editorial" or "signal" (plain unless it says)
  *   <slide layout name notes background hidden>             a slide on a layout, by the layout's name
- *   <text placeholder x y w h rotation fontSize color bold italic underline align valign>
+ *   <text placeholder x y w h rotation fontSize color bold italic underline align valign columns gutter inset>
  *                                                           a text box; its children are its text (a <p> per
- *                                                           paragraph, or text for one)
+ *                                                           paragraph, or text for one); columns, the gutter between
+ *                                                           them and the inset from the box's edges frame its text
  *   <shape shape x y w h fill stroke strokeWidth cornerRadius>  <image src x y w h fit alt>
- *                                                           every element also takes opacity, label, locked (the
- *                                                           editor does not move it) and group (elements with one
- *                                                           group name select and move as one)
+ *                                                           every element also takes opacity, label and locked (the
+ *                                                           editor does not move it)
+ *   <group name>                                            elements (and groups) that select and move as one; a
+ *                                                           group of groups nests
+ *   <master background>                                     how the deck's master differs from the stock one: its
+ *                                                           own elements (under every slide), and:
+ *   <textStyle role fontSize color bold italic fontFamily lineHeight align>
+ *                                                           the master's text style of a role ("title", "body" …):
+ *                                                           every placeholder of the role takes what its layout
+ *                                                           does not say
+ *   <layout name>  <placeholder name role x y w h valign prompt fontSize color bold italic …>
+ *                                                           a layout's placeholders, each saying only what differs
+ *                                                           from the stock layout of that name (a new name is a new
+ *                                                           placeholder or layout, with its role and box)
  *
  * THE TEXT OF A BLOCK IS ITS CHILDREN, never a prop: long prose stays readable, and an edit to one sentence changes
  * one line when each sentence is on a line of its own (the editors write it so). JSX joins the lines of a text with
@@ -282,7 +294,9 @@ export function readPage(root: DesignElement): DeclaredDocument {
 /** The deck's node types (the decks editor's own). */
 export const DECK_TYPES = { doc: "deck.doc", slide: "deck.slide", text: "deck.text", image: "deck.image", shape: "deck.shape" } as const;
 const BOX = ["x", "y", "w", "h", "rotation"] as const;
-const COMMON = [...BOX, "placeholder", "z", "visible", "opacity", "label", "locked", "group"];
+const COMMON = [...BOX, "placeholder", "z", "visible", "opacity", "label", "locked"];
+/** A text frame's columns, the gutter between them and the inset from its edges, in slide units. */
+const TEXT_FRAME = ["columns", "gutter", "inset"];
 /** The deck's styles: a few curated looks (the decks editor's own themes), not a theme editor. */
 export const DECK_STYLES = ["plain", "ink", "editorial", "signal"] as const;
 
@@ -329,56 +343,154 @@ export function richText(children: unknown, at: string): { paragraphs: { runs: R
   return { paragraphs: paragraphs.length ? paragraphs : [{ runs: [] }] };
 }
 
+/** The roles a placeholder plays, and a master's text style is for. */
+export const PLACEHOLDER_ROLES = ["title", "subtitle", "body", "image", "caption", "footer", "slideNumber"] as const;
+const TEXT_STYLE = ["fontSize", "color", "bold", "italic", "fontFamily", "lineHeight", "align"] as const;
+const TEXT_ALIGN = ["left", "center", "right", "justify"] as const;
+
+/** A text style's attributes as the deck's params (`fontSize` is `fontSizePx`). */
+function textStyleOf(el: DesignElement): Record<string, unknown> {
+  return defined({ fontSizePx: num(el, "fontSize"), color: str(el, "color"), bold: bool(el, "bold"), italic: bool(el, "italic"), fontFamily: str(el, "fontFamily"), lineHeight: num(el, "lineHeight"), align: oneOf(el, "align", TEXT_ALIGN) });
+}
+
+/** One element of a slide or a master (a text, a shape, an image) as the node it declares. */
+function readElement(c: DesignElement, eid: string, k: number, at: string, groups: readonly string[]): IRNode {
+  const box = defined(Object.fromEntries(BOX.map((p) => [p, num(c, p)])));
+  const common = defined({ box: Object.keys(box).length ? box : undefined, placeholder: str(c, "placeholder"), z: num(c, "z"), visible: bool(c, "visible"), opacity: num(c, "opacity"), label: str(c, "label"), locked: bool(c, "locked"), groups: groups.length ? [...groups] : undefined });
+  let type: string, inputs: Record<string, unknown>;
+  switch (c.type) {
+    case "text": {
+      only(c, [...COMMON, "fontSize", "color", "bold", "italic", "underline", "align", "valign", "fontFamily", "lineHeight", "overflow", ...TEXT_FRAME]);
+      type = DECK_TYPES.text;
+      const columns = num(c, "columns");
+      if (columns !== undefined && (!Number.isInteger(columns) || columns < 1)) throw new Error(`${where(c)}: columns is a whole number from 1`);
+      inputs = defined({ ...common, text: richText(c.props.children, `<text> of ${at}`), fontSizePx: num(c, "fontSize"), color: str(c, "color"), bold: bool(c, "bold"), italic: bool(c, "italic"), underline: bool(c, "underline"), align: oneOf(c, "align", TEXT_ALIGN), valign: oneOf(c, "valign", ["top", "middle", "bottom"]), fontFamily: str(c, "fontFamily"), lineHeight: num(c, "lineHeight"), overflow: oneOf(c, "overflow", ["visible", "clip", "ellipsis"]), columns, gutter: num(c, "gutter"), inset: num(c, "inset") });
+      break;
+    }
+    case "shape":
+      only(c, [...COMMON, "shape", "fill", "stroke", "strokeWidth", "cornerRadius"]);
+      type = DECK_TYPES.shape;
+      inputs = defined({ ...common, shape: oneOf(c, "shape", ["rect", "ellipse", "triangle", "line"]) ?? "rect", fill: str(c, "fill"), stroke: str(c, "stroke"), strokeWidth: num(c, "strokeWidth"), cornerRadius: num(c, "cornerRadius") });
+      break;
+    case "image":
+      only(c, [...COMMON, "src", "fit", "alt"]);
+      type = DECK_TYPES.image;
+      inputs = defined({ ...common, src: str(c, "src") ?? "", fit: oneOf(c, "fit", ["fill", "contain", "cover", "none"]), alt: str(c, "alt") });
+      break;
+    default:
+      throw new Error(`<${c.type}> is not an element of ${at} (text, shape, image, group)`);
+  }
+  if (!common.placeholder && ["x", "y", "w", "h"].some((p) => (box as Record<string, unknown>)[p] === undefined))
+    throw new Error(`the <${c.type}> ${k} of ${at} needs x, y, w and h (or a placeholder to take them from)`);
+  return { id: eid, type, inputs, ...(c.source === undefined ? {} : { meta: { source: c.source } }) };
+}
+
+/**
+ * The elements of a slide or a master, in paint order (back to front), with the groups each is in: a `<group name>`
+ * holds elements and groups, and each element names the groups around it, outermost first (`groups`). Where each group
+ * was written goes in `sources` (`group:<name>`); a slide's group names are its own.
+ */
+function readElements(children: unknown, owner: string, at: string, nodes: Record<string, IRNode>, sources: Record<string, unknown>): { wire: { node: string; port: string } }[] {
+  const wires: { wire: { node: string; port: string } }[] = [];
+  const names = new Set<string>();
+  const walk = (kids: unknown, groups: string[]) => {
+    for (const c of childElements(kids)) {
+      if (c.type === "group") {
+        only(c, ["name"]);
+        const name = str(c, "name");
+        if (!name) throw new Error(`a <group> of ${at} needs a name`);
+        if (names.has(name)) throw new Error(`two groups of ${at} are called ${name}`);
+        names.add(name);
+        if (!childElements(c.props.children).length) throw new Error(`the <group name="${name}"> of ${at} holds no element`);
+        sources[`group:${name}`] = c.source;
+        walk(c.props.children, [...groups, name]);
+        continue;
+      }
+      const eid = `${owner}.${wires.length + 1}`;
+      nodes[eid] = readElement(c, eid, wires.length + 1, at, groups);
+      wires.push({ wire: { node: eid, port: "out" } });
+    }
+  };
+  walk(children, []);
+  return wires;
+}
+
+/** A `<master>`: its background, its text styles by role, its layouts' placeholders, and its own elements. */
+function readMaster(el: DesignElement, nodes: Record<string, IRNode>): void {
+  only(el, ["background"]);
+  const sources: Record<string, unknown> = {};
+  const textStyles: Record<string, Record<string, unknown>> = {};
+  const layouts = new Set<string>();
+  const decoration: DesignElement[] = [];
+  for (const c of childElements(el.props.children)) {
+    if (c.type === "textStyle") {
+      only(c, ["role", ...TEXT_STYLE]);
+      const role = oneOf(c, "role", PLACEHOLDER_ROLES);
+      if (!role) throw new Error(`a <textStyle> needs a role (${PLACEHOLDER_ROLES.join(", ")})`);
+      if (textStyles[role]) throw new Error(`two text styles of the master are for ${role}`);
+      textStyles[role] = textStyleOf(c);
+      sources[`textStyle:${role}`] = c.source;
+    } else if (c.type === "layout") {
+      only(c, ["name"]);
+      const name = str(c, "name");
+      if (!name) throw new Error("a <layout> needs a name");
+      if (layouts.has(name)) throw new Error(`two layouts are called ${name}`);
+      layouts.add(name);
+      const id = `master.layout-${layouts.size}`;
+      const own: Record<string, unknown> = {};
+      const seen = new Set<string>();
+      const placeholders = childElements(c.props.children).map((p) => {
+        if (p.type !== "placeholder") throw new Error(`<${p.type}> is not read in a <layout> (it holds <placeholder>s)`);
+        only(p, ["name", "role", "x", "y", "w", "h", "valign", "prompt", ...TEXT_STYLE]);
+        const pname = str(p, "name");
+        if (!pname) throw new Error(`a <placeholder> of the layout ${name} needs a name`);
+        if (seen.has(pname)) throw new Error(`two placeholders of the layout ${name} are called ${pname}`);
+        seen.add(pname);
+        own[`placeholder:${pname}`] = p.source;
+        const box = defined({ x: num(p, "x"), y: num(p, "y"), w: num(p, "w"), h: num(p, "h") });
+        return defined({ name: pname, role: oneOf(p, "role", PLACEHOLDER_ROLES), box: Object.keys(box).length ? box : undefined, ...textStyleOf(p), valign: oneOf(p, "valign", ["top", "middle", "bottom"]), prompt: str(p, "prompt") });
+      });
+      nodes[id] = { id, type: "deck.layout", inputs: { name, placeholders }, ...(c.source === undefined ? {} : { meta: { source: c.source, sources: own } }) };
+    } else decoration.push(c);
+  }
+  const wires = readElements(decoration, "master", "the master", nodes, sources);
+  nodes.master = {
+    id: "master",
+    type: "deck.master",
+    inputs: defined({ background: str(el, "background"), textStyles: Object.keys(textStyles).length ? textStyles : undefined, ...channels("elements", wires) }),
+    ...(el.source === undefined ? {} : { meta: { source: el.source, sources } }),
+  };
+}
+
 /** A `<deck>` as the deck's op graph: `doc`, then `slide-N`, then `slide-N.M` for its elements. A slide names its
- *  layout by name (`layout`); the editor binds that name to its stock layouts. */
+ *  layout by name (`layout`); the editor binds that name to its layouts. A `<master>` says how the deck's master and
+ *  layouts differ from the stock ones (`master`, `master.layout-N`, `master.N` for its own elements). */
 export function readDeck(root: DesignElement): IRGraph {
   only(root, ["name", "width", "height", "dpi", "style"]);
   const nodes: Record<string, IRNode> = {};
-  const meta = (el: DesignElement) => (el.source === undefined ? {} : { meta: { source: el.source } });
-  const slides = childElements(root.props.children).map((el, i) => {
-    if (el.type !== "slide") throw new Error(`<${el.type}> is not read in a <deck> (it holds <slide>s)`);
+  const slides: { wire: { node: string; port: string } }[] = [];
+  for (const el of childElements(root.props.children)) {
+    if (el.type === "master") {
+      if (nodes.master) throw new Error("a <deck> has one <master>");
+      readMaster(el, nodes);
+      continue;
+    }
+    if (el.type !== "slide") throw new Error(`<${el.type}> is not read in a <deck> (it holds a <master> and <slide>s)`);
     only(el, ["layout", "name", "notes", "background", "hidden"]);
-    const id = `slide-${i + 1}`;
-    const elements = childElements(el.props.children).map((c, k) => {
-      const eid = `${id}.${k + 1}`;
-      const box = defined(Object.fromEntries(BOX.map((p) => [p, num(c, p)])));
-      const common = defined({ box: Object.keys(box).length ? box : undefined, placeholder: str(c, "placeholder"), z: num(c, "z"), visible: bool(c, "visible"), opacity: num(c, "opacity"), label: str(c, "label"), locked: bool(c, "locked"), group: str(c, "group") });
-      let type: string, inputs: Record<string, unknown>;
-      switch (c.type) {
-        case "text":
-          only(c, [...COMMON, "fontSize", "color", "bold", "italic", "underline", "align", "valign", "fontFamily", "lineHeight", "overflow"]);
-          type = DECK_TYPES.text;
-          inputs = defined({ ...common, text: richText(c.props.children, `<text> of ${id}`), fontSizePx: num(c, "fontSize"), color: str(c, "color"), bold: bool(c, "bold"), italic: bool(c, "italic"), underline: bool(c, "underline"), align: oneOf(c, "align", ["left", "center", "right", "justify"]), valign: oneOf(c, "valign", ["top", "middle", "bottom"]), fontFamily: str(c, "fontFamily"), lineHeight: num(c, "lineHeight"), overflow: oneOf(c, "overflow", ["visible", "clip", "ellipsis"]) });
-          break;
-        case "shape":
-          only(c, [...COMMON, "shape", "fill", "stroke", "strokeWidth", "cornerRadius"]);
-          type = DECK_TYPES.shape;
-          inputs = defined({ ...common, shape: oneOf(c, "shape", ["rect", "ellipse", "triangle", "line"]) ?? "rect", fill: str(c, "fill"), stroke: str(c, "stroke"), strokeWidth: num(c, "strokeWidth"), cornerRadius: num(c, "cornerRadius") });
-          break;
-        case "image":
-          only(c, [...COMMON, "src", "fit", "alt"]);
-          type = DECK_TYPES.image;
-          inputs = defined({ ...common, src: str(c, "src") ?? "", fit: oneOf(c, "fit", ["fill", "contain", "cover", "none"]), alt: str(c, "alt") });
-          break;
-        default:
-          throw new Error(`<${c.type}> is not an element of a <slide> (text, shape, image)`);
-      }
-      if (!common.placeholder && ["x", "y", "w", "h"].some((p) => (box as Record<string, unknown>)[p] === undefined))
-        throw new Error(`the <${c.type}> ${k + 1} of ${id} needs x, y, w and h (or a placeholder to take them from)`);
-      nodes[eid] = { id: eid, type, inputs, ...meta(c) };
-      return { wire: { node: eid, port: "out" } };
-    });
+    const id = `slide-${slides.length + 1}`;
+    const sources: Record<string, unknown> = {};
+    const elements = readElements(el.props.children, id, id, nodes, sources);
     const hidden = bool(el, "hidden");
     nodes[id] = {
       id,
       type: DECK_TYPES.slide,
       inputs: defined({ layout: str(el, "layout") ?? "Title and body", name: str(el, "name"), notes: str(el, "notes"), background: str(el, "background"), hidden, ...channels("elements", elements) }),
-      ...meta(el),
+      ...(el.source === undefined ? {} : { meta: { source: el.source, ...(Object.keys(sources).length ? { sources } : {}) } }),
     };
-    return { wire: { node: id, port: "out" } };
-  });
+    slides.push({ wire: { node: id, port: "out" } });
+  }
   const name = str(root, "name") ?? "Deck";
-  nodes.doc = { id: "doc", type: DECK_TYPES.doc, inputs: defined({ name, width: num(root, "width") ?? 1280, height: num(root, "height") ?? 720, dpi: num(root, "dpi"), style: oneOf(root, "style", DECK_STYLES), ...channels("slides", slides) }), ...meta(root) };
+  nodes.doc = { id: "doc", type: DECK_TYPES.doc, inputs: defined({ name, width: num(root, "width") ?? 1280, height: num(root, "height") ?? 720, dpi: num(root, "dpi"), style: oneOf(root, "style", DECK_STYLES), ...channels("slides", slides) }), ...(root.source === undefined ? {} : { meta: { source: root.source } }) };
   return { id: `deck:${name}`, nodes, outputs: ["doc"], meta: { domain: "deck", name } };
 }
 
