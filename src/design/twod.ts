@@ -28,12 +28,15 @@
  *             or a `<raster-layer>` names its image file by `src`. A modifier
  *             (`<blur>`, `<transform>`, `<fill>`, …) wraps the one node it takes; `<boolean>` its shapes; `<clip>` its
  *             content then its mask.
- *   painting  `<layer>`, `<fill>`, `<group>`, the shape layers (`<rect>`, `<ellipse>`, `<polygon>`, `<line>`) and the photo's
- *             adjustment tags are the stack, bottom first; a layer's `<stroke>`, `<bucket>`, `<gradientFill>` and
- *             `<move>` children are what was painted, filled and moved on it, oldest first. A stroke's points are
- *             `[x, y, pressure, t]` (with tilt, `[x, y, pressure, t, tiltX, tiltY]`): free-hand data is a points array,
- *             written once. Each may hold a `selection` (`[{ rect: [x, y, w, h], feather }, { op: "subtract",
- *             polygon: [[x, y], …] }, …]`), the region it changed.
+ *   painting  `<layer>`, `<fill>`, `<group>`, `<textLayer>`, the shape layers (`<rect>`, `<ellipse>`, `<polygon>`, `<line>`)
+ *             and the photo's adjustment tags are the stack, bottom first; a layer's `<stroke>`, `<bucket>`,
+ *             `<gradientFill>` and `<move>` children are what was painted, filled and moved on it, oldest first. A stroke's
+ *             points are `[x, y, pressure, t]` (with tilt, `[x, y, pressure, t, tiltX, tiltY]`): free-hand data is a points
+ *             array, written once. Each may hold a `selection` (`[{ rect: [x, y, w, h], feather }, { op: "subtract",
+ *             polygon: [[x, y], …] }, …]`), the region it changed. `<textLayer text="Title" x y size font weight color
+ *             align />` is a type layer (point text at the baseline anchor; with `width` and `height`, a paragraph box). A
+ *             layer's `<fx>` holds its styles (`<dropShadow>`, `<innerShadow>`, `<outerGlow>`, `<stroke>`,
+ *             `<colorOverlay>`, `<gradientOverlay>`), as its `fx`; a `<mask enabled={false}>` is a mask turned off.
  *   photo     `<raster>`, `<fill>`, `<gradient>`, `<group>` and one tag per adjustment (`<exposure ev={0.35} />`,
  *             `<hsl>`, `<levels>`, `<develop exposure={0.3} contrast={12} />`, …) are the stack; a raster's children are its filters (`<gaussianBlur radius={3} />`).
  *             In a painting or a photo, a `<mask>` child of a layer (or of a stroke or a filter) holds the one layer
@@ -243,6 +246,8 @@ const COMMON_DEFAULTS = { name: "Layer", visible: true, opacity: 1, blend: "norm
 
 export const PHOTO_ADJUSTMENTS = ["exposure", "levels", "curves", "hsl", "vibrance", "colorBalance", "blackWhite", "invert", "threshold", "posterize", "develop"] as const;
 export const PHOTO_FILTERS = ["gaussianBlur", "unsharpMask", "sharpen", "noise"] as const;
+/** A painting layer's styles, the tags of its `<fx>` (Photoshop's Layer Style). */
+export const LAYER_STYLES = ["dropShadow", "innerShadow", "outerGlow", "stroke", "colorOverlay", "gradientOverlay"] as const;
 
 const MIME: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", bmp: "image/bmp" };
 
@@ -300,6 +305,10 @@ const PAINT: StackKind = {
     }
     if (el.type === "fill") return { type: "paint.fill", inputs: attrs(el) };
     if (el.type === "group") return { type: "paint.group", inputs: attrs(el) };
+    if (el.type === "textLayer") {
+      if (typeof el.props.text !== "string") throw new Error(`${where(el)}: text is the layer's words (text="Title")`);
+      return { type: "paint.text", inputs: attrs(el) };
+    }
     if ((PHOTO_ADJUSTMENTS as readonly string[]).includes(el.type)) return adjustmentLayer(el, "paint.adjust");
     if ((PAINT_SHAPES as readonly string[]).includes(el.type)) return { type: "paint.shape", inputs: { ...attrs(el), shape: el.type } };
     return null;
@@ -347,19 +356,41 @@ function maskOf(s: Scope, kind: StackKind, el: DesignElement): { inputs: { mask?
   if (!masks.length) return { inputs: {} };
   if (masks.length > 1) throw new Error(`${where(el)} has one <mask>`);
   const m = masks[0]!;
-  if (Object.keys(attrs(m)).length) throw new Error(`<mask> in ${where(el)} has no attributes (write them on the layer it holds)`);
+  const ma = attrs(m);
+  for (const k of Object.keys(ma))
+    if (k !== "enabled" || typeof ma.enabled !== "boolean") throw new Error(`<mask> in ${where(el)} has one attribute, enabled (write the rest on the layer it holds)`);
   const held = kids(m);
   if (held.length !== 1) throw new Error(`<mask> in ${where(el)} holds one layer`);
-  return { inputs: { mask: declareStack(s, kind, held)[0]! }, at: m.source };
+  return { inputs: { mask: declareStack(s, kind, held)[0]!, ...(ma.enabled === false ? { maskEnabled: false } : {}) }, at: m.source };
+}
+
+/** A painting layer's `<fx>`: its styles, in order, as the layer's `fx`; where each was written goes in `meta.sources`. */
+function stylesOf(kind: StackKind, el: DesignElement): { fx?: Record<string, unknown>[]; sources: Record<string, unknown> } {
+  const blocks = kids(el).filter((c) => c.type === "fx");
+  if (!blocks.length) return { sources: {} };
+  if (kind.prefix !== "paint") throw new Error(`${where(el)}: <fx> (layer styles) is a painting's`);
+  if (blocks.length > 1) throw new Error(`${where(el)} has one <fx>`);
+  const block = blocks[0]!;
+  if (Object.keys(attrs(block)).length) throw new Error(`<fx> in ${where(el)} has no attributes (write them on its styles)`);
+  const sources: Record<string, unknown> = { fx: block.source };
+  const fx = kids(block).map((c, i) => {
+    if (!(LAYER_STYLES as readonly string[]).includes(c.type)) throw new Error(`<${c.type}> is not a layer style (${LAYER_STYLES.join(", ")})`);
+    if (kids(c).length) throw new Error(`${where(c)} in <fx> takes no children`);
+    sources[`fx.${i}`] = c.source;
+    return { type: c.type, ...attrs(c) };
+  });
+  return { fx, sources };
 }
 
 /** Declare `el` as one node of `type`, masked by its `<mask>` when it has one. */
 function addMasked(s: Scope, kind: StackKind, el: DesignElement, type: string, inputs: Record<string, unknown>): NodeRef {
   const mask = maskOf(s, kind, el);
-  const ref = add(s, el, type, { ...inputs, ...mask.inputs });
-  if (mask.at !== undefined) {
+  const styles = stylesOf(kind, el);
+  const ref = add(s, el, type, { ...inputs, ...mask.inputs, ...(styles.fx ? { fx: styles.fx } : {}) });
+  const sources = { ...styles.sources, ...(mask.at !== undefined ? { mask: mask.at } : {}) };
+  if (Object.keys(sources).length) {
     const node = ref.node as IRNode;
-    node.meta = { ...node.meta, sources: { mask: mask.at } };
+    node.meta = { ...node.meta, sources };
   }
   return ref;
 }
@@ -373,7 +404,7 @@ function declareStack(s: Scope, kind: StackKind, children: DesignElement[]): Nod
       throw new Error(`<${el.type}> is not read in a ${kind.root} (see commandagi/design twod)`);
     }
     const stack: DesignElement[] = [], chain: DesignElement[] = [];
-    for (const c of kids(el)) if (c.type !== "mask") (kind.chain(c) ? chain : stack).push(c);
+    for (const c of kids(el)) if (c.type !== "mask" && c.type !== "fx") (kind.chain(c) ? chain : stack).push(c);
     if (stack.length && layer.type !== `${kind.prefix}.group`) throw new Error(`${where(el)}: only a <group> holds layers`);
     const inner = layer.type === `${kind.prefix}.group` ? declareStack(s, kind, stack) : [];
     let top = addMasked(s, kind, el, layer.type, { ...layer.inputs, ...channels("layers", inner) });
