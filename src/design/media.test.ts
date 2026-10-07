@@ -118,7 +118,37 @@ test("a <song> declares the chain synth → effects → track → master, with e
   const song = (...children: unknown[]) => () => declarationOf({ default: jsx("song", { children: [jsx("track", { children })] }) });
   assert.throws(song(jsx("clip", {})), /need a <synth>/);
   assert.throws(song(jsx("synth", {}), jsx("clip", { children: [jsx("note", { pitch: "H2" })] })), /pitch is a MIDI number/);
-  assert.throws(song(jsx("sampler", {})), /<sampler> is not read on a <track>/);
+  assert.throws(song(jsx("sampler", {})), /<sampler> names its sound file/);
+});
+
+test("a <song> holds audio clips (a sound file by path, played by the track's player), a sampler and a cycle", () => {
+  const tree = jsx("song", {
+    cycleStart: 4,
+    cycleEnd: 12,
+    children: [
+      jsx("track", {
+        name: "Tone",
+        children: [jsx("gain", { gain: 0.5 }), jsx("clip", { src: "media/tone.wav", start: 2, length: 3, in: 0.25, volume: 0.8, __source: 7 }), jsx("clip", { src: "media/tone.wav", name: "Again", start: 8 })],
+      }),
+      jsx("track", { name: "Bells", children: [jsx("sampler", { src: "media/tone.wav", root: "C5", release: 1, __source: 8 }), jsx("clip", { children: [jsx("note", { pitch: "E5" })] })] }),
+    ],
+  });
+  const { graph: g } = declarationOf({ default: tree });
+  assert.deepEqual(g.nodes.master!.inputs.cycle, { start: 4, end: 12 });
+  assert.deepEqual(g.nodes.player_Tone!.inputs, { name: "Tone", "audio.1": wireTo("clip_tone", "audio"), "audio.2": wireTo("clip_Again", "audio") });
+  assert.deepEqual(g.nodes.fx_Tone_gain!.inputs.audio, wireTo("player_Tone", "audio"), "the chain runs player → effects → track");
+  assert.deepEqual(g.nodes.clip_tone!.inputs, { name: "tone", src: "media/tone.wav", start: 2, length: 3, offsetSeconds: 0.25, gain: 0.8, loop: false });
+  assert.deepEqual(g.nodes.clip_tone!.meta, { source: 7 });
+  assert.deepEqual(g.nodes.inst_Bells!.inputs.spec, { kind: "sampler", src: "media/tone.wav", baseNote: 72, gain: 1, env: { attack: 0.01, decay: 0.15, sustain: 0.6, release: 1 } });
+  assert.deepEqual(g.nodes.inst_Bells!.inputs["midi.1"], wireTo("clip_Bells_1", "midi"));
+  const song = (props: Record<string, unknown>, ...children: unknown[]) => () => declarationOf({ default: jsx("song", { ...props, children: [jsx("track", { children })] }) });
+  assert.throws(song({}, jsx("clip", { src: "/abs/tone.wav" })), /relative to this file/);
+  assert.throws(song({}, jsx("clip", { src: "take.mp4" })), /not a sound file/);
+  assert.throws(song({}, jsx("synth", {}), jsx("clip", { src: "tone.wav" })), /an audio clip \(src\) goes on a track without one/);
+  assert.throws(song({}, jsx("clip", { src: "tone.wav" }), jsx("clip", {})), /need a <synth> or a <sampler>/);
+  assert.throws(song({}, jsx("sampler", { src: "a.wav", root: "Q" })), /root is the pitch/);
+  assert.throws(song({ cycleStart: 4 }), /names both/);
+  assert.throws(song({ cycleStart: 4, cycleEnd: 4 }), /comes after/);
 });
 
 test("a video says a clip's crop, a LUT by file, transition settings, audio effects (clip, track, master) and a bezier key", () => {
