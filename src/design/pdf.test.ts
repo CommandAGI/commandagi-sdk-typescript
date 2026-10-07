@@ -16,9 +16,9 @@ test("a PDF in JSX: pages by ref and blank, marks with replies, fills, nested bo
       "page",
       { src: "Contract.pdf", n: 3, rotate: 90 },
       el("highlight", { rects: [[72, 700, 300, 712]], author: "Ada", text: "Check" }),
-      el("note", { at: [500, 700], text: "Why?" }, el("reply", { text: "Because.", author: "Bob" })),
+      el("note", { at: [500, 700], text: "Why?" }, el("reply", { text: "Because.", author: "Bob" }), el("reply", { text: "Resolved", author: "Ada", state: "Completed" })),
       el("redact", { rect: [72, 500, 300, 520] }),
-      el("field", { kind: "text", name: "Name", rect: [72, 100, 300, 120] }),
+      el("field", { kind: "text", name: "Name", rect: [72, 100, 300, 120], required: true, readOnly: true, tooltip: "Your name", default: "Ada" }),
     ),
     el("page", { size: "a4" }),
     el("fill", { name: "Name", value: "Ada Lovelace" }),
@@ -42,9 +42,9 @@ test("a PDF in JSX: pages by ref and blank, marks with replies, fills, nested bo
         rotate: 90,
         marks: [
           { type: "highlight", rects: [[72, 700, 300, 712]], author: "Ada", text: "Check" },
-          { type: "note", at: [500, 700], text: "Why?", replies: [{ text: "Because.", author: "Bob" }] },
+          { type: "note", at: [500, 700], text: "Why?", replies: [{ text: "Because.", author: "Bob" }, { text: "Resolved", author: "Ada", state: "Completed" }] },
           { type: "redact", rect: [72, 500, 300, 520] },
-          { type: "field", kind: "text", name: "Name", rect: [72, 100, 300, 120] },
+          { type: "field", kind: "text", name: "Name", rect: [72, 100, 300, 120], required: true, readOnly: true, tooltip: "Your name", default: "Ada" },
         ],
       },
       { size: "a4" },
@@ -73,4 +73,6 @@ test("a PDF in JSX refuses what it cannot say", () => {
   assert.throws(bad(el("footer", { size: 9 })), /<footer> has text in left, center or right/);
   assert.throws(bad(el("bates", { position: "middle" })), /<bates> position is top-left/);
   assert.throws(bad(el("header", { left: "a" }), el("header", { left: "b" })), /a PDF has one <header>/);
+  assert.throws(bad(el("page", { size: "a4" }, el("note", { at: [1, 1] }, el("reply", { text: "x", state: "Done" })))), /<reply> state is "Accepted"/);
+  assert.throws(bad(el("page", { size: "a4" }, el("field", { kind: "text", name: "A", rect: [0, 0, 9, 9], readOnly: "yes" }))), /readOnly is true or false/);
 });
