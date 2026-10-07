@@ -12,6 +12,7 @@
  *         <highlight rects={[[72, 700, 300, 712]]} author="Ada" text="Check this" />
  *         <note at={[500, 700]} text="Why?" author="Ada">
  *           <reply text="Because." author="Bob" />
+ *           <reply text="Resolved" author="Ada" state="Completed" />
  *         </note>
  *         <stamp rect={[400, 40, 560, 90]} name="Approved" />
  *         <redact rect={[72, 500, 300, 520]} />
@@ -62,7 +63,7 @@ export const PDF_MARKS: Readonly<Record<string, readonly string[]>> = {
   stamp: [...COMMON, "rect", "name", "label", "image"],
   signature: ["id", "author", "rect", "typed", "style", "image", "strokes", "color", "width"],
   redact: ["id", "rect", "fill", "overlay"],
-  field: ["id", "kind", "name", "rect", "rects", "value", "options", "checked", "multiline", "maxLength", "required", "editable", "size"],
+  field: ["id", "kind", "name", "rect", "rects", "value", "options", "checked", "multiline", "maxLength", "required", "readOnly", "tooltip", "default", "editable", "size"],
 };
 const REQUIRED: Readonly<Record<string, readonly string[]>> = {
   highlight: ["rects"],
@@ -90,10 +91,14 @@ export const BOOKMARK_FIELDS = ["id", "title", "page", "top", "open", "bold", "i
 export type PdfRect = [number, number, number, number];
 export type PdfColor = [number, number, number];
 
+/** A review state a reply sets on its thread: "Completed" is resolved, "None" reopens it. */
+export const REVIEW_STATES = ["Accepted", "Rejected", "Cancelled", "Completed", "None"] as const;
+const REPLY_FIELDS = ["text", "author", "date", "state"] as const;
 export interface PdfReply {
   text: string;
   author?: string;
   date?: string;
+  state?: (typeof REVIEW_STATES)[number];
 }
 /** A mark on a page: its tag as `type`, its attributes verbatim, a note's replies. */
 export interface PdfMark {
@@ -173,7 +178,13 @@ function checkMark(c: DocTree): void {
   if (t === "field" && a.kind !== "radio" && !isRect(a.rect)) throw new Error("<field> rect is [x0, y0, x1, y1] in points");
   if (t === "signature" && [a.typed, a.image, a.strokes].filter((x) => x !== undefined).length !== 1) throw new Error("<signature> is one of typed, image or strokes");
   if (t === "stamp" && a.name === undefined && a.image === undefined && a.label === undefined) throw new Error("<stamp> has a name (Approved, Draft …), a label or an image");
-  for (const k of ["text", "author", "name", "label", "image", "typed", "overlay"]) if (a[k] !== undefined && typeof a[k] !== "string") throw new Error(`${where} ${k} is text`);
+  for (const k of ["text", "author", "name", "label", "image", "typed", "overlay", "tooltip"]) if (a[k] !== undefined && typeof a[k] !== "string") throw new Error(`${where} ${k} is text`);
+  for (const k of ["required", "readOnly", "multiline", "checked", "editable"]) if (a[k] !== undefined && typeof a[k] !== "boolean") throw new Error(`${where} ${k} is true or false`);
+  if (a.default !== undefined && !(typeof a.default === "string" || (Array.isArray(a.default) && a.default.every((x) => typeof x === "string")))) throw new Error(`${where} default is text, or a list of texts`);
+  for (const r of c.children) {
+    const s = r.attrs.state;
+    if (r.tag === "reply" && s !== undefined && !(REVIEW_STATES as readonly unknown[]).includes(s)) throw new Error(`<reply> state is ${REVIEW_STATES.map((x) => `"${x}"`).join(", ")}`);
+  }
 }
 
 function checkPage(p: DocTree): void {
@@ -207,7 +218,7 @@ const tags: Vocabulary["tags"] = {
   pdf: { parents: [], attrs: PDF_FIELDS },
   page: { parents: ["pdf"], key: "id", attrs: PAGE_FIELDS },
   ...Object.fromEntries(markTags.map((t) => [t, { parents: ["page"], key: "id", required: REQUIRED[t] ?? [], attrs: PDF_MARKS[t]! }])),
-  reply: { parents: ["note"], required: ["text"], attrs: ["text", "author", "date"] },
+  reply: { parents: ["note"], required: ["text"], attrs: REPLY_FIELDS },
   fill: { parents: ["pdf"], key: "name", required: ["name", "value"], attrs: ["name", "value"] },
   bookmark: { parents: ["pdf", "bookmark"], key: "id", required: ["title"], attrs: BOOKMARK_FIELDS },
   label: { parents: ["pdf"], required: ["from"], attrs: ["from", "style", "prefix", "start"] },
@@ -260,7 +271,7 @@ export const pdfVocabulary: Vocabulary<PdfDoc> = {
     for (const p of d.pages ?? []) {
       const marks = (p.marks ?? []).map((m): DocTree => {
         const { type, replies, ...attrs } = m;
-        return { tag: type, attrs: own(attrs, PDF_MARKS[type] ?? Object.keys(attrs)), children: (replies ?? []).map((r) => ({ tag: "reply", attrs: own(r as unknown as Record<string, unknown>, ["text", "author", "date"]), children: [] })) };
+        return { tag: type, attrs: own(attrs, PDF_MARKS[type] ?? Object.keys(attrs)), children: (replies ?? []).map((r) => ({ tag: "reply", attrs: own(r as unknown as Record<string, unknown>, REPLY_FIELDS), children: [] })) };
       });
       children.push({ tag: "page", attrs: own(p as unknown as Record<string, unknown>, PAGE_FIELDS), children: marks });
     }
