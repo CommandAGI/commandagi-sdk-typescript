@@ -28,9 +28,12 @@
  *             or a `<raster-layer>` names its image file by `src`. A modifier
  *             (`<blur>`, `<transform>`, `<fill>`, …) wraps the one node it takes; `<boolean>` its shapes; `<clip>` its
  *             content then its mask.
- *   painting  `<layer>`, `<fill>`, `<group>` and the photo's adjustment tags are the stack, bottom first; a layer's `<stroke>` children are the
- *             strokes painted on it, oldest first. A stroke's points are `[x, y, pressure, t]` (with tilt,
- *             `[x, y, pressure, t, tiltX, tiltY]`): free-hand data is a points array, written once.
+ *   painting  `<layer>`, `<fill>`, `<group>`, the shape layers (`<rect>`, `<ellipse>`, `<polygon>`, `<line>`) and the photo's
+ *             adjustment tags are the stack, bottom first; a layer's `<stroke>`, `<bucket>`, `<gradientFill>` and
+ *             `<move>` children are what was painted, filled and moved on it, oldest first. A stroke's points are
+ *             `[x, y, pressure, t]` (with tilt, `[x, y, pressure, t, tiltX, tiltY]`): free-hand data is a points array,
+ *             written once. Each may hold a `selection` (`[{ rect: [x, y, w, h], feather }, { op: "subtract",
+ *             polygon: [[x, y], …] }, …]`), the region it changed.
  *   photo     `<raster>`, `<fill>`, `<gradient>`, `<group>` and one tag per adjustment (`<exposure ev={0.35} />`,
  *             `<hsl>`, `<levels>`, `<develop exposure={0.3} contrast={12} />`, …) are the stack; a raster's children are its filters (`<gaussianBlur radius={3} />`).
  *             In a painting or a photo, a `<mask>` child of a layer (or of a stroke or a filter) holds the one layer
@@ -268,9 +271,10 @@ interface StackKind {
   prefix: "paint" | "photo";
   /** Layer tag → node type and how its attributes become inputs. */
   layer(el: DesignElement): { type: string; inputs: Record<string, unknown> } | null;
-  /** A chain member's tag (a stroke, a filter) → its own inputs. */
+  /** A chain member's tag (a stroke, a bucket fill, a filter) → its own inputs. */
   chain(el: DesignElement): Record<string, unknown> | null;
-  chainType: string;
+  /** A chain member's node type. */
+  chainType(el: DesignElement): string;
 }
 
 /** An adjustment tag as a layer: the layer's own fields, and the rest as its `adjustment`. */
@@ -280,10 +284,15 @@ function adjustmentLayer(el: DesignElement, type: string): { type: string; input
   return { type, inputs: { ...common, adjustment } };
 }
 
+/** What a painting chains on a pixel layer besides its strokes: the Paint Bucket, the Gradient, the Move tool. */
+export const PAINT_CHAIN = ["stroke", "bucket", "gradientFill", "move"] as const;
+/** A painting's shape layers. */
+export const PAINT_SHAPES = ["rect", "ellipse", "polygon", "line"] as const;
+
 const PAINT: StackKind = {
   root: "painting",
   prefix: "paint",
-  chainType: "paint.stroke",
+  chainType: (el) => `paint.${el.type}`,
   layer(el) {
     if (el.type === "layer") {
       const a = attrs(el, ["src"]);
@@ -292,13 +301,14 @@ const PAINT: StackKind = {
     if (el.type === "fill") return { type: "paint.fill", inputs: attrs(el) };
     if (el.type === "group") return { type: "paint.group", inputs: attrs(el) };
     if ((PHOTO_ADJUSTMENTS as readonly string[]).includes(el.type)) return adjustmentLayer(el, "paint.adjust");
+    if ((PAINT_SHAPES as readonly string[]).includes(el.type)) return { type: "paint.shape", inputs: { ...attrs(el), shape: el.type } };
     return null;
   },
   chain(el) {
-    if (el.type !== "stroke") return null;
+    if (!(PAINT_CHAIN as readonly string[]).includes(el.type)) return null;
     const a = attrs(el);
-    for (const k of COMMON) if (k in a) throw new Error(`${where(el)}: ${k} is the layer's (write it on the layer the stroke is painted on)`);
-    if (a.points !== undefined) a.points = strokePoints(a.points, `${where(el)} points`);
+    for (const k of COMMON) if (k in a) throw new Error(`${where(el)}: ${k} is the layer's (write it on the layer it is painted on)`);
+    if (el.type === "stroke" && a.points !== undefined) a.points = strokePoints(a.points, `${where(el)} points`);
     return a;
   },
 };
@@ -306,7 +316,7 @@ const PAINT: StackKind = {
 const PHOTO: StackKind = {
   root: "photo",
   prefix: "photo",
-  chainType: "photo.filter",
+  chainType: () => "photo.filter",
   layer(el) {
     if (el.type === "raster") {
       const a = attrs(el, ["src"]);
@@ -370,7 +380,7 @@ function declareStack(s: Scope, kind: StackKind, children: DesignElement[]): Nod
     // Each chain member carries the layer's fields: the stack reads them off whichever member is on top.
     const carried: Record<string, unknown> = { ...COMMON_DEFAULTS };
     for (const k of COMMON) if (layer.inputs[k] !== undefined) carried[k] = layer.inputs[k];
-    for (const c of chain) top = addMasked(s, kind, c, kind.chainType, { ...carried, ...kind.chain(c)!, src: top });
+    for (const c of chain) top = addMasked(s, kind, c, kind.chainType(c), { ...carried, ...kind.chain(c)!, src: top });
     slots.push(top);
   }
   return slots;
