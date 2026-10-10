@@ -135,8 +135,10 @@ const kindOf = (v: unknown): string => (v === null ? "null" : Array.isArray(v) ?
 
 function typeMatches(type: string, v: unknown): boolean {
   switch (type) {
+    // Large data (an array, the bytes of a data URL) may be an ordinary file the document names (docs/formats.md § data
+    // that is not JSON).
     case "string":
-      return typeof v === "string";
+      return typeof v === "string" || isFileRef(v);
     case "number":
       return typeof v === "number" && Number.isFinite(v);
     case "integer":
@@ -144,7 +146,6 @@ function typeMatches(type: string, v: unknown): boolean {
     case "boolean":
       return typeof v === "boolean";
     case "array":
-      // A large array may be an ordinary file the document names (docs/formats.md § data that is not JSON).
       return Array.isArray(v) || isFileRef(v);
     case "object":
       return !!v && typeof v === "object" && !Array.isArray(v);
