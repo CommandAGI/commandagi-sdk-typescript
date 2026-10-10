@@ -43,19 +43,22 @@
  * `meta.source`; a sketch's entities and the bodies are listed by key in `meta.sources`. Units are millimetres
  * and radians, as stored. An id is letters, digits, `_ . -`, with `/` between them (a merged code part's features
  * are `<code id>/<id>`). Anything else is refused by name, never guessed.
+ *
+ * A feature element is checked against its type's schema (`THREED_SCHEMA`; its props are typed in
+ * `threed-elements.ts`, `ExtrudeProps` …): the feature `{ type: <tag>, name: <its id when absent>, …its props }`, a
+ * sketch with the `sketch` its children make. A wrong field is refused with the sentence an op panel shows for it:
+ * `<extrude id="e1">: distance: must be greater than 0 (got -1)`. A `<feature type>` of an unknown type is not checked.
  */
 import { slug } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
+import { describeIssue, validate } from "./schema.js";
+import { THREED_SCHEMA } from "./threed-schema.js";
 
-/** The feature types a 3D document holds, by tag (`packages/domain/3d-core/types.ts` Feature). */
-export const THREED_FEATURES: readonly string[] = [
-  "sketch", "extrude", "revolve", "sweep", "loft", "fillet", "chamfer", "shell", "box", "import", "externalPart",
-  "cylinder", "sphere", "cone", "makehuman", "linearPattern", "circularPattern", "pathPattern", "mirror",
-  "datumPlane", "draft", "hole", "thread", "rib", "coil", "combine", "offsetFaces", "thicken", "split", "scale",
-  "dome", "wrapText", "deleteFace", "fullRound", "sheetFlange", "unfold", "copyBody", "transform", "subdivBody",
-  "meshBody", "meshModifier", "pointCloud", "gaussianSplat", "skeleton", "volume", "molecule", "graph", "generate",
-  "pcbTrace", "copperPour", "generateVia", "platedHole", "code",
-];
+/**
+ * The feature types a 3D document holds, by tag: the roots of `THREED_SCHEMA`, generated from the `Feature` union
+ * (`packages/domain/3d-core/types.ts`).
+ */
+export const THREED_FEATURES: readonly string[] = Object.keys(THREED_SCHEMA.roots);
 const FEATURES = new Set(THREED_FEATURES);
 /** Tags with a meaning of their own: never a `<feature type>`. */
 const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "point", "constraint", "projection", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input"]);
@@ -268,7 +271,9 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
       const s = sketchOf(el);
       inputs = { ...rest, sketch: s.sketch };
       sources = s.sources;
-    } else {
+    }
+    if (!generic) checkFeature(el, { type, id, name: label ?? id, ...(suppressed !== undefined ? { suppressed } : {}), ...inputs });
+    if (el.type !== "sketch") {
       noChildren(el);
       if (el.type === "code") {
         // A code feature's `inputs` are ports of its node, beside `source` and `consumes` (the document graph's rule).
@@ -304,6 +309,14 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
   if (order.length) view.presentation = { order };
   const id = typeof root.props.id === "string" && root.props.id ? root.props.id : `3d-${slug(name).toLowerCase()}`;
   return { id, nodes, meta: view };
+}
+
+/** Refuses a feature whose fields do not fit its type's schema, with every issue. */
+function checkFeature(el: DesignElement, feature: Record<string, unknown>): void {
+  const def = THREED_SCHEMA.roots[feature.type as string];
+  if (!def) return;
+  const issues = validate({ $ref: `#/$defs/${def}` }, feature, THREED_SCHEMA.$defs);
+  if (issues.length) throw new Error(`${where(el)}: ${issues.map(describeIssue).join("; ")}`);
 }
 
 /** The built-in planes a root says the document has (`builtinPlanes`); absent: all three. */

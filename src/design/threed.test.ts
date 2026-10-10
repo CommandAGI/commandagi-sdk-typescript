@@ -5,7 +5,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { declarationOf, jsx } from "./index.js";
+import { declarationOf, jsx, THREED_FEATURES } from "./index.js";
 
 const plate = () =>
   jsx("part", {
@@ -28,7 +28,7 @@ const plate = () =>
         ],
       }),
       jsx("extrude", { id: "extrude1", name: "Extrude1", profile: { sketch: "sketch1" }, distance: 6, operation: "new", __source: 7 }),
-      jsx("fillet", { id: "fillet1", name: "Fillet1", radius: 1, edges: [], consumes: ["extrude1"], suppressed: true }),
+      jsx("fillet", { id: "fillet1", name: "Fillet1", radius: 1, edges: [{ kind: "edge", signature: { point: [20, 0, 6] } }], consumes: ["extrude1"], suppressed: true }),
       jsx("body", { id: "extrude1", material: "aluminium-6061", __source: 8 }),
       jsx("slot", { name: "environment", value: { gravity: [0, 0, -9.81] } }),
     ],
@@ -41,7 +41,7 @@ test("a <part> declares the document's graph: features, a sketch's entities, par
   const n = graph.nodes;
   assert.deepEqual(n.depth, { id: "depth", type: "input", label: "depth", inputs: { value: 6, unit: "mm", drives: [{ target: "extrude1", field: "distance" }] }, meta: { source: 1 } });
   assert.deepEqual(n.extrude1, { id: "extrude1", type: "extrude", label: "Extrude1", inputs: { profile: { sketch: "sketch1" }, distance: 6, operation: "new" }, meta: { source: 7 } });
-  assert.deepEqual(n.fillet1, { id: "fillet1", type: "fillet", label: "Fillet1", disabled: true, inputs: { radius: 1, edges: [], consumes: ["extrude1"] } });
+  assert.deepEqual(n.fillet1, { id: "fillet1", type: "fillet", label: "Fillet1", disabled: true, inputs: { radius: 1, edges: [{ kind: "edge", signature: { point: [20, 0, 6] } }], consumes: ["extrude1"] } });
   const sketch = n.sketch1!.inputs.sketch as Record<string, unknown>;
   assert.deepEqual(sketch.pointOrder, ["p1", "p2", "p3"]);
   assert.deepEqual((sketch.segments as Record<string, unknown>).l1, { id: "l1", type: "line", a: "p1", b: "p2" });
@@ -74,8 +74,25 @@ test("what a 3D document may hold: a subset of the built-in planes, an id with /
   assert.deepEqual(planes(graph({})), ["plane_xy", "plane_xz", "plane_yz"]);
   assert.deepEqual(planes(graph({ builtinPlanes: [] })), []);
   assert.deepEqual(planes(graph({ builtinPlanes: ["plane_xz"] }, jsx("plane", { id: "XY", name: "XY", origin: [0, 0, 0], normal: [0, 0, 1], xAxis: [1, 0, 0], builtin: "XY" }))), ["XY", "plane_xz"]);
-  const g = graph({}, jsx("cylinder", { id: "fan/bore", radius: 2 }), jsx("feature", { type: "rotate", id: "r1", name: "rotate_y_30", axis: [0, 1, 0], angle: 30 }));
-  assert.deepEqual(g.nodes["fan/bore"]!.inputs, { radius: 2 });
+  const g = graph({}, jsx("cylinder", { id: "fan/bore", center: [0, 0, 0], axis: [0, 0, 1], radius: 2, height: 5, operation: "cut" }), jsx("feature", { type: "rotate", id: "r1", name: "rotate_y_30", axis: [0, 1, 0], angle: 30 }));
+  assert.deepEqual(g.nodes["fan/bore"]!.inputs, { center: [0, 0, 0], axis: [0, 0, 1], radius: 2, height: 5, operation: "cut" });
   assert.deepEqual(g.nodes.r1, { id: "r1", type: "rotate", label: "rotate_y_30", inputs: { axis: [0, 1, 0], angle: 30 } });
   assert.deepEqual(g.meta?.presentation, { order: ["fan/bore", "r1"] });
+});
+
+test("a feature element whose fields do not fit its type is refused with the op panel's sentence for each", () => {
+  const read = (...children: unknown[]) => () => declarationOf({ default: jsx("part", { name: "P", children }) });
+  const profile = { sketch: "s1" };
+  assert.throws(read(jsx("extrude", { id: "e1", profile, distance: -1, operation: "new" })), { message: '<extrude id="e1">: distance: must be greater than 0 (got -1)' });
+  assert.throws(read(jsx("extrude", { id: "e1", profile, distance: 5, operation: "glue", colour: "red" })), {
+    message: '<extrude id="e1">: operation: must be one of new, add, cut, intersect (got "glue"); colour: is not one of its fields',
+  });
+  assert.throws(read(jsx("extrude", { id: "e1", distance: 5, operation: "new" })), { message: '<extrude id="e1">: profile: is required' });
+  assert.throws(read(jsx("sketch", { id: "s1", plane: { type: "datum", plane: "plane_xy" }, children: [jsx("circle", { id: "c", center: "p", radius: "big" }), jsx("point", { id: "p", x: 0, y: 0 })] })), {
+    message: '<sketch id="s1">: sketch/segments/c/radius: must be number (got "string")',
+  });
+  // A large array kept in a file beside the document stands for the array.
+  const positions = { $file: "P.assets/m/positions.f64", mime: "application/octet-stream", encoding: "f64le", len: 9 };
+  assert.ok(THREED_FEATURES.includes("makeHuman") && !THREED_FEATURES.includes("makehuman"));
+  assert.doesNotThrow(read(jsx("pointCloud", { id: "pc", positions })));
 });

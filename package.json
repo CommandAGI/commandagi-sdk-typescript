@@ -28,6 +28,14 @@
     "./jsx-dev-runtime": {
       "types": "./dist/design/jsx-runtime.d.ts",
       "default": "./dist/design/jsx-runtime.js"
+    },
+    "./threed/jsx-runtime": {
+      "types": "./dist/design/threed-jsx-runtime.d.ts",
+      "default": "./dist/design/threed-jsx-runtime.js"
+    },
+    "./threed/jsx-dev-runtime": {
+      "types": "./dist/design/threed-jsx-runtime.d.ts",
+      "default": "./dist/design/threed-jsx-runtime.js"
     }
   },
   "bin": {
