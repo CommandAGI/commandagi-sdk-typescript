@@ -20,14 +20,29 @@
  * task's `subtasks` (the files of its subtasks, by path from this file) are `<subtask ref>` children, in order; a
  * project's `views` are `<view>` children. A subtask is its own file, never inlined: a task holds no other task.
  *
- * Times (`startAt`, `dueAt`, `closedAt`, `createdAt`, `updatedAt`) are epoch milliseconds in the document. In code they
- * may be written as a date (`"2026-10-20"`, UTC midnight) or a UTC time (`"2026-10-20T14:30:00Z"`), and are written so
- * by an editor. Nothing adds a default: what the file does not say, the document does not have (the app's schema
- * fills its own defaults when it reads the document, as it does for the JSON).
+ * A proposal is a task with status `proposed` (docs/suggestions.md § proposals, in the CommandAGI repository): an agent
+ * asks for authority to act. Its `<sketch ref>` names the file that shows what it will do (a simulated run's run.json,
+ * a draft). Each `<asks>` has the shape of one standing grant: a world with `units`, `channels` and `verbs`; or `files`
+ * of a `folder`; or `venues` of a `folder` with `symbols`, `maxQty`, `maxNotional` and `perDay`; each with `hours` and
+ * `note`. `expires` says until when it is offered. A person's approval writes `approvedBy`, `approvedAt` and `grants`
+ * (the ids of the grants it made); a decline writes the status `declined`.
+ *
+ *   // proposals/Cut the bracket.task.tsx
+ *   export default () => (
+ *     <task id="cut-the-bracket" title="Cut the bracket" status="proposed" assignees={["agent:claude"]} expires="2026-10-11T18:00:00Z">
+ *       <sketch ref="../worlds/shop-sim/runs/cut-the-bracket/run.json" />
+ *       <asks world="../worlds/shop/world.tsx" units={["cnc-1"]} channels={["gcode"]} verbs={["open", "arm", "run"]} hours={4} />
+ *     </task>
+ *   );
+ *
+ * Times (`startAt`, `dueAt`, `closedAt`, `expires`, `approvedAt`, `createdAt`, `updatedAt`) are epoch milliseconds in
+ * the document. In code they may be written as a date (`"2026-10-20"`, UTC midnight) or a UTC time
+ * (`"2026-10-20T14:30:00Z"`), and are written so by an editor. Nothing adds a default: what the file does not say, the
+ * document does not have (the app's schema fills its own defaults when it reads the document, as it does for the JSON).
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
 
-/** The fields of a task's body (packages/domain/core/src/task.ts `TaskDoc`), but its subtasks. */
+/** The fields of a task's body (packages/domain/core/src/task.ts `TaskDoc`), but its sketch, its asks and its subtasks. */
 export const TASK_FIELDS = [
   "id",
   "title",
@@ -44,18 +59,28 @@ export const TASK_FIELDS = [
   "threadId",
   "createdBy",
   "readme",
+  "expires",
+  "approvedBy",
+  "approvedAt",
+  "grants",
   "createdAt",
   "updatedAt",
 ] as const;
+/** The fields of one `<asks>`: the shape of one standing grant (a world's units, a folder's files, a folder's venues). */
+export const ASK_FIELDS = ["world", "units", "channels", "verbs", "folder", "files", "venues", "symbols", "maxQty", "maxNotional", "perDay", "hours", "note"] as const;
 /** The fields of a project's body (`ProjectDoc`), but its views. */
 export const PROJECT_FIELDS = ["id", "name", "glyph", "defaultViewId", "subprojects", "archived", "readme", "createdAt", "updatedAt"] as const;
 /** The fields of a project's view (`TaskView`). */
 export const VIEW_FIELDS = ["id", "name", "mode", "groupBy", "filter", "laneOrder"] as const;
 /** The fields that are times: epoch milliseconds in the document, a date or a UTC time in code. */
-export const TIME_FIELDS = ["startAt", "dueAt", "closedAt", "createdAt", "updatedAt"] as const;
+export const TIME_FIELDS = ["startAt", "dueAt", "closedAt", "expires", "approvedAt", "createdAt", "updatedAt"] as const;
 
 export interface TaskDoc {
   id: string;
+  /** The file that shows what a proposal will do, by its path from this file. */
+  sketch?: string;
+  /** What a proposal asks for: each the shape of one standing grant. */
+  asks?: Record<string, unknown>[];
   subtasks?: string[];
   [field: string]: unknown;
 }
@@ -114,15 +139,33 @@ export const taskVocabulary: Vocabulary<TaskDoc> = {
   root: "task",
   tags: {
     task: { parents: [], required: ["id"], attrs: TASK_FIELDS },
+    sketch: { parents: ["task"], single: true, required: ["ref"], attrs: ["ref"] },
+    asks: { parents: ["task"], attrs: ASK_FIELDS },
     subtask: { parents: ["task"], key: "ref", required: ["ref"], attrs: ["ref"] },
   },
   fromTree(t) {
     const subtasks = t.children.filter((c) => c.tag === "subtask").map((c) => c.attrs.ref);
     for (const ref of subtasks) if (typeof ref !== "string" || !ref) throw new Error(`<subtask> ref is a path to a .task.tsx file, not ${JSON.stringify(ref)}`);
-    return { ...(fieldsOf(t.attrs, where(t)) as { id: string }), ...(subtasks.length ? { subtasks: subtasks as string[] } : {}) };
+    const sketch = t.children.find((c) => c.tag === "sketch")?.attrs.ref;
+    if (sketch !== undefined && (typeof sketch !== "string" || !sketch)) throw new Error(`<sketch> ref is a path to the file that shows the work, not ${JSON.stringify(sketch)}`);
+    const asks = t.children.filter((c) => c.tag === "asks").map((c) => ({ ...c.attrs }));
+    return {
+      ...(fieldsOf(t.attrs, where(t)) as { id: string }),
+      ...(sketch !== undefined ? { sketch: sketch as string } : {}),
+      ...(asks.length ? { asks } : {}),
+      ...(subtasks.length ? { subtasks: subtasks as string[] } : {}),
+    };
   },
   toTree(d) {
-    return { tag: "task", attrs: attrsOf(d, TASK_FIELDS), children: (d.subtasks ?? []).map((ref) => ({ tag: "subtask", attrs: { ref }, children: [] })) };
+    return {
+      tag: "task",
+      attrs: attrsOf(d, TASK_FIELDS),
+      children: [
+        ...(typeof d.sketch === "string" && d.sketch ? [{ tag: "sketch", attrs: { ref: d.sketch }, children: [] }] : []),
+        ...(d.asks ?? []).map((a) => ({ tag: "asks", attrs: attrsOf(a, ASK_FIELDS), children: [] })),
+        ...(d.subtasks ?? []).map((ref) => ({ tag: "subtask", attrs: { ref }, children: [] })),
+      ],
+    };
   },
 };
 

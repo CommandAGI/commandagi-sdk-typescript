@@ -43,6 +43,39 @@ test("a task in JSX is its body: fields are attributes, subtasks are <subtask re
   assert.throws(() => declarationOf({ default: el("task", { id: "a", dueAt: "next week" }) }), /dueAt is a date/);
 });
 
+test("a proposal in JSX: its sketch is one <sketch ref>, each ask one <asks> in order; expires and approvedAt are times", () => {
+  const file = el(
+    "task",
+    { id: "cut", title: "Cut the bracket", status: "proposed", assignees: ["agent:claude"], expires: "2026-10-11T18:00:00Z", __source: 0 },
+    el("sketch", { ref: "../worlds/shop-sim/runs/cut/run.json", __source: 1 }),
+    el("asks", { world: "../worlds/shop/world.tsx", units: ["cnc-1"], channels: ["gcode"], verbs: ["open", "arm", "run"], hours: 4, __source: 2 }),
+    el("asks", { folder: "..", files: ["out"], hours: 4, note: "the program" }),
+  );
+  const { document } = declarationOf({ default: () => file });
+  assert.deepEqual(document!.sources, { "": 0, sketch: 1, "asks@0": 2 });
+  const doc = document!.document;
+  assert.deepEqual(doc, {
+    id: "cut",
+    title: "Cut the bracket",
+    status: "proposed",
+    assignees: ["agent:claude"],
+    expires: Date.UTC(2026, 9, 11, 18),
+    sketch: "../worlds/shop-sim/runs/cut/run.json",
+    asks: [
+      { world: "../worlds/shop/world.tsx", units: ["cnc-1"], channels: ["gcode"], verbs: ["open", "arm", "run"], hours: 4 },
+      { folder: "..", files: ["out"], hours: 4, note: "the program" },
+    ],
+  });
+  const approved = { ...doc, status: "todo", approvedBy: "person:ada", approvedAt: Date.UTC(2026, 9, 10, 9, 30), grants: ["g-0123456789ab"] };
+  const tree = TASKS.task.toTree(approved as never);
+  assert.deepEqual(tree.children.map((c) => c.tag), ["sketch", "asks", "asks"], "the sketch, then the asks");
+  assert.equal(tree.attrs.approvedAt, "2026-10-10T09:30:00Z");
+  assert.deepEqual(TASKS.task.fromTree(tree), approved, "both ways");
+  assert.throws(() => declarationOf({ default: el("task", { id: "a" }, el("sketch", { ref: "a" }), el("sketch", { ref: "b" })) }), /<task> has one <sketch>/);
+  assert.throws(() => declarationOf({ default: el("task", { id: "a" }, el("asks", { world: "w/world.tsx", reach: 3 })) }), /<asks>: reach is not read/);
+  assert.throws(() => declarationOf({ default: el("task", { id: "a" }, el("sketch", {})) }), /<sketch> needs ref/);
+});
+
 test("times: a date, a UTC time or epoch ms in; a date or a UTC time out", () => {
   assert.equal(timeOf("2026-10-20", "t"), Date.UTC(2026, 9, 20));
   assert.equal(timeOf("2026-10-20T14:30:00Z", "t"), Date.UTC(2026, 9, 20, 14, 30));
