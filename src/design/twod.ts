@@ -60,7 +60,7 @@
  */
 import { Declaration, Scope, channels, slug, withScope, type IRNode, type NodeRef } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
-import { describeIssue, validate } from "./schema.js";
+import { describeIssue, validate, withDefaults } from "./schema.js";
 import { TWOD_SCHEMA } from "./twod-schema.js";
 
 /** The roots of a 2D document in JSX. */
@@ -110,10 +110,14 @@ function add(s: Scope, el: DesignElement, type: string, inputs: Record<string, u
 
 const kids = (el: DesignElement) => childElements(el.props.children);
 
-/** `el` with `fields`, checked against its tag's schema: the element as the editors hold it (`{ type, …fields }`). */
+/**
+ * `el` with `fields`, checked against its tag's schema: the element as the editors hold it (`{ type, …fields }`), with
+ * each required field it leaves out at its declared default (`withDefaults`).
+ */
 function checked(el: DesignElement, fields: Record<string, unknown>): Record<string, unknown> {
-  const value = { type: el.type, ...fields };
-  const issues = validate({ $ref: `#/$defs/${TWOD_SCHEMA.roots[el.type]}` }, value, TWOD_SCHEMA.$defs);
+  const root = { $ref: `#/$defs/${TWOD_SCHEMA.roots[el.type]}` };
+  const value = withDefaults(root, { type: el.type, ...fields }, TWOD_SCHEMA.$defs) as Record<string, unknown>;
+  const issues = validate(root, value, TWOD_SCHEMA.$defs);
   if (issues.length) throw new Error(`${where(el)}: ${issues.map(describeIssue).join("; ")}`);
   return value;
 }

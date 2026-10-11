@@ -99,7 +99,7 @@
 import { channels } from "./ir.js";
 import type { DeclaredDocument, IRGraph, IRNode } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
-import { describeIssue, validate } from "./schema.js";
+import { describeIssue, validate, withDefaults } from "./schema.js";
 import { WORKBOOK_SCHEMA } from "./workbook-schema.js";
 
 
@@ -152,11 +152,14 @@ const RANGE = /^[A-Z]{1,3}[1-9]\d{0,6}(:[A-Z]{1,3}[1-9]\d{0,6})?$/i;
 
 /**
  * The attributes of a `<chart>`, `<pivot>`, `<filter>` or `<criterion>`, checked against the element's schema
- * (`WORKBOOK_SCHEMA`, generated from the sheets editor's types) with the sentences an op panel shows.
+ * (`WORKBOOK_SCHEMA`, generated from the sheets editor's types) with the sentences an op panel shows; a required
+ * attribute left out is at its declared default (`withDefaults`).
  */
 function workbookElement(el: DesignElement): Record<string, unknown> {
-  const { children: _children, key: _key, ...props } = el.props as Record<string, unknown>;
-  const issues = validate({ $ref: `#/$defs/${WORKBOOK_SCHEMA.roots[el.type]}` }, props, WORKBOOK_SCHEMA.$defs);
+  const { children: _children, key: _key, ...own } = el.props as Record<string, unknown>;
+  const root = { $ref: `#/$defs/${WORKBOOK_SCHEMA.roots[el.type]}` };
+  const props = withDefaults(root, own, WORKBOOK_SCHEMA.$defs) as Record<string, unknown>;
+  const issues = validate(root, props, WORKBOOK_SCHEMA.$defs);
   if (issues.length) throw new Error(`${where(el)}: ${issues.map(describeIssue).join("; ")}`);
   if (typeof props.range === "string" && !RANGE.test(props.range)) throw new Error(`${where(el)}: range is an A1 range ("A1:C20"), not ${JSON.stringify(props.range)}`);
   return props;

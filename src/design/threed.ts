@@ -48,10 +48,12 @@
  * `threed-elements.ts`, `ExtrudeProps` …): the feature `{ type: <tag>, name: <its id when absent>, …its props }`, a
  * sketch with the `sketch` its children make. A wrong field is refused with the sentence an op panel shows for it:
  * `<extrude id="e1">: distance: must be greater than 0 (got -1)`. A `<feature type>` of an unknown type is not checked.
+ * A required field that declares a default may be left out: it reads as that default (an `<externalPart>` without
+ * `placement` sits at the identity placement), and the node's inputs hold it.
  */
 import { slug } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
-import { describeIssue, validate } from "./schema.js";
+import { describeIssue, validate, withDefaults } from "./schema.js";
 import { THREED_SCHEMA } from "./threed-schema.js";
 
 /**
@@ -272,7 +274,10 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
       inputs = { ...rest, sketch: s.sketch };
       sources = s.sources;
     }
-    if (!generic) checkFeature(el, { type, id, name: label ?? id, ...(suppressed !== undefined ? { suppressed } : {}), ...inputs });
+    if (!generic) {
+      const { type: _type, id: _id, name: _name, suppressed: _suppressed, ...filled } = checkFeature(el, { type, id, name: label ?? id, ...(suppressed !== undefined ? { suppressed } : {}), ...inputs });
+      inputs = filled;
+    }
     if (el.type !== "sketch") {
       noChildren(el);
       if (el.type === "code") {
@@ -311,12 +316,18 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
   return { id, nodes, meta: view };
 }
 
-/** Refuses a feature whose fields do not fit its type's schema, with every issue. */
-function checkFeature(el: DesignElement, feature: Record<string, unknown>): void {
+/**
+ * The feature with each required field it leaves out filled with its declared default (`withDefaults`), checked against
+ * its type's schema; refused with every issue when it does not fit.
+ */
+function checkFeature(el: DesignElement, feature: Record<string, unknown>): Record<string, unknown> {
   const def = THREED_SCHEMA.roots[feature.type as string];
-  if (!def) return;
-  const issues = validate({ $ref: `#/$defs/${def}` }, feature, THREED_SCHEMA.$defs);
+  if (!def) return feature;
+  const root = { $ref: `#/$defs/${def}` };
+  const filled = withDefaults(root, feature, THREED_SCHEMA.$defs) as Record<string, unknown>;
+  const issues = validate(root, filled, THREED_SCHEMA.$defs);
   if (issues.length) throw new Error(`${where(el)}: ${issues.map(describeIssue).join("; ")}`);
+  return filled;
 }
 
 /** The built-in planes a root says the document has (`builtinPlanes`); absent: all three. */

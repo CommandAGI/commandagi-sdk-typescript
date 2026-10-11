@@ -97,6 +97,24 @@ test("a feature element whose fields do not fit its type is refused with the op 
   assert.doesNotThrow(read(jsx("pointCloud", { id: "pc", positions })));
 });
 
+// sdk/python and sdk/rust read the same assembly to the same inputs (their tests hold the same values).
+test("a required field with a declared default may be left out: it reads as the default, at every depth", () => {
+  const read = (...children: unknown[]) => declarationOf({ default: jsx("assembly", { name: "A", children }) }).graph;
+  const identity = { position: [0, 0, 0], quaternion: [0, 0, 0, 1], scale: 1 };
+  const g = read(
+    jsx("externalPart", { id: "bare", path: "bracket.3d.tsx" }),
+    jsx("externalPart", { id: "moved", path: "bracket.3d.tsx", placement: { position: [10, 0, 5] }, operation: "add" }),
+  );
+  assert.deepEqual(g.nodes.bare!.inputs, { path: "bracket.3d.tsx", placement: identity, operation: "new" });
+  // A placement that says only where: its orientation and scale are the identity's. The author's values stay.
+  assert.deepEqual(g.nodes.moved!.inputs, { path: "bracket.3d.tsx", placement: { position: [10, 0, 5], quaternion: [0, 0, 0, 1], scale: 1 }, operation: "add" });
+  // An optional field stays absent: its absence is a value the kernel reads.
+  assert.ok(!("importer" in g.nodes.bare!.inputs) && !("localPlacement" in g.nodes.bare!.inputs));
+  // A defaulted field the author wrote wrong is still refused, and a field with no default is still required.
+  assert.throws(() => read(jsx("externalPart", { id: "p", path: "b.3d.tsx", placement: { scale: "big" } })), { message: '<externalPart id="p">: placement/scale: must be number (got "string")' });
+  assert.throws(() => read(jsx("import", { id: "i", format: "step" })), { message: '<import id="i">: data: is required' });
+});
+
 // A world body as an ingest writes it (sdk/python and sdk/rust read the same element).
 const worldBody = (collider: unknown, restitution = 0.1) =>
   jsx("meshBody", {

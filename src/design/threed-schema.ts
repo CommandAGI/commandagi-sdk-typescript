@@ -912,7 +912,9 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "WHICH PADS THIS POUR IS BOUND TO — L3, and the same door a trace uses."
     },
     "operation": {
-     "$ref": "#/$defs/BooleanMode"
+     "$ref": "#/$defs/BooleanMode",
+     "description": "How the copper combines with the bodies before it.",
+     "default": "new"
     },
     "id": {
      "type": "string"
@@ -1440,7 +1442,21 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "placement": {
      "$ref": "#/$defs/Placement",
-     "description": "Where to place the linked part's bodies in this document's space."
+     "description": "Where to place the linked part's bodies in this document's space.",
+     "default": {
+      "position": [
+       0,
+       0,
+       0
+      ],
+      "quaternion": [
+       0,
+       0,
+       0,
+       1
+      ],
+      "scale": 1
+     }
     },
     "component": {
      "type": "string",
@@ -1455,7 +1471,9 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "THE PADS THIS PLACEMENT PRODUCES, when it is a placed electronic component."
     },
     "operation": {
-     "$ref": "#/$defs/BooleanMode"
+     "$ref": "#/$defs/BooleanMode",
+     "description": "How the linked part's bodies combine with the bodies before it.",
+     "default": "new"
     },
     "id": {
      "type": "string"
@@ -2069,7 +2087,9 @@ export const THREED_SCHEMA: SchemaDocument = {
      "$ref": "#/$defs/MaterialDef"
     },
     "operation": {
-     "$ref": "#/$defs/BooleanMode"
+     "$ref": "#/$defs/BooleanMode",
+     "description": "How the copper combines with the bodies before it.",
+     "default": "new"
     },
     "id": {
      "type": "string"
@@ -2347,7 +2367,9 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "Raw STEP/IGES/BRep file content."
     },
     "operation": {
-     "$ref": "#/$defs/BooleanMode"
+     "$ref": "#/$defs/BooleanMode",
+     "description": "How the imported solid combines with the bodies before it.",
+     "default": "new"
     },
     "id": {
      "type": "string"
@@ -3491,7 +3513,9 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "WHICH PADS THIS RUN IS BOUND TO — L3. Written only by `bindTraceEndpoint`, which binds or REFUSES; there is no \"visually coincident but unbound\" state to represent."
     },
     "operation": {
-     "$ref": "#/$defs/BooleanMode"
+     "$ref": "#/$defs/BooleanMode",
+     "description": "How the copper combines with the bodies before it.",
+     "default": "new"
     },
     "id": {
      "type": "string"
@@ -3537,7 +3561,13 @@ export const THREED_SCHEMA: SchemaDocument = {
    "properties": {
     "position": {
      "$ref": "#/$defs/Vec3",
-     "description": "Translation in mm."
+     "description": "Translation in mm.",
+     "x-unit": "mm",
+     "default": [
+      0,
+      0,
+      0
+     ]
     },
     "quaternion": {
      "type": "array",
@@ -3546,11 +3576,18 @@ export const THREED_SCHEMA: SchemaDocument = {
      },
      "minItems": 4,
      "maxItems": 4,
-     "description": "Orientation as a quaternion [x, y, z, w]."
+     "description": "Orientation as a quaternion [x, y, z, w].",
+     "default": [
+      0,
+      0,
+      0,
+      1
+     ]
     },
     "scale": {
      "type": "number",
-     "description": "Uniform scale factor (1 = identity)."
+     "description": "Uniform scale factor (1 = identity).",
+     "default": 1
     },
     "scaleXYZ": {
      "$ref": "#/$defs/Vec3",
@@ -3682,7 +3719,9 @@ export const THREED_SCHEMA: SchemaDocument = {
      "$ref": "#/$defs/MaterialDef"
     },
     "operation": {
-     "$ref": "#/$defs/BooleanMode"
+     "$ref": "#/$defs/BooleanMode",
+     "description": "How the copper combines with the bodies before it.",
+     "default": "new"
     },
     "id": {
      "type": "string"
@@ -5207,7 +5246,11 @@ export const THREED_SCHEMA: SchemaDocument = {
       "type": "number"
      },
      "minItems": 2,
-     "maxItems": 2
+     "maxItems": 2,
+     "default": [
+      0,
+      0
+     ]
     },
     "repeat": {
      "type": "array",
@@ -5215,7 +5258,11 @@ export const THREED_SCHEMA: SchemaDocument = {
       "type": "number"
      },
      "minItems": 2,
-     "maxItems": 2
+     "maxItems": 2,
+     "default": [
+      1,
+      1
+     ]
     },
     "center": {
      "type": "array",
@@ -5223,13 +5270,20 @@ export const THREED_SCHEMA: SchemaDocument = {
       "type": "number"
      },
      "minItems": 2,
-     "maxItems": 2
+     "maxItems": 2,
+     "default": [
+      0,
+      0
+     ]
     },
     "rotation": {
-     "type": "number"
+     "type": "number",
+     "x-unit": "rad",
+     "default": 0
     },
     "matrixAutoUpdate": {
-     "type": "boolean"
+     "type": "boolean",
+     "default": true
     }
    },
    "required": [
@@ -5239,7 +5293,8 @@ export const THREED_SCHEMA: SchemaDocument = {
     "rotation",
     "matrixAutoUpdate"
    ],
-   "additionalProperties": false
+   "additionalProperties": false,
+   "description": "A texture's UV transform, as three.js holds it; a field left out is three.js's own default."
   },
   "SphereFeature": {
    "type": "object",
@@ -6095,7 +6150,13 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "origin": {
      "$ref": "#/$defs/Vec3",
-     "description": "World position (mm) of voxel [0,0,0]'s corner."
+     "description": "World position (mm) of voxel [0,0,0]'s corner.",
+     "x-unit": "mm",
+     "default": [
+      0,
+      0,
+      0
+     ]
     },
     "data": {
      "type": "array",
@@ -6261,14 +6322,18 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "depth": {
      "type": "number",
-     "description": "Radial depth (mm)."
+     "description": "Radial depth (mm).",
+     "x-unit": "mm",
+     "default": 1
     },
     "mode": {
      "type": "string",
      "enum": [
       "emboss",
       "engrave"
-     ]
+     ],
+     "description": "Raise the letters, or cut them into the face.",
+     "default": "emboss"
     },
     "id": {
      "type": "string"

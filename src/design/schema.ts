@@ -8,6 +8,8 @@
  * required, additionalProperties, items, prefixItems, minItems, maxItems, minimum, maximum, exclusiveMinimum,
  * exclusiveMaximum, anyOf, oneOf, $ref (to `#/$defs/<name>`), $defs, default, description; and the editors' own
  * x-unit, x-pick, x-widget, x-step, x-showIf, x-derived (not checked). No dependency: the subset is small.
+ *
+ * A required field with a `default` may be left out of a file: the reader fills it (`withDefaults`) before the check.
  */
 
 export type SchemaType = "string" | "number" | "integer" | "boolean" | "array" | "object" | "null";
@@ -205,6 +207,59 @@ export function validate(schema: JsonSchema, value: unknown, defs: Defs = schema
       else if (s.additionalProperties === false) out.push({ path: join(path, k), code: "additional" });
       else if (s.additionalProperties && typeof s.additionalProperties === "object") out.push(...validate(s.additionalProperties, v, defs, join(path, k)));
     }
+  }
+  return out;
+}
+
+/** Whether a value can be what `s` (resolved) describes, by its JSON kind alone. */
+function kindFits(s: JsonSchema, value: unknown): boolean {
+  const types = s.type === undefined ? [] : Array.isArray(s.type) ? s.type : [s.type];
+  return !types.length || types.some((t) => typeMatches(t as string, value));
+}
+
+/**
+ * `value` with every absent **required** field that declares a `default` filled with that default, at every depth (a
+ * placement inside a linked part, an item of a list). A reader calls it before `validate`, so a file that leaves out a
+ * defaulted field reads as if it had written the default, and is not refused. A field with no default stays absent,
+ * and `validate` names it. An optional field stays absent too: its absence is a value of its own that the kernel reads
+ * (an extrude without `upToFace` goes a distance). `value` is not changed; a value that is not the shape the schema
+ * describes comes back as it was, for `validate` to name. The writer does not call it: a file keeps the author's
+ * omission until the field is edited.
+ */
+export function withDefaults(schema: JsonSchema, value: unknown, defs: Defs = schema.$defs ?? {}): unknown {
+  const s = resolve(schema, defs);
+  const options = s.anyOf ?? s.oneOf;
+  if (options) {
+    // The option the value names by a constant field (`type: "datum"`), else the options its kind can be.
+    const named = options.find((o) => Object.entries(resolve(o, defs).properties ?? {}).some(([k, p]) => p.const !== undefined && (value as Record<string, unknown> | null)?.[k] === p.const));
+    const candidates = named ? [named] : options.filter((o) => kindFits(resolve(o, defs), value));
+    if (candidates.length === 1) return withDefaults(candidates[0]!, value, defs);
+    for (const o of candidates) {
+      const filled = withDefaults(o, value, defs);
+      if (!validate(o, filled, defs).length) return filled;
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    if (!s.items && !s.prefixItems) return value;
+    return value.map((item, i) => {
+      const itemSchema = s.prefixItems?.[i] ?? s.items;
+      return itemSchema ? withDefaults(itemSchema, item, defs) : item;
+    });
+  }
+  if (!value || typeof value !== "object" || isFileRef(value) || !kindFits(s, value)) return value;
+  const obj = value as Record<string, unknown>;
+  const extra = s.additionalProperties && typeof s.additionalProperties === "object" ? s.additionalProperties : undefined;
+  if (!s.properties && !extra) return value;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    const p = s.properties?.[k] ?? extra;
+    out[k] = p && v !== undefined ? withDefaults(p, v, defs) : v;
+  }
+  for (const k of s.required ?? []) {
+    const p = s.properties?.[k];
+    const d = obj[k] === undefined && p ? resolve(p, defs).default : undefined;
+    if (d !== undefined) out[k] = JSON.parse(JSON.stringify(d));
   }
   return out;
 }

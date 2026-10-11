@@ -225,7 +225,8 @@ test("a filter is checked against its schema in a photo and in a painting, with 
   const inPainting = (props: Record<string, unknown>, tag = "gaussianBlur") => () => run(h("painting", {}, h("layer", {}, h(tag, props))));
   for (const refuse of [inPhoto, inPainting]) {
     assert.throws(refuse({ radius: 300 }), /<gaussianBlur>: radius: must be at most 250 \(got 300\)/);
-    assert.throws(refuse({}), /<gaussianBlur>: radius: is required/);
+    // A required field with a declared default may be left out: a blur with no radius is the editor's 4 px blur.
+    assert.deepEqual(Object.values(refuse({})().nodes).find((n) => n.type === "filter" || (n.inputs as { filter?: unknown }).filter)?.inputs.filter, { type: "gaussianBlur", radius: 4 });
     assert.throws(refuse({ radius: 3, strength: 1 }), /<gaussianBlur>: strength: is not one of its fields/);
     assert.throws(refuse({ amount: 0.1, monochrome: "yes" }, "noise"), /<noise>: monochrome: must be boolean \(got "string"\)/);
   }

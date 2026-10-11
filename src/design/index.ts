@@ -85,7 +85,7 @@ export * from "./business.js";
 export { declareThreeD, isThreeD, THREED_FEATURES, SKETCH_SEGMENTS, BUILTIN_PLANES } from "./threed.js";
 export { THREED_SCHEMA } from "./threed-schema.js";
 export type * as ThreeD from "./threed-elements.js";
-export { validate, describeIssue, type JsonSchema, type SchemaDocument, type Issue, type IssueCode } from "./schema.js";
+export { validate, withDefaults, describeIssue, type JsonSchema, type SchemaDocument, type Issue, type IssueCode } from "./schema.js";
 export { fromTwoD, isTwoD, subpathsOf, TWOD_ROOTS, PHOTO_ADJUSTMENTS, PHOTO_FILTERS } from "./twod.js";
 export { TWOD_SCHEMA } from "./twod-schema.js";
 export { declareBoardFile, isBoardFile, tracePointId, BOARD_FOOTPRINTS, BOARD_PART } from "./pcb.js";
