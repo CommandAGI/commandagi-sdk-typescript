@@ -2337,13 +2337,14 @@ export const THREED_SCHEMA: SchemaDocument = {
      "type": "string",
      "enum": [
       "step",
-      "iges"
+      "iges",
+      "brep"
      ],
-     "description": "Source format of the embedded file content."
+     "description": "Source format of the embedded file content: STEP, IGES, or an OpenCASCADE BRep (a FreeCAD document's shape)."
     },
     "data": {
      "type": "string",
-     "description": "Raw STEP/IGES file content."
+     "description": "Raw STEP/IGES/BRep file content."
     },
     "operation": {
      "$ref": "#/$defs/BooleanMode"

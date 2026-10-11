@@ -1025,9 +1025,11 @@ export type HoleStyle = "simple" | "counterbore" | "countersink";
 
 export type ImportFeature = {
   type: "import";
-  /** Source format of the embedded file content. */
-  format: "step" | "iges";
-  /** Raw STEP/IGES file content. */
+  /**
+   * Source format of the embedded file content: STEP, IGES, or an OpenCASCADE BRep (a FreeCAD document's shape).
+   */
+  format: "step" | "iges" | "brep";
+  /** Raw STEP/IGES/BRep file content. */
   data: string;
   operation: BooleanMode;
   id: string;
