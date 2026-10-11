@@ -96,3 +96,27 @@ test("a feature element whose fields do not fit its type is refused with the op 
   assert.ok(THREED_FEATURES.includes("makeHuman") && !THREED_FEATURES.includes("makehuman"));
   assert.doesNotThrow(read(jsx("pointCloud", { id: "pc", positions })));
 });
+
+// A world body as an ingest writes it (sdk/python and sdk/rust read the same element).
+const worldBody = (collider: unknown, restitution = 0.1) =>
+  jsx("meshBody", {
+    id: "world/t",
+    name: "t",
+    positions: [0, 0, 0, 1000, 0, 0, 0, 1000, 0, 1000, 1000, 0],
+    indices: [0, 1, 2, 1, 3, 2],
+    worldCollider: collider,
+    worldCenter: [0, 0, 100],
+    worldFriction: 0.8,
+    worldRestitution: restitution,
+    worldMeta: { tile: "12/1/2", res: 30 },
+  });
+
+test("a world body's collider, centre, material and provenance are declared fields of its meshBody", () => {
+  const read = (body: unknown) => () => declarationOf({ default: jsx("part", { name: "W", children: [body] }) });
+  const { graph } = read(worldBody({ type: "heightfield", nx: 2, ny: 2, sizeX: 1000, sizeY: 1000 }))();
+  assert.deepEqual(graph.nodes["world/t"]!.inputs.worldMeta, { tile: "12/1/2", res: 30 });
+  assert.doesNotThrow(read(worldBody({ type: "trimesh" })));
+  assert.throws(read(worldBody({ type: "heightfield", nx: 1, ny: 2, sizeX: 1000, sizeY: 1000 }, 2)), {
+    message: '<meshBody id="world/t">: worldCollider/nx: must be at least 2 (got 1); worldRestitution: must be at most 1 (got 2)',
+  });
+});

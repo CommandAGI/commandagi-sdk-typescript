@@ -2810,6 +2810,37 @@ export const THREED_SCHEMA: SchemaDocument = {
      "additionalProperties": false,
      "description": "Provenance for a generated body — drives ground-truth outcome capture + shows in the feature tree. `fileName` records the source file for imported bodies (GLB/OBJ/USDA/…)."
     },
+    "worldCollider": {
+     "$ref": "#/$defs/WorldCollider",
+     "description": "How a world collides this body: a heightfield grid or the exact triangle mesh. Only a world body has it."
+    },
+    "worldCenter": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 3,
+     "maxItems": 3,
+     "description": "The world body's rest centre (world mm). A heightfield's heights are taken relative to its z.",
+     "x-unit": "mm"
+    },
+    "worldFriction": {
+     "type": "number",
+     "description": "The world body's friction coefficient.",
+     "minimum": 0
+    },
+    "worldRestitution": {
+     "type": "number",
+     "description": "The world body's restitution (0: no bounce, 1: a perfect bounce).",
+     "minimum": 0,
+     "maximum": 1
+    },
+    "worldMeta": {
+     "type": "object",
+     "properties": {},
+     "additionalProperties": {},
+     "description": "Where the world body came from (the tile, the vertical datum, the ground resolution): open provenance."
+    },
     "id": {
      "type": "string"
     },
@@ -6147,6 +6178,71 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A **scalar/label voxel volume** — CT/MRI/microscopy/segmentation grids (NIfTI/NRRD/DICOM). The field is normalized 0..1 and downsampled to a display-friendly grid on import (large clinical volumes don't fit a JSON doc verbatim). Rendered as three orthogonal MPR slice planes or a marching-cubes isosurface."
+  },
+  "WorldCollider": {
+   "anyOf": [
+    {
+     "$ref": "#/$defs/WorldHeightfieldCollider"
+    },
+    {
+     "$ref": "#/$defs/WorldTrimeshCollider"
+    }
+   ],
+   "description": "The collider of a world body (MeshBodyFeature.worldCollider)."
+  },
+  "WorldHeightfieldCollider": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "heightfield"
+    },
+    "nx": {
+     "type": "integer",
+     "description": "Grid columns (west → east).",
+     "minimum": 2
+    },
+    "ny": {
+     "type": "integer",
+     "description": "Grid rows (south → north).",
+     "minimum": 2
+    },
+    "sizeX": {
+     "type": "number",
+     "description": "The grid's east–west span.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "sizeY": {
+     "type": "number",
+     "description": "The grid's south–north span.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    }
+   },
+   "required": [
+    "type",
+    "nx",
+    "ny",
+    "sizeX",
+    "sizeY"
+   ],
+   "additionalProperties": false,
+   "description": "A regular grid of heights, read from the body's `positions`."
+  },
+  "WorldTrimeshCollider": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "trimesh"
+    }
+   },
+   "required": [
+    "type"
+   ],
+   "additionalProperties": false,
+   "description": "The body's exact triangle mesh, as a fixed collider."
   },
   "WrapTextFeature": {
    "type": "object",

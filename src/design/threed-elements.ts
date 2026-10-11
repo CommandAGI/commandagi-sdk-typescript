@@ -1262,6 +1262,32 @@ export type MeshBodyFeature = {
     fileId?: string;
     fileName?: string;
   };
+  /**
+   * How a world collides this body: a heightfield grid or the exact triangle mesh. Only a world body has it.
+   */
+  worldCollider?: WorldCollider;
+  /**
+   * The world body's rest centre (world mm). A heightfield's heights are taken relative to its z.
+   * @unit mm
+   * @minItems 3
+   * @maxItems 3
+   */
+  worldCenter?: [number, number, number];
+  /**
+   * The world body's friction coefficient.
+   * @minimum 0
+   */
+  worldFriction?: number;
+  /**
+   * The world body's restitution (0: no bounce, 1: a perfect bounce).
+   * @minimum 0
+   * @maximum 1
+   */
+  worldRestitution?: number;
+  /**
+   * Where the world body came from (the tile, the vertical datum, the ground resolution): open provenance.
+   */
+  worldMeta?: { [key: string]: unknown };
   id: string;
   name: string;
   suppressed?: boolean;
@@ -2579,6 +2605,41 @@ export type VolumeFeature = {
    * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
    */
   declaredBy?: CodeFeature;
+};
+
+/** The collider of a world body (MeshBodyFeature.worldCollider). */
+export type WorldCollider = WorldHeightfieldCollider | WorldTrimeshCollider;
+
+/** A regular grid of heights, read from the body's `positions`. */
+export type WorldHeightfieldCollider = {
+  type: "heightfield";
+  /**
+   * Grid columns (west → east).
+   * @minimum 2
+   */
+  nx: number;
+  /**
+   * Grid rows (south → north).
+   * @minimum 2
+   */
+  ny: number;
+  /**
+   * The grid's east–west span.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  sizeX: number;
+  /**
+   * The grid's south–north span.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  sizeY: number;
+};
+
+/** The body's exact triangle mesh, as a fixed collider. */
+export type WorldTrimeshCollider = {
+  type: "trimesh";
 };
 
 export type WrapTextFeature = {
