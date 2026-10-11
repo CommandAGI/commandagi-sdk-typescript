@@ -29,10 +29,14 @@
  *             is `d`, an SVG path (M L C Q Z, absolute); a brush stroke's points are `[x, y]` pairs; an `<image>`
  *             or a `<raster-layer>` names its image file by `src`. A modifier
  *             (`<blur>`, `<transform>`, `<fill>`, …) wraps the one node it takes; `<boolean>` its shapes; `<clip>` its
- *             content then its mask.
+ *             content then its mask. `<link src="parts/Badge.draw.tsx" x={40} y={60} />` shows another drawing's
+ *             first artboard as that file draws it now (`src`: a path from this file's folder, or an address;
+ *             `inputs={{ size: 40 }}` gives values to the parameters that drawing declares). Nothing of the other
+ *             drawing is in this file.
  *   painting  `<layer>`, `<fill>`, `<group>`, `<textLayer>`, the shape layers (`<rect>`, `<ellipse>`, `<polygon>`, `<line>`)
  *             and the photo's adjustment tags are the stack, bottom first; a layer's `<stroke>`, `<bucket>`,
- *             `<gradientFill>` and `<move>` children are what was painted, filled and moved on it, oldest first. A stroke's
+ *             `<gradientFill>` and `<move>` children are what was painted, filled and moved on it, oldest first; a
+ *             filter among them (`<gaussianBlur radius={3} />`, the photo's filters) changes what is under it. A stroke's
  *             points are `[x, y, pressure, t]` (with tilt, `[x, y, pressure, t, tiltX, tiltY]`): free-hand data is a points
  *             array, written once. Each may hold a `selection` (`[{ rect: [x, y, w, h], feather }, { op: "subtract",
  *             polygon: [[x, y], …] }, …]`), the region it changed. `<textLayer text="Title" x y size font weight color
@@ -49,9 +53,15 @@
  * (`src="scan.png"`, the file beside the document). Nothing here holds encoded pixels. `label`, `disabled` and `id` set the
  * node's own fields. Each node carries the element's `source` in `meta.source`. A tag the vocabulary does not have
  * is refused by name.
+ *
+ * A filter and a link are checked against their schema (`TWOD_SCHEMA`, generated from the types the editors run:
+ * scripts/workbench/schemas.mjs); a wrong one is refused with every issue: `<gaussianBlur>: radius: must be at most 250
+ * (got 300)`.
  */
 import { Declaration, Scope, channels, slug, withScope, type IRNode, type NodeRef } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
+import { describeIssue, validate } from "./schema.js";
+import { TWOD_SCHEMA } from "./twod-schema.js";
 
 /** The roots of a 2D document in JSX. */
 export const TWOD_ROOTS = ["drawing", "painting", "photo", "nest"] as const;
@@ -100,6 +110,14 @@ function add(s: Scope, el: DesignElement, type: string, inputs: Record<string, u
 
 const kids = (el: DesignElement) => childElements(el.props.children);
 
+/** `el` with `fields`, checked against its tag's schema: the element as the editors hold it (`{ type, …fields }`). */
+function checked(el: DesignElement, fields: Record<string, unknown>): Record<string, unknown> {
+  const value = { type: el.type, ...fields };
+  const issues = validate({ $ref: `#/$defs/${TWOD_SCHEMA.roots[el.type]}` }, value, TWOD_SCHEMA.$defs);
+  if (issues.length) throw new Error(`${where(el)}: ${issues.map(describeIssue).join("; ")}`);
+  return value;
+}
+
 // ── Drawing ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Shapes and modifiers a drawing declares: the draw editor's op types. */
@@ -108,7 +126,9 @@ const DRAW_SOURCES = new Set(["rect", "ellipse", "polygon", "path", "text", "bru
 const DRAW_MODIFIERS = new Set(["transform", "offset", "array", "mirror", "stroke", "fill", "blur", "levels", "threshold", "adjust", "crop", "bucket-fill"]);
 /** Pixels a drawing places: each names its image file (`src`). */
 const DRAW_PIXELS = new Set(["image", "raster-layer"]);
-const DRAW_LATER = new Set(["sketch", "connector", "draw.instance"]);
+const DRAW_LATER = new Set(["sketch", "connector"]);
+/** An address (`cloud://…`, `https://…`, a path from the site's root); anything else is a path from the file's folder. */
+const ADDRESS = /^[a-z][a-z0-9+.-]*:\/\/|^\//i;
 
 /** An SVG path's `d` (absolute M L H V C Q Z) as the editor's subpaths. */
 export function subpathsOf(d: string, what: string): unknown[] {
@@ -205,6 +225,12 @@ function declareDrawn(s: Scope, el: DesignElement, top: boolean): NodeRef {
     if (el.props.src === undefined) throw new Error(`${where(el)}: src names its image file by relative path ("photo.png")`);
     return add(s, el, t, { ...attrs(el, ["src"]), __asset: asset(el.props.src, el) });
   }
+  if (t === "link") {
+    if (kids(el).length) throw new Error(`${where(el)} takes no children`);
+    const { type: _type, src, ...placed } = checked(el, attrs(el)) as { type: string; src: string } & Record<string, unknown>;
+    if (!src.trim() || src.startsWith("data:")) throw new Error(`${where(el)}: src names a drawing by its path from this file's folder ("parts/Badge.draw.tsx") or by an address`);
+    return add(s, el, "draw.instance", { __instance: ADDRESS.test(src) ? { assetPath: src } : { path: src }, ...placed });
+  }
   if (DRAW_MODIFIERS.has(t)) {
     const [input, ...rest] = kids(el);
     if (!input || rest.length) throw new Error(`${where(el)} wraps the one node it changes`);
@@ -216,7 +242,7 @@ function declareDrawn(s: Scope, el: DesignElement, top: boolean): NodeRef {
     if (!content || !mask || rest.length) throw new Error(`${where(el)} takes its content, then its mask`);
     return add(s, el, t, { ...attrs(el), content: declareDrawn(s, content, false), mask: declareDrawn(s, mask, false) });
   }
-  if (DRAW_LATER.has(t)) throw new Error(`<${t}> is not declared in code yet (a drawing in code holds shapes, images, groups and modifiers)`);
+  if (DRAW_LATER.has(t)) throw new Error(`<${t}> is not declared in code yet (a drawing in code holds shapes, images, links, groups and modifiers)`);
   throw new Error(`<${t}> is not read in a drawing (see commandagi/design twod)`);
 }
 
@@ -311,8 +337,10 @@ interface StackKind {
   prefix: "paint" | "photo";
   /** Layer tag → node type and how its attributes become inputs. */
   layer(el: DesignElement): { type: string; inputs: Record<string, unknown> } | null;
-  /** A chain member's tag (a stroke, a bucket fill, a filter) → its own inputs. */
-  chain(el: DesignElement): Record<string, unknown> | null;
+  /** Whether a tag is a chain member's (a stroke, a bucket fill, a filter). */
+  chains(el: DesignElement): boolean;
+  /** A chain member's own inputs. */
+  chain(el: DesignElement): Record<string, unknown>;
   /** A chain member's node type. */
   chainType(el: DesignElement): string;
 }
@@ -324,15 +352,24 @@ function adjustmentLayer(el: DesignElement, type: string): { type: string; input
   return { type, inputs: { ...common, adjustment } };
 }
 
-/** What a painting chains on a pixel layer besides its strokes: the Paint Bucket, the Gradient, the Move tool. */
+/** What is painted on a painting's pixel layer: strokes, the Paint Bucket, the Gradient, the Move tool. A filter (`PHOTO_FILTERS`) chains among them. */
 export const PAINT_CHAIN = ["stroke", "bucket", "gradientFill", "move"] as const;
 /** A painting's shape layers. */
 export const PAINT_SHAPES = ["rect", "ellipse", "polygon", "line"] as const;
 
+/** A filter element as a chain member's inputs: its fields are its node's `filter`. */
+function filterMember(el: DesignElement): Record<string, unknown> {
+  const a = attrs(el);
+  for (const k of COMMON) if (k in a) throw new Error(`${where(el)}: ${k} is the layer's (write it on the layer it filters)`);
+  return { filter: checked(el, a) };
+}
+
+const isFilter = (el: DesignElement) => (PHOTO_FILTERS as readonly string[]).includes(el.type);
+
 const PAINT: StackKind = {
   root: "painting",
   prefix: "paint",
-  chainType: (el) => `paint.${el.type}`,
+  chainType: (el) => (isFilter(el) ? "paint.filter" : `paint.${el.type}`),
   layer(el) {
     if (el.type === "layer") {
       const a = attrs(el, ["src"]);
@@ -348,8 +385,9 @@ const PAINT: StackKind = {
     if ((PAINT_SHAPES as readonly string[]).includes(el.type)) return { type: "paint.shape", inputs: { ...attrs(el), shape: el.type } };
     return null;
   },
+  chains: (el) => isFilter(el) || (PAINT_CHAIN as readonly string[]).includes(el.type),
   chain(el) {
-    if (!(PAINT_CHAIN as readonly string[]).includes(el.type)) return null;
+    if (isFilter(el)) return filterMember(el);
     const a = attrs(el);
     for (const k of COMMON) if (k in a) throw new Error(`${where(el)}: ${k} is the layer's (write it on the layer it is painted on)`);
     if (el.type === "stroke" && a.points !== undefined) a.points = strokePoints(a.points, `${where(el)} points`);
@@ -372,12 +410,8 @@ const PHOTO: StackKind = {
     if ((PHOTO_ADJUSTMENTS as readonly string[]).includes(el.type)) return adjustmentLayer(el, "photo.adjust");
     return null;
   },
-  chain(el) {
-    if (!(PHOTO_FILTERS as readonly string[]).includes(el.type)) return null;
-    const a = attrs(el);
-    for (const k of COMMON) if (k in a) throw new Error(`${where(el)}: ${k} is the layer's (write it on the layer it filters)`);
-    return { filter: { type: el.type, ...a } };
-  },
+  chains: isFilter,
+  chain: filterMember,
 };
 
 /**
@@ -435,18 +469,18 @@ function declareStack(s: Scope, kind: StackKind, children: DesignElement[]): Nod
   for (const el of children) {
     const layer = kind.layer(el);
     if (!layer) {
-      if (kind.chain(el)) throw new Error(`${where(el)} is painted on a layer: write it inside one`);
+      if (kind.chains(el)) throw new Error(`${where(el)} is painted on a layer: write it inside one`);
       throw new Error(`<${el.type}> is not read in a ${kind.root} (see commandagi/design twod)`);
     }
     const stack: DesignElement[] = [], chain: DesignElement[] = [];
-    for (const c of kids(el)) if (c.type !== "mask" && c.type !== "fx") (kind.chain(c) ? chain : stack).push(c);
+    for (const c of kids(el)) if (c.type !== "mask" && c.type !== "fx") (kind.chains(c) ? chain : stack).push(c);
     if (stack.length && layer.type !== `${kind.prefix}.group`) throw new Error(`${where(el)}: only a <group> holds layers`);
     const inner = layer.type === `${kind.prefix}.group` ? declareStack(s, kind, stack) : [];
     let top = addMasked(s, kind, el, layer.type, { ...layer.inputs, ...channels("layers", inner) });
     // Each chain member carries the layer's fields: the stack reads them off whichever member is on top.
     const carried: Record<string, unknown> = { ...COMMON_DEFAULTS };
     for (const k of COMMON) if (layer.inputs[k] !== undefined) carried[k] = layer.inputs[k];
-    for (const c of chain) top = addMasked(s, kind, c, kind.chainType(c), { ...carried, ...kind.chain(c)!, src: top });
+    for (const c of chain) top = addMasked(s, kind, c, kind.chainType(c), { ...carried, ...kind.chain(c), src: top });
     slots.push(top);
   }
   return slots;

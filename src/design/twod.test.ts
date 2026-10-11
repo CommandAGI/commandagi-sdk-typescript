@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { declarationOf, jsx, subpathsOf, type IRGraph } from "./index.js";
+import { declarationOf, jsx, subpathsOf, PHOTO_FILTERS, TWOD_SCHEMA, type IRGraph } from "./index.js";
 
 const h = (type: string, props: Record<string, unknown> = {}, ...children: unknown[]) =>
   jsx(type, children.length ? { ...props, children: children.length === 1 ? children[0] : children } : props);
@@ -174,4 +174,63 @@ test("refused by name: pixels in code, a tag the vocabulary lacks, a stroke outs
   assert.throws(() => run(h("drawing", {}, h("rect", {}))), /<rect> is inside a <layer>/);
   assert.throws(() => subpathsOf("m 0 0 l 1 1", "<path>"), /absolute commands/);
   assert.throws(() => run(h("nest", {}, h("part", { id: "a" }))), /a nest needs its <sheet>/);
+});
+
+test("a <link> is a draw.instance node that names another drawing: a path from the file's folder, or an address", () => {
+  const g = run(
+    h("drawing", { width: 400, height: 300 },
+      h("layer", { name: "Badge" },
+        h("link", { label: "Badge", src: "parts/Badge.draw.tsx", x: 40, y: 60, inputs: { size: 48, tone: "warm", outlined: true } }),
+        h("link", { src: "cloud://global/examples/2d/Badge.draw.tsx" }),
+      ),
+    ),
+  );
+  const [first, second] = ["children.1", "children.2"].map((port) => g.nodes[(g.nodes.group!.inputs[port] as { wire: { node: string } }).wire.node]!);
+  assert.deepEqual({ type: first!.type, label: first!.label, inputs: first!.inputs }, { type: "draw.instance", label: "Badge", inputs: { __instance: { path: "parts/Badge.draw.tsx" }, x: 40, y: 60, inputs: { size: 48, tone: "warm", outlined: true } } });
+  assert.deepEqual(second!.inputs, { __instance: { assetPath: "cloud://global/examples/2d/Badge.draw.tsx" } });
+});
+
+test("a <link> is checked against its schema, with the sentence an op panel shows", () => {
+  const link = (props: Record<string, unknown>, ...children: unknown[]) => () => run(h("drawing", {}, h("layer", {}, h("link", props, ...children))));
+  assert.throws(link({}), /<link>: src: is required/);
+  assert.throws(link({ src: "a.draw.tsx", x: "40" }), /<link>: x: must be number \(got "string"\)/);
+  assert.throws(link({ src: "a.draw.tsx", scale: 2 }), /<link>: scale: is not one of its fields/);
+  assert.throws(link({ src: "a.draw.tsx", inputs: { size: [1] } }), /<link>: inputs\/size: does not match an allowed shape/);
+  assert.throws(link({ src: " " }), /src names a drawing by its path/);
+  assert.throws(link({ src: "a.draw.tsx" }, h("rect", {})), /<link> takes no children/);
+});
+
+test("a painting's filter chains among its strokes: it is the photo's filter, on what is painted under it", () => {
+  const g = run(
+    h("painting", { width: 100, height: 80 },
+      h("layer", { name: "Paint", opacity: 0.8 },
+        h("stroke", { points: [[1, 2, 0.5, 0]], color: [0, 0, 0, 1] }),
+        h("gaussianBlur", { radius: 3 }),
+        h("stroke", { points: [[5, 6, 0.5, 0]], color: [1, 0, 0, 1] }),
+        h("noise", { amount: 0.1, monochrome: true, seed: 7 }, h("mask", {}, h("fill", { color: [1, 1, 1, 1] }))),
+      ),
+    ),
+  );
+  assert.deepEqual(g.nodes["paint.filter"]!.inputs, { name: "Paint", visible: true, opacity: 0.8, blend: "normal", filter: { type: "gaussianBlur", radius: 3 }, src: wire("paint.stroke") });
+  assert.deepEqual(g.nodes["paint.stroke_2"]!.inputs.src, wire("paint.filter"));
+  assert.deepEqual(g.nodes["paint.filter_2"]!.inputs.filter, { type: "noise", amount: 0.1, monochrome: true, seed: 7 });
+  assert.deepEqual(g.nodes["paint.filter_2"]!.inputs.mask, wire("paint.fill"));
+  assert.deepEqual(g.nodes.doc!.inputs["layers.1"], wire("paint.filter_2"));
+  assert.throws(() => run(h("painting", {}, h("gaussianBlur", { radius: 3 }))), /is painted on a layer: write it inside one/);
+  assert.throws(() => run(h("painting", {}, h("layer", {}, h("sharpen", { amount: 0.5, opacity: 0.5 })))), /opacity is the layer's/);
+});
+
+test("a filter is checked against its schema in a photo and in a painting, with one sentence", () => {
+  const inPhoto = (props: Record<string, unknown>, tag = "gaussianBlur") => () => run(h("photo", {}, h("raster", { src: "a.png" }, h(tag, props))));
+  const inPainting = (props: Record<string, unknown>, tag = "gaussianBlur") => () => run(h("painting", {}, h("layer", {}, h(tag, props))));
+  for (const refuse of [inPhoto, inPainting]) {
+    assert.throws(refuse({ radius: 300 }), /<gaussianBlur>: radius: must be at most 250 \(got 300\)/);
+    assert.throws(refuse({}), /<gaussianBlur>: radius: is required/);
+    assert.throws(refuse({ radius: 3, strength: 1 }), /<gaussianBlur>: strength: is not one of its fields/);
+    assert.throws(refuse({ amount: 0.1, monochrome: "yes" }, "noise"), /<noise>: monochrome: must be boolean \(got "string"\)/);
+  }
+});
+
+test("the filter tags and the link are the schema's roots: one declaration for the photo and the painting", () => {
+  assert.deepEqual([...PHOTO_FILTERS, "link"].sort(), Object.keys(TWOD_SCHEMA.roots).sort());
 });
