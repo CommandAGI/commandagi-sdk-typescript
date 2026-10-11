@@ -12,8 +12,8 @@
  * A record is an element and its fields are the element's attributes, verbatim; a list of records is the parent's
  * children (`units` → `<unit>`, `channels` → `<channel>`, a scene's `bodies` → `<body>`). The tags:
  *
- *   <world name kind description? from? model?>   world.tsx             <space origin_mm size_mm>, <unit uid …>,
- *                                                                        <view …>, <scene …> (<body id …> children)
+ *   <world name kind description? from? model?    world.tsx             <space origin_mm size_mm>, <unit uid …>,
+ *          links?>                                                       <view …>, <scene …> (<body id …> children)
  *   <device name …>                               definition.tsx        <channel id dir medium format transport …>
  *   <dashboard name …>                            <name>.dashboard.tsx   <param id type …>, one layout: <split axis
  *                                                                        ratio> of two <split>|<pane id kind …>, or
@@ -45,7 +45,13 @@ const leaf = (tag: string, attrs: Record<string, unknown>): DocTree => ({ tag, a
 
 /** The fields of a unit in a world's file (packages/domain/world/worlds.js). */
 export const UNIT_FIELDS = ["uid", "name", "device", "domain", "size_mm", "support", "channels", "manualUrl", "position", "rotation"] as const;
-const WORLD_FIELDS = ["name", "kind", "description", "from", "model"] as const;
+/**
+ * `links`: the parts of the world's model that a run moves (packages/domain/world/pose.js modelPose). A definition's
+ * link grammar, with the unit named in each joint and emit: `links={[{ node: "ram", joint: { unit: "press-1",
+ * channel: "axes", name: "z", type: "prismatic", axis: "z", origin_mm: [0, 0, 0], home: 0 } }]}`, `node` the id of
+ * the model's feature that makes the part. A model with no links is drawn as it is.
+ */
+const WORLD_FIELDS = ["name", "kind", "description", "from", "model", "links"] as const;
 
 export interface WorldDoc {
   name: string;

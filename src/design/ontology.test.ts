@@ -35,6 +35,12 @@ test("a world in JSX declares its world: units, space and a scene's bodies are e
   });
   assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(world as never)), world, "both ways");
 
+  // A world's model and the parts of it a run moves are attributes of <world>: the model a ref, the links its records.
+  const links = [{ node: "ram", joint: { unit: "press-1", channel: "axes", name: "z", type: "prismatic", axis: "z", origin_mm: [0, 0, 0], home: 0 } }];
+  const posed = documentOf({ default: () => el("world", { name: "Press", kind: "physical", model: "press.3d.tsx", links }) }).document;
+  assert.deepEqual(posed, { name: "Press", kind: "physical", model: "press.3d.tsx", links, units: [] });
+  assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(posed as never)), posed, "a model's links both ways");
+
   const world_ = (...children: unknown[]) => () => declarationOf({ default: el("world", { name: "W", kind: "physical" }, ...children) });
   assert.throws(() => declarationOf({ default: el("world", { name: "W" }) }), /<world> needs kind/);
   assert.throws(() => declarationOf({ default: el("world", { name: "W", kind: "real" }) }), /physical" or "simulation", said explicitly/);
