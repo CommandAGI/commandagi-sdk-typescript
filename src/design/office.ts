@@ -44,6 +44,18 @@
  *                                                           one cell: `value` (text, a number, true/false) or a
  *                                                           `formula` that starts with "="
  *   <column at width>  <row at height>                      a column's width or a row's height, in pixels
+ *   <chart name range kind category series title at width height>
+ *                                                           a chart of a range of its sheet (the first row names the
+ *                                                           fields): kind "bar", "line", "area", "scatter" or "pie";
+ *                                                           `category` labels the points, `series` are the fields drawn
+ *   <pivot name range rows columns value aggregate>         a pivot table of a range: the editor computes it; aggregate
+ *                                                           "sum", "count", "avg", "min", "max" or "first"
+ *   <filter range>                                          the sheet's filter (one): the rows of its range under the
+ *     <criterion column test value />                       header stay shown while they pass every criterion; test
+ *   </filter>                                               "equals", "notEquals", "contains", "greater", "less",
+ *                                                           "blank" or "notBlank"
+ *                                                           (their attributes: workbook-schema.ts, generated from the
+ *                                                           sheets editor's types)
  *   <page title paper font>                                 the page; paper "letter" or "a4", font "sans", "serif"
  *                                                           or "mono" (a few typefaces, not a font menu)
  *   <h1> <h2> <h3> <p> <quote align>                        a text block; its children are its text; align "left",
@@ -81,12 +93,14 @@
  * one space, as HTML does.
  *
  * Each declared thing carries the element it came from (`source`, the sandbox's `__source`): a workbook's and a
- * page's in `sources` beside the document (keyed `sheet:<id>`, `cell:<id>!A1`, `block:<id>` …), a deck's in each
+ * page's in `sources` beside the document (keyed `sheet:<id>`, `cell:<id>!A1`, `chart:<id>!chart-1`, `block:<id>` …), a deck's in each
  * node's `meta.source`, as every graph's. Anything else is refused by name, never guessed.
  */
 import { channels } from "./ir.js";
 import type { DeclaredDocument, IRGraph, IRNode } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
+import { describeIssue, validate } from "./schema.js";
+import { WORKBOOK_SCHEMA } from "./workbook-schema.js";
 
 
 const where = (el: DesignElement) => `<${el.type}${typeof el.props.name === "string" ? ` name="${el.props.name}"` : typeof el.props.at === "string" ? ` at="${el.props.at}"` : ""}>`;
@@ -134,11 +148,26 @@ const A1 = /^([A-Z]{1,3})([1-9]\d{0,6})$/;
 const colIndex = (letters: string) => [...letters].reduce((n, ch) => n * 26 + (ch.charCodeAt(0) - 64), 0) - 1;
 const ALIGN = ["left", "center", "right"] as const;
 
+const RANGE = /^[A-Z]{1,3}[1-9]\d{0,6}(:[A-Z]{1,3}[1-9]\d{0,6})?$/i;
+
+/**
+ * The attributes of a `<chart>`, `<pivot>`, `<filter>` or `<criterion>`, checked against the element's schema
+ * (`WORKBOOK_SCHEMA`, generated from the sheets editor's types) with the sentences an op panel shows.
+ */
+function workbookElement(el: DesignElement): Record<string, unknown> {
+  const { children: _children, key: _key, ...props } = el.props as Record<string, unknown>;
+  const issues = validate({ $ref: `#/$defs/${WORKBOOK_SCHEMA.roots[el.type]}` }, props, WORKBOOK_SCHEMA.$defs);
+  if (issues.length) throw new Error(`${where(el)}: ${issues.map(describeIssue).join("; ")}`);
+  if (typeof props.range === "string" && !RANGE.test(props.range)) throw new Error(`${where(el)}: range is an A1 range ("A1:C20"), not ${JSON.stringify(props.range)}`);
+  return props;
+}
+
 /** A `<workbook>` as the workbook JSON the sheets editor opens, with where each part was written. */
 export function readWorkbook(root: DesignElement): DeclaredDocument {
   only(root, ["title"]);
   const sources: Record<string, unknown> = { workbook: root.source };
   const names = new Set<string>();
+  const named = { chart: new Set<string>(), pivot: new Set<string>() };
   const sheets = childElements(root.props.children).map((el, i) => {
     if (el.type !== "sheet") throw new Error(`<${el.type}> is not read in a <workbook> (it holds <sheet>s)`);
     only(el, ["name", "rows", "cols", "frozenRows", "frozenCols", "color"]);
@@ -150,8 +179,37 @@ export function readWorkbook(root: DesignElement): DeclaredDocument {
     const cells: Record<string, Record<string, unknown>> = {};
     const colWidths: Record<number, number> = {};
     const rowHeights: Record<number, number> = {};
+    const charts: Record<string, unknown>[] = [];
+    const pivots: Record<string, unknown>[] = [];
+    let filter: { range: unknown; criteria: Record<string, unknown>[] } | undefined;
     let rows = num(el, "rows") ?? 200, cols = num(el, "cols") ?? 26;
     for (const c of childElements(el.props.children)) {
+      if (c.type === "chart" || c.type === "pivot") {
+        const props = workbookElement(c);
+        const key = String(props.name).toLowerCase();
+        if (named[c.type].has(key)) throw new Error(`two ${c.type === "chart" ? "charts" : "pivot tables"} are called ${props.name}`);
+        named[c.type].add(key);
+        const list = c.type === "chart" ? charts : pivots;
+        const eid = `${c.type}-${list.length + 1}`;
+        list.push({ id: eid, ...props });
+        sources[`${c.type}:${id}!${eid}`] = c.source;
+        continue;
+      }
+      if (c.type === "filter") {
+        if (filter) throw new Error(`${name} has two filters (a sheet has one)`);
+        filter = { range: workbookElement(c).range, criteria: [] };
+        sources[`filter:${id}`] = c.source;
+        for (const k of childElements(c.props.children)) {
+          if (k.type !== "criterion") throw new Error(`<${k.type}> is not read in a <filter> (it holds <criterion>s)`);
+          const props = workbookElement(k);
+          const column = String(props.column).toUpperCase();
+          if (!/^[A-Z]{1,3}$/.test(column)) throw new Error(`<criterion>: column is a column's letters ("B"), not ${JSON.stringify(props.column)}`);
+          if (filter.criteria.some((x) => x.column === column)) throw new Error(`the filter of ${name} has two criteria for column ${column}`);
+          filter.criteria.push({ ...props, column });
+          sources[`criterion:${id}!${column}`] = k.source;
+        }
+        continue;
+      }
       if (c.type === "column" || c.type === "row") {
         only(c, ["at", c.type === "column" ? "width" : "height"]);
         const at = c.props.at;
@@ -164,7 +222,7 @@ export function readWorkbook(root: DesignElement): DeclaredDocument {
         sources[`${c.type}:${id}!${key}`] = c.source;
         continue;
       }
-      if (c.type !== "cell") throw new Error(`<${c.type}> is not read in a <sheet> (it holds <cell>, <column> and <row>)`);
+      if (c.type !== "cell") throw new Error(`<${c.type}> is not read in a <sheet> (it holds <cell>, <column>, <row>, <chart>, <pivot> and <filter>)`);
       only(c, ["at", "value", "formula", "numFmt", "bold", "italic", "align", "bg", "color", "wrap"]);
       const at = str(c, "at")?.toUpperCase();
       const m = at ? A1.exec(at) : null;
@@ -194,6 +252,9 @@ export function readWorkbook(root: DesignElement): DeclaredDocument {
       colWidths: Object.keys(colWidths).length ? colWidths : undefined,
       rowHeights: Object.keys(rowHeights).length ? rowHeights : undefined,
       frozen: fr !== undefined || fc !== undefined ? { rows: fr ?? 0, cols: fc ?? 0 } : undefined,
+      charts: charts.length ? charts : undefined,
+      pivots: pivots.length ? pivots : undefined,
+      filter,
     });
   });
   if (!sheets.length) throw new Error("a <workbook> holds at least one <sheet>");

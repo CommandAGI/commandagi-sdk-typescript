@@ -23,6 +23,30 @@ test("a <workbook> declares the workbook JSON: cells by A1 reference, formats, s
   assert.throws(() => declarationOf({ default: () => el("workbook", {}, el("sheet", {}, el("cell", { at: "A1", font: "x" }))) }), /font is not read on a <cell>/);
 });
 
+test("a sheet's <chart>, <pivot> and <filter> are checked against the workbook schema and read into the sheet", () => {
+  const sheet = (...kids: unknown[]) => declarationOf({ default: () => el("workbook", {}, el("sheet", { name: "Sales" }, el("cell", { at: "A1", value: "Region" }), ...kids)) });
+  const { document } = sheet(
+    el("chart", { name: "Sales", range: "A1:C5", kind: "bar", category: "Region", series: ["Q1", "Q2"], at: "E2" }),
+    el("pivot", { name: "By region", range: "A1:C5", rows: "Region", value: "Q1", aggregate: "sum" }),
+    el("filter", { range: "A1:C5" }, el("criterion", { column: "b", test: "greater", value: 100 }), el("criterion", { column: "A", test: "notBlank" })),
+  );
+  const s = (document?.document as { sheets: Record<string, unknown>[] }).sheets[0]!;
+  assert.deepEqual(s.charts, [{ id: "chart-1", name: "Sales", range: "A1:C5", kind: "bar", category: "Region", series: ["Q1", "Q2"], at: "E2" }]);
+  assert.deepEqual(s.pivots, [{ id: "pivot-1", name: "By region", range: "A1:C5", rows: "Region", value: "Q1", aggregate: "sum" }]);
+  assert.deepEqual(s.filter, { range: "A1:C5", criteria: [{ column: "B", test: "greater", value: 100 }, { column: "A", test: "notBlank" }] });
+  assert.deepEqual(Object.keys(document!.sources).filter((k) => !/^(workbook|sheet|cell)/.test(k)), ["chart:sheet-1!chart-1", "pivot:sheet-1!pivot-1", "filter:sheet-1", "criterion:sheet-1!B", "criterion:sheet-1!A"]);
+
+  // The refusals are the schema's sentences, the ones an op panel shows under a field.
+  assert.throws(() => sheet(el("chart", { name: "C", range: "A1:C5", kind: "donut", series: ["Q1"] })), /<chart name="C">: kind: must be one of bar, line, area, scatter, pie \(got "donut"\)/);
+  assert.throws(() => sheet(el("chart", { name: "C", range: "A1:C5", kind: "bar", series: [] })), /series: needs at least 1 items/);
+  assert.throws(() => sheet(el("pivot", { name: "P", range: "nowhere", rows: "Region", value: "Q1", aggregate: "sum" })), /range is an A1 range \("A1:C20"\), not "nowhere"/);
+  assert.throws(() => sheet(el("pivot", { name: "P", range: "A1:C5", rows: "Region", aggregate: "sum" })), /value: is required/);
+  assert.throws(() => sheet(el("chart", { name: "C", range: "A1:B2", kind: "bar", series: ["Q1"] }), el("chart", { name: "c", range: "A1:B2", kind: "bar", series: ["Q1"] })), /two charts are called c/);
+  assert.throws(() => sheet(el("filter", { range: "A1:C5" }), el("filter", { range: "A1:C5" })), /Sales has two filters/);
+  assert.throws(() => sheet(el("filter", { range: "A1:C5" }, el("criterion", { column: "B", test: "blank" }), el("criterion", { column: "B", test: "notBlank" }))), /two criteria for column B/);
+  assert.throws(() => sheet(el("filter", { range: "A1:C5" }, el("criterion", { column: "B", test: "sometimes" }))), /test: must be one of/);
+});
+
 test("a <page> declares blocks; a block's text is its children, with marks as inline HTML", () => {
   const { document } = declarationOf({
     default: () => el("page", { title: "Notes" }, el("h1", {}, "Notes"), el("p", {}, "One < two & ", el("b", {}, "bold"), " ", el("a", { href: "https://x.test" }, "link")), el("todo", { checked: true }, "done"), el("pre", { lang: "ts" }, "a { }"), el("divider")),
