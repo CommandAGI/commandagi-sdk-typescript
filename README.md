@@ -130,7 +130,9 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
 
 - **A video or a song in JSX** (a `<name>.vid.tsx` the video editor opens, a `<name>.mus.tsx` the music studio
   opens; both write each edit back): `<video>` with `<track>`, `<clip src="media/take.mp4" start in out>` (media
-  stay files, named by path), `<title>`, `<transition>`, `<effect>`, `<keyframe>` and `<marker>`; `<song tempo
+  stay files, named by path), `<composition src="Intro.vid.tsx" start in out inputs>` (another video, drawn live from
+  its own code), `<artboard src="Poster.draw.tsx" start duration view fit>` (a drawing's page, drawn live),
+  `<title>`, `<transition>`, `<effect>`, `<keyframe>` and `<marker>`; `<song tempo
   timeSignature>` with `<track>`, `<synth>`, the effects (`<gain>`, `<filter>`, `<delay>`, `<reverb>`, `<eq>`),
   `<clip>` and `<note pitch="C4" start duration velocity>`. Seconds on a video's timeline, beats in a song.
 - **A 3D document in JSX** (a `<name>.3d.tsx` the CommandAGI 3D editor opens and edits): a `<part>` (or

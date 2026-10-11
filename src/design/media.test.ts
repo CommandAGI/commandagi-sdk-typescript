@@ -190,3 +190,42 @@ test("a video says a clip's crop, a LUT by file, transition settings, audio effe
   assert.throws(video(jsx("clip", { src: "a.mp4", out: 1, children: [jsx("filter", { mode: "notch" })] })), /mode is one of lowpass, highpass, bandpass/);
   assert.throws(video(jsx("clip", { src: "a.mp4", out: 1, cropTop: 0.6 })), /cropTop is at most 0\.49/);
 });
+
+test("a <composition> is another video by path (a video.instance whose frames are its clip's source); an <artboard> a drawing's page", () => {
+  const g = declarationOf({
+    default: jsx("video", {
+      children: [
+        jsx("track", {
+          name: "V1",
+          children: [
+            jsx("composition", { src: "parts/Intro.vid.tsx", start: 1, in: 0.5, out: 2.5, inputs: { hue: 30 }, __source: 1, children: [jsx("intro", { preset: "fade", __source: 2 })] }),
+            jsx("artboard", { src: "Poster.draw.tsx", start: 3, duration: 2, view: "page_2", fit: "cover", opacity: 0.5, __source: 3 }),
+          ],
+        }),
+      ],
+    }),
+  }).graph;
+  assert.deepEqual(g.nodes["comp_Intro.vid.tsx"], { id: "comp_Intro.vid.tsx", type: "video.instance", label: "Intro.vid.tsx", inputs: { __instance: { path: "parts/Intro.vid.tsx", name: "Intro.vid.tsx" }, hue: 30 } });
+  const comp = g.nodes["clip_Intro.vid.tsx"]!;
+  assert.deepEqual(comp.inputs.source, wireTo("comp_Intro.vid.tsx", "frames"));
+  assert.equal(comp.inputs.kind, "video");
+  assert.equal(comp.inputs.duration, 2);
+  assert.equal(comp.inputs.inPoint, 0.5);
+  assert.equal(comp.inputs.assetId, undefined, "a composition is no media file");
+  assert.deepEqual(comp.meta, { source: 1, sources: { intro: 2 } });
+  const art = g.nodes["clip_Poster.draw.tsx"]!;
+  assert.equal(art.inputs.kind, "renderable");
+  assert.deepEqual(art.inputs.renderable, { ref: { locator: "Poster.draw.tsx", fileKind: "drawing", representation: "auto", view: "page_2" }, fit: "cover" });
+  assert.equal(art.inputs.source, null);
+  assert.equal(art.inputs.opacity, 0.5);
+  const video = (...children: unknown[]) => () => declarationOf({ default: jsx("video", { children: [jsx("track", { children })] }) });
+  assert.throws(video(jsx("composition", { src: "Intro.mp4", out: 1 })), /is not another video's code/);
+  assert.throws(video(jsx("composition", { src: "/x/Intro.vid.tsx", out: 1 })), /relative to this file/);
+  assert.throws(video(jsx("composition", { src: "Intro.vid.tsx" })), /give its out \(or duration\)/);
+  assert.throws(video(jsx("composition", { src: "Intro.vid.tsx", out: 1, inputs: { hue: "red" } })), /inputs is \{ parameter: number \}/);
+  assert.throws(video(jsx("composition", { src: "Intro.vid.tsx", out: 1, children: [jsx("gain", {})] })), /has no sound/);
+  assert.throws(video(jsx("artboard", { src: "Poster.png", duration: 1 })), /is not a drawing's code/);
+  assert.throws(video(jsx("artboard", { src: "Poster.draw.tsx" })), /give its duration/);
+  assert.throws(video(jsx("artboard", { src: "Poster.draw.tsx", duration: 1, fit: "stretch" })), /fit is one of fill, contain, cover, none/);
+  assert.throws(() => declarationOf({ default: jsx("video", { children: [jsx("track", { kind: "audio", children: [jsx("artboard", { src: "P.draw.tsx", duration: 1 })] })] }) }), /an artboard goes on a video track/);
+});
