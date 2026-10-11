@@ -1,6 +1,6 @@
 /**
  * A VIDEO OR A SONG IN JSX — the media editors' own documents, declared as the nodes the CommandAGI video editor
- * (`.vid.tsx`: `video.source`, `video.clip`, `video.track`, `video.composite`) and music studio (`.mus.tsx`: `midiClip`,
+ * (`.vid.tsx`: `video.source`, `video.instance`, `video.clip`, `video.track`, `video.composite`) and music studio (`.mus.tsx`: `midiClip`,
  * `instrument`, `fx.*`, `track`, `master`) store and edit. No second model: the editor opens what this declares.
  *
  *   export default () => (
@@ -8,6 +8,10 @@
  *       <track name="V1">
  *         <clip src="media/sky.png" start={0} duration={3} />
  *         <title text="Hello" start={0} duration={2} fontSize={72} />
+ *       </track>
+ *       <track name="V2">
+ *         <composition src="Intro.vid.tsx" start={3} in={0} out={2} />
+ *         <artboard src="Poster.draw.tsx" start={5} duration={2} fit="contain" />
  *       </track>
  *       <track name="A1" kind="audio">
  *         <clip src="media/tone.wav" start={0} in={0.5} out={2.5} volume={0.8} />
@@ -33,7 +37,10 @@
  *     </song>
  *   );
  *
- * Media files are named by path relative to the file (`src`), never inlined; the editor reads them. Times on a
+ * Media files are named by path relative to the file (`src`), never inlined; the editor reads them. So are a nested
+ * composition (`<composition src>`: another video's code, a `video.instance` node whose frames are its clip's source;
+ * `inputs` are the values it gives that video's parameters) and an artboard (`<artboard src>`: a drawing's page, drawn
+ * live; `view` names the page, else the first). Times on a
  * video's timeline are seconds; times in a song are beats (an audio clip's `in`, where it starts in its file, is
  * seconds, as on a video). Each node carries the element that declared it in
  * `meta.source`; what a node holds that is not a node (a clip's effects, audio effects, transition, intro, outro and keyframes; a midi clip's
@@ -218,6 +225,49 @@ const TRACK_HEIGHT = { video: 64, audio: 48, midi: 56 } as const;
 export const CLIP_CROP = { cropTop: "top", cropRight: "right", cropBottom: "bottom", cropLeft: "left" } as const;
 const CLIP_PROPS = ["name", "start", "duration", "in", "out", "speed", "opacity", "volume", "blendMode", "fitMode", ...Object.keys(CLIP_TRANSFORM), ...Object.keys(CLIP_COLOR), ...Object.keys(CLIP_CROP)];
 
+/** The files a `<composition>` and an `<artboard>` name: another video's code, a drawing's code. */
+export const COMPOSITION_FILE = /\.vid\.(tsx|jsx|py|rs)$/i;
+export const ARTBOARD_FILE = /\.draw\.(tsx|jsx|py|rs)$/i;
+/** How an artboard's page fills the clip's box, what the drawing is drawn as, and their values when not written. */
+export const ARTBOARD_FITS = ["fill", "contain", "cover", "none"] as const;
+export const ARTBOARD_REPRESENTATIONS = ["auto", "vector", "raster"] as const;
+export const ARTBOARD = { fit: "contain", representation: "auto" } as const;
+/** The `video.instance` port that holds a nested composition's ref. */
+export const INSTANCE_REF = "__instance";
+
+/** A `<composition>`'s or an `<artboard>`'s file: a path relative to this file, of the kind it names. */
+function documentSrc(el: DesignElement, kind: RegExp, what: string): string {
+  const src = str(el, "src");
+  if (!src) throw new Error(`<${el.type}> names ${what} (src, relative to this file)`);
+  if (/^[a-z]+:|^\//i.test(src)) throw new Error(`${where(el)}: src is a path relative to this file, not ${src}`);
+  if (!kind.test(src)) throw new Error(`${where(el)}: ${src} is not ${what}`);
+  return src;
+}
+
+/** A nested composition's input values: its parameters by name, each a number. */
+function inputValues(el: DesignElement): Record<string, number> {
+  const v = el.props.inputs;
+  if (v === undefined) return {};
+  if (typeof v !== "object" || v === null || Array.isArray(v) || Object.values(v).some((x) => typeof x !== "number" || !Number.isFinite(x)))
+    throw new Error(`${where(el)}: inputs is { parameter: number }, not ${JSON.stringify(v)}`);
+  if (INSTANCE_REF in v) throw new Error(`${where(el)}: ${INSTANCE_REF} is not a parameter`);
+  return { ...(v as Record<string, number>) };
+}
+
+/** A clip's length: out − in at its speed, or its duration. */
+function clipLength(c: DesignElement, inPoint: number, speed: number, picture: boolean): number {
+  const out = num(c, "out", { min: 0 });
+  const duration = num(c, "duration", { min: 0 });
+  if (out !== undefined && duration !== undefined) throw new Error(`${where(c)}: give out or duration, not both`);
+  if (out !== undefined) {
+    if (picture) throw new Error(`${where(c)}: a picture has no out (give its duration)`);
+    if (out <= inPoint) throw new Error(`${where(c)}: out (${out}) is after in (${inPoint})`);
+    return (out - inPoint) / speed;
+  }
+  if (duration === undefined) throw new Error(`${where(c)}: give its ${picture ? "duration" : "out (or duration)"} in seconds`);
+  return duration;
+}
+
 interface Keyed {
   key: string;
   at: unknown;
@@ -399,6 +449,7 @@ export function declareVideo(root: DesignElement): Declaration {
       const sources: Record<string, unknown> = {};
       let inputs: Record<string, unknown>;
       let clipName: string;
+      let nested: { src: string; values: Record<string, number> } | null = null;
       if (c.type === "clip") {
         refuseUnknown(c, ["src", ...CLIP_PROPS]);
         const src = str(c, "src");
@@ -418,18 +469,35 @@ export function declareVideo(root: DesignElement): Declaration {
         clipName = str(c, "name") ?? fileName;
         const speed = num(c, "speed", { min: 0.01 }) ?? 1;
         const inPoint = num(c, "in", { min: 0 }) ?? 0;
-        const out = num(c, "out", { min: 0 });
-        let duration = num(c, "duration", { min: 0 });
-        if (out !== undefined && duration !== undefined) throw new Error(`${where(c)}: give out or duration, not both`);
-        if (out !== undefined) {
-          if (mk === "image") throw new Error(`${where(c)}: a picture has no out (give its duration)`);
-          if (out <= inPoint) throw new Error(`${where(c)}: out (${out}) is after in (${inPoint})`);
-          duration = (out - inPoint) / speed;
-        }
-        if (duration === undefined) throw new Error(`${where(c)}: give its ${mk === "image" ? "duration" : "out (or duration)"} in seconds`);
+        const duration = clipLength(c, inPoint, speed, mk === "image");
         inputs = { kind: mk, assetId, name: clipName, start: num(c, "start", { min: 0 }) ?? 0, duration, inPoint, speed };
         Object.assign(inputs, common(c));
         inputs.source = wire(sourceId, "media");
+      } else if (c.type === "composition") {
+        // Another video, drawn live from its own code: a `video.instance` node (made below, once the clip has its id).
+        refuseUnknown(c, ["src", "inputs", ...CLIP_PROPS]);
+        if (kind !== "video") throw new Error(`${where(c)}: a composition goes on a video track`);
+        const src = documentSrc(c, COMPOSITION_FILE, "another video's code (a .vid.tsx, .vid.py or .vid.rs)");
+        clipName = str(c, "name") ?? src.split("/").pop()!;
+        const speed = num(c, "speed", { min: 0.01 }) ?? 1;
+        const inPoint = num(c, "in", { min: 0 }) ?? 0;
+        const duration = clipLength(c, inPoint, speed, false);
+        inputs = { kind: "video", name: clipName, start: num(c, "start", { min: 0 }) ?? 0, duration, inPoint, speed, ...common(c) };
+        nested = { src, values: inputValues(c) };
+        inputs.source = null;
+      } else if (c.type === "artboard") {
+        // A drawing's page, drawn live: the clip keeps the reference, never the drawing.
+        refuseUnknown(c, [...CLIP_PROPS.filter((p) => p !== "in" && p !== "out" && p !== "speed" && p !== "volume"), "src", "view", "fit", "representation"]);
+        if (kind !== "video") throw new Error(`${where(c)}: an artboard goes on a video track`);
+        const src = documentSrc(c, ARTBOARD_FILE, "a drawing's code (a .draw.tsx, .draw.py or .draw.rs)");
+        clipName = str(c, "name") ?? src.split("/").pop()!;
+        const duration = num(c, "duration", { min: 0 });
+        if (duration === undefined) throw new Error(`${where(c)}: give its duration in seconds`);
+        const view = str(c, "view");
+        const ref = { locator: src, fileKind: "drawing", representation: str(c, "representation", ARTBOARD_REPRESENTATIONS) ?? ARTBOARD.representation, ...(view !== undefined ? { view } : {}) };
+        inputs = { kind: "renderable", name: clipName, start: num(c, "start", { min: 0 }) ?? 0, duration, inPoint: 0, speed: 1, ...common(c), volume: 1 };
+        inputs.renderable = { ref, fit: str(c, "fit", ARTBOARD_FITS) ?? ARTBOARD.fit };
+        inputs.source = null;
       } else if (c.type === "title") {
         refuseUnknown(c, [...CLIP_PROPS.filter((p) => p !== "in" && p !== "out" && p !== "speed" && p !== "volume"), ...Object.keys(TITLE_TEXT), "typewriter"]);
         if (kind !== "video") throw new Error(`${where(c)}: a title goes on a video track`);
@@ -474,9 +542,14 @@ export function declareVideo(root: DesignElement): Declaration {
         if (duration === undefined) throw new Error(`${where(c)}: give its duration in seconds`);
         inputs = { kind: "midi", name: clipName, start: num(c, "start", { min: 0 }) ?? 0, duration, inPoint: 0, speed: 1, ...common(c) };
         inputs.source = null;
-      } else throw new Error(`<${c.type}> is not read on a <track> (it holds <clip>, <title>, <shape>, <adjustment>, <midi> and audio effects)`);
+      } else throw new Error(`<${c.type}> is not read on a <track> (it holds <clip>, <composition>, <artboard>, <title>, <shape>, <adjustment>, <midi> and audio effects)`);
       if (kind === "midi" && c.type !== "midi") throw new Error(`${where(c)}: a midi track holds <midi> clips`);
       const clipId = id(`clip_${clipName}`);
+      if (nested) {
+        const compId = id(`comp_${clipName}`);
+        nodes[compId] = node(compId, "video.instance", { [INSTANCE_REF]: { path: nested.src, name: clipName }, ...nested.values }, clipName);
+        inputs.source = wire(compId, "frames");
+      }
       const kids = clipChildren(c, clipId, sources);
       inputs.transitionIn = kids.transitionIn;
       if (kids.animIn) inputs.animIn = kids.animIn;
