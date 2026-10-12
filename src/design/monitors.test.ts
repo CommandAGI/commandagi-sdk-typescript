@@ -12,7 +12,7 @@ const el = (tag: unknown, props: Record<string, unknown> = {}, ...children: unkn
 const Corporation = ({ cik, ticker, name }: { cik: string; ticker: string; name: string }) =>
   el(
     "monitor",
-    { title: `${name} (${ticker})`, class: "corporation", about: `cik:${cik}`, __source: 0 },
+    { title: `${name} (${ticker})`, class: "corporation", about: `cik:${cik}`, sameAs: [`ticker:${ticker}`], __source: 0 },
     el("source", { id: "filings", adapter: "sec-filings", params: { cik }, every: "15m", __source: 1 }),
     el("follows", { monitor: "../../central-banks/fed", match: "fomc.*", __source: 2 }),
     el("wake", { match: "sec.filing.8-k*", prompt: "Say what the report changes." }),
@@ -28,6 +28,7 @@ test("a monitor in JSX: a class is a component, an instance is one element, and 
     title: "NVIDIA (NVDA)",
     class: "corporation",
     about: "cik:0001045810",
+    sameAs: ["ticker:NVDA"],
     sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m" }],
     follows: [{ monitor: "../../central-banks/fed", match: "fomc.*" }],
     wakes: [{ match: "sec.filing.8-k*", prompt: "Say what the report changes." }],
@@ -38,6 +39,7 @@ test("a monitor in JSX: a class is a component, an instance is one element, and 
     class: "corporation",
     about: "cik:0001045810",
     readme: null,
+    sameAs: ["ticker:NVDA"],
     sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m", via: "worker", exit: null, host: null, mode: "poll", retain: null, since: null }],
     follows: [{ monitor: "../../central-banks/fed", match: "fomc.*" }],
     wakes: [{ match: "sec.filing.8-k*", prompt: "Say what the report changes." }],
@@ -54,6 +56,8 @@ test("a monitor refuses by name what it has no words for, and values out of rang
   const one = (...children: unknown[]) => () => declarationOf({ default: el("monitor", {}, ...children) });
   const src = (props: Record<string, unknown>) => el("source", { id: "s", adapter: "fred", every: "1h", ...props });
   assert.throws(one(src({}), src({})), /two <source> in <monitor> have id "s"/);
+  assert.throws(() => declarationOf({ default: el("monitor", { sameAs: ["NVDA"] }) }), /sameAs is a list of subjects/);
+  assert.throws(() => declarationOf({ default: el("monitor", { sameAs: "ticker:NVDA" }) }), /sameAs is a list of subjects/);
   assert.throws(one(el("source", { id: "s", adapter: "fred" })), /<source id="s"> needs every/);
   assert.throws(one(src({ every: "6 hours" })), /every is a duration/);
   assert.throws(one(src({ every: "10s" })), /every is from 30s to 7d/);

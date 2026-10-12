@@ -29,7 +29,9 @@
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
 
 /** The fields of a monitor, and of each part of a monitor. */
-export const MONITOR_FIELDS = ["title", "class", "about", "readme"] as const;
+export const MONITOR_FIELDS = ["title", "class", "about", "readme", "sameAs"] as const;
+/** A subject: `<scheme>:<id>` (`cik:0001045810`, `ticker:NVDA`, `fomc:`). */
+export const SUBJECT = /^[a-z][a-z0-9-]*:\S*$/;
 export const SOURCE_FIELDS = ["id", "adapter", "params", "every", "via", "exit", "host", "mode", "retain", "since"] as const;
 export const FOLLOW_FIELDS = ["monitor", "match"] as const;
 export const WAKE_FIELDS = ["match", "prompt"] as const;
@@ -77,6 +79,8 @@ export interface MonitorDoc {
   class?: string;
   about?: string;
   readme?: string;
+  /** Other ids of the same subject (`ticker:NVDA` beside `about="cik:0001045810"`): a declared statement, never a merge. */
+  sameAs?: string[];
   sources: MonitorSource[];
   follows: MonitorFollow[];
   wakes: MonitorWake[];
@@ -139,7 +143,10 @@ function sourceOf(t: DocTree): MonitorSource {
 }
 
 function monitorOf(t: DocTree): MonitorDoc {
-  for (const k of MONITOR_FIELDS) text(t, k);
+  for (const k of MONITOR_FIELDS) if (k !== "sameAs") text(t, k);
+  const same = t.attrs.sameAs;
+  if (same !== undefined && !(Array.isArray(same) && same.every((s) => typeof s === "string" && SUBJECT.test(s))))
+    throw new Error(`<monitor> sameAs is a list of subjects ("ticker:NVDA"), not ${JSON.stringify(same)}`);
   const parts = (tag: string) => t.children.filter((c) => c.tag === tag);
   const follows = parts("follows").map((c) => {
     text(c, "monitor", "monitor");
@@ -193,6 +200,7 @@ export function monitorWithDefaults(m: MonitorDoc) {
     class: m.class ?? null,
     about: m.about ?? null,
     readme: m.readme ?? null,
+    sameAs: m.sameAs ?? [],
     sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null, host: s.host ?? null, mode: s.mode ?? "poll", retain: s.mode === "stream" ? (s.retain ?? "derived") : null, since: s.since ?? null })),
     follows: m.follows.map((f) => ({ monitor: f.monitor, match: f.match ?? null })),
     wakes: m.wakes.map((w) => ({ match: w.match ?? null, prompt: w.prompt })),
