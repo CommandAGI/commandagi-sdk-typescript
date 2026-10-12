@@ -80,7 +80,7 @@ test("a blueprint in JSX: a class is a component, its instances are data, and th
     about: "fred:CPIAUCSL",
     visibility: "public",
     readme: null,
-    sources: [{ id: "fred", adapter: "fred", params: { series: "CPIAUCSL" }, every: "6h", via: "worker", exit: null, host: null, mode: "poll", retain: null }],
+    sources: [{ id: "fred", adapter: "fred", params: { series: "CPIAUCSL" }, every: "6h", via: "worker", exit: null, host: null, mode: "poll", retain: null, since: null }],
     follows: [],
     wakes: [],
   });
@@ -111,7 +111,11 @@ test("a blueprint refuses by name what it has no words for, and values out of ra
   assert.throws(one(src({ via: "host", retain: "all" })), /retain is for mode="stream" only/);
   assert.throws(one(src({ via: "host", mode: "stream", retain: "sample:soon" })), /retain is "all", "derived" or "sample:<duration>"/);
   const stream = declarationOf({ default: el("monitors", { id: "b" }, el("monitor", { id: "m" }, src({ via: "host", host: "studio", mode: "stream", retain: "sample:1m" }))) });
-  assert.deepEqual(monitorsWithDefaults(stream.document!.document as never).monitors[0]!.sources[0], { id: "s", adapter: "fred", params: {}, every: "1h", via: "host", exit: null, host: "studio", mode: "stream", retain: "sample:1m" });
+  assert.deepEqual(monitorsWithDefaults(stream.document!.document as never).monitors[0]!.sources[0], { id: "s", adapter: "fred", params: {}, every: "1h", via: "host", exit: null, host: "studio", mode: "stream", retain: "sample:1m", since: null });
+  assert.throws(one(src({ since: "2024-1-1" })), /since is a day/);
+  assert.throws(one(src({ via: "host", mode: "stream", since: "2024-01-01" })), /since is for a polled source/);
+  const started = declarationOf({ default: el("monitors", { id: "b" }, el("monitor", { id: "m" }, src({ since: "2024-01-01" }))) });
+  assert.equal(monitorsWithDefaults(started.document!.document as never).monitors[0]!.sources[0]!.since, "2024-01-01");
   assert.throws(one(src({ params: ["CPIAUCSL"] })), /params is an object/);
   assert.throws(one(src({ cron: "0 * * * *" })), /<source id="s">: cron is not read/);
   assert.throws(one(el("follows", { monitor: "m" })), /follows itself/);
