@@ -29,14 +29,11 @@ export interface DocTree {
 export interface TagRule {
   /** The tags it may be a child of (none: it is the root). */
   parents: readonly string[];
-  /** The attribute that names one record among its siblings of this tag (`uid`, `id`). */
-  key?: string;
   /**
-   * The key names it in its parent only (a monitor's source `fred`, which the next monitor has too): it is itself by
-   * its path (`monitor#economy/cpi/source#fred`), and it does not move to another parent as itself. Absent: the key
-   * names it in the whole document (a unit, a pane), so it stays itself when it moves to another parent.
+   * The attribute that names one record among its siblings of this tag (`uid`, `id`). The key names it in the whole
+   * document (a unit, a pane), so it stays itself when it moves to another parent.
    */
-  scoped?: boolean;
+  key?: string;
   /** At most one per parent. */
   single?: boolean;
   /** Attributes it must have. */
