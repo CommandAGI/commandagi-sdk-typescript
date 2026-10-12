@@ -98,6 +98,7 @@ export * from "./documents.js";
 export * from "./ontology.js";
 export * from "./tasks.js";
 export * from "./monitors.js";
+export * from "./infra.js";
 export * from "./records.js";
 export * from "./fab.js";
 export * from "./postal.js";
