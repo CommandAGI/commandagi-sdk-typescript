@@ -59,7 +59,7 @@ test("a monitor refuses by name what it has no words for, and values out of rang
   assert.throws(one(src({ every: "10s" })), /every is from 30s to 7d/);
   assert.throws(one(src({ every: "8d" })), /every is from 30s to 7d/);
   assert.throws(one(src({ via: "phone" })), /via is "worker", "host", "vpn"/);
-  assert.throws(one(src({ exit: "DE" })), /exit names a country for via="vpn" only/);
+  assert.throws(one(src({ exit: "DE" })), /exit names an exit country \("DE"\) or an exit \("fsn-1"\), for via="vpn" only/);
   assert.throws(one(src({ params: ["CPIAUCSL"] })), /params is an object/);
   assert.throws(one(src({ cron: "0 * * * *" })), /<source id="s">: cron is not read/);
   assert.throws(one(el("follows", { monitor: "." })), /names this monitor/);
