@@ -38,7 +38,7 @@ test("a monitor in JSX: a class is a component, an instance is one element, and 
     class: "corporation",
     about: "cik:0001045810",
     readme: null,
-    sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m", via: "worker", exit: null }],
+    sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m", via: "worker", exit: null, host: null, mode: "poll", retain: null, since: null }],
     follows: [{ monitor: "../../central-banks/fed", match: "fomc.*" }],
     wakes: [{ match: "sec.filing.8-k*", prompt: "Say what the report changes." }],
   });
@@ -60,6 +60,17 @@ test("a monitor refuses by name what it has no words for, and values out of rang
   assert.throws(one(src({ every: "8d" })), /every is from 30s to 7d/);
   assert.throws(one(src({ via: "phone" })), /via is "worker", "host", "vpn"/);
   assert.throws(one(src({ exit: "DE" })), /exit names an exit country \("DE"\) or an exit \("fsn-1"\), for via="vpn" only/);
+  assert.throws(one(src({ host: "studio" })), /host names a host for via="host" only/);
+  assert.throws(one(src({ mode: "stream" })), /mode="stream" holds a connection open, which runs on a host/);
+  assert.throws(one(src({ via: "host", mode: "push" })), /mode is "poll", "stream"/);
+  assert.throws(one(src({ via: "host", retain: "all" })), /retain is for mode="stream" only/);
+  assert.throws(one(src({ via: "host", mode: "stream", retain: "sample:soon" })), /retain is "all", "derived" or "sample:<duration>"/);
+  const stream = declarationOf({ default: el("monitor", {}, src({ via: "host", host: "studio", mode: "stream", retain: "sample:1m" })) });
+  assert.deepEqual(monitorWithDefaults(stream.document!.document as never).sources[0], { id: "s", adapter: "fred", params: {}, every: "1h", via: "host", exit: null, host: "studio", mode: "stream", retain: "sample:1m", since: null });
+  assert.throws(one(src({ since: "2024-1-1" })), /since is a day/);
+  assert.throws(one(src({ via: "host", mode: "stream", since: "2024-01-01" })), /since is for a polled source/);
+  const started = declarationOf({ default: el("monitor", {}, src({ since: "2024-01-01" })) });
+  assert.equal(monitorWithDefaults(started.document!.document as never).sources[0]!.since, "2024-01-01");
   assert.throws(one(src({ params: ["CPIAUCSL"] })), /params is an object/);
   assert.throws(one(src({ cron: "0 * * * *" })), /<source id="s">: cron is not read/);
   assert.throws(one(el("follows", { monitor: "." })), /names this monitor/);
