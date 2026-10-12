@@ -23,7 +23,7 @@
  * Nothing adds a default: what the file does not say, the document does not have (`via`, `readme`, `exit`, `host`,
  * `mode`, `retain`, `since`). `monitorWithDefaults` gives the document as the platform reads it (`via: "worker"`,
  * `mode: "poll"`, `readme`, `exit`, `host` and `since` null; a stream's `retain` "derived", a poll's null). A
- * monitor's lists (`sources`, `follows`, `wakes`) are always there, empty when the file has none. Who may read the
+ * monitor's lists (`sources`, `follows`, `derives`, `wakes`) are always there, empty when the file has none. Who may read the
  * thread is the file's own Drive visibility, not a word of the file.
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
@@ -33,6 +33,7 @@ export const MONITOR_FIELDS = ["title", "class", "about", "readme"] as const;
 export const SOURCE_FIELDS = ["id", "adapter", "params", "every", "via", "exit", "host", "mode", "retain", "since"] as const;
 export const FOLLOW_FIELDS = ["monitor", "match"] as const;
 export const WAKE_FIELDS = ["match", "prompt"] as const;
+export const DERIVE_FIELDS = ["id", "op", "inputs", "params", "since"] as const;
 
 export const VIAS = ["worker", "host", "vpn"] as const;
 /** `poll` reads at each `every`; `stream` holds a connection open on a host and hands over what came at each `every`. */
@@ -67,6 +68,19 @@ export interface MonitorFollow {
   monitor: string;
   match?: string;
 }
+/**
+ * A derived stream (docs/records.md § 6): an operator folds the records of other monitors into records of this one.
+ * `inputs` maps each port of the operator to a monitor's folder, a ref relative to this monitor's folder, as a follow
+ * names one. The platform checks the operator, its ports and its params.
+ */
+export interface MonitorDerive {
+  id: string;
+  op: string;
+  inputs: Record<string, string>;
+  params?: Record<string, unknown>;
+  /** The first day the derive takes; its first run folds the inputs' logs from it. */
+  since?: string;
+}
 export interface MonitorWake {
   match?: string;
   prompt: string;
@@ -79,6 +93,7 @@ export interface MonitorDoc {
   readme?: string;
   sources: MonitorSource[];
   follows: MonitorFollow[];
+  derives: MonitorDerive[];
   wakes: MonitorWake[];
 }
 
@@ -138,6 +153,24 @@ function sourceOf(t: DocTree): MonitorSource {
   return said(t.attrs, SOURCE_FIELDS) as unknown as MonitorSource;
 }
 
+const WORD = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+function deriveOf(t: DocTree): MonitorDerive {
+  for (const k of ["id", "op", "since"]) text(t, k);
+  if (!WORD.test(t.attrs.id as string)) throw new Error(`${where(t)} id is a word (letters, digits, _ and -)`);
+  const inputs = t.attrs.inputs;
+  if (!inputs || typeof inputs !== "object" || Array.isArray(inputs) || !Object.keys(inputs).length)
+    throw new Error(`${where(t)} inputs maps each port to a monitor's folder ({ quotes: "../quotes" }), not ${JSON.stringify(inputs)}`);
+  for (const [port, ref] of Object.entries(inputs as Record<string, unknown>)) {
+    if (!WORD.test(port)) throw new Error(`${where(t)} a port is a word, not ${JSON.stringify(port)}`);
+    if (typeof ref !== "string" || !ref) throw new Error(`${where(t)} inputs.${port} is a monitor's folder, not ${JSON.stringify(ref)}`);
+    if (/^\.\/?$/.test(ref)) throw new Error(`${where(t)} inputs.${port} names this monitor; a derive takes other monitors' records`);
+  }
+  const p = t.attrs.params;
+  if (p !== undefined && (!p || typeof p !== "object" || Array.isArray(p))) throw new Error(`${where(t)} params is an object ({ window: "1m" }), not ${JSON.stringify(p)}`);
+  if (t.attrs.since !== undefined && !SINCE.test(t.attrs.since as string)) throw new Error(`${where(t)} since is a day ("2024-01-01"), not ${JSON.stringify(t.attrs.since)}`);
+  return said(t.attrs, DERIVE_FIELDS) as unknown as MonitorDerive;
+}
+
 function monitorOf(t: DocTree): MonitorDoc {
   for (const k of MONITOR_FIELDS) text(t, k);
   const parts = (tag: string) => t.children.filter((c) => c.tag === tag);
@@ -147,12 +180,13 @@ function monitorOf(t: DocTree): MonitorDoc {
     if (/^\.\/?$/.test(c.attrs.monitor as string)) throw new Error(`<follows monitor="${c.attrs.monitor as string}"> names this monitor; a follow names another monitor's folder`);
     return said(c.attrs, FOLLOW_FIELDS) as unknown as MonitorFollow;
   });
+  const derives = parts("derive").map(deriveOf);
   const wakes = parts("wake").map((c) => {
     text(c, "match", "match");
     text(c, "prompt", "match");
     return said(c.attrs, WAKE_FIELDS) as unknown as MonitorWake;
   });
-  return { ...said(t.attrs, MONITOR_FIELDS), sources: parts("source").map(sourceOf), follows, wakes };
+  return { ...said(t.attrs, MONITOR_FIELDS), sources: parts("source").map(sourceOf), follows, derives, wakes };
 }
 
 export const monitorVocabulary: Vocabulary<MonitorDoc> = {
@@ -163,6 +197,7 @@ export const monitorVocabulary: Vocabulary<MonitorDoc> = {
     monitor: { parents: [], attrs: MONITOR_FIELDS },
     source: { parents: ["monitor"], key: "id", required: ["id", "adapter", "every"], attrs: SOURCE_FIELDS },
     follows: { parents: ["monitor"], key: "monitor", required: ["monitor"], attrs: FOLLOW_FIELDS },
+    derive: { parents: ["monitor"], key: "id", required: ["id", "op", "inputs"], attrs: DERIVE_FIELDS },
     wake: { parents: ["monitor"], required: ["prompt"], attrs: WAKE_FIELDS },
   },
   // A follow names a monitor by its folder: the platform checks that one is there, not the file.
@@ -174,11 +209,12 @@ export const monitorVocabulary: Vocabulary<MonitorDoc> = {
       children: [
         ...(m.sources ?? []).map((s) => ({ tag: "source", attrs: attrsOf(s, SOURCE_FIELDS), children: [] })),
         ...(m.follows ?? []).map((f) => ({ tag: "follows", attrs: attrsOf(f, FOLLOW_FIELDS), children: [] })),
+        ...(m.derives ?? []).map((d) => ({ tag: "derive", attrs: attrsOf(d, DERIVE_FIELDS), children: [] })),
         ...(m.wakes ?? []).map((w) => ({ tag: "wake", attrs: attrsOf(w, WAKE_FIELDS), children: [] })),
       ],
     };
   },
-  empty: () => ({ sources: [], follows: [], wakes: [] }),
+  empty: () => ({ sources: [], follows: [], derives: [], wakes: [] }),
 };
 
 registerVocabulary(monitorVocabulary);
@@ -195,6 +231,7 @@ export function monitorWithDefaults(m: MonitorDoc) {
     readme: m.readme ?? null,
     sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null, host: s.host ?? null, mode: s.mode ?? "poll", retain: s.mode === "stream" ? (s.retain ?? "derived") : null, since: s.since ?? null })),
     follows: m.follows.map((f) => ({ monitor: f.monitor, match: f.match ?? null })),
+    derives: (m.derives ?? []).map((d) => ({ id: d.id, op: d.op, inputs: d.inputs, params: d.params ?? {}, since: d.since ?? null })),
     wakes: m.wakes.map((w) => ({ match: w.match ?? null, prompt: w.prompt })),
   };
 }
