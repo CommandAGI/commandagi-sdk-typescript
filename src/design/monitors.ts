@@ -21,8 +21,9 @@
  * folder, relative to this monitor's folder), a wake by its place.
  *
  * Nothing adds a default: what the file does not say, the document does not have (`via`, `readme`, `exit`, `host`,
- * `mode`, `retain`, `since`). `monitorWithDefaults` gives the document as the platform reads it (`via: "worker"`,
- * `mode: "poll"`, `readme`, `exit`, `host` and `since` null; a stream's `retain` "derived", a poll's null). A
+ * `mode`, `retain`, `since`, `session`, `snapshot`, `profile`, `keep`, `maxCostPerDay`, `unit`). `monitorWithDefaults`
+ * gives the document as the platform reads it (`via: "worker"`, `mode: "poll"`, the others null; a stream's `retain`
+ * "derived", a poll's null). A
  * monitor's lists (`sources`, `follows`, `wakes`) are always there, empty when the file has none. Who may read the
  * thread is the file's own Drive visibility, not a word of the file.
  */
@@ -30,11 +31,18 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 
 /** The fields of a monitor, and of each part of a monitor. */
 export const MONITOR_FIELDS = ["title", "class", "about", "readme"] as const;
-export const SOURCE_FIELDS = ["id", "adapter", "params", "every", "via", "exit", "host", "mode", "retain", "since"] as const;
+export const SOURCE_FIELDS = ["id", "adapter", "params", "every", "via", "exit", "host", "mode", "retain", "since", "session", "snapshot", "profile", "keep", "maxCostPerDay", "unit"] as const;
 export const FOLLOW_FIELDS = ["monitor", "match"] as const;
 export const WAKE_FIELDS = ["match", "prompt"] as const;
 
-export const VIAS = ["worker", "host", "vpn"] as const;
+/**
+ * The paths a source's reads take (docs/sources.md § fetch paths): the api worker, a host, a VPN exit, a headless
+ * browser on a host, a Linux cloud computer launched from a snapshot, an Android VM launched from a snapshot, and a real
+ * phone unit of a world.
+ */
+export const VIAS = ["worker", "host", "vpn", "browser", "vm", "android-vm", "phone"] as const;
+/** The paths that launch a machine from a snapshot (a logged-in state), and so cost money per read. */
+export const VM_VIAS = ["vm", "android-vm"] as const;
 /** `poll` reads at each `every`; `stream` holds a connection open on a host and hands over what came at each `every`. */
 export const MODES = ["poll", "stream"] as const;
 /** What a stream source's thread keeps: every record, the derived records only, or one per series per duration. */
@@ -54,13 +62,29 @@ export interface MonitorSource {
   every: string;
   via?: (typeof VIAS)[number];
   exit?: string;
-  /** The host that reads it (its name), for `via: "host"`; absent: the account's first online host. */
+  /**
+   * The host that reads it (its name): for `host`, `browser` and `phone`, a host of the account (absent: the first
+   * online one); for `vm` and `android-vm`, the host the machine's snapshot runs when it boots (absent: the snapshot's
+   * name).
+   */
   host?: string;
   mode?: (typeof MODES)[number];
   /** `all` | `derived` | `sample:<duration>`, for `mode: "stream"`. */
   retain?: string;
   /** The day a first read starts from (`YYYY-MM-DD`), so a first read does not pull a whole history. */
   since?: string;
+  /** A ref to a logged-in state (`infra/sessions/<name>/session.tsx`), for `browser`, `vm` and `android-vm`. */
+  session?: string;
+  /** The snapshot a `vm` or `android-vm` read launches from (its id or name), when no `session` names it. */
+  snapshot?: string;
+  /** A browser profile of the host (a saved state), for `browser`, when no `session` names it. */
+  profile?: string;
+  /** How long a `vm` or `android-vm` stays up after a read for the next one (a duration); absent: released at once. */
+  keep?: string;
+  /** The most a `vm` or `android-vm` source may spend a day, in USD; the pacer refuses a launch past it. */
+  maxCostPerDay?: number;
+  /** The phone a `phone` read runs on: `<world.tsx ref>#<uid>`, relative to the monitor's folder, or an absolute address. */
+  unit?: string;
 }
 export interface MonitorFollow {
   /** The followed monitor's folder, as a ref relative to this monitor's folder (`../../central-banks/fed`). */
@@ -119,8 +143,11 @@ function attrsOf(o: object, keys: readonly string[]): Record<string, unknown> {
   return out;
 }
 
+/** A unit ref: a world file's ref or address, `#`, and the unit's uid. */
+export const UNIT_REF = /^[^#\s]+\/world\.tsx#[a-z0-9][a-z0-9-]{0,47}$/;
+
 function sourceOf(t: DocTree): MonitorSource {
-  for (const k of ["id", "adapter", "exit", "host", "retain", "since"]) text(t, k);
+  for (const k of ["id", "adapter", "exit", "host", "retain", "since", "session", "snapshot", "profile", "keep", "unit"]) text(t, k);
   const p = t.attrs.params;
   if (p !== undefined && (!p || typeof p !== "object" || Array.isArray(p))) throw new Error(`${where(t)} params is an object ({ series: "CPIAUCSL" }), not ${JSON.stringify(p)}`);
   const s = durationSeconds(t.attrs.every);
@@ -129,7 +156,27 @@ function sourceOf(t: DocTree): MonitorSource {
   oneOf(t, "via", VIAS);
   if (t.attrs.exit !== undefined && t.attrs.via !== "vpn") throw new Error(`${where(t)} exit names an exit country ("DE") or an exit ("fsn-1"), for via="vpn" only`);
   oneOf(t, "mode", MODES);
-  if (t.attrs.host !== undefined && t.attrs.via !== "host") throw new Error(`${where(t)} host names a host for via="host" only`);
+  const via = t.attrs.via as string | undefined;
+  const onVm = via === "vm" || via === "android-vm";
+  if (t.attrs.host !== undefined && via !== "host" && via !== "browser" && via !== "phone" && !onVm) throw new Error(`${where(t)} host names the host that reads it, for via="host", "browser", "phone", "vm" or "android-vm" only`);
+  if (t.attrs.profile !== undefined && via !== "browser") throw new Error(`${where(t)} profile names a browser profile of the host, for via="browser" only`);
+  if (t.attrs.session !== undefined && via !== "browser" && !onVm) throw new Error(`${where(t)} session names a logged-in state, for via="browser", "vm" or "android-vm" only`);
+  if (t.attrs.session !== undefined && t.attrs.profile !== undefined) throw new Error(`${where(t)} names its state once: a session or a profile`);
+  if (t.attrs.snapshot !== undefined && !onVm) throw new Error(`${where(t)} snapshot is what a via="vm" or "android-vm" read launches from`);
+  if (t.attrs.session !== undefined && t.attrs.snapshot !== undefined) throw new Error(`${where(t)} names its state once: a session or a snapshot`);
+  if (onVm && t.attrs.session === undefined && t.attrs.snapshot === undefined) throw new Error(`${where(t)} via="${via}" launches from a snapshot: it names a session or a snapshot`);
+  const cost = t.attrs.maxCostPerDay;
+  if (cost !== undefined && !onVm) throw new Error(`${where(t)} maxCostPerDay bounds what a via="vm" or "android-vm" source spends`);
+  if (onVm && cost === undefined) throw new Error(`${where(t)} via="${via}" costs money: it says maxCostPerDay (USD a day)`);
+  if (cost !== undefined && !(typeof cost === "number" && Number.isFinite(cost) && cost > 0)) throw new Error(`${where(t)} maxCostPerDay is a price in USD (2.5), not ${JSON.stringify(cost)}`);
+  if (t.attrs.keep !== undefined && !onVm) throw new Error(`${where(t)} keep is how long a via="vm" or "android-vm" machine stays up`);
+  if (t.attrs.keep !== undefined) {
+    const k = durationSeconds(t.attrs.keep);
+    if (k === null || k < durationSeconds(EVERY_BOUNDS.min)! || k > durationSeconds(EVERY_BOUNDS.max)!) throw new Error(`${where(t)} keep is a duration from ${EVERY_BOUNDS.min} to ${EVERY_BOUNDS.max}, not ${JSON.stringify(t.attrs.keep)}`);
+  }
+  if (t.attrs.unit !== undefined && via !== "phone") throw new Error(`${where(t)} unit names the phone a via="phone" read runs on`);
+  if (via === "phone" && t.attrs.unit === undefined) throw new Error(`${where(t)} via="phone" names its phone: unit="<world.tsx>#<uid>"`);
+  if (t.attrs.unit !== undefined && !UNIT_REF.test(t.attrs.unit as string)) throw new Error(`${where(t)} unit is "<world.tsx ref>#<uid>" ("../../worlds/fleet/world.tsx#android-01"), not ${JSON.stringify(t.attrs.unit)}`);
   if (t.attrs.mode === "stream" && t.attrs.via !== "host") throw new Error(`${where(t)} mode="stream" holds a connection open, which runs on a host (via="host")`);
   if (t.attrs.retain !== undefined && t.attrs.mode !== "stream") throw new Error(`${where(t)} retain is for mode="stream" only`);
   if (t.attrs.retain !== undefined && !RETAIN.test(t.attrs.retain as string)) throw new Error(`${where(t)} retain is "all", "derived" or "sample:<duration>", not ${JSON.stringify(t.attrs.retain)}`);
@@ -193,7 +240,7 @@ export function monitorWithDefaults(m: MonitorDoc) {
     class: m.class ?? null,
     about: m.about ?? null,
     readme: m.readme ?? null,
-    sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null, host: s.host ?? null, mode: s.mode ?? "poll", retain: s.mode === "stream" ? (s.retain ?? "derived") : null, since: s.since ?? null })),
+    sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null, host: s.host ?? null, mode: s.mode ?? "poll", retain: s.mode === "stream" ? (s.retain ?? "derived") : null, since: s.since ?? null, session: s.session ?? null, snapshot: s.snapshot ?? null, profile: s.profile ?? null, keep: s.keep ?? null, maxCostPerDay: s.maxCostPerDay ?? null, unit: s.unit ?? null })),
     follows: m.follows.map((f) => ({ monitor: f.monitor, match: f.match ?? null })),
     wakes: m.wakes.map((w) => ({ match: w.match ?? null, prompt: w.prompt })),
   };
