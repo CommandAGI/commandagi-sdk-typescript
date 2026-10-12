@@ -28,8 +28,9 @@
  * blueprint, a source by its `id` in its monitor, a follow by the `monitor` it follows; a wake by its place.
  *
  * Nothing adds a default: what the file does not say, the document does not have (`visibility`, `via`, `readme`,
- * `exit`). `monitorsWithDefaults` gives the document as the platform reads it (`visibility: "public"`, `via:
- * "worker"`, `readme` and `exit` null). A monitor's lists (`sources`, `follows`, `wakes`) and the blueprint's
+ * `exit`, `host`, `mode`, `retain`). `monitorsWithDefaults` gives the document as the platform reads it (`visibility:
+ * "public"`, `via: "worker"`, `mode: "poll"`, `readme`, `exit` and `host` null; a stream's `retain` "derived", a poll's
+ * null). A monitor's lists (`sources`, `follows`, `wakes`) and the blueprint's
  * `monitors` are always there, empty when the file has none.
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
@@ -37,12 +38,16 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 /** The fields of a blueprint, of a monitor, and of each part of a monitor. */
 export const BLUEPRINT_FIELDS = ["id", "title"] as const;
 export const MONITOR_FIELDS = ["id", "title", "class", "about", "visibility", "readme"] as const;
-export const SOURCE_FIELDS = ["id", "adapter", "params", "every", "via", "exit"] as const;
+export const SOURCE_FIELDS = ["id", "adapter", "params", "every", "via", "exit", "host", "mode", "retain"] as const;
 export const FOLLOW_FIELDS = ["monitor", "match"] as const;
 export const WAKE_FIELDS = ["match", "prompt"] as const;
 
 export const VISIBILITIES = ["public", "unlisted", "private"] as const;
 export const VIAS = ["worker", "host", "vpn"] as const;
+/** `poll` reads at each `every`; `stream` holds a connection open on a host and hands over what came at each `every`. */
+export const MODES = ["poll", "stream"] as const;
+/** What a stream source's thread keeps: every record, the derived records only, or one per series per duration. */
+export const RETAIN = /^(all|derived|sample:[1-9]\d*(s|m|h|d))$/;
 /** The shortest and the longest `every` a source may have (an adapter may ask for longer: its `minEvery`). */
 export const EVERY_BOUNDS = { min: "30s", max: "7d" } as const;
 
@@ -53,6 +58,11 @@ export interface MonitorSource {
   every: string;
   via?: (typeof VIAS)[number];
   exit?: string;
+  /** The host that reads it (its name), for `via: "host"`; absent: the account's first online host. */
+  host?: string;
+  mode?: (typeof MODES)[number];
+  /** `all` | `derived` | `sample:<duration>`, for `mode: "stream"`. */
+  retain?: string;
 }
 export interface MonitorFollow {
   monitor: string;
@@ -117,7 +127,7 @@ function attrsOf(o: object, keys: readonly string[]): Record<string, unknown> {
 }
 
 function sourceOf(t: DocTree): MonitorSource {
-  for (const k of ["id", "adapter", "exit"]) text(t, k);
+  for (const k of ["id", "adapter", "exit", "host", "retain"]) text(t, k);
   const p = t.attrs.params;
   if (p !== undefined && (!p || typeof p !== "object" || Array.isArray(p))) throw new Error(`${where(t)} params is an object ({ series: "CPIAUCSL" }), not ${JSON.stringify(p)}`);
   const s = durationSeconds(t.attrs.every);
@@ -125,6 +135,11 @@ function sourceOf(t: DocTree): MonitorSource {
   if (s < durationSeconds(EVERY_BOUNDS.min)! || s > durationSeconds(EVERY_BOUNDS.max)!) throw new Error(`${where(t)} every is from ${EVERY_BOUNDS.min} to ${EVERY_BOUNDS.max}, not ${JSON.stringify(t.attrs.every)}`);
   oneOf(t, "via", VIAS);
   if (t.attrs.exit !== undefined && t.attrs.via !== "vpn") throw new Error(`${where(t)} exit names a country for via="vpn" only`);
+  oneOf(t, "mode", MODES);
+  if (t.attrs.host !== undefined && t.attrs.via !== "host") throw new Error(`${where(t)} host names a host for via="host" only`);
+  if (t.attrs.mode === "stream" && t.attrs.via !== "host") throw new Error(`${where(t)} mode="stream" holds a connection open, which runs on a host (via="host")`);
+  if (t.attrs.retain !== undefined && t.attrs.mode !== "stream") throw new Error(`${where(t)} retain is for mode="stream" only`);
+  if (t.attrs.retain !== undefined && !RETAIN.test(t.attrs.retain as string)) throw new Error(`${where(t)} retain is "all", "derived" or "sample:<duration>", not ${JSON.stringify(t.attrs.retain)}`);
   return said(t.attrs, SOURCE_FIELDS) as unknown as MonitorSource;
 }
 
@@ -202,7 +217,7 @@ export function monitorsWithDefaults(d: MonitorsDoc) {
       about: m.about ?? null,
       visibility: m.visibility ?? "public",
       readme: m.readme ?? null,
-      sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null })),
+      sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null, host: s.host ?? null, mode: s.mode ?? "poll", retain: s.mode === "stream" ? (s.retain ?? "derived") : null })),
       follows: m.follows.map((f) => ({ monitor: f.monitor, match: f.match ?? null })),
       wakes: m.wakes.map((w) => ({ match: w.match ?? null, prompt: w.prompt })),
     })),
