@@ -33,9 +33,9 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 export const MONITOR_FIELDS = ["title", "class", "about", "readme", "sameAs"] as const;
 /** A subject: `<scheme>:<id>` (`cik:0001045810`, `ticker:NVDA`, `fomc:`). */
 export const SUBJECT = /^[a-z][a-z0-9-]*:\S*$/;
-export const SOURCE_FIELDS = ["id", "adapter", "params", "every", "via", "exit", "host", "mode", "retain", "since", "session", "snapshot", "profile", "keep", "maxCostPerDay", "unit", "vantage"] as const;
+export const SOURCE_FIELDS = ["id", "adapter", "params", "every", "via", "exit", "host", "mode", "retain", "since", "session", "snapshot", "profile", "keep", "maxCostPerDay", "unit", "vantage", "stagger"] as const;
 export const FOLLOW_FIELDS = ["monitor", "match", "where"] as const;
-export const DISCOVER_FIELDS = ["into", "match", "by", "component", "from", "props", "name", "max"] as const;
+export const DISCOVER_FIELDS = ["into", "of", "when", "slug", "class", "props", "name", "max"] as const;
 /** The most new folders a discover writes a tick. */
 export const DISCOVER_MAX = 50;
 export const WAKE_FIELDS = ["match", "prompt"] as const;
@@ -93,6 +93,11 @@ export interface MonitorSource {
   unit?: string;
   /** The observer it reads as: a vantage folder, relative to this monitor's folder (`../../infra/vantages/fsn-1`). */
   vantage?: string;
+  /**
+   * The first read falls at a fixed point of the whole first interval, not within ten minutes: a class's many monitors
+   * (an exploit each, read weekly) then read at different times.
+   */
+  stagger?: boolean;
 }
 export interface MonitorFollow {
   /** The followed monitor's folder, as a ref relative to this monitor's folder (`../../central-banks/fed`). */
@@ -101,24 +106,36 @@ export interface MonitorFollow {
   /** A filter on the followed records: `name=value` terms joined by `,` (`conversation=123`); a name is `about`, `class` or a data path. */
   where?: string;
 }
+/** A term of a `when`: a value (a string is a glob), the values allowed, or operators on the value. */
+export type WhenTest =
+  | string
+  | number
+  | boolean
+  | null
+  | Array<string | number | boolean>
+  | { eq?: string | number | boolean; ne?: string | number | boolean; gt?: number | string; gte?: number | string; lt?: number | string; lte?: number | string; in?: Array<string | number | boolean>; glob?: string; contains?: string; exists?: boolean };
+/** A condition: every term holds. A term is named `class`, `about`, `key`, `title` or `data.<path>`. */
+export type WhenCondition = Record<string, WhenTest>;
 /**
- * A discovering monitor's part (docs/mirrors.md § 3): when its records name a thing it has no folder for (a new
- * conversation), the platform writes `<into>/<slug>/monitor.tsx`, a one-line instance of `component` from the class
- * file `from` with `props` taken from the record. It never deletes a folder.
+ * A discovering monitor's part (docs/monitors.md § own thread or record): each record that satisfies `when` and names a
+ * thing by its `slug` that has no folder yet gets `<into>/<word>/monitor.tsx`, a one-line instance of the class
+ * `class` (`<file>#<Component>`) with `props` taken from the record. It reads its own records, or those of the
+ * monitors `of` names. It never deletes a folder.
  */
 export interface MonitorDiscover {
   /** The folder the new folders go in, relative to this monitor's folder; at or under it (absent: `./`). */
   into?: string;
-  /** A glob on the class of the records that may name a new thing. */
-  match?: string;
-  /** The data path whose value names the thing: one folder per value, ever. */
-  by: string;
-  /** The class component an instance renders, and the file that exports it (relative to this monitor's folder). */
-  component: string;
-  from: string;
-  /** Each prop of the instance and the data path it is taken from. */
+  /** The monitors whose records it reads, relative to this monitor's folder (absent: its own). */
+  of?: string | string[];
+  /** Which records name a thing that gets its own thread: one condition, or a list of them (any holds). Absent: every record. */
+  when?: WhenCondition | WhenCondition[];
+  /** What names the thing, one folder per value, ever: a data path, or the first value of `paths` that `pattern` takes. */
+  slug: string | { paths: string[]; pattern?: string };
+  /** The class an instance renders: its file relative to this monitor's folder, `#`, its exported name. */
+  class: string;
+  /** Each prop of the instance and the data path it is taken from; `"$slug"` is the thing's slug. */
   props?: Record<string, string>;
-  /** The data path a folder's name is made from (a counterparty's name); absent: `by`. */
+  /** The data path a folder's name is made from (a counterparty's name); absent: the slug. */
   name?: string;
   /** At most this many new folders a tick (absent: 10). */
   max?: number;
@@ -231,25 +248,58 @@ function sourceOf(t: DocTree): MonitorSource {
   if (t.attrs.retain !== undefined && !RETAIN.test(t.attrs.retain as string)) throw new Error(`${where(t)} retain is "all", "derived" or "sample:<duration>", not ${JSON.stringify(t.attrs.retain)}`);
   if (t.attrs.since !== undefined && !SINCE.test(t.attrs.since as string)) throw new Error(`${where(t)} since is a day ("2024-01-01"), not ${JSON.stringify(t.attrs.since)}`);
   if (t.attrs.since !== undefined && t.attrs.mode === "stream") throw new Error(`${where(t)} since is for a polled source; a stream starts when it connects`);
+  if (t.attrs.stagger !== undefined && typeof t.attrs.stagger !== "boolean") throw new Error(`${where(t)} stagger is true or false, not ${JSON.stringify(t.attrs.stagger)}`);
   return said(t.attrs, SOURCE_FIELDS) as unknown as MonitorSource;
 }
 
 const WORD = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 const DATA_PATH = /^[A-Za-z_]\w*(\.[A-Za-z_]\w*)*$/;
 const WHERE = /^[A-Za-z][\w.]*=[^,]+(,\s*[A-Za-z][\w.]*=[^,]+)*$/;
+/** A term's name in a `when`: a record field, or a path of its data. */
+const WHEN_NAME = /^(class|about|key|title|data(\.[A-Za-z_]\w*)+)$/;
+const WHEN_OPS = ["eq", "ne", "gt", "gte", "lt", "lte", "in", "glob", "contains", "exists"];
+/** The shape of a `when` (the platform reads its meaning: packages/domain/world/predicate.js in the repository). */
+function whenShape(when: unknown): string | null {
+  const list = Array.isArray(when) ? when : [when];
+  if (!list.length || list.length > 16) return "one condition, or a list of one to 16";
+  for (const c of list) {
+    if (!c || typeof c !== "object" || Array.isArray(c)) return `a condition is an object of terms ({ class: "security.kev" }), not ${JSON.stringify(c)}`;
+    for (const [name, test] of Object.entries(c as Record<string, unknown>)) {
+      if (!WHEN_NAME.test(name)) return `${JSON.stringify(name)} is class, about, key, title or a data path (data.cvss3)`;
+      if (test && typeof test === "object" && !Array.isArray(test))
+        for (const op of Object.keys(test)) if (!WHEN_OPS.includes(op)) return `${name}: ${op} is not an operator (${WHEN_OPS.join(", ")})`;
+    }
+  }
+  return null;
+}
 function discoverOf(t: DocTree): MonitorDiscover {
-  for (const k of ["into", "match", "by", "component", "from", "name"]) text(t, k, "by");
-  if (!/^[A-Z][A-Za-z0-9_]{0,59}$/.test(t.attrs.component as string)) throw new Error(`<discover> component is the class's exported name (Conversation), not ${JSON.stringify(t.attrs.component)}`);
-  if (!/\.[jt]sx?$/.test(t.attrs.from as string)) throw new Error(`<discover> from is the class file (../conversation.tsx), not ${JSON.stringify(t.attrs.from)}`);
-  for (const k of ["by", "name"]) if (t.attrs[k] !== undefined && !DATA_PATH.test(t.attrs[k] as string)) throw new Error(`<discover> ${k} is a data path (conversation), not ${JSON.stringify(t.attrs[k])}`);
+  const at = `<discover into="${(t.attrs.into as string | undefined) ?? "./"}">`;
+  for (const k of ["into", "class", "name"]) text(t, k, "into");
+  const of = t.attrs.of;
+  if (of !== undefined && !(typeof of === "string" ? of : Array.isArray(of) && of.length && of.every((x) => typeof x === "string" && x)))
+    throw new Error(`${at} of is a monitor's folder or a list of them (["../kev", "../cve-feed"]), not ${JSON.stringify(of)}`);
+  if (t.attrs.when !== undefined) {
+    const bad = whenShape(t.attrs.when);
+    if (bad) throw new Error(`${at} when: ${bad}`);
+  }
+  const slug = t.attrs.slug;
+  const slugOk =
+    (typeof slug === "string" && DATA_PATH.test(slug)) ||
+    (!!slug && typeof slug === "object" && !Array.isArray(slug) && Array.isArray((slug as { paths?: unknown }).paths) && ((slug as { paths: unknown[] }).paths).length > 0 &&
+      (slug as { paths: unknown[] }).paths.every((p) => typeof p === "string" && DATA_PATH.test(p)) &&
+      Object.keys(slug).every((k) => k === "paths" || k === "pattern"));
+  if (!slugOk) throw new Error(`${at} slug is a data path (data.cve) or { paths: [...], pattern }, not ${JSON.stringify(slug)}`);
+  if (!/^[^#\s]+\.[jt]sx?#[A-Z][A-Za-z0-9_]{0,59}$/.test(t.attrs.class as string))
+    throw new Error(`${at} class is the class file and its exported name ("../exploit.tsx#Exploit"), not ${JSON.stringify(t.attrs.class)}`);
+  if (t.attrs.name !== undefined && !DATA_PATH.test(t.attrs.name as string)) throw new Error(`${at} name is a data path (fromName), not ${JSON.stringify(t.attrs.name)}`);
   const props = t.attrs.props;
   if (props !== undefined) {
-    if (!props || typeof props !== "object" || Array.isArray(props)) throw new Error(`<discover> props maps each prop to a data path ({ conversation: "conversation" }), not ${JSON.stringify(props)}`);
+    if (!props || typeof props !== "object" || Array.isArray(props)) throw new Error(`${at} props maps each prop to a data path ({ conversation: "conversation" }), not ${JSON.stringify(props)}`);
     for (const [k, v] of Object.entries(props as Record<string, unknown>))
-      if (!/^[a-z][A-Za-z0-9]*$/.test(k) || typeof v !== "string" || !DATA_PATH.test(v)) throw new Error(`<discover> props.${k} is a data path, not ${JSON.stringify(v)}`);
+      if (!/^[a-z][A-Za-z0-9]*$/.test(k) || typeof v !== "string" || !(DATA_PATH.test(v) || v === "$slug")) throw new Error(`${at} props.${k} is a data path or "$slug", not ${JSON.stringify(v)}`);
   }
   const max = t.attrs.max;
-  if (max !== undefined && !(Number.isInteger(max) && (max as number) >= 1 && (max as number) <= DISCOVER_MAX)) throw new Error(`<discover> max is a whole number from 1 to ${DISCOVER_MAX}, not ${JSON.stringify(max)}`);
+  if (max !== undefined && !(Number.isInteger(max) && (max as number) >= 1 && (max as number) <= DISCOVER_MAX)) throw new Error(`${at} max is a whole number from 1 to ${DISCOVER_MAX}, not ${JSON.stringify(max)}`);
   return said(t.attrs, DISCOVER_FIELDS) as unknown as MonitorDiscover;
 }
 function deriveOf(t: DocTree): MonitorDerive {
@@ -261,7 +311,6 @@ function deriveOf(t: DocTree): MonitorDerive {
   for (const [port, ref] of Object.entries(inputs as Record<string, unknown>)) {
     if (!WORD.test(port)) throw new Error(`${where(t)} a port is a word, not ${JSON.stringify(port)}`);
     if (typeof ref !== "string" || !ref) throw new Error(`${where(t)} inputs.${port} is a monitor's folder, not ${JSON.stringify(ref)}`);
-    if (/^\.\/?$/.test(ref)) throw new Error(`${where(t)} inputs.${port} names this monitor; a derive takes other monitors' records`);
   }
   const p = t.attrs.params;
   if (p !== undefined && (!p || typeof p !== "object" || Array.isArray(p))) throw new Error(`${where(t)} params is an object ({ window: "1m" }), not ${JSON.stringify(p)}`);
@@ -302,7 +351,7 @@ export const monitorVocabulary: Vocabulary<MonitorDoc> = {
     follows: { parents: ["monitor"], key: "monitor", required: ["monitor"], attrs: FOLLOW_FIELDS },
     derive: { parents: ["monitor"], key: "id", required: ["id", "op", "inputs"], attrs: DERIVE_FIELDS },
     wake: { parents: ["monitor"], required: ["prompt"], attrs: WAKE_FIELDS },
-    discover: { parents: ["monitor"], required: ["by", "component", "from"], attrs: DISCOVER_FIELDS },
+    discover: { parents: ["monitor"], required: ["slug", "class"], attrs: DISCOVER_FIELDS },
   },
   // A follow names a monitor by its folder: the platform checks that one is there, not the file.
   fromTree: monitorOf,
@@ -335,10 +384,10 @@ export function monitorWithDefaults(m: MonitorDoc) {
     about: m.about ?? null,
     readme: m.readme ?? null,
     sameAs: m.sameAs ?? [],
-    sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null, host: s.host ?? null, mode: s.mode ?? "poll", retain: s.mode === "stream" ? (s.retain ?? "derived") : null, since: s.since ?? null, session: s.session ?? null, snapshot: s.snapshot ?? null, profile: s.profile ?? null, keep: s.keep ?? null, maxCostPerDay: s.maxCostPerDay ?? null, unit: s.unit ?? null, vantage: s.vantage ?? null })),
+    sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null, host: s.host ?? null, mode: s.mode ?? "poll", retain: s.mode === "stream" ? (s.retain ?? "derived") : null, since: s.since ?? null, session: s.session ?? null, snapshot: s.snapshot ?? null, profile: s.profile ?? null, keep: s.keep ?? null, maxCostPerDay: s.maxCostPerDay ?? null, unit: s.unit ?? null, vantage: s.vantage ?? null, stagger: s.stagger ?? false })),
     follows: m.follows.map((f) => ({ monitor: f.monitor, match: f.match ?? null, where: f.where ?? null })),
     derives: (m.derives ?? []).map((d) => ({ id: d.id, op: d.op, inputs: d.inputs, params: d.params ?? {}, since: d.since ?? null })),
     wakes: m.wakes.map((w) => ({ match: w.match ?? null, prompt: w.prompt })),
-    discovers: (m.discovers ?? []).map((d) => ({ into: d.into ?? "./", match: d.match ?? null, by: d.by, component: d.component, from: d.from, props: d.props ?? {}, name: d.name ?? null, max: d.max ?? 10 })),
+    discovers: (m.discovers ?? []).map((d) => ({ into: d.into ?? "./", of: d.of === undefined ? [] : typeof d.of === "string" ? [d.of] : d.of, when: d.when ?? null, slug: d.slug, class: d.class, props: d.props ?? {}, name: d.name ?? null, max: d.max ?? 10 })),
   };
 }

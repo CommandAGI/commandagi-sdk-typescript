@@ -42,7 +42,7 @@ test("a monitor in JSX: a class is a component, an instance is one element, and 
     about: "cik:0001045810",
     readme: null,
     sameAs: ["ticker:NVDA"],
-    sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m", via: "worker", exit: null, host: null, mode: "poll", retain: null, since: null, session: null, snapshot: null, profile: null, keep: null, maxCostPerDay: null, unit: null, vantage: null }],
+    sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m", via: "worker", exit: null, host: null, mode: "poll", retain: null, since: null, session: null, snapshot: null, profile: null, keep: null, maxCostPerDay: null, unit: null, vantage: null, stagger: false }],
     follows: [{ monitor: "../../central-banks/fed", match: "fomc.*", where: null }],
     derives: [],
     wakes: [{ match: "sec.filing.8-k*", prompt: "Say what the report changes." }],
@@ -74,7 +74,7 @@ test("a monitor refuses by name what it has no words for, and values out of rang
   assert.throws(one(src({ via: "host", retain: "all" })), /retain is for mode="stream" only/);
   assert.throws(one(src({ via: "host", mode: "stream", retain: "sample:soon" })), /retain is "all", "derived" or "sample:<duration>"/);
   const stream = declarationOf({ default: el("monitor", {}, src({ via: "host", host: "studio", mode: "stream", retain: "sample:1m" })) });
-  assert.deepEqual(monitorWithDefaults(stream.document!.document as never).sources[0], { id: "s", adapter: "fred", params: {}, every: "1h", via: "host", exit: null, host: "studio", mode: "stream", retain: "sample:1m", since: null, session: null, snapshot: null, profile: null, keep: null, maxCostPerDay: null, unit: null, vantage: null });
+  assert.deepEqual(monitorWithDefaults(stream.document!.document as never).sources[0], { id: "s", adapter: "fred", params: {}, every: "1h", via: "host", exit: null, host: "studio", mode: "stream", retain: "sample:1m", since: null, session: null, snapshot: null, profile: null, keep: null, maxCostPerDay: null, unit: null, vantage: null, stagger: false });
   assert.throws(one(src({ since: "2024-1-1" })), /since is a day/);
   assert.throws(one(src({ via: "host", mode: "stream", since: "2024-01-01" })), /since is for a polled source/);
   const started = declarationOf({ default: el("monitor", {}, src({ since: "2024-01-01" })) });
@@ -109,7 +109,8 @@ test("a derive names an operator, each port's input monitor by folder, its param
   assert.deepEqual(monitorWithDefaults(doc as never).derives[1], { id: "mid", op: "midpoint", inputs: { quotes: "../quotes" }, params: {}, since: null });
   const one = (props: Record<string, unknown>) => () => declarationOf({ default: el("monitor", {}, el("derive", { id: "d", op: "last", inputs: { records: "../x" }, ...props })) });
   assert.throws(one({ inputs: {} }), /inputs maps each port to a monitor's folder/);
-  assert.throws(one({ inputs: { records: "." } }), /names this monitor/);
+  // A derive may fold its own monitor's records (an exploit's lifecycle from its own reads).
+  assert.doesNotThrow(one({ inputs: { own: "./" } }));
   assert.throws(one({ inputs: { "bad port": "../x" } }), /a port is a word/);
   assert.throws(one({ params: [1] }), /params is an object/);
   assert.throws(one({ since: "soon" }), /since is a day/);
@@ -123,7 +124,7 @@ test("the paths with a browser, a machine launched from a snapshot, or a phone: 
   const doc = (props: Record<string, unknown>) => monitorWithDefaults(declarationOf({ default: el("monitor", {}, src(props)) }).document!.document as never).sources[0]!;
   assert.deepEqual(doc({ via: "browser", host: "studio", profile: "x-web" }), {
     id: "s", adapter: "x-profile", params: { handle: "nvidia" }, every: "1h", via: "browser", exit: null, host: "studio", mode: "poll", retain: null, since: null,
-    session: null, snapshot: null, profile: "x-web", keep: null, maxCostPerDay: null, unit: null, vantage: null,
+    session: null, snapshot: null, profile: "x-web", keep: null, maxCostPerDay: null, unit: null, vantage: null, stagger: false,
   });
   assert.equal(doc({ via: "browser", session: "../../infra/sessions/x-web/session.tsx" }).session, "../../infra/sessions/x-web/session.tsx");
   const vm = doc({ via: "vm", snapshot: "genesis", keep: "10m", maxCostPerDay: 2.5 });
@@ -156,24 +157,32 @@ test("a mirror discovers its conversations: a source names its vantage, a follow
       "monitor",
       { title: "Telegram: commandagi", class: "mirror" },
       el("source", { id: "user-api", adapter: "telegram-user", params: { account: "commandagi" }, every: "1m", via: "host", vantage: "../../../infra/vantages/laptop-linux" }),
-      el("discover", { match: "message.*", by: "conversation", component: "Conversation", from: "../../conversation.tsx", props: { conversation: "conversation", title: "fromName" }, name: "fromName", max: 5 }),
+      el("discover", { when: { class: "message.*" }, slug: "conversation", class: "../../conversation.tsx#Conversation", props: { conversation: "conversation", title: "fromName" }, name: "fromName", max: 5 }),
     ),
   }).document!.document as never;
   assert.deepEqual(monitorWithDefaults(mirror).discovers, [
-    { into: "./", match: "message.*", by: "conversation", component: "Conversation", from: "../../conversation.tsx", props: { conversation: "conversation", title: "fromName" }, name: "fromName", max: 5 },
+    { into: "./", of: [], when: { class: "message.*" }, slug: "conversation", class: "../../conversation.tsx#Conversation", props: { conversation: "conversation", title: "fromName" }, name: "fromName", max: 5 },
   ]);
   assert.equal(monitorWithDefaults(mirror).sources[0]!.vantage, "../../../infra/vantages/laptop-linux");
   assert.deepEqual(MONITORS.monitor.fromTree(MONITORS.monitor.toTree(mirror)), mirror, "both ways");
   const one = declarationOf({ default: () => el(Conversation, { conversation: "4412", title: "Alice" }) }).document!.document as { follows: unknown[] };
   assert.deepEqual(one.follows, [{ monitor: "../", match: "message.*", where: "conversation=4412" }]);
   const refuse = (props: Record<string, unknown>) => () =>
-    declarationOf({ default: el("monitor", {}, el("discover", { by: "conversation", component: "Conversation", from: "../c.tsx", ...props })) });
+    declarationOf({ default: el("monitor", {}, el("discover", { slug: "conversation", class: "../c.tsx#Conversation", ...props })) });
   assert.doesNotThrow(refuse({}));
-  assert.throws(refuse({ component: "conversation" }), /component is the class's exported name/);
-  assert.throws(refuse({ from: "../c.md" }), /from is the class file/);
-  assert.throws(refuse({ by: "data[0]" }), /by is a data path/);
+  // An exploit's discover: it reads three feeds, takes a CVE id from whichever path holds one, and says when in data.
+  assert.doesNotThrow(refuse({ of: ["./kev", "./cve-feed"], into: "./exploits", when: [{ class: "security.kev" }, { class: "security.cve", "data.cvss3": { gte: 9 } }], slug: { paths: ["data.cve", "data.id", "data.aliases"], pattern: "^CVE-" } }));
+  assert.throws(refuse({ class: "../c.tsx#conversation" }), /class is the class file and its exported name/);
+  assert.throws(refuse({ class: "../c.md#Conversation" }), /class is the class file and its exported name/);
+  assert.throws(refuse({ slug: "data[0]" }), /slug is a data path/);
+  assert.throws(refuse({ slug: { paths: [], pattern: "x" } }), /slug is a data path/);
+  assert.throws(refuse({ when: { "cvss": 9 } }), /when: "cvss" is class, about, key, title or a data path/);
+  assert.throws(refuse({ when: { "data.cvss": { above: 9 } } }), /when: data.cvss: above is not an operator/);
+  assert.throws(refuse({ of: [] }), /of is a monitor's folder or a list of them/);
   assert.throws(refuse({ props: { title: "a b" } }), /props.title is a data path/);
   assert.throws(refuse({ max: 500 }), /max is a whole number from 1 to 50/);
   assert.throws(refuse({ delete: true }), /delete is not read/);
+  assert.throws(refuse({ by: "conversation" }), /by is not read/);
   assert.throws(() => declarationOf({ default: el("monitor", {}, el("follows", { monitor: "../x", where: "conversation" })) }), /where is name=value terms/);
+  assert.throws(() => declarationOf({ default: el("monitor", {}, el("source", { id: "s", adapter: "osv", every: "7d", stagger: "yes" })) }), /stagger is true or false/);
 });
