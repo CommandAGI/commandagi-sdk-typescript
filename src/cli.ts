@@ -21,7 +21,7 @@
  *   commandagi call <tool> --json '{...}'          # the universal escape hatch — ANY platform tool
  *   commandagi run script.py                       # run a snippet server-side (stdin with -)
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { CommandAGI } from "./client.js";
 import { CLI_COMMANDS, ENV, type CliParam, type Command } from "./generated.js";
@@ -123,6 +123,7 @@ export function helpText(): string {
     "  commandagi agents                                The agent command center: every thread, what needs you (a terminal).",
     "  commandagi daemon start | status | stop | logs | run   Host this computer: the CommandAGI local host (workbench, files, devices, MCP, account link).",
     "  commandagi code eval <path> [--input name=value]…     Evaluate a code part headless (no network, bounded time and memory); prints its op graph and summary.",
+    "  commandagi threed install | status | serve [--port N]  The 3D design service (OpenCascade) on this computer, offline: what Kernel uses for COMMANDAGI_THREED=local.",
     "",
     `Env: ${ENV.apiKey} (required), ${ENV.baseUrl}, ${ENV.threadId}`,
     "",
@@ -309,6 +310,7 @@ async function main(): Promise<void> {
   }
   if (first === "daemon") return runDaemon(argv.slice(1));
   if (first === "code") return runCode(argv.slice(1));
+  if (first === "threed") return runThreed(argv.slice(1));
   if (!process.env[ENV.apiKey])
     fail(`set ${ENV.apiKey} (a cagi_ API key from Settings → API keys)`);
   const cagi = new CommandAGI();
@@ -337,18 +339,40 @@ async function runCode(argv: string[]): Promise<void> {
   await daemon.code(argv);
 }
 
+/**
+ * `commandagi threed install | status | serve` — the CommandAGI 3D design service (the OpenCascade kernel behind
+ * observe, export and measure) on this computer. Needs no API key: nothing leaves this computer. `install` downloads
+ * its dependencies once; `serve` runs it on 127.0.0.1 with COMMANDAGI_THREED_TOKEN as its bearer, which is what the
+ * SDK's `Kernel` starts for COMMANDAGI_THREED=local. The host's packed CLI does the work (dist/daemon/).
+ */
+async function runThreed(argv: string[]): Promise<void> {
+  const daemon = await loadDaemon();
+  if (!daemon.threed) fail("this build of the CLI does not carry the 3D design service");
+  await daemon.threed(argv);
+}
+
 function loadDaemon() {
   const entry = "./daemon/daemon-cli.js";
   return import(new URL(entry, import.meta.url).href) as Promise<{
     main(argv: string[]): Promise<void>;
     code?(argv: string[]): Promise<unknown>;
+    threed?(argv: string[]): Promise<unknown>;
     probeHost(): Promise<{ state: { owner: string; pid: number; url?: string; platform?: string; direct?: string } } | null>;
   }>;
 }
 
 // Run ONLY when invoked as the binary. The conformance test imports this module to drive `runCli`
 // against a recording client, and a top-level `main()` would try to dispatch the test runner's own argv.
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// npm runs the binary through a link (node_modules/.bin/commandagi) and Node gives the link's path, so the file the
+// link names is compared. Compared as given, an installed `commandagi` ran nothing and exited 0.
+function invokedFile(): string {
+  try {
+    return pathToFileURL(realpathSync(process.argv[1]!)).href;
+  } catch {
+    return "";
+  }
+}
+if (process.argv[1] && import.meta.url === invokedFile()) {
   main().catch((e) => {
     const detail =
       e && typeof e === "object" && "detail" in e ? (e as { detail: unknown }).detail : undefined;
