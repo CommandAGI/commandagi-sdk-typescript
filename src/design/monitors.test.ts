@@ -42,7 +42,7 @@ test("a monitor in JSX: a class is a component, an instance is one element, and 
     about: "cik:0001045810",
     readme: null,
     sameAs: ["ticker:NVDA"],
-    sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m", via: "worker", exit: null, host: null, mode: "poll", retain: null, since: null, session: null, snapshot: null, profile: null, keep: null, maxCostPerDay: null, unit: null, vantage: null, stagger: false }],
+    sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m", via: "worker", exit: null, host: null, mode: "poll", retain: null, since: null, session: null, snapshot: null, profile: null, keep: null, maxCostPerDay: null, unit: null, vantage: null }],
     follows: [{ monitor: "../../central-banks/fed", match: "fomc.*", where: null }],
     derives: [],
     wakes: [{ match: "sec.filing.8-k*", prompt: "Say what the report changes." }],
@@ -74,7 +74,7 @@ test("a monitor refuses by name what it has no words for, and values out of rang
   assert.throws(one(src({ via: "host", retain: "all" })), /retain is for mode="stream" only/);
   assert.throws(one(src({ via: "host", mode: "stream", retain: "sample:soon" })), /retain is "all", "derived" or "sample:<duration>"/);
   const stream = declarationOf({ default: el("monitor", {}, src({ via: "host", host: "studio", mode: "stream", retain: "sample:1m" })) });
-  assert.deepEqual(monitorWithDefaults(stream.document!.document as never).sources[0], { id: "s", adapter: "fred", params: {}, every: "1h", via: "host", exit: null, host: "studio", mode: "stream", retain: "sample:1m", since: null, session: null, snapshot: null, profile: null, keep: null, maxCostPerDay: null, unit: null, vantage: null, stagger: false });
+  assert.deepEqual(monitorWithDefaults(stream.document!.document as never).sources[0], { id: "s", adapter: "fred", params: {}, every: "1h", via: "host", exit: null, host: "studio", mode: "stream", retain: "sample:1m", since: null, session: null, snapshot: null, profile: null, keep: null, maxCostPerDay: null, unit: null, vantage: null });
   assert.throws(one(src({ since: "2024-1-1" })), /since is a day/);
   assert.throws(one(src({ via: "host", mode: "stream", since: "2024-01-01" })), /since is for a polled source/);
   const started = declarationOf({ default: el("monitor", {}, src({ since: "2024-01-01" })) });
@@ -124,7 +124,7 @@ test("the paths with a browser, a machine launched from a snapshot, or a phone: 
   const doc = (props: Record<string, unknown>) => monitorWithDefaults(declarationOf({ default: el("monitor", {}, src(props)) }).document!.document as never).sources[0]!;
   assert.deepEqual(doc({ via: "browser", host: "studio", profile: "x-web" }), {
     id: "s", adapter: "x-profile", params: { handle: "nvidia" }, every: "1h", via: "browser", exit: null, host: "studio", mode: "poll", retain: null, since: null,
-    session: null, snapshot: null, profile: "x-web", keep: null, maxCostPerDay: null, unit: null, vantage: null, stagger: false,
+    session: null, snapshot: null, profile: "x-web", keep: null, maxCostPerDay: null, unit: null, vantage: null,
   });
   assert.equal(doc({ via: "browser", session: "../../infra/sessions/x-web/session.tsx" }).session, "../../infra/sessions/x-web/session.tsx");
   const vm = doc({ via: "vm", snapshot: "genesis", keep: "10m", maxCostPerDay: 2.5 });
@@ -184,5 +184,4 @@ test("a mirror discovers its conversations: a source names its vantage, a follow
   assert.throws(refuse({ delete: true }), /delete is not read/);
   assert.throws(refuse({ by: "conversation" }), /by is not read/);
   assert.throws(() => declarationOf({ default: el("monitor", {}, el("follows", { monitor: "../x", where: "conversation" })) }), /where is name=value terms/);
-  assert.throws(() => declarationOf({ default: el("monitor", {}, el("source", { id: "s", adapter: "osv", every: "7d", stagger: "yes" })) }), /stagger is true or false/);
 });
