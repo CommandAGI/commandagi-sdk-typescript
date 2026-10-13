@@ -295,18 +295,18 @@ export class Kernel {
    * dimensions are measured on it (`dimensions`: each one's value and text) and the title block is the document's
    * engineering data. A document with a failed feature draws no sheet.
    */
-  sheet(doc: Doc, opts: { sheet?: string; format?: "svg" | "dxf" | "pdf"; materials?: readonly object[] } = {}): Promise<SheetFile> {
-    return this.op<SheetFile>("sheet", doc, { sheet: opts.sheet, format: opts.format ?? "svg", materials: opts.materials });
+  sheet(doc: Doc, opts: { sheet?: string; format?: "svg" | "dxf" | "pdf"; materials?: readonly object[]; parts?: LinkedParts } = {}): Promise<SheetFile> {
+    return this.op<SheetFile>("sheet", doc, { sheet: opts.sheet, format: opts.format ?? "svg", materials: opts.materials, parts: opts.parts });
   }
 
   /**
    * The bill of materials: a line per part with its engineering data and its mass from this build, and the same table
-   * as CSV. `parts` are an assembly's linked parts, each by the path the assembly names it with: its document (graph
-   * or text). A linked part that is not given is a line with its name.
+   * as CSV. `parts` are the files an assembly places (`linkedParts`): each placed 3D document is the lines of its own
+   * parts, and a file that is not given is a line with its name. `failures`: each feature that failed to build (a
+   * line's mass is then of what was built).
    */
-  bom(doc: Doc, opts: { parts?: Record<string, Doc>; materials?: readonly object[] } = {}): Promise<{ lines: Record<string, unknown>[]; csv: string }> {
-    const parts = opts.parts ? Object.fromEntries(Object.entries(opts.parts).map(([path, part]) => [path, docText(part)])) : undefined;
-    return this.op("bom", doc, { parts, materials: opts.materials });
+  bom(doc: Doc, opts: { parts?: LinkedParts; materials?: readonly object[] } = {}): Promise<{ lines: Record<string, unknown>[]; csv: string; failures: Record<string, string> }> {
+    return this.op("bom", doc, { parts: opts.parts, materials: opts.materials });
   }
 
   /**

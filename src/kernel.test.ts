@@ -64,11 +64,11 @@ test("a service on this computer gets its own bearer and never the account's API
     // materials table (the density a body's mass uses).
     const mine = [{ id: "6061-T6", densityGCm3: 2.71, source: "mill certificate 4711" }];
     assert.equal((await kernel.sheet("{}", { sheet: "sheet1", format: "pdf" })).contentBase64, "JVBERg==");
-    assert.equal((await kernel.bom("{}", { parts: { "plate.3d.tsx": { id: "3d-plate", nodes: {} } }, materials: mine })).csv, "item\n");
+    assert.equal((await kernel.bom("{}", { parts: linkedParts({ "plate.3d.tsx": { id: "3d-plate", nodes: {} } }), materials: mine })).csv, "item\n");
     await kernel.observe("{}", { materials: mine });
     assert.deepEqual(seen.slice(-3), [
       { url: "/sheet", auth: "Bearer service-bearer", body: { docText: "{}", sheet: "sheet1", format: "pdf" } },
-      { url: "/bom", auth: "Bearer service-bearer", body: { docText: "{}", parts: { "plate.3d.tsx": '{"id":"3d-plate","nodes":{}}' }, materials: mine } },
+      { url: "/bom", auth: "Bearer service-bearer", body: { docText: "{}", parts: { "3d:name:plate.3d.tsx": { docText: '{"id":"3d-plate","nodes":{}}' } }, materials: mine } },
       { url: "/observe", auth: "Bearer service-bearer", body: { docText: "{}", digest: "", materials: mine } },
     ]);
   } finally {
