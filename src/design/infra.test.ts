@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { declarationOf, exitWithDefaults, INFRA, jsx, vantageWithDefaults } from "./index.js";
+import { declarationOf, exitWithDefaults, INFRA, jsx, sessionWithDefaults, vantageWithDefaults } from "./index.js";
 
 const el = (tag: unknown, props: Record<string, unknown> = {}, ...children: unknown[]) => jsx(tag as string, { ...props, ...(children.length ? { children } : {}) });
 
@@ -68,4 +68,27 @@ test("a vantage is a device, a place and a session: the run gives the VantageDoc
   assert.throws(v({ timezone: "CST 6" }), /timezone is an IANA zone/);
   assert.throws(v({ location: { lat: 120 } }), /location.lat is a number from -90 to 90/);
   assert.throws(v({ clock: 50 }), /clock is \{ sd \} in ms/);
+});
+
+test("a logged-in state in JSX: a browser profile or a snapshot, the monitors that use it, and no credential", () => {
+  const { document } = declarationOf({
+    default: () => el("session", { name: "x-web", site: "https://x.com", kind: "browser-profile", profile: "x-web", refreshed: "2026-10-12" }, el("uses", { monitor: "../../../social/x/nvidia" })),
+  });
+  assert.equal(document!.format, "session");
+  assert.deepEqual(document!.document, { name: "x-web", site: "https://x.com", kind: "browser-profile", profile: "x-web", refreshed: "2026-10-12", uses: [{ monitor: "../../../social/x/nvidia" }] });
+  assert.deepEqual(INFRA.session.fromTree(INFRA.session.toTree(document!.document as never)), document!.document, "both ways");
+  assert.deepEqual(sessionWithDefaults(document!.document as never), {
+    name: "x-web", site: "https://x.com", kind: "browser-profile", host: null, profile: "x-web", snapshot: null, refreshed: "2026-10-12", note: null, uses: ["../../../social/x/nvidia"],
+  });
+  const session = (props: Record<string, unknown>) => () => declarationOf({ default: el("session", { name: "s-1", site: "https://example.com", kind: "vm-snapshot", snapshot: "genesis", ...props }) });
+  assert.doesNotThrow(session({}));
+  assert.throws(session({ kind: "cookie-jar" }), /kind is "browser-profile", "vm-snapshot", "android-snapshot"/);
+  assert.throws(session({ snapshot: undefined }), /a vm-snapshot names its snapshot/);
+  assert.throws(session({ kind: "browser-profile", snapshot: undefined }), /a browser-profile names its profile/);
+  assert.throws(session({ kind: "browser-profile", profile: "p" }), /a browser-profile has a profile, not a snapshot/);
+  assert.throws(session({ profile: "studio" }), /a vm-snapshot has a snapshot, not a profile/);
+  assert.equal(sessionWithDefaults(declarationOf({ default: el("session", { name: "s-1", site: "https://example.com", kind: "vm-snapshot", snapshot: "genesis", host: "store-reader" }) }).document!.document as never).host, "store-reader");
+  assert.throws(session({ site: "x.com" }), /site is an https address/);
+  assert.throws(session({ refreshed: "yesterday" }), /refreshed is a day/);
+  assert.throws(session({ password: "hunter2" }), /password is not read/);
 });

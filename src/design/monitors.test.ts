@@ -42,7 +42,7 @@ test("a monitor in JSX: a class is a component, an instance is one element, and 
     about: "cik:0001045810",
     readme: null,
     sameAs: ["ticker:NVDA"],
-    sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m", via: "worker", exit: null, host: null, mode: "poll", retain: null, since: null, vantage: null }],
+    sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m", via: "worker", exit: null, host: null, mode: "poll", retain: null, since: null, session: null, snapshot: null, profile: null, keep: null, maxCostPerDay: null, unit: null, vantage: null }],
     follows: [{ monitor: "../../central-banks/fed", match: "fomc.*", where: null }],
     derives: [],
     wakes: [{ match: "sec.filing.8-k*", prompt: "Say what the report changes." }],
@@ -66,15 +66,15 @@ test("a monitor refuses by name what it has no words for, and values out of rang
   assert.throws(one(src({ every: "6 hours" })), /every is a duration/);
   assert.throws(one(src({ every: "10s" })), /every is from 30s to 7d/);
   assert.throws(one(src({ every: "8d" })), /every is from 30s to 7d/);
-  assert.throws(one(src({ via: "phone" })), /via is "worker", "host", "vpn"/);
+  assert.throws(one(src({ via: "ftp" })), /via is "worker", "host", "vpn", "browser", "vm", "android-vm", "phone"/);
   assert.throws(one(src({ exit: "DE" })), /exit names an exit country \("DE"\) or an exit \("fsn-1"\), for via="vpn" only/);
-  assert.throws(one(src({ host: "studio" })), /host names a host for via="host" only/);
+  assert.throws(one(src({ host: "studio" })), /host names the host that reads it, for via="host", "browser", "phone", "vm" or "android-vm" only/);
   assert.throws(one(src({ mode: "stream" })), /mode="stream" holds a connection open, which runs on a host/);
   assert.throws(one(src({ via: "host", mode: "push" })), /mode is "poll", "stream"/);
   assert.throws(one(src({ via: "host", retain: "all" })), /retain is for mode="stream" only/);
   assert.throws(one(src({ via: "host", mode: "stream", retain: "sample:soon" })), /retain is "all", "derived" or "sample:<duration>"/);
   const stream = declarationOf({ default: el("monitor", {}, src({ via: "host", host: "studio", mode: "stream", retain: "sample:1m" })) });
-  assert.deepEqual(monitorWithDefaults(stream.document!.document as never).sources[0], { id: "s", adapter: "fred", params: {}, every: "1h", via: "host", exit: null, host: "studio", mode: "stream", retain: "sample:1m", since: null, vantage: null });
+  assert.deepEqual(monitorWithDefaults(stream.document!.document as never).sources[0], { id: "s", adapter: "fred", params: {}, every: "1h", via: "host", exit: null, host: "studio", mode: "stream", retain: "sample:1m", since: null, session: null, snapshot: null, profile: null, keep: null, maxCostPerDay: null, unit: null, vantage: null });
   assert.throws(one(src({ since: "2024-1-1" })), /since is a day/);
   assert.throws(one(src({ via: "host", mode: "stream", since: "2024-01-01" })), /since is for a polled source/);
   const started = declarationOf({ default: el("monitor", {}, src({ since: "2024-01-01" })) });
@@ -115,6 +115,37 @@ test("a derive names an operator, each port's input monitor by folder, its param
   assert.throws(one({ since: "soon" }), /since is a day/);
   assert.throws(one({ id: "a.b" }), /id is a word/);
   assert.throws(() => declarationOf({ default: el("monitor", {}, el("derive", { id: "d", inputs: { a: "../x" } })) }), /<derive id="d"> needs op/);
+});
+
+test("the paths with a browser, a machine launched from a snapshot, or a phone: each says what it reads through", () => {
+  const one = (...children: unknown[]) => () => declarationOf({ default: el("monitor", {}, ...children) });
+  const src = (props: Record<string, unknown>) => el("source", { id: "s", adapter: "x-profile", params: { handle: "nvidia" }, every: "1h", ...props });
+  const doc = (props: Record<string, unknown>) => monitorWithDefaults(declarationOf({ default: el("monitor", {}, src(props)) }).document!.document as never).sources[0]!;
+  assert.deepEqual(doc({ via: "browser", host: "studio", profile: "x-web" }), {
+    id: "s", adapter: "x-profile", params: { handle: "nvidia" }, every: "1h", via: "browser", exit: null, host: "studio", mode: "poll", retain: null, since: null,
+    session: null, snapshot: null, profile: "x-web", keep: null, maxCostPerDay: null, unit: null,
+  });
+  assert.equal(doc({ via: "browser", session: "../../infra/sessions/x-web/session.tsx" }).session, "../../infra/sessions/x-web/session.tsx");
+  const vm = doc({ via: "vm", snapshot: "genesis", keep: "10m", maxCostPerDay: 2.5 });
+  assert.deepEqual([vm.snapshot, vm.keep, vm.maxCostPerDay], ["genesis", "10m", 2.5]);
+  assert.equal(doc({ via: "android-vm", session: "../s/session.tsx", maxCostPerDay: 1 }).via, "android-vm");
+  assert.equal(doc({ via: "phone", unit: "../../../worlds/fleet/world.tsx#android-01" }).unit, "../../../worlds/fleet/world.tsx#android-01");
+  assert.equal(doc({ via: "phone", unit: "cloud://home/user-commandagi/worlds/fleet/world.tsx#android-01" }).via, "phone");
+  assert.throws(one(src({ via: "vm", snapshot: "genesis" })), /via="vm" costs money: it says maxCostPerDay/);
+  assert.throws(one(src({ via: "vm", maxCostPerDay: 1 })), /via="vm" launches from a snapshot: it names a session or a snapshot/);
+  assert.throws(one(src({ via: "vm", snapshot: "g", session: "../s.tsx", maxCostPerDay: 1 })), /names its state once: a session or a snapshot/);
+  assert.throws(one(src({ via: "vm", snapshot: "g", maxCostPerDay: "2" })), /maxCostPerDay is a price in USD/);
+  assert.throws(one(src({ via: "vm", snapshot: "g", maxCostPerDay: 0 })), /maxCostPerDay is a price in USD/);
+  assert.throws(one(src({ via: "vm", snapshot: "g", maxCostPerDay: 1, keep: "forever" })), /keep is a duration from 30s to 7d/);
+  assert.throws(one(src({ via: "browser", keep: "10m" })), /keep is how long a via="vm" or "android-vm" machine stays up/);
+  assert.throws(one(src({ via: "browser", maxCostPerDay: 1 })), /maxCostPerDay bounds what a via="vm" or "android-vm" source spends/);
+  assert.throws(one(src({ via: "browser", snapshot: "g" })), /snapshot is what a via="vm" or "android-vm" read launches from/);
+  assert.throws(one(src({ via: "worker", profile: "x-web" })), /profile names a browser profile of the host, for via="browser" only/);
+  assert.throws(one(src({ via: "browser", profile: "x", session: "../s.tsx" })), /names its state once: a session or a profile/);
+  assert.throws(one(src({ via: "worker", session: "../s.tsx" })), /session names a logged-in state, for via="browser", "vm" or "android-vm" only/);
+  assert.throws(one(src({ via: "phone" })), /via="phone" names its phone: unit=/);
+  assert.throws(one(src({ via: "phone", unit: "android-01" })), /unit is "<world.tsx ref>#<uid>"/);
+  assert.throws(one(src({ via: "browser", unit: "w/world.tsx#a" })), /unit names the phone a via="phone" read runs on/);
 });
 
 test("a mirror discovers its conversations: a source names its vantage, a follow filters, a discover writes one folder per conversation", () => {
