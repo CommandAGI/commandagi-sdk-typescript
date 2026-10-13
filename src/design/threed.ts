@@ -13,7 +13,7 @@
  *       </sketch>
  *       <extrude id="extrude1" name="Extrude1" profile={{ sketch: "sketch1" }} distance={6} operation="new" />
  *       <fillet id="fillet1" name="Fillet1" radius={2} edges={[…]} consumes={["extrude1"]} />
- *       <body id="extrude1" material="aluminium-6061" />
+ *       <body id="extrude1" engineering={{ material: "6061-T6", process: "cnc-milling" }} />
  *     </part>
  *   );
  *
@@ -32,16 +32,25 @@
  *                                             <circle id center radius>, <arc id center start end radius>,
  *                                             <spline>, <ellipse>, <ellipseArc>), <constraint id kind entities
  *                                             value reference>, <projection id ref feature>
- *   <body id name material visible …>         a body's own data (`bodyMeta[id]`): its material, its name
- *   <slot name value>                         any other field of the document, whole (environment, assembly
- *                                             mates, dynamics, animation, standardParts, decals, …)
+ *   <body id name material engineering …>     a body's own data (`bodyMeta[id]`): its name, its look (`material`: a
+ *                                             colour, a metalness) and what it is (`engineering`: the material grade
+ *                                             by its id in a materials table, the process, the finish, the vendor and
+ *                                             the cost; `ThreeD.PartEngineering`)
+ *   <joint id kind a b anchor axis limits …>  a joint between two bodies (`dynamics.joints`): fixed, revolute,
+ *                                             prismatic, cylindrical, planar, screw, spherical or universal, its
+ *                                             axis, its limits and the geometry it binds (`refA`, `refB`)
+ *   <mate id kind a b axis …>                 a mate between two components of an assembly (`assembly.mates`)
+ *   <sheet id size scale projection views …>  an engineering drawing sheet of the document (`drawings`): standard
+ *                                             views, the document's dimensions and a title block
+ *   <slot name value>                         any other field of the document, whole (environment, animation,
+ *                                             standardParts, decals, annotations, the rest of dynamics …)
  *
  * The reader declares the document's graph exactly (docs/formats.md § the 3D document's body): a feature is a node of
  * its type with its fields as ports, a plane a `plane` node, a parameter an `input` node whose `drives` are its
  * bindings, a slot a `3d.<field>` node, the bodies one `3d.bodyMeta` node. The order of the feature elements is
  * the order of the left-hand list (`presentation.order`). Every node carries the element it came from in
  * `meta.source`; a sketch's entities and the bodies are listed by key in `meta.sources`. Units are millimetres
- * and radians, as stored. An id is letters, digits, `_ . -`, with `/` between them (a merged code part's features
+ * and radians, as stored. A `<hole size="M4 close fit">` has that size's diameter (`./standards.ts`). An id is letters, digits, `_ . -`, with `/` between them (a merged code part's features
  * are `<code id>/<id>`). Anything else is refused by name, never guessed.
  *
  * A feature element is checked against its type's schema (`THREED_SCHEMA`; its props are typed in
@@ -54,6 +63,7 @@
 import { slug } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
 import { describeIssue, validate, withDefaults } from "./schema.js";
+import { sizedHole } from "./standards.js";
 import { THREED_SCHEMA } from "./threed-schema.js";
 
 /**
@@ -63,7 +73,7 @@ import { THREED_SCHEMA } from "./threed-schema.js";
 export const THREED_FEATURES: readonly string[] = Object.keys(THREED_SCHEMA.roots);
 const FEATURES = new Set(THREED_FEATURES);
 /** Tags with a meaning of their own: never a `<feature type>`. */
-const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "point", "constraint", "projection", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input"]);
+const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "joint", "mate", "sheet", "point", "constraint", "projection", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input"]);
 /** A sketch's segment kinds, by tag. */
 export const SKETCH_SEGMENTS: readonly string[] = ["line", "circle", "arc", "spline", "ellipse", "ellipseArc"];
 const SEGMENTS = new Set(SKETCH_SEGMENTS);
@@ -77,7 +87,16 @@ export const BUILTIN_PLANES = {
 const VIEW_ATTRS = new Set(["semanticVisibility"]);
 const PARAM_FIELDS = ["value", "unit", "comment", "min", "max", "step"];
 /** Document fields a <slot> may not hold: they have elements of their own, or are the graph itself. */
-const NOT_SLOTS = new Set(["id", "name", "units", "planes", "features", "parameters", "presentation", "isAssembly", "bodyMeta", "semanticVisibility"]);
+const NOT_SLOTS = new Set(["id", "name", "units", "planes", "features", "parameters", "presentation", "isAssembly", "bodyMeta", "semanticVisibility", "drawings"]);
+/**
+ * Elements that are the items of a list the document holds: the tag, the document field (its node), the port of that
+ * node that holds the list, and the definition each item is checked against (`THREED_SCHEMA.$defs`).
+ */
+export const THREED_LISTS: Readonly<Record<string, { node: string; port: string; def: string }>> = {
+  joint: { node: "dynamics", port: "joints", def: "DynamicsJoint" },
+  mate: { node: "assembly", port: "mates", def: "Mate" },
+  sheet: { node: "drawings", port: "value", def: "DrawingSheet" },
+};
 
 interface Node {
   id: string;
@@ -209,6 +228,7 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
   const bodies: Record<string, unknown> = {};
   const bodySources: Record<string, unknown> = {};
   const declared: DesignElement[] = [];
+  const lists: Record<string, { items: Record<string, unknown>[]; sources: Record<string, unknown> }> = {};
   for (const el of childElements(root.props.children)) {
     if (el.type === "parameter") {
       noChildren(el);
@@ -233,8 +253,17 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
       noChildren(el);
       const id = idOf(el);
       if (bodies[id]) throw new Error(`two <body> elements are called ${id}`);
-      bodies[id] = fields(el, ["id"]);
+      const body = fields(el, ["id"]);
+      if (body.engineering !== undefined) body.engineering = checkValue(el, "PartEngineering", body.engineering, "engineering");
+      bodies[id] = body;
       if (el.source !== undefined) bodySources[id] = el.source;
+    } else if (THREED_LISTS[el.type]) {
+      noChildren(el);
+      const id = idOf(el);
+      const list = (lists[el.type] ??= { items: [], sources: {} });
+      if (list.items.some((x) => x.id === id)) throw new Error(`two <${el.type}> elements are called ${id}`);
+      list.items.push(checkValue(el, THREED_LISTS[el.type]!.def, fields(el)) as Record<string, unknown>);
+      if (el.source !== undefined) list.sources[`${el.type}:${id}`] = el.source;
     } else if (el.type === "slot") {
       noChildren(el);
       const field = el.props.name;
@@ -247,6 +276,8 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
       if (OBJECT_SLOTS.has(field)) {
         if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${where(el)}: the document's ${field} is an object`);
         inputs = value as Record<string, unknown>;
+        for (const [tag, list] of Object.entries(THREED_LISTS))
+          if (list.node === field && list.port in inputs) throw new Error(`${where(el)}: ${list.port} are written as <${tag}> elements`);
       }
       nodes[field] = { id: field, type: `3d.${field}`, inputs, ...meta(el) };
     } else if (FEATURES.has(el.type)) {
@@ -273,6 +304,14 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
       const s = sketchOf(el);
       inputs = { ...rest, sketch: s.sketch };
       sources = s.sources;
+    }
+    // A hole that names a standard size ("M4 close fit") has that size's diameter and head (./standards.ts).
+    if (el.type === "hole" && typeof inputs.size === "string") {
+      try {
+        inputs = sizedHole(inputs);
+      } catch (e) {
+        throw new Error(`${where(el)}: ${(e as Error).message}`);
+      }
     }
     if (!generic) {
       const { type: _type, id: _id, name: _name, suppressed: _suppressed, ...filled } = checkFeature(el, { type, id, name: label ?? id, ...(suppressed !== undefined ? { suppressed } : {}), ...inputs });
@@ -304,6 +343,16 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
     const { name: label, ...inputs } = p;
     nodes[id] = { id, type: "plane", label, inputs: JSON.parse(JSON.stringify(inputs)) };
   }
+  for (const [tag, { items, sources }] of Object.entries(lists)) {
+    const { node: field, port } = THREED_LISTS[tag]!;
+    if (!nodes[field]) {
+      claim(field, `the document's ${field} (<${tag}>)`);
+      nodes[field] = { id: field, type: `3d.${field}`, inputs: {} };
+    }
+    const node = nodes[field]!;
+    node.inputs = { ...node.inputs, [port]: items };
+    if (Object.keys(sources).length) node.meta = { ...node.meta, sources: { ...((node.meta?.sources as Record<string, unknown>) ?? {}), ...sources } };
+  }
   if (Object.keys(bodies).length) {
     claim("bodyMeta", "the bodies (<body>)");
     nodes.bodyMeta = { id: "bodyMeta", type: "3d.bodyMeta", inputs: bodies, ...(Object.keys(bodySources).length ? { meta: { sources: bodySources } } : {}) };
@@ -326,6 +375,18 @@ function checkFeature(el: DesignElement, feature: Record<string, unknown>): Reco
   const root = { $ref: `#/$defs/${def}` };
   const filled = withDefaults(root, feature, THREED_SCHEMA.$defs) as Record<string, unknown>;
   const issues = validate(root, filled, THREED_SCHEMA.$defs);
+  if (issues.length) throw new Error(`${where(el)}: ${issues.map(describeIssue).join("; ")}`);
+  return filled;
+}
+
+/**
+ * A value checked against a definition of the schema (a body's engineering data, a joint, a mate, a sheet), with each
+ * required field it leaves out filled with its declared default; refused with every issue when it does not fit.
+ */
+function checkValue(el: DesignElement, def: string, value: unknown, at = ""): unknown {
+  const root = { $ref: `#/$defs/${def}` };
+  const filled = withDefaults(root, value, THREED_SCHEMA.$defs);
+  const issues = validate(root, filled, THREED_SCHEMA.$defs, at);
   if (issues.length) throw new Error(`${where(el)}: ${issues.map(describeIssue).join("; ")}`);
   return filled;
 }

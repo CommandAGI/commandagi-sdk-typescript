@@ -614,6 +614,161 @@ export type DraftFeature = {
 };
 
 /**
+ * An engineering drawing sheet of the document: views, dimensions and a title block. `<sheet>` in code.
+ */
+export type DrawingSheet = {
+  id: string;
+  /** The sheet's name in the list of drawings. */
+  name?: string;
+  /**
+   * The paper, landscape (ISO 216).
+   * @default "A3"
+   */
+  size?: "A4" | "A3" | "A2" | "A1" | "A0";
+  /**
+   * Sheet millimetres per model millimetre: 1 is 1:1, 0.5 is 1:2, 2 is 2:1.
+   * @exclusiveMinimum 0
+   * @default 1
+   */
+  scale?: number;
+  /**
+   * Where the views sit around the front view (ISO 128-3): first-angle puts the top view below it and the right view on its left; third-angle puts the top view above it and the right view on its right.
+   * @default "first-angle"
+   */
+  projection?: "first-angle" | "third-angle";
+  /**
+   * The views.
+   * @minItems 1
+   */
+  views: DrawingViewSpec[];
+  /** Draw only these bodies (a body's id, or the id of a feature that made it). Absent: every body. */
+  bodies?: string[];
+  /**
+   * Draw the edges behind the model's faces, dashed.
+   * @default true
+   */
+  hiddenLines?: boolean;
+  /**
+   * A callout for each hole: its count, diameter and depth, and its standard size when a hole feature names one.
+   * @default true
+   */
+  holeCallouts?: boolean;
+  /**
+   * The overall width and height of each view.
+   * @default true
+   */
+  overallDimensions?: boolean;
+  /** What the title block says that the document does not. */
+  title?: DrawingTitle;
+};
+
+/** What the title block says that the document does not: who drew it, when, and its number. */
+export type DrawingTitle = {
+  /** The drawing's title. Absent: the document's name. */
+  title?: string;
+  /** The drawing's number. Absent: the part number. */
+  drawingNumber?: string;
+  revision?: string;
+  drawnBy?: string;
+  checkedBy?: string;
+  /** The day it was drawn, YYYY-MM-DD. */
+  date?: string;
+  company?: string;
+  /** The general tolerance note ("ISO 2768-mK"). */
+  tolerance?: string;
+};
+
+/** A standard view, named by the side of the model the viewer stands on. */
+export type DrawingViewName = "iso" | "front" | "top" | "right" | "left" | "bottom" | "back";
+
+/** One view on a sheet. */
+export type DrawingViewSpec = {
+  id: string;
+  /** The side of the model the viewer stands on. */
+  view: DrawingViewName;
+  /**
+   * The centre of the view on the sheet, from the sheet's lower left. Absent: placed by the projection method.
+   * @unit mm
+   * @minItems 2
+   * @maxItems 2
+   */
+  at?: [number, number];
+  /**
+   * The view's own scale. Absent: the sheet's.
+   * @exclusiveMinimum 0
+   */
+  scale?: number;
+  /** Draw the edges behind the model's faces, dashed. Absent: the sheet's `hiddenLines`. */
+  hiddenLines?: boolean;
+  /** Show dimensions in this view. Absent: shown. */
+  dimensions?: boolean;
+};
+
+/**
+ * A joint between two bodies: its kind, its axis, its limits and the two references it binds. `<joint>` in code.
+ */
+export type DynamicsJoint = {
+  id: string;
+  /** The relative motion the joint leaves between its two bodies. */
+  kind: JointKind;
+  /** The first body: the id of the feature that makes it. */
+  a: string;
+  /** The second body. Absent: the first body is jointed to the world. */
+  b?: string;
+  /**
+   * A point of the joint's axis, in the document's space.
+   * @unit mm
+   */
+  anchor: Vec32;
+  /** The direction of the joint's axis (the normal of a planar joint's plane). Absent: +Z. */
+  axis?: Vec32;
+  /**
+   * The geometry of the first body the joint binds: the face or edge its anchor and axis were read from.
+   */
+  refA?: JointReference;
+  /** The geometry of the second body the joint binds. */
+  refB?: JointReference;
+  /**
+   * The limits of the joint's motion, lower then upper: radians for a joint that turns (revolute, cylindrical, screw, universal, spherical), millimetres for a prismatic joint. Absent: no limit.
+   * @minItems 2
+   * @maxItems 2
+   */
+  limits?: [number, number];
+  /**
+   * The limits of the slide of a cylindrical joint, lower then upper.
+   * @unit mm
+   * @minItems 2
+   * @maxItems 2
+   */
+  travel?: [number, number];
+  /**
+   * How far a screw joint advances along its axis in one turn.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  pitch?: number;
+  /** An actuator driving this joint → the mechanism becomes a robot. */
+  actuator?: {
+    mode: "position" | "velocity" | "torque";
+    target?: number;
+    gain?: number;
+    maxForce?: number;
+    /** The name a POLICY addresses this actuator by — `shoulder`, `wheel_left`, `gripper`. */
+    name?: string;
+    /**
+     * What this actuator IS for, as a hint rather than a taxonomy: `wheel` / `arm` / `finger` / `leg` / `rotor`. Free text on purpose — a closed enum here would be a claim about which robots exist.
+     */
+    role?: string;
+    /**
+     * The commandable range, in the joint's own unit (rad for a joint that turns, mm for a prismatic joint).
+     * @minItems 2
+     * @maxItems 2
+     */
+    ctrlrange?: [number, number];
+  };
+};
+
+/**
  * A LINKED (not embedded) part reference. Unlike ImportFeature — which copies the foreign STEP/IGES bytes into the document — an `ExternalPartRef` only records *where* to find another Drive file (by id or name) and reloads it on open. This keeps a part reusable across assemblies and lets a part edit propagate to every place it's used. The reference system (`cad/references.ts`) turns these into `FileRef`s (`role:"part"`); the editor resolves + meshes them. Foreign solids carry an `importer` ("step"/"iges") so the resolver knows to run the import path rather than run a `.3d.tsx`.
  */
 export type ExternalPartRef = {
@@ -1022,6 +1177,10 @@ export type HoleFeature = {
    * @default 4
    */
   headDepth?: number;
+  /**
+   * A standard hole by name: a thread and a fit, "M4 close fit", "M4 normal fit", "M4 loose fit", "M4 tap" (`./hole-sizes.ts`; the sizes are the shipped tables of ISO 273 and ISO 2306). It gives `diameter`, and for a counterbore or a countersink the head. Clear it to give a diameter that is not in the table.
+   */
+  size?: string;
   id: string;
   name: string;
   suppressed?: boolean;
@@ -1065,6 +1224,25 @@ export type ImportFeature = {
    * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
    */
   declaredBy?: CodeFeature;
+};
+
+/**
+ * The kinds of joint, by the relative motion each leaves between its two bodies: `fixed` none; `revolute` a turn about the axis; `prismatic` a slide along it; `cylindrical` a turn about it and a slide along it; `planar` a slide in the plane normal to the axis and a turn about the axis; `screw` a turn that advances `pitch` along the axis; `spherical` any turn about the anchor; `universal` two turns about crossed axes.
+ */
+export type JointKind = "fixed" | "revolute" | "prismatic" | "cylindrical" | "planar" | "screw" | "spherical" | "universal";
+
+/** The geometry of a body that a joint binds: a face, an edge or a vertex, named by where it is. */
+export type JointReference = {
+  kind: "face" | "edge" | "vertex";
+  /**
+   * The face's centre, the edge's midpoint or the vertex.
+   * @unit mm
+   */
+  point: Vec32;
+  /** The face's normal or the edge's direction. */
+  direction?: Vec32;
+  /** What a person calls it ("bore of the housing"). */
+  label?: string;
 };
 
 export type LinearPatternFeature = {
@@ -1236,6 +1414,34 @@ export type MakeHumanFeature = {
    */
   caucasian?: number;
 };
+
+/** How a part is made. */
+export type ManufacturingProcess = "cnc-milling" | "cnc-turning" | "laser-cutting" | "waterjet-cutting" | "sheet-metal-bending" | "extrusion" | "casting" | "injection-moulding" | "fdm-printing" | "sla-printing" | "sls-printing" | "welding" | "grinding" | "manual" | "purchased";
+
+/**
+ * A constraint between two placed components. References a component by its `ExternalPartRef` feature id and a local axis on that component. The assembly solver relaxes both components' placements (position AND orientation) toward simultaneous satisfaction of every mate with least motion; unsatisfiable mates (missing components) are reported, never silently dropped.
+ */
+export type Mate = {
+  id: string;
+  kind: MateKind;
+  /** The reference (heavier / typically fixed) component — feature id of an ExternalPartRef. */
+  a: string;
+  /** The dependent (typically moved) component — feature id of an ExternalPartRef. */
+  b: string;
+  /** Local axis on component A the mate references. */
+  axis: "X" | "Y" | "Z";
+  /** Local axis on component B (defaults to `axis` when omitted). */
+  axisB?: "X" | "Y" | "Z";
+  /** Signed gap (mm) for an `offset` mate (0 for coincident). */
+  offset?: number;
+  /** Target separation (mm) for a `distance` mate. */
+  distance?: number;
+  /** Target angle (rad) for an `angle` mate. */
+  angle?: number;
+};
+
+/** Mate kinds the assembly solver understands — a real 6-DOF set (translational + rotational). */
+export type MateKind = "coincident" | "offset" | "parallel" | "perpendicular" | "distance" | "angle" | "concentric";
 
 export type MaterialDef = {
   preset: MaterialPreset;
@@ -1510,6 +1716,74 @@ export type ParamRect = {
   uMax: number;
   vMin: number;
   vMax: number;
+};
+
+/** What a part costs, with where and when the price was read. */
+export type PartCost = {
+  /**
+   * The price of one unit.
+   * @minimum 0
+   */
+  amount: number;
+  /** ISO 4217 currency code. */
+  currency: string;
+  /**
+   * What one unit is.
+   * @default "each"
+   */
+  per?: "each" | "m" | "kg" | "m2";
+  /**
+   * The order quantity this price holds from.
+   * @minimum 1
+   */
+  quantity?: number;
+  /** Where the price was read: a page, a quote, or "estimate" with its basis. */
+  source: string;
+  /** The day the price was read, YYYY-MM-DD. */
+  date: string;
+};
+
+/** A part's engineering data: its material grade, process, finish, vendor, cost. */
+export type PartEngineering = {
+  /** The part's number in its owner's numbering. */
+  partNumber?: string;
+  /** What the part is, as a bill of materials says it. */
+  description?: string;
+  /** The standard designation of a bought standard part ("ISO 4762 M4×16 12.9"). */
+  designation?: string;
+  /** The engineering material: the id of a row of a materials table ("6061-T6", "304", "PETG"). */
+  material?: string;
+  /** How the part is made. */
+  process?: ManufacturingProcess;
+  /** The finish, as a drawing note says it ("anodize clear, 10 µm"). */
+  finish?: string;
+  /** Who sells it, and under which number. */
+  vendor?: PartVendor;
+  /** What it costs, with where and when the price was read. */
+  cost?: PartCost;
+  /** A weighed or datasheet mass. Absent: the mass is volume × the material's density. */
+  mass?: PartMass;
+};
+
+/** A mass that was weighed or read from a datasheet. It stands in place of volume × density. */
+export type PartMass = {
+  /**
+   * @unit g
+   * @exclusiveMinimum 0
+   */
+  grams: number;
+  /** Where the mass came from: a scale reading, a datasheet. */
+  source: string;
+};
+
+/** Who sells a part, and under which number. */
+export type PartVendor = {
+  /** The vendor's name. */
+  name: string;
+  /** The vendor's own number for the part. */
+  partNumber?: string;
+  /** The page that sells it. */
+  url?: string;
 };
 
 export type PathPatternFeature = {
@@ -2603,6 +2877,13 @@ export type Vec2 = [number, number];
  * @maxItems 3
  */
 export type Vec3 = [number, number, number];
+
+/**
+ * A point or vector in 3D.
+ * @minItems 3
+ * @maxItems 3
+ */
+export type Vec32 = [number, number, number];
 
 /**
  * A **scalar/label voxel volume** — CT/MRI/microscopy/segmentation grids (NIfTI/NRRD/DICOM). The field is normalized 0..1 and downsampled to a display-friendly grid on import (large clinical volumes don't fit a JSON doc verbatim). Rendered as three orthogonal MPR slice planes or a marching-cubes isosurface.

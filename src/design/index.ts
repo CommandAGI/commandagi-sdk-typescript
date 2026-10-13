@@ -82,7 +82,24 @@ export {
 export { fromTscircuit } from "./tscircuit.js";
 export { schSymbolTypeFor, SHEET_PARTS } from "./sheet.js";
 export * from "./business.js";
-export { declareThreeD, isThreeD, THREED_FEATURES, SKETCH_SEGMENTS, BUILTIN_PLANES } from "./threed.js";
+export { declareThreeD, isThreeD, THREED_FEATURES, THREED_LISTS, SKETCH_SEGMENTS, BUILTIN_PLANES } from "./threed.js";
+export {
+  material,
+  massGrams,
+  holeSize,
+  sizedHole,
+  standardRow,
+  HOLE_FITS,
+  HOLE_SIZES,
+  MATERIALS,
+  STANDARD_TABLES,
+  STANDARD_SOURCES,
+  type EngineeringMaterial,
+  type HoleFit,
+  type HoleSize,
+  type NamedHole,
+  type StandardRow,
+} from "./standards.js";
 export { THREED_SCHEMA } from "./threed-schema.js";
 export type * as ThreeD from "./threed-elements.js";
 export { validate, withDefaults, describeIssue, type JsonSchema, type SchemaDocument, type Issue, type IssueCode } from "./schema.js";

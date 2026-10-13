@@ -138,3 +138,51 @@ test("a world body's collider, centre, material and provenance are declared fiel
     message: '<meshBody id="world/t">: worldCollider/nx: must be at least 2 (got 1); worldRestitution: must be at most 1 (got 2)',
   });
 });
+
+// sdk/python and sdk/rust read the same elements to the same nodes (their tests hold the same values).
+test("a body's engineering data, a joint, a mate and a sheet are typed elements of the document", () => {
+  const read = (root: "part" | "assembly", ...children: unknown[]) => declarationOf({ default: jsx(root, { name: "P", children }) }).graph.nodes;
+  const engineering = {
+    partNumber: "CA-0001",
+    material: "6061-T6",
+    process: "cnc-milling",
+    finish: "anodize clear, 10 µm",
+    vendor: { name: "Misumi", partNumber: "HFS5-2020-300" },
+    cost: { amount: 12.5, currency: "USD", source: "quote Q-118", date: "2026-10-01" },
+  };
+  const joint = { id: "j1", kind: "revolute", a: "base", b: "arm", anchor: [0, 0, 40], axis: [0, 0, 1], limits: [-1.5, 1.5], refA: { kind: "face", point: [0, 0, 40], direction: [0, 0, 1] } };
+  const n = read(
+    "part",
+    jsx("box", { id: "base", center: [0, 0, 0], size: [10, 10, 10], operation: "new" }),
+    jsx("body", { id: "base", engineering }),
+    jsx("slot", { name: "dynamics", value: { ground: { enabled: true } } }),
+    jsx("joint", { ...joint, __source: 4 }),
+    jsx("joint", { id: "j2", kind: "screw", a: "arm", anchor: [0, 0, 0], pitch: 2 }),
+    jsx("sheet", { id: "sheet1", views: [{ id: "front", view: "front" }, { id: "top", view: "top" }], title: { drawnBy: "JV" } }),
+  );
+  assert.deepEqual(n.bodyMeta!.inputs, { base: { engineering } });
+  // The joints are the `joints` port of the document's dynamics, beside what its slot holds.
+  assert.deepEqual(n.dynamics, { id: "dynamics", type: "3d.dynamics", inputs: { ground: { enabled: true }, joints: [joint, { id: "j2", kind: "screw", a: "arm", anchor: [0, 0, 0], pitch: 2 }] }, meta: { sources: { "joint:j1": 4 } } });
+  // A sheet's fields with a default may be left out.
+  assert.deepEqual(n.drawings, {
+    id: "drawings",
+    type: "3d.drawings",
+    inputs: { value: [{ id: "sheet1", views: [{ id: "front", view: "front" }, { id: "top", view: "top" }], title: { drawnBy: "JV" }, size: "A3", scale: 1, projection: "first-angle", hiddenLines: true, holeCallouts: true, overallDimensions: true }] },
+  });
+  const mate = { id: "m1", kind: "concentric", a: "p1", b: "p2", axis: "Z" };
+  assert.deepEqual(read("assembly", jsx("mate", mate)).assembly, { id: "assembly", type: "3d.assembly", inputs: { mates: [mate] } });
+
+  const refused = (...children: unknown[]) => () => read("part", ...children);
+  assert.throws(refused(jsx("joint", { ...joint, kind: "hinge" })), {
+    message: '<joint id="j1">: kind: must be one of fixed, revolute, prismatic, cylindrical, planar, screw, spherical, universal (got "hinge")',
+  });
+  assert.throws(refused(jsx("joint", { id: "j1", kind: "fixed", a: "base" })), { message: '<joint id="j1">: anchor: is required' });
+  assert.throws(refused(jsx("body", { id: "base", engineering: { process: "magic", cost: { amount: 1, source: "x", date: "2026-10-01" } } })), {
+    message:
+      '<body id="base">: engineering/process: must be one of cnc-milling, cnc-turning, laser-cutting, waterjet-cutting, sheet-metal-bending, extrusion, casting, injection-moulding, fdm-printing, sla-printing, sls-printing, welding, grinding, manual, purchased (got "magic"); engineering/cost/currency: is required',
+  });
+  assert.throws(refused(jsx("slot", { name: "dynamics", value: { joints: [] } })), { message: '<slot name="dynamics">: joints are written as <joint> elements' });
+  assert.throws(refused(jsx("slot", { name: "drawings", value: [] })), /drawings is not a slot/);
+  assert.throws(refused(jsx("joint", joint), jsx("joint", joint)), /two <joint> elements are called j1/);
+  assert.throws(refused(jsx("sheet", { id: "s", views: [] })), /<sheet id="s">: views: /);
+});

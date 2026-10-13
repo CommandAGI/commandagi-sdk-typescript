@@ -4,7 +4,7 @@
  * (`<extrude distance="10">` is an error before the file runs). The elements are the same as `commandagi`'s runtime
  * makes; the reader (`declareThreeD`) checks them again against `THREED_SCHEMA`, for files written without types.
  */
-import type { SketchElements, ThreeDFeatureElements, Vec3 } from "./threed-elements.js";
+import type { DrawingSheet, DynamicsJoint, Mate, PartEngineering, SketchElements, ThreeDFeatureElements, Vec3 } from "./threed-elements.js";
 
 export { jsx, jsxs, jsxDEV, Fragment } from "./jsx-runtime.js";
 
@@ -31,8 +31,14 @@ export declare namespace JSX {
     parameter: { name: string; value: number; unit?: string; comment?: string; min?: number; max?: number; step?: number; bindings?: { target: string; field: string }[] };
     /** A datum plane. */
     plane: { id: string; name?: string; origin: Vec3; normal: Vec3; xAxis?: Vec3 };
-    /** A body's own data: its material, its name. */
-    body: { id: string; name?: string; material?: string; visible?: boolean; [field: string]: unknown };
+    /** A body's own data: its name, its look (`material`) and what it is (`engineering`). */
+    body: { id: string; name?: string; material?: unknown; engineering?: PartEngineering; visible?: boolean; [field: string]: unknown };
+    /** A joint between two bodies. */
+    joint: DynamicsJoint;
+    /** A mate between two components of an assembly. */
+    mate: Mate;
+    /** An engineering drawing sheet of the document. A field with a default may be left out. */
+    sheet: Pick<DrawingSheet, "id" | "views"> & Partial<DrawingSheet>;
     /** Any other field of the document, whole. */
     slot: { name: string; value: unknown };
     /** A feature of a type the kernel does not know. A known type is written as its own tag. */

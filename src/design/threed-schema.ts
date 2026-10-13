@@ -1396,6 +1396,294 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false
   },
+  "DrawingSheet": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string",
+     "description": "The sheet's name in the list of drawings."
+    },
+    "size": {
+     "type": "string",
+     "enum": [
+      "A4",
+      "A3",
+      "A2",
+      "A1",
+      "A0"
+     ],
+     "description": "The paper, landscape (ISO 216).",
+     "default": "A3"
+    },
+    "scale": {
+     "type": "number",
+     "description": "Sheet millimetres per model millimetre: 1 is 1:1, 0.5 is 1:2, 2 is 2:1.",
+     "exclusiveMinimum": 0,
+     "default": 1
+    },
+    "projection": {
+     "type": "string",
+     "enum": [
+      "first-angle",
+      "third-angle"
+     ],
+     "description": "Where the views sit around the front view (ISO 128-3): first-angle puts the top view below it and the right view on its left; third-angle puts the top view above it and the right view on its right.",
+     "default": "first-angle"
+    },
+    "views": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/DrawingViewSpec"
+     },
+     "description": "The views.",
+     "minItems": 1
+    },
+    "bodies": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Draw only these bodies (a body's id, or the id of a feature that made it). Absent: every body."
+    },
+    "hiddenLines": {
+     "type": "boolean",
+     "description": "Draw the edges behind the model's faces, dashed.",
+     "default": true
+    },
+    "holeCallouts": {
+     "type": "boolean",
+     "description": "A callout for each hole: its count, diameter and depth, and its standard size when a hole feature names one.",
+     "default": true
+    },
+    "overallDimensions": {
+     "type": "boolean",
+     "description": "The overall width and height of each view.",
+     "default": true
+    },
+    "title": {
+     "$ref": "#/$defs/DrawingTitle",
+     "description": "What the title block says that the document does not."
+    }
+   },
+   "required": [
+    "id",
+    "size",
+    "scale",
+    "projection",
+    "views",
+    "hiddenLines",
+    "holeCallouts",
+    "overallDimensions"
+   ],
+   "additionalProperties": false,
+   "description": "An engineering drawing sheet of the document: views, dimensions and a title block. `<sheet>` in code."
+  },
+  "DrawingTitle": {
+   "type": "object",
+   "properties": {
+    "title": {
+     "type": "string",
+     "description": "The drawing's title. Absent: the document's name."
+    },
+    "drawingNumber": {
+     "type": "string",
+     "description": "The drawing's number. Absent: the part number."
+    },
+    "revision": {
+     "type": "string"
+    },
+    "drawnBy": {
+     "type": "string"
+    },
+    "checkedBy": {
+     "type": "string"
+    },
+    "date": {
+     "type": "string",
+     "description": "The day it was drawn, YYYY-MM-DD."
+    },
+    "company": {
+     "type": "string"
+    },
+    "tolerance": {
+     "type": "string",
+     "description": "The general tolerance note (\"ISO 2768-mK\")."
+    }
+   },
+   "additionalProperties": false,
+   "description": "What the title block says that the document does not: who drew it, when, and its number."
+  },
+  "DrawingViewName": {
+   "type": "string",
+   "enum": [
+    "iso",
+    "front",
+    "top",
+    "right",
+    "left",
+    "bottom",
+    "back"
+   ],
+   "description": "A standard view, named by the side of the model the viewer stands on."
+  },
+  "DrawingViewSpec": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "view": {
+     "$ref": "#/$defs/DrawingViewName",
+     "description": "The side of the model the viewer stands on."
+    },
+    "at": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 2,
+     "maxItems": 2,
+     "description": "The centre of the view on the sheet, from the sheet's lower left. Absent: placed by the projection method.",
+     "x-unit": "mm"
+    },
+    "scale": {
+     "type": "number",
+     "description": "The view's own scale. Absent: the sheet's.",
+     "exclusiveMinimum": 0
+    },
+    "hiddenLines": {
+     "type": "boolean",
+     "description": "Draw the edges behind the model's faces, dashed. Absent: the sheet's `hiddenLines`."
+    },
+    "dimensions": {
+     "type": "boolean",
+     "description": "Show dimensions in this view. Absent: shown."
+    }
+   },
+   "required": [
+    "id",
+    "view"
+   ],
+   "additionalProperties": false,
+   "description": "One view on a sheet."
+  },
+  "DynamicsJoint": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "kind": {
+     "$ref": "#/$defs/JointKind",
+     "description": "The relative motion the joint leaves between its two bodies."
+    },
+    "a": {
+     "type": "string",
+     "description": "The first body: the id of the feature that makes it."
+    },
+    "b": {
+     "type": "string",
+     "description": "The second body. Absent: the first body is jointed to the world."
+    },
+    "anchor": {
+     "$ref": "#/$defs/Vec32",
+     "description": "A point of the joint's axis, in the document's space.",
+     "x-unit": "mm"
+    },
+    "axis": {
+     "$ref": "#/$defs/Vec32",
+     "description": "The direction of the joint's axis (the normal of a planar joint's plane). Absent: +Z."
+    },
+    "refA": {
+     "$ref": "#/$defs/JointReference",
+     "description": "The geometry of the first body the joint binds: the face or edge its anchor and axis were read from."
+    },
+    "refB": {
+     "$ref": "#/$defs/JointReference",
+     "description": "The geometry of the second body the joint binds."
+    },
+    "limits": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 2,
+     "maxItems": 2,
+     "description": "The limits of the joint's motion, lower then upper: radians for a joint that turns (revolute, cylindrical, screw, universal, spherical), millimetres for a prismatic joint. Absent: no limit."
+    },
+    "travel": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 2,
+     "maxItems": 2,
+     "description": "The limits of the slide of a cylindrical joint, lower then upper.",
+     "x-unit": "mm"
+    },
+    "pitch": {
+     "type": "number",
+     "description": "How far a screw joint advances along its axis in one turn.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "actuator": {
+     "type": "object",
+     "properties": {
+      "mode": {
+       "type": "string",
+       "enum": [
+        "position",
+        "velocity",
+        "torque"
+       ]
+      },
+      "target": {
+       "type": "number"
+      },
+      "gain": {
+       "type": "number"
+      },
+      "maxForce": {
+       "type": "number"
+      },
+      "name": {
+       "type": "string",
+       "description": "The name a POLICY addresses this actuator by — `shoulder`, `wheel_left`, `gripper`."
+      },
+      "role": {
+       "type": "string",
+       "description": "What this actuator IS for, as a hint rather than a taxonomy: `wheel` / `arm` / `finger` / `leg` / `rotor`. Free text on purpose — a closed enum here would be a claim about which robots exist."
+      },
+      "ctrlrange": {
+       "type": "array",
+       "items": {
+        "type": "number"
+       },
+       "minItems": 2,
+       "maxItems": 2,
+       "description": "The commandable range, in the joint's own unit (rad for a joint that turns, mm for a prismatic joint)."
+      }
+     },
+     "required": [
+      "mode"
+     ],
+     "additionalProperties": false,
+     "description": "An actuator driving this joint → the mechanism becomes a robot."
+    }
+   },
+   "required": [
+    "id",
+    "kind",
+    "a",
+    "anchor"
+   ],
+   "additionalProperties": false,
+   "description": "A joint between two bodies: its kind, its axis, its limits and the two references it binds. `<joint>` in code."
+  },
   "ExternalPartRef": {
    "type": "object",
    "properties": {
@@ -2302,6 +2590,10 @@ export const THREED_SCHEMA: SchemaDocument = {
       "style": "counterbore"
      }
     },
+    "size": {
+     "type": "string",
+     "description": "A standard hole by name: a thread and a fit, \"M4 close fit\", \"M4 normal fit\", \"M4 loose fit\", \"M4 tap\" (`./hole-sizes.ts`; the sizes are the shipped tables of ISO 273 and ISO 2306). It gives `diameter`, and for a counterbore or a countersink the head. Clear it to give a diameter that is not in the table."
+    },
     "id": {
      "type": "string"
     },
@@ -2405,6 +2697,52 @@ export const THREED_SCHEMA: SchemaDocument = {
     "name"
    ],
    "additionalProperties": false
+  },
+  "JointKind": {
+   "type": "string",
+   "enum": [
+    "fixed",
+    "revolute",
+    "prismatic",
+    "cylindrical",
+    "planar",
+    "screw",
+    "spherical",
+    "universal"
+   ],
+   "description": "The kinds of joint, by the relative motion each leaves between its two bodies: `fixed` none; `revolute` a turn about the axis; `prismatic` a slide along it; `cylindrical` a turn about it and a slide along it; `planar` a slide in the plane normal to the axis and a turn about the axis; `screw` a turn that advances `pitch` along the axis; `spherical` any turn about the anchor; `universal` two turns about crossed axes."
+  },
+  "JointReference": {
+   "type": "object",
+   "properties": {
+    "kind": {
+     "type": "string",
+     "enum": [
+      "face",
+      "edge",
+      "vertex"
+     ]
+    },
+    "point": {
+     "$ref": "#/$defs/Vec32",
+     "description": "The face's centre, the edge's midpoint or the vertex.",
+     "x-unit": "mm"
+    },
+    "direction": {
+     "$ref": "#/$defs/Vec32",
+     "description": "The face's normal or the edge's direction."
+    },
+    "label": {
+     "type": "string",
+     "description": "What a person calls it (\"bore of the housing\")."
+    }
+   },
+   "required": [
+    "kind",
+    "point"
+   ],
+   "additionalProperties": false,
+   "description": "The geometry of a body that a joint binds: a face, an edge or a vertex, named by where it is."
   },
   "LinearPatternFeature": {
    "type": "object",
@@ -2697,6 +3035,98 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A REAL human body: MakeHuman's hm08 basemesh morphed by its macro targets."
+  },
+  "ManufacturingProcess": {
+   "type": "string",
+   "enum": [
+    "cnc-milling",
+    "cnc-turning",
+    "laser-cutting",
+    "waterjet-cutting",
+    "sheet-metal-bending",
+    "extrusion",
+    "casting",
+    "injection-moulding",
+    "fdm-printing",
+    "sla-printing",
+    "sls-printing",
+    "welding",
+    "grinding",
+    "manual",
+    "purchased"
+   ],
+   "description": "How a part is made."
+  },
+  "Mate": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "kind": {
+     "$ref": "#/$defs/MateKind"
+    },
+    "a": {
+     "type": "string",
+     "description": "The reference (heavier / typically fixed) component — feature id of an ExternalPartRef."
+    },
+    "b": {
+     "type": "string",
+     "description": "The dependent (typically moved) component — feature id of an ExternalPartRef."
+    },
+    "axis": {
+     "type": "string",
+     "enum": [
+      "X",
+      "Y",
+      "Z"
+     ],
+     "description": "Local axis on component A the mate references."
+    },
+    "axisB": {
+     "type": "string",
+     "enum": [
+      "X",
+      "Y",
+      "Z"
+     ],
+     "description": "Local axis on component B (defaults to `axis` when omitted)."
+    },
+    "offset": {
+     "type": "number",
+     "description": "Signed gap (mm) for an `offset` mate (0 for coincident)."
+    },
+    "distance": {
+     "type": "number",
+     "description": "Target separation (mm) for a `distance` mate."
+    },
+    "angle": {
+     "type": "number",
+     "description": "Target angle (rad) for an `angle` mate."
+    }
+   },
+   "required": [
+    "id",
+    "kind",
+    "a",
+    "b",
+    "axis"
+   ],
+   "additionalProperties": false,
+   "description": "A constraint between two placed components. References a component by its `ExternalPartRef` feature id and a local axis on that component. The assembly solver relaxes both components' placements (position AND orientation) toward simultaneous satisfaction of every mate with least motion; unsatisfiable mates (missing components) are reported, never silently dropped."
+  },
+  "MateKind": {
+   "type": "string",
+   "enum": [
+    "coincident",
+    "offset",
+    "parallel",
+    "perpendicular",
+    "distance",
+    "angle",
+    "concentric"
+   ],
+   "description": "Mate kinds the assembly solver understands — a real 6-DOF set (translational + rotational)."
   },
   "MaterialDef": {
    "type": "object",
@@ -3397,6 +3827,137 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "The rectangle of parameter space a chart occupies. Half-open in the periodic direction."
+  },
+  "PartCost": {
+   "type": "object",
+   "properties": {
+    "amount": {
+     "type": "number",
+     "description": "The price of one unit.",
+     "minimum": 0
+    },
+    "currency": {
+     "type": "string",
+     "description": "ISO 4217 currency code."
+    },
+    "per": {
+     "type": "string",
+     "enum": [
+      "each",
+      "m",
+      "kg",
+      "m2"
+     ],
+     "description": "What one unit is.",
+     "default": "each"
+    },
+    "quantity": {
+     "type": "integer",
+     "description": "The order quantity this price holds from.",
+     "minimum": 1
+    },
+    "source": {
+     "type": "string",
+     "description": "Where the price was read: a page, a quote, or \"estimate\" with its basis."
+    },
+    "date": {
+     "type": "string",
+     "description": "The day the price was read, YYYY-MM-DD."
+    }
+   },
+   "required": [
+    "amount",
+    "currency",
+    "source",
+    "date"
+   ],
+   "additionalProperties": false,
+   "description": "What a part costs, with where and when the price was read."
+  },
+  "PartEngineering": {
+   "type": "object",
+   "properties": {
+    "partNumber": {
+     "type": "string",
+     "description": "The part's number in its owner's numbering."
+    },
+    "description": {
+     "type": "string",
+     "description": "What the part is, as a bill of materials says it."
+    },
+    "designation": {
+     "type": "string",
+     "description": "The standard designation of a bought standard part (\"ISO 4762 M4×16 12.9\")."
+    },
+    "material": {
+     "type": "string",
+     "description": "The engineering material: the id of a row of a materials table (\"6061-T6\", \"304\", \"PETG\")."
+    },
+    "process": {
+     "$ref": "#/$defs/ManufacturingProcess",
+     "description": "How the part is made."
+    },
+    "finish": {
+     "type": "string",
+     "description": "The finish, as a drawing note says it (\"anodize clear, 10 µm\")."
+    },
+    "vendor": {
+     "$ref": "#/$defs/PartVendor",
+     "description": "Who sells it, and under which number."
+    },
+    "cost": {
+     "$ref": "#/$defs/PartCost",
+     "description": "What it costs, with where and when the price was read."
+    },
+    "mass": {
+     "$ref": "#/$defs/PartMass",
+     "description": "A weighed or datasheet mass. Absent: the mass is volume × the material's density."
+    }
+   },
+   "additionalProperties": false,
+   "description": "A part's engineering data: its material grade, process, finish, vendor, cost."
+  },
+  "PartMass": {
+   "type": "object",
+   "properties": {
+    "grams": {
+     "type": "number",
+     "x-unit": "g",
+     "exclusiveMinimum": 0
+    },
+    "source": {
+     "type": "string",
+     "description": "Where the mass came from: a scale reading, a datasheet."
+    }
+   },
+   "required": [
+    "grams",
+    "source"
+   ],
+   "additionalProperties": false,
+   "description": "A mass that was weighed or read from a datasheet. It stands in place of volume × density."
+  },
+  "PartVendor": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "description": "The vendor's name."
+    },
+    "partNumber": {
+     "type": "string",
+     "description": "The vendor's own number for the part."
+    },
+    "url": {
+     "type": "string",
+     "description": "The page that sells it."
+    }
+   },
+   "required": [
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "Who sells a part, and under which number."
   },
   "PathPatternFeature": {
    "type": "object",
@@ -6115,6 +6676,15 @@ export const THREED_SCHEMA: SchemaDocument = {
    "description": "A point or vector in 2D (sketch space)."
   },
   "Vec3": {
+   "type": "array",
+   "items": {
+    "type": "number"
+   },
+   "minItems": 3,
+   "maxItems": 3,
+   "description": "A point or vector in 3D."
+  },
+  "Vec32": {
    "type": "array",
    "items": {
     "type": "number"
