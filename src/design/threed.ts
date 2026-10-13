@@ -12,7 +12,7 @@
  *         <constraint id="c1" kind="horizontal" entities={["l1"]} />
  *       </sketch>
  *       <extrude id="extrude1" name="Extrude1" profile={{ sketch: "sketch1" }} distance={6} operation="new" />
- *       <fillet id="fillet1" name="Fillet1" radius={2} edges={[…]} consumes={["extrude1"]} />
+ *       <fillet id="fillet1" name="Fillet1" radius={2} edges={[{ kind: "edge", select: { parallel: [0, 0, 1] } }]} />
  *       <body id="extrude1" engineering={{ material: "6061-T6", process: "cnc-milling" }} />
  *     </part>
  *   );
@@ -25,7 +25,20 @@
  *   <plane id name origin normal xAxis>       a datum plane
  *   <FEATURE id name …fields>                 a feature: the tag is its type (extrude, revolve, fillet, chamfer,
  *                                             hole, linearPattern, circularPattern, mirror, transform, box, …);
- *                                             `suppressed`, `consumes` as stored
+ *                                             `suppressed`, `consumes` as stored. THE ORDER OF THE ELEMENTS IS THE
+ *                                             ORDER THE PART IS BUILT IN: a feature that acts on bodies (a cut, a
+ *                                             hole, a fillet, a pattern) and names no `consumes` follows every
+ *                                             body-making feature written before it. `consumes={[…]}` names the
+ *                                             ones it follows instead (a cut of one body among several)
+ *   faces and edges                           where a feature takes them (`edges`, `faces`, `face`, `edge`): one
+ *                                             picked by where it was, { kind, signature: { point, … } }, or the
+ *                                             ones a query chooses when the part is built, { kind, select: { … } }:
+ *                                             normal, parallel, perpendicular, axis (directions), geometry, length,
+ *                                             radius, area (ranges { min, max }), ofFace (the edges of the faces a
+ *                                             face query chooses), createdBy (what a feature made), inBox, farthest
+ *                                             (a direction: "the top"), any, not. Every test present must hold
+ *   <hole face positions | sketch …>          where the holes are: `positions` (points in model coordinates) or
+ *                                             `sketch` (a sketch of points); with neither, the face's centre
  *   <feature type id name …fields>            a feature of a type the kernel does not know (a document may hold any
  *                                             type; its rebuild names it). A known type is written as its own tag
  *   <sketch id name plane> with children      a sketch: <point id x y>, a segment by its type (<line id a b>,

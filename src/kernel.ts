@@ -28,10 +28,70 @@ export class KernelError extends Error {
   constructor(
     message: string,
     readonly status = 0,
+    /** For a build that is not whole: each feature that failed, in the order they were built. Otherwise empty. */
+    readonly failures: BuildFailure[] = [],
   ) {
     super(message);
     this.name = "KernelError";
   }
+}
+
+/** One feature the build could not make. */
+export interface BuildFailure {
+  feature: string;
+  name?: string;
+  type?: string;
+  message: string;
+}
+
+/**
+ * The files an assembly places (`<externalPart fileName="bolt.3d.tsx">`), which the service cannot read: each under
+ * the key its placement resolves to. `linkedParts` makes it.
+ */
+export type LinkedParts = Record<string, { docText: string } | { format: "step" | "iges"; data: string }>;
+
+/**
+ * The `parts` of a call, from the files an assembly places, by the name each placement gives (`fileName` or `path`):
+ * a 3D document (its graph, or the graph's text) or, for a `.step` / `.stp` / `.iges` / `.igs` name, the file's text.
+ * A document placed inside a placed document is listed here too.
+ */
+export function linkedParts(files: Record<string, string | object>): LinkedParts {
+  const out: LinkedParts = {};
+  for (const [name, value] of Object.entries(files)) {
+    const lower = name.toLowerCase();
+    const format = /\.(step|stp)$/.test(lower) ? "step" : /\.(iges|igs)$/.test(lower) ? "iges" : null;
+    if (format) {
+      if (typeof value !== "string") throw new Error(`${name}: a ${format.toUpperCase()} file is given as its text`);
+      out[`${format}:name:${name}`] = { format, data: value };
+    } else if (/\.3d\.(tsx|jsx|py|rs)$/.test(lower)) out[`3d:name:${name}`] = { docText: docText(value) };
+    else throw new Error(`${name}: a placed file the kernel builds is a 3D document (.3d.tsx, .3d.py, .3d.rs), a STEP file or an IGES file`);
+  }
+  return out;
+}
+
+/** One measurement: `distance`, `angle` or `closest` between two entities, or the `radius` of one. */
+export interface Measure {
+  quantity: "distance" | "angle" | "radius" | "closest";
+  a: EntityRef;
+  b?: EntityRef;
+}
+export interface Measured {
+  value?: number;
+  points?: { a: [number, number, number]; b: [number, number, number] };
+}
+
+interface Pair {
+  a: { id: string; name: string };
+  b: { id: string; name: string };
+}
+/** Which bodies occupy the same space, engage in a thread, or are nearer than a clearance. */
+export interface InterferenceReport {
+  bodies: { id: string; name: string; volume: number }[];
+  clashes: (Pair & { volume: number; outsideThreads: number; bounds: { min: [number, number, number]; max: [number, number, number] } })[];
+  engagements: (Pair & { volume: number; threads: string[] })[];
+  close: (Pair & { distance: number; points: { a: [number, number, number]; b: [number, number, number] } })[];
+  clearance: number | null;
+  pairs: number;
 }
 
 export interface KernelConfig {
@@ -181,9 +241,11 @@ export class Kernel {
       const text = await res.text();
       if (res.ok) return JSON.parse(text) as T;
       let why = text.slice(0, 300);
+      let failures: BuildFailure[] = [];
       try {
-        const said = JSON.parse(text) as { error?: string; reason?: string };
+        const said = JSON.parse(text) as { error?: string; reason?: string; failures?: BuildFailure[] };
         why = said.error && said.reason ? `${said.error}: ${said.reason}` : (said.error ?? said.reason ?? why);
+        if (Array.isArray(said.failures)) failures = said.failures;
       } catch {
         /* not JSON: its text says why */
       }
@@ -191,7 +253,7 @@ export class Kernel {
         await new Promise((r) => setTimeout(r, 3000));
         continue;
       }
-      throw new KernelError(`${route}: ${why} (HTTP ${res.status})`, res.status);
+      throw new KernelError(`${route}: ${why} (HTTP ${res.status})`, res.status, failures);
     }
   }
 
@@ -201,9 +263,12 @@ export class Kernel {
   }
 
   /**
-   * Build the document. `observation`: each body's bounds, mass properties, faces, edges and vertices, and each failed
-   * feature's error by its id (`observation.errors`: read it, a body is built from what did not fail). `meshes`: the
-   * triangles.
+   * Build the document. `observation`: each body's bounds, mass properties, faces, edges and vertices;
+   * `observation.status` (`"built"`, or `"failed"`: a body is then built from what did not fail) and
+   * `observation.failures` (each failed feature, with why). `meshes`: the triangles.
+   *
+   * Every other call REFUSES a build in which a feature failed: a `KernelError` with `status` 422 and `failures`. A
+   * STEP file cannot say that two features are missing from it.
    *
    * A body whose `engineering.material` names a grade has its mass: `mass.grams` is its volume × that grade's density,
    * and `mass.massFrom` says the row and its source. `materials` are the rows of your own tables, nearest first
@@ -244,35 +309,44 @@ export class Kernel {
     return this.op("bom", doc, { parts, materials: opts.materials });
   }
 
-  /** The document as a STEP or IGES file's text; `bodies` keeps only those body ids. */
-  async export(doc: Doc, format: "step" | "iges" = "step", opts: { bodies?: string[] } = {}): Promise<string> {
-    return (await this.op<{ content: string }>("export", doc, { format, bodies: opts.bodies })).content;
+  /**
+   * The document as a STEP or IGES file's text; `bodies` keeps only those body ids. A STEP file names each body as a
+   * product of its part's name, and an assembly as the product they are components of.
+   */
+  async export(doc: Doc, format: "step" | "iges" = "step", opts: { bodies?: string[]; parts?: LinkedParts } = {}): Promise<string> {
+    return (await this.op<{ content: string }>("export", doc, { format, ...opts })).content;
   }
 
   /** `distance`, `angle` or `closest` between two entities, or the `radius` of one. */
-  measure(
-    doc: Doc,
-    op: "distance" | "angle" | "radius" | "closest",
-    a: EntityRef,
-    b?: EntityRef,
-  ): Promise<{ value?: number; points?: { a: [number, number, number]; b: [number, number, number] } }> {
-    // The platform's route reads `op` as the operation ("measure") and hands the same field to the service, which
-    // reads it as the measurement: it cannot say which one.
-    if (this.where === "platform")
-      return Promise.reject(new KernelError(`the platform's 3D service cannot be asked which measurement yet; measure with ${ENV_THREED}=local`));
-    return this.post("/measure", { docText: docText(doc), op, a, ...(b ? { b } : {}) });
+  async measure(doc: Doc, quantity: Measure["quantity"], a: EntityRef, b?: EntityRef, opts: { parts?: LinkedParts } = {}): Promise<Measured> {
+    return (await this.measureAll(doc, [{ quantity, a, ...(b ? { b } : {}) }], opts))[0]!;
+  }
+
+  /** Many measurements on ONE build, answered in the same order. */
+  async measureAll(doc: Doc, measures: Measure[], opts: { parts?: LinkedParts } = {}): Promise<Measured[]> {
+    return (await this.op<{ results: Measured[] }>("measure", doc, { measures, ...opts })).results;
+  }
+
+  /**
+   * Every pair of bodies, compared on one build. `clashes`: pairs that occupy the same space. `engagements`: pairs
+   * whose shared volume all lies in a declared thread (a screw in a tapped hole: a `thread` feature on the hole or on
+   * the screw says so; without it the same overlap is a clash). `close`: with `clearance` (mm), pairs that share no
+   * volume and are nearer than it.
+   */
+  interference(doc: Doc, opts: { clearance?: number; bodies?: string[]; parts?: LinkedParts } = {}): Promise<InterferenceReport> {
+    return this.op<InterferenceReport>("interference", doc, opts);
   }
 
   /** A drawing view with hidden lines removed: the visible and hidden edges projected along `direction`. */
   async drawing(
     doc: Doc,
-    opts: { direction?: [number, number, number]; up?: [number, number, number]; bodies?: string[]; section?: { origin: [number, number, number]; normal: [number, number, number] } } = {},
+    opts: { direction?: [number, number, number]; up?: [number, number, number]; bodies?: string[]; section?: { origin: [number, number, number]; normal: [number, number, number] }; parts?: LinkedParts } = {},
   ): Promise<unknown> {
     return (await this.op<{ projection: unknown }>("drawing", doc, opts)).projection;
   }
 
-  /** Each body's triangle count at this chord deflection (mm). */
-  async tessellate(doc: Doc, deflection: number): Promise<{ id: string; triangles: number }[]> {
-    return (await this.op<{ bodies: { id: string; triangles: number }[] }>("tessellate", doc, { deflection })).bodies;
+  /** Each body's triangles at this chord deflection (mm). */
+  async tessellate(doc: Doc, deflection: number, opts: { bodies?: string[]; parts?: LinkedParts } = {}): Promise<{ id: string; name: string; triangles: number; mesh: unknown }[]> {
+    return (await this.op<{ bodies: { id: string; name: string; triangles: number; mesh: unknown }[] }>("tessellate", doc, { deflection, ...opts })).bodies;
   }
 }

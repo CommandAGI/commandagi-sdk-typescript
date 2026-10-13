@@ -63,7 +63,7 @@ export type ChamferFeature = {
    * The edges to bevel.
    * @minItems 1
    */
-  edges: TopoRef[];
+  edges: TopoTarget[];
   /**
    * The bevel's distance from the edge.
    * @unit mm
@@ -518,7 +518,7 @@ export type DeleteFaceFeature = {
    * Faces to remove; the body heals around them.
    * @minItems 1
    */
-  faces: TopoRef[];
+  faces: TopoTarget[];
   id: string;
   name: string;
   suppressed?: boolean;
@@ -551,7 +551,7 @@ export type DevelopabilityVerdict = {
 export type DomeFeature = {
   type: "dome";
   /** Planar face to bulge. */
-  face: TopoRef;
+  face: TopoTarget;
   /**
    * Apex height along the face normal (negative = inward dimple).
    * @unit mm
@@ -586,7 +586,7 @@ export type DraftFeature = {
    * Faces to taper.
    * @minItems 1
    */
-  faces: TopoRef[];
+  faces: TopoTarget[];
   /**
    * Draft angle in radians.
    * @unit rad
@@ -847,7 +847,7 @@ export type ExtrudeFeature = {
   /** "Through all": extrude far enough to span every existing body (both ways). */
   through?: boolean;
   /** "Up to face": extrude until the profile reaches this target face's plane. */
-  upToFace?: TopoRef;
+  upToFace?: TopoTarget;
   /**
    * How the solid combines with the bodies before it.
    * @default "new"
@@ -874,7 +874,7 @@ export type FilletFeature = {
    * The edges to round.
    * @minItems 1
    */
-  edges: TopoRef[];
+  edges: TopoTarget[];
   /**
    * The radius of the round.
    * @unit mm
@@ -943,7 +943,7 @@ export type FootprintPad = {
 export type FullRoundFeature = {
   type: "fullRound";
   /** Narrow strip face to replace with a rolling-ball blend. */
-  face: TopoRef;
+  face: TopoTarget;
   id: string;
   name: string;
   suppressed?: boolean;
@@ -1140,7 +1140,17 @@ export type GraphFeature = {
 export type HoleFeature = {
   type: "hole";
   /** Planar face the hole is placed on; the hole goes inward along -normal. */
-  face: TopoRef;
+  face: TopoTarget;
+  /**
+   * Where the holes are, in model coordinates: one hole at each point, moved onto the face along its normal. With neither `positions` nor `sketch`, one hole at the face's centre.
+   * @unit mm
+   * @minItems 1
+   */
+  positions?: Vec3[];
+  /**
+   * Where the holes are, as a sketch of points: one hole at each point of it that no segment uses, moved onto the face along its normal.
+   */
+  sketch?: string;
   /**
    * @unit mm
    * @exclusiveMinimum 0
@@ -1686,7 +1696,7 @@ export type OffsetFacesFeature = {
    * Faces to push/pull along their normals.
    * @minItems 1
    */
-  faces: TopoRef[];
+  faces: TopoTarget[];
   /**
    * How far along their normals (negative: inward).
    * @unit mm
@@ -2092,7 +2102,7 @@ export type ScaleFeature = {
 export type SheetFlangeFeature = {
   type: "sheetFlange";
   /** Straight boundary edge to flange from. */
-  edge: TopoRef;
+  edge: TopoTarget;
   /**
    * Flange wall length (mm).
    * @unit mm
@@ -2138,7 +2148,7 @@ export type SheetFlangeFeature = {
 export type ShellFeature = {
   type: "shell";
   /** The faces to open. */
-  faces: TopoRef[];
+  faces: TopoTarget[];
   /**
    * The wall thickness.
    * @unit mm
@@ -2672,7 +2682,7 @@ export type ThickenFeature = {
 export type ThreadFeature = {
   type: "thread";
   /** Cylindrical face to thread. */
-  face: TopoRef;
+  face: TopoTarget;
   /**
    * Distance between thread crests (mm).
    * @unit mm
@@ -2716,12 +2726,97 @@ export type ThreadFeature = {
   declaredBy?: CodeFeature;
 };
 
+/** A box in model coordinates, by two opposite corners. */
+export type TopoBox = {
+  /**
+   * The least corner.
+   * @unit mm
+   */
+  min: Vec3;
+  /**
+   * The greatest corner.
+   * @unit mm
+   */
+  max: Vec3;
+};
+
+/**
+ * WHAT FACES OR EDGES ARE, STATED AS DATA — the tests one face or edge of the bodies must pass to be chosen.
+ */
+export type TopoQuery = {
+  /** Faces: flat, facing this direction (its outward normal, same sense). */
+  normal?: Vec3;
+  /** Edges: straight, along this direction (either sense). */
+  parallel?: Vec3;
+  /** Edges: straight, at right angles to this direction. */
+  perpendicular?: Vec3;
+  /**
+   * Faces: a cylinder, cone or torus about an axis in this direction. Edges: a circle or arc about one. Either sense.
+   */
+  axis?: Vec3;
+  /** The kind of surface (a face) or curve (an edge). */
+  geometry?: "line" | "circle" | "arc" | "ellipse" | "spline" | "other" | "plane" | "cylinder" | "cone" | "sphere" | "torus";
+  /**
+   * Edges: the length.
+   * @unit mm
+   */
+  length?: TopoRange;
+  /**
+   * Faces: the radius of a cylinder or sphere. Edges: the radius of a circle or arc.
+   * @unit mm
+   */
+  radius?: TopoRange;
+  /** Faces: the area, in square millimetres. */
+  area?: TopoRange;
+  /** Edges: the edges that bound a face this face query chooses ("the edges of the top face"). */
+  ofFace?: TopoQuery;
+  /**
+   * Made by this feature: a face that lies on the bodies after the feature ran and not on the bodies before it, and an edge that bounds such a face. A hole's wall and its rim are made by the hole; the face it was drilled in is not.
+   */
+  createdBy?: string;
+  /**
+   * Its centre (a face's centroid, an edge's midpoint) lies in this box, in model coordinates.
+   * @unit mm
+   */
+  inBox?: TopoBox;
+  /**
+   * Of what passes every other test, only the ones whose centre is farthest along this direction ("the top").
+   */
+  farthest?: Vec3;
+  /**
+   * One of these holds.
+   * @minItems 1
+   */
+  any?: TopoQuery[];
+  /** This does not hold. */
+  not?: TopoQuery;
+};
+
+/** A range of a measured value. An end left out is open. */
+export type TopoRange = {
+  /** At least this. */
+  min?: number;
+  /** At most this. */
+  max?: number;
+};
+
 export type TopoRef = {
   /** The feature whose result body contains this sub-shape (optional hint). */
   feature?: string;
   kind: "face" | "edge" | "vertex";
   signature: TopoSignature;
   /** Human label, e.g. "Top face of Extrude1". */
+  label?: string;
+};
+
+/**
+ * Faces or edges chosen by a TopoQuery when the feature is built: "every vertical edge", "the edges of the top face", "the rims the hole made". Beside the pick (TopoRef), which names one by where it was.
+ */
+export type TopoSelector = {
+  kind: "face" | "edge";
+  /** What they are. */
+  select: TopoQuery;
+  /** Human label, e.g. "Vertical edges". */
   label?: string;
 };
 
@@ -2737,6 +2832,11 @@ export type TopoSignature = {
   /** Edge chord direction, normalized (edges only). */
   dir?: Vec3;
 };
+
+/**
+ * What a feature takes where it needs faces or edges: one picked (TopoRef) or the ones a query chooses.
+ */
+export type TopoTarget = TopoRef | TopoSelector;
 
 /**
  * A torus: `S(u,v) = origin + (Rmaj + Rmin·cos v)(cos u·x + sin u·y) + Rmin·sin v·axis`. K = cos v / (Rmin(Rmaj + Rmin·cos v)) — it CHANGES SIGN across the tube, which makes it the sharpest doubly-curved control: no single scalar can describe its distortion.
@@ -2975,7 +3075,7 @@ export type WorldTrimeshCollider = {
 export type WrapTextFeature = {
   type: "wrapText";
   /** Cylindrical face to wrap onto. */
-  face: TopoRef;
+  face: TopoTarget;
   /** Baked 2D template (text or any closed regions) in u (circumference) / v. */
   sketch: Sketch;
   /**

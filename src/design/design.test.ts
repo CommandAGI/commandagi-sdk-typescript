@@ -17,6 +17,7 @@ import {
   cylinder,
   declarationOf,
   extrude,
+  fillet,
   footprints,
   graph,
   hole,
@@ -32,6 +33,7 @@ import {
   schSymbolTypeFor,
   sketch,
   subtract,
+  union,
   type IRGraph,
 } from "./index.js";
 
@@ -90,6 +92,42 @@ test("hole() is a cylinder cut entering at a point along -axis", () => {
   const h = g.nodes.Hole!;
   assert.deepEqual(h.inputs, { center: [0, 0, 0], axis: [0, 0, 1], radius: 1.5, height: 4, operation: "cut", "base.1": wireTo("Box_1") });
   assert.deepEqual(g.outputs, ["Hole"]);
+});
+
+// What a feature acts on, and what runs first, in two wires: a part of n features declares about 2n wires, not n².
+// (A wire to every earlier feature made a plate of 129 holes 566 kB.) sdk/python tests/test_design.py holds the same.
+test("a feature is wired to the heads of its body and to its last feature; a part's graph grows with its features", () => {
+  const rail = (n: number) =>
+    part("Rail", () => {
+      let plate = box({ size: [n * 10 + 10, 30, 6], center: [0, 0, 3], name: "Plate" });
+      for (let i = 0; i < n; i++) plate = hole(plate, { at: [i * 10, 0, 6], diameter: 4, depth: 6 });
+      plate = union(plate, box({ size: [4, 4, 4], center: [0, 10, 8], name: "Boss" }));
+      return fillet(plate, { radius: 1, edges: [{ at: [0, -15, 3] }] });
+    }).ir;
+  const g = rail(3);
+  const wires = (id: string) => Object.fromEntries(Object.entries(g.nodes[id]!.inputs).flatMap(([k, v]) => ((v as { wire?: { node: string } })?.wire ? [[k, (v as { wire: { node: string } }).wire.node]] : [])));
+  assert.deepEqual(wires("Hole"), { "base.1": "Plate" });
+  assert.deepEqual(wires("Hole_2"), { "base.1": "Plate", "base.2": "Hole" });
+  assert.deepEqual(wires("Hole_3"), { "base.1": "Plate", "base.2": "Hole_2" });
+  assert.deepEqual(wires("Boss"), { "base.1": "Plate", "base.2": "Hole_3" });
+  assert.deepEqual(wires("Fillet_1"), { "on.1": "Plate", "on.2": "Boss" });
+
+  const size = (n: number) => JSON.stringify(rail(n)).length;
+  const perHole = [(size(80) - size(40)) / 40, (size(160) - size(80)) / 80];
+  assert.ok(Math.abs(perHole[1]! - perHole[0]!) < 16, `bytes per hole: ${perHole}`);
+  assert.ok(size(129) < 40_000, `129 holes: ${size(129)} bytes`);
+});
+
+test("a solid made beside a tool stays a body of the result", () => {
+  const g = part("Capped", () => {
+    const plate = box({ size: [40, 40, 4], name: "Plate" });
+    const post = cylinder({ radius: 2, height: 10, name: "Post" });
+    const cap = cylinder({ radius: 4, height: 2, base: [0, 0, 10], name: "Cap", operation: "add", after: [post] });
+    return subtract(plate, cap);
+  }).ir;
+  // The cap is cut from the plate; the post it was made on is still a solid of what comes back.
+  assert.deepEqual(Object.entries(g.nodes.Cap!.inputs).filter(([k]) => k.startsWith("base.")), [["base.1", wireTo("Plate")]]);
+  assert.equal(g.nodes.Cap!.inputs.operation, "cut");
 });
 
 test("a circuit: the part type is the engine's pin-signature hash; nets join by name and by connection", () => {

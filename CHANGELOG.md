@@ -8,6 +8,7 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+<<<<<<< HEAD
 - A 3D document's engineering vocabulary (`commandagi/design`, checked against the one schema):
   - `<body engineering={{ … }}>`: what a part is, apart from how it looks: `material` (a grade: the id of a row of a
     materials table), `process`, `finish`, `vendor`, `cost` (amount, currency, source, date), `partNumber`, `mass`.
@@ -30,6 +31,23 @@ Changed
 - A joint's kinds are named as mechanisms are: `hinge` is `revolute`, `slider` is `prismatic`, `ball` is
   `spherical`. A document's joints and mates are `<joint>` and `<mate>` elements: the reader refuses `joints` in
   `<slot name="dynamics">` and `mates` in `<slot name="assembly">`, and says which element to write.
+=======
+- 3D documents: a hole's `positions` and `sketch`; faces and edges chosen by a query, `{ kind, select: { … } }`,
+  beside the pick; a part is built in the order of its elements (a feature that names no `consumes` follows every
+  body-making feature written before it).
+- `Kernel.interference`, `Kernel.measureAll`, `linkedParts`; `parts` on every call (an assembly's files);
+  `KernelError.failures`.
+
+Changed
+
+- `Kernel.measure(doc, quantity, a, b)` works with the platform too (the service takes `measures`).
+- `Kernel.export`, `measure`, `drawing` and `tessellate` refuse a build in which a feature failed. `tessellate`
+  answers each body's triangles, not only their count.
+- The call form (`part`, `subtract`, `hole`, `fillet` …) wires a feature to the heads of its body and to its last
+  feature: about two wires a feature, where a plate of 129 holes was 566 kB. `Body.state` is gone; `Body.heads` and
+  `Body.actsOn()` are what it has.
+- A union's refusal names the field at fault (`edges/0/select/vertical: is not one of its fields`).
+>>>>>>> 3a8ba91c575494bc742d78d5b314fd3829be1a44
 
 ## 0.5.0 (2026-10-13)
 

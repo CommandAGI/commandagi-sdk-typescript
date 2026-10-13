@@ -230,7 +230,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "edges": {
      "type": "array",
      "items": {
-      "$ref": "#/$defs/TopoRef"
+      "$ref": "#/$defs/TopoTarget"
      },
      "description": "The edges to bevel.",
      "x-pick": "edge",
@@ -1196,7 +1196,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "faces": {
      "type": "array",
      "items": {
-      "$ref": "#/$defs/TopoRef"
+      "$ref": "#/$defs/TopoTarget"
      },
      "description": "Faces to remove; the body heals around them.",
      "x-pick": "face",
@@ -1279,7 +1279,7 @@ export const THREED_SCHEMA: SchemaDocument = {
      "const": "dome"
     },
     "face": {
-     "$ref": "#/$defs/TopoRef",
+     "$ref": "#/$defs/TopoTarget",
      "description": "Planar face to bulge.",
      "x-pick": "face"
     },
@@ -1340,7 +1340,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "faces": {
      "type": "array",
      "items": {
-      "$ref": "#/$defs/TopoRef"
+      "$ref": "#/$defs/TopoTarget"
      },
      "description": "Faces to taper.",
      "x-pick": "face",
@@ -1861,7 +1861,7 @@ export const THREED_SCHEMA: SchemaDocument = {
      }
     },
     "upToFace": {
-     "$ref": "#/$defs/TopoRef",
+     "$ref": "#/$defs/TopoTarget",
      "description": "\"Up to face\": extrude until the profile reaches this target face's plane.",
      "x-pick": "face",
      "x-showIf": {
@@ -1918,7 +1918,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "edges": {
      "type": "array",
      "items": {
-      "$ref": "#/$defs/TopoRef"
+      "$ref": "#/$defs/TopoTarget"
      },
      "description": "The edges to round.",
      "x-pick": "edge",
@@ -2071,7 +2071,7 @@ export const THREED_SCHEMA: SchemaDocument = {
      "const": "fullRound"
     },
     "face": {
-     "$ref": "#/$defs/TopoRef",
+     "$ref": "#/$defs/TopoTarget",
      "description": "Narrow strip face to replace with a rolling-ball blend.",
      "x-pick": "face"
     },
@@ -2538,9 +2538,23 @@ export const THREED_SCHEMA: SchemaDocument = {
      "const": "hole"
     },
     "face": {
-     "$ref": "#/$defs/TopoRef",
+     "$ref": "#/$defs/TopoTarget",
      "description": "Planar face the hole is placed on; the hole goes inward along -normal.",
      "x-pick": "face"
+    },
+    "positions": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/Vec3"
+     },
+     "description": "Where the holes are, in model coordinates: one hole at each point, moved onto the face along its normal. With neither `positions` nor `sketch`, one hole at the face's centre.",
+     "x-unit": "mm",
+     "minItems": 1
+    },
+    "sketch": {
+     "type": "string",
+     "description": "Where the holes are, as a sketch of points: one hole at each point of it that no segment uses, moved onto the face along its normal.",
+     "x-pick": "sketch"
     },
     "diameter": {
      "type": "number",
@@ -3749,7 +3763,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "faces": {
      "type": "array",
      "items": {
-      "$ref": "#/$defs/TopoRef"
+      "$ref": "#/$defs/TopoTarget"
      },
      "description": "Faces to push/pull along their normals.",
      "x-pick": "face",
@@ -4633,7 +4647,7 @@ export const THREED_SCHEMA: SchemaDocument = {
      "const": "sheetFlange"
     },
     "edge": {
-     "$ref": "#/$defs/TopoRef",
+     "$ref": "#/$defs/TopoTarget",
      "description": "Straight boundary edge to flange from.",
      "x-pick": "edge"
     },
@@ -4709,7 +4723,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "faces": {
      "type": "array",
      "items": {
-      "$ref": "#/$defs/TopoRef"
+      "$ref": "#/$defs/TopoTarget"
      },
      "description": "The faces to open.",
      "x-pick": "face"
@@ -6196,7 +6210,7 @@ export const THREED_SCHEMA: SchemaDocument = {
      "const": "thread"
     },
     "face": {
-     "$ref": "#/$defs/TopoRef",
+     "$ref": "#/$defs/TopoTarget",
      "description": "Cylindrical face to thread.",
      "x-pick": "face"
     },
@@ -6266,6 +6280,125 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false
   },
+  "TopoBox": {
+   "type": "object",
+   "properties": {
+    "min": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The least corner.",
+     "x-unit": "mm"
+    },
+    "max": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The greatest corner.",
+     "x-unit": "mm"
+    }
+   },
+   "required": [
+    "min",
+    "max"
+   ],
+   "additionalProperties": false,
+   "description": "A box in model coordinates, by two opposite corners."
+  },
+  "TopoQuery": {
+   "type": "object",
+   "properties": {
+    "normal": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Faces: flat, facing this direction (its outward normal, same sense)."
+    },
+    "parallel": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Edges: straight, along this direction (either sense)."
+    },
+    "perpendicular": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Edges: straight, at right angles to this direction."
+    },
+    "axis": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Faces: a cylinder, cone or torus about an axis in this direction. Edges: a circle or arc about one. Either sense."
+    },
+    "geometry": {
+     "type": "string",
+     "enum": [
+      "line",
+      "circle",
+      "arc",
+      "ellipse",
+      "spline",
+      "other",
+      "plane",
+      "cylinder",
+      "cone",
+      "sphere",
+      "torus"
+     ],
+     "description": "The kind of surface (a face) or curve (an edge)."
+    },
+    "length": {
+     "$ref": "#/$defs/TopoRange",
+     "description": "Edges: the length.",
+     "x-unit": "mm"
+    },
+    "radius": {
+     "$ref": "#/$defs/TopoRange",
+     "description": "Faces: the radius of a cylinder or sphere. Edges: the radius of a circle or arc.",
+     "x-unit": "mm"
+    },
+    "area": {
+     "$ref": "#/$defs/TopoRange",
+     "description": "Faces: the area, in square millimetres."
+    },
+    "ofFace": {
+     "$ref": "#/$defs/TopoQuery",
+     "description": "Edges: the edges that bound a face this face query chooses (\"the edges of the top face\")."
+    },
+    "createdBy": {
+     "type": "string",
+     "description": "Made by this feature: a face that lies on the bodies after the feature ran and not on the bodies before it, and an edge that bounds such a face. A hole's wall and its rim are made by the hole; the face it was drilled in is not."
+    },
+    "inBox": {
+     "$ref": "#/$defs/TopoBox",
+     "description": "Its centre (a face's centroid, an edge's midpoint) lies in this box, in model coordinates.",
+     "x-unit": "mm"
+    },
+    "farthest": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Of what passes every other test, only the ones whose centre is farthest along this direction (\"the top\")."
+    },
+    "any": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/TopoQuery"
+     },
+     "description": "One of these holds.",
+     "minItems": 1
+    },
+    "not": {
+     "$ref": "#/$defs/TopoQuery",
+     "description": "This does not hold."
+    }
+   },
+   "additionalProperties": false,
+   "description": "WHAT FACES OR EDGES ARE, STATED AS DATA — the tests one face or edge of the bodies must pass to be chosen."
+  },
+  "TopoRange": {
+   "type": "object",
+   "properties": {
+    "min": {
+     "type": "number",
+     "description": "At least this."
+    },
+    "max": {
+     "type": "number",
+     "description": "At most this."
+    }
+   },
+   "additionalProperties": false,
+   "description": "A range of a measured value. An end left out is open."
+  },
   "TopoRef": {
    "type": "object",
    "properties": {
@@ -6295,6 +6428,32 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false
   },
+  "TopoSelector": {
+   "type": "object",
+   "properties": {
+    "kind": {
+     "type": "string",
+     "enum": [
+      "face",
+      "edge"
+     ]
+    },
+    "select": {
+     "$ref": "#/$defs/TopoQuery",
+     "description": "What they are."
+    },
+    "label": {
+     "type": "string",
+     "description": "Human label, e.g. \"Vertical edges\"."
+    }
+   },
+   "required": [
+    "kind",
+    "select"
+   ],
+   "additionalProperties": false,
+   "description": "Faces or edges chosen by a TopoQuery when the feature is built: \"every vertical edge\", \"the edges of the top face\", \"the rims the hole made\". Beside the pick (TopoRef), which names one by where it was."
+  },
   "TopoSignature": {
    "type": "object",
    "properties": {
@@ -6323,6 +6482,17 @@ export const THREED_SCHEMA: SchemaDocument = {
     "point"
    ],
    "additionalProperties": false
+  },
+  "TopoTarget": {
+   "anyOf": [
+    {
+     "$ref": "#/$defs/TopoRef"
+    },
+    {
+     "$ref": "#/$defs/TopoSelector"
+    }
+   ],
+   "description": "What a feature takes where it needs faces or edges: one picked (TopoRef) or the ones a query chooses."
   },
   "ToroidalSurface": {
    "type": "object",
@@ -6883,7 +7053,7 @@ export const THREED_SCHEMA: SchemaDocument = {
      "const": "wrapText"
     },
     "face": {
-     "$ref": "#/$defs/TopoRef",
+     "$ref": "#/$defs/TopoTarget",
      "description": "Cylindrical face to wrap onto."
     },
     "sketch": {
