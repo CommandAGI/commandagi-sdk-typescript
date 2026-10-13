@@ -123,7 +123,7 @@ test("the paths with a browser, a machine launched from a snapshot, or a phone: 
   const doc = (props: Record<string, unknown>) => monitorWithDefaults(declarationOf({ default: el("monitor", {}, src(props)) }).document!.document as never).sources[0]!;
   assert.deepEqual(doc({ via: "browser", host: "studio", profile: "x-web" }), {
     id: "s", adapter: "x-profile", params: { handle: "nvidia" }, every: "1h", via: "browser", exit: null, host: "studio", mode: "poll", retain: null, since: null,
-    session: null, snapshot: null, profile: "x-web", keep: null, maxCostPerDay: null, unit: null,
+    session: null, snapshot: null, profile: "x-web", keep: null, maxCostPerDay: null, unit: null, vantage: null,
   });
   assert.equal(doc({ via: "browser", session: "../../infra/sessions/x-web/session.tsx" }).session, "../../infra/sessions/x-web/session.tsx");
   const vm = doc({ via: "vm", snapshot: "genesis", keep: "10m", maxCostPerDay: 2.5 });
