@@ -9,6 +9,9 @@
  *   // cloud://global/agents/harnesses/claude-code/harness.tsx
  *   export default () => <harness kind="cli" label="Claude Code" provider="anthropic" cli="claude" runs={["host", "vm"]} />;
  *
+ *   // cloud://global/agents/harnesses/symbolic-planner-001/harness.tsx — a program with no model, one variant of a family
+ *   export default () => <harness kind="program" label="Symbolic Planner 001" family="symbolic" experimental runs={["host"]} />;
+ *
  *   // cloud://global/agents/claude-code/agent.tsx — the one base instance of a CLI harness
  *   export default () => <agent harness="claude-code" name="Claude Code" />;
  *
@@ -27,7 +30,7 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 export const HARNESS_KINDS = ["cli", "api", "program"] as const;
 /** Where a harness runs: this machine's host (`local-host/agent-clis.mjs`), a cloud computer (the thread's VM kernel), or the api worker's loop. */
 export const HARNESS_RUNTIMES = ["host", "vm", "worker"] as const;
-export const HARNESS_FIELDS = ["kind", "label", "provider", "cli", "runs", "homepage", "about"] as const;
+export const HARNESS_FIELDS = ["kind", "label", "provider", "cli", "runs", "family", "experimental", "homepage", "about"] as const;
 export const AGENT_FIELDS = ["harness", "parent", "name", "model", "effort", "instructions", "voice", "voiceMode", "tools", "persona", "color", "icon", "gender"] as const;
 export const VOICE_MODES = ["off", "push-to-talk", "open-mic"] as const;
 
@@ -46,6 +49,10 @@ export interface HarnessDoc {
   cli?: string;
   /** Where it runs today. Absent or empty: declared only; nothing runs it yet. */
   runs?: (typeof HARNESS_RUNTIMES)[number][];
+  /** The family it is a variant of (`symbolic`): harnesses that share one runtime and one repertoire and differ in how they decide. */
+  family?: string;
+  /** It may change or go without notice; what it does is not commissioned. Absent: not said. */
+  experimental?: boolean;
   homepage?: string;
   about?: string;
 }
@@ -95,8 +102,9 @@ function attrsOf(o: object, keys: readonly string[]): Record<string, unknown> {
 }
 
 function harnessOf(t: DocTree): HarnessDoc {
-  for (const k of ["label", "provider", "cli", "homepage", "about"]) word(t, k);
+  for (const k of ["label", "provider", "cli", "family", "homepage", "about"]) word(t, k);
   oneOf(t, "kind", HARNESS_KINDS);
+  if (t.attrs.experimental !== undefined && typeof t.attrs.experimental !== "boolean") throw new Error(`<harness> experimental is true or false, not ${JSON.stringify(t.attrs.experimental)}`);
   const runs = t.attrs.runs;
   if (runs !== undefined && !(Array.isArray(runs) && runs.every((r) => (HARNESS_RUNTIMES as readonly string[]).includes(r as string)) && new Set(runs).size === runs.length))
     throw new Error(`<harness> runs is a list of ${HARNESS_RUNTIMES.map((r) => `"${r}"`).join(", ")}, not ${JSON.stringify(runs)}`);
