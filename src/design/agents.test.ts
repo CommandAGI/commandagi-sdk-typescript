@@ -13,8 +13,8 @@ test("a harness of each kind, and both ways", () => {
   const cli = declare(el("harness", { kind: "cli", label: "Claude Code", provider: "anthropic", cli: "claude", runs: ["host", "vm"] }));
   assert.equal(cli.format, "harness");
   assert.deepEqual(cli.document, { kind: "cli", label: "Claude Code", provider: "anthropic", cli: "claude", runs: ["host", "vm"] });
-  const program = declare(el("harness", { kind: "program", label: "Rules and classical vision" }));
-  assert.deepEqual(program.document, { kind: "program", label: "Rules and classical vision" }, "a program harness has no model and no provider");
+  const program = declare(el("harness", { kind: "program", label: "Symbolic Planner 001", family: "symbolic", experimental: true, runs: ["host"] }));
+  assert.deepEqual(program.document, { kind: "program", label: "Symbolic Planner 001", family: "symbolic", experimental: true, runs: ["host"] }, "a program harness has no model and no provider");
   for (const doc of [cli.document, program.document]) assert.deepEqual(AGENTS.harness.fromTree(AGENTS.harness.toTree(doc as never)), doc);
 });
 
@@ -37,4 +37,5 @@ test("refusals, by name", () => {
   assert.throws(() => declare(el("harness", { kind: "program", label: "X", cli: "x" })), /cli is for kind="cli" only/);
   assert.throws(() => declare(el("harness", { kind: "api", label: "X", provider: "p", runs: ["cloud"] })), /runs is a list of/);
   assert.throws(() => declare(el("harness", { kind: "robot", label: "X" })), /kind is/);
+  assert.throws(() => declare(el("harness", { kind: "program", label: "X", experimental: "yes" })), /experimental is true or false/);
 });

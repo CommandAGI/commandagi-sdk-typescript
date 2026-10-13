@@ -211,8 +211,58 @@ commandagi code eval blinker.circuit.ts --no-ir --out blinker.json
 
 An agent connected to the host over MCP does the same with the `evaluate_code` tool.
 
+## The 3D kernel: `Kernel`
+
+`commandagi/design` declares a part and builds nothing. `Kernel` asks the CommandAGI 3D design service
+(OpenCascade) to build it.
+
+```ts
+import { Kernel } from "commandagi";
+
+const kernel = new Kernel();                                  // reads COMMANDAGI_THREED
+const { observation } = await kernel.observe(graph);          // bodies, faces, edges, mass properties, each feature's error
+if (Object.keys(observation.errors).length) throw new Error(JSON.stringify(observation.errors));
+const step = await kernel.export(graph, "step");
+```
+
+`graph` is what a `.3d.tsx` declares (`commandagi code eval "Plate.3d.tsx"` prints it), or its JSON text. One setting
+chooses the service:
+
+| `COMMANDAGI_THREED` | the service | needs |
+| --- | --- | --- |
+| `platform` (the default) | the hosted one | the network and `COMMANDAGI_API_KEY` |
+| `local` | this computer, offline, no account. `Kernel` starts it and it stops with your process | once: `commandagi threed install` (it downloads OpenCascade as WebAssembly, about 130 MB) |
+| a URL (or `COMMANDAGI_THREED_URL`) | one that runs already: `commandagi threed serve --port 8091` | `COMMANDAGI_THREED_TOKEN`, the bearer you started it with |
+
+`observe(doc)`, `export(doc, "step" | "iges", { bodies })`, `measure(doc, "distance" | "angle" | "radius" | "closest",
+a, b)`, `drawing(doc, { direction, up, section })`, `tessellate(doc, deflection)`. An entity is `{ body: "body_0",
+kind: "face" | "edge" | "vertex" | "body", index }`, with the index as `observe` lists it. One service keeps the last
+documents it built, so `observe` then `export` then `measure` of one document is one build. `measure` works with a
+local service only.
+
+`commandagi threed serve` needs no checkout of the CommandAGI repository: this package carries the service.
+`commandagi threed status` says whether it is installed.
+
 ## Environment
 
 `COMMANDAGI_API_KEY` (your `cagi_…` key; its scopes decide what every call may do), `COMMANDAGI_BASE_URL`
 (default `https://api.commandagi.com`) and `COMMANDAGI_THREAD_ID` (the default thread for self-thread
 methods). The platform sets all three when your code runs inside it.
+
+`COMMANDAGI_THREED` chooses the 3D kernel `Kernel` calls (`platform`, `local` or a URL); `COMMANDAGI_THREED_URL` and
+`COMMANDAGI_THREED_TOKEN` name a 3D design service that runs already, and its bearer.
+
+## Versions
+
+- A release is the tag `v<version>` in this repository and the same version on npm. Pin an exact version:
+  `npm install --save-exact commandagi@0.5.0`. A range (`^`, `~=`, `>=`) takes the next release without asking you.
+- The three SDKs (Python, TypeScript, Rust) carry one version number. A vocabulary at version X in one language is
+  the vocabulary at version X in the others.
+- A version promises nothing about the next one. CommandAGI keeps no compatibility layers: a release may rename or
+  remove a function, an element or an attribute, with no alias and no migration. `CHANGELOG.md` says what changed.
+- So a document belongs with the version that reads it. Keep the pin in the project that holds the documents, and
+  change both together. A document you open in a CommandAGI editor is read by the SDK that editor ships.
+
+## Licence
+
+MIT (`LICENSE`).
