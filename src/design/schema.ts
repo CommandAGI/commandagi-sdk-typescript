@@ -173,7 +173,17 @@ export function validate(schema: JsonSchema, value: unknown, defs: Defs = schema
       const r = resolve(o, defs);
       return Object.entries(r.properties ?? {}).some(([k, p]) => p.const !== undefined && (value as Record<string, unknown> | null)?.[k] === p.const);
     });
-    return named >= 0 ? results[named]! : [{ path, code: "anyOf", actual: kindOf(value) }];
+    if (named >= 0) return results[named]!;
+    // A union of objects told apart by what each must hold (a pick's `signature`, a selector's `select`): when the
+    // value holds every required field of one option only, that option says what is wrong in it.
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      const holds = options.flatMap((o, i) => {
+        const required = resolve(o, defs).required ?? [];
+        return required.length && required.every((k) => k in (value as object)) ? [i] : [];
+      });
+      if (holds.length === 1) return results[holds[0]!]!;
+    }
+    return [{ path, code: "anyOf", actual: kindOf(value) }];
   }
   const types = s.type === undefined ? [] : Array.isArray(s.type) ? s.type : [s.type];
   if (types.length && !types.some((t) => typeMatches(t as string, value))) {
