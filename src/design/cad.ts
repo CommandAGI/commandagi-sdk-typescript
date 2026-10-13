@@ -24,6 +24,7 @@
  */
 import { Declaration, NodeRef, Scope, currentScope, withScope, channels, type PortValue } from "./ir.js";
 import { CODE_OP } from "./graph.js";
+import { holeSize } from "./standards.js";
 
 export type Vec2 = [number, number];
 export type Vec3 = [number, number, number];
@@ -303,13 +304,17 @@ export const subtract = (target: Body, ...tools: Body[]): Body => boolean("subtr
 /** Keep what the target and the tools share. */
 export const intersect = (target: Body, ...tools: Body[]): Body => boolean("intersect()", "intersect", target, tools);
 
-/** A round hole: a cylinder cut from `target`, entering at `at` along `-axis` (default straight down, -Z). */
-export function hole(target: Body, o: { at: Vec3; diameter: number; depth: number; axis?: Vec3; name?: string }): Body {
+/**
+ * A round hole: a cylinder cut from `target`, entering at `at` along `-axis` (default straight down, -Z). Its
+ * diameter is `diameter`, or the standard hole `size` names ("M4 close fit", "M4 tap": ./standards.ts).
+ */
+export function hole(target: Body, o: { at: Vec3; depth: number; axis?: Vec3; name?: string } & ({ diameter: number; size?: undefined } | { size: string; diameter?: undefined })): Body {
+  const diameter = o.size !== undefined ? holeSize(o.size).diameter : o.diameter;
   const [ax, ay, az] = o.axis ?? [0, 0, 1];
   const len = Math.hypot(ax, ay, az) || 1;
   const d: Vec3 = [ax / len, ay / len, az / len];
   const base: Vec3 = [o.at[0] - d[0] * o.depth, o.at[1] - d[1] * o.depth, o.at[2] - d[2] * o.depth];
-  return subtract(target, cylinder({ base, axis: d, radius: o.diameter / 2, height: o.depth, name: o.name ?? "Hole" }));
+  return subtract(target, cylinder({ base, axis: d, radius: diameter / 2, height: o.depth, name: o.name ?? (o.size !== undefined ? `Hole ${o.size}` : "Hole") }));
 }
 
 // ── Modifiers (they act on the bodies that exist; `on` says which features run first) ─────────────────
