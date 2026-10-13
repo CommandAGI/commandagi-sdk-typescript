@@ -32,8 +32,11 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 export const MONITOR_FIELDS = ["title", "class", "about", "readme", "sameAs"] as const;
 /** A subject: `<scheme>:<id>` (`cik:0001045810`, `ticker:NVDA`, `fomc:`). */
 export const SUBJECT = /^[a-z][a-z0-9-]*:\S*$/;
-export const SOURCE_FIELDS = ["id", "adapter", "params", "every", "via", "exit", "host", "mode", "retain", "since"] as const;
-export const FOLLOW_FIELDS = ["monitor", "match"] as const;
+export const SOURCE_FIELDS = ["id", "adapter", "params", "every", "via", "exit", "host", "mode", "retain", "since", "vantage"] as const;
+export const FOLLOW_FIELDS = ["monitor", "match", "where"] as const;
+export const DISCOVER_FIELDS = ["into", "match", "by", "component", "from", "props", "name", "max"] as const;
+/** The most new folders a discover writes a tick. */
+export const DISCOVER_MAX = 50;
 export const WAKE_FIELDS = ["match", "prompt"] as const;
 export const DERIVE_FIELDS = ["id", "op", "inputs", "params", "since"] as const;
 
@@ -64,11 +67,37 @@ export interface MonitorSource {
   retain?: string;
   /** The day a first read starts from (`YYYY-MM-DD`), so a first read does not pull a whole history. */
   since?: string;
+  /** The observer it reads as: a vantage folder, relative to this monitor's folder (`../../infra/vantages/fsn-1`). */
+  vantage?: string;
 }
 export interface MonitorFollow {
   /** The followed monitor's folder, as a ref relative to this monitor's folder (`../../central-banks/fed`). */
   monitor: string;
   match?: string;
+  /** A filter on the followed records: `name=value` terms joined by `,` (`conversation=123`); a name is `about`, `class` or a data path. */
+  where?: string;
+}
+/**
+ * A discovering monitor's part (docs/mirrors.md § 3): when its records name a thing it has no folder for (a new
+ * conversation), the platform writes `<into>/<slug>/monitor.tsx`, a one-line instance of `component` from the class
+ * file `from` with `props` taken from the record. It never deletes a folder.
+ */
+export interface MonitorDiscover {
+  /** The folder the new folders go in, relative to this monitor's folder; at or under it (absent: `./`). */
+  into?: string;
+  /** A glob on the class of the records that may name a new thing. */
+  match?: string;
+  /** The data path whose value names the thing: one folder per value, ever. */
+  by: string;
+  /** The class component an instance renders, and the file that exports it (relative to this monitor's folder). */
+  component: string;
+  from: string;
+  /** Each prop of the instance and the data path it is taken from. */
+  props?: Record<string, string>;
+  /** The data path a folder's name is made from (a counterparty's name); absent: `by`. */
+  name?: string;
+  /** At most this many new folders a tick (absent: 10). */
+  max?: number;
 }
 /**
  * A derived stream (docs/records.md § 6): an operator folds the records of other monitors into records of this one.
@@ -99,6 +128,7 @@ export interface MonitorDoc {
   follows: MonitorFollow[];
   derives: MonitorDerive[];
   wakes: MonitorWake[];
+  discovers: MonitorDiscover[];
 }
 
 const UNIT_SECONDS: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };
@@ -139,7 +169,7 @@ function attrsOf(o: object, keys: readonly string[]): Record<string, unknown> {
 }
 
 function sourceOf(t: DocTree): MonitorSource {
-  for (const k of ["id", "adapter", "exit", "host", "retain", "since"]) text(t, k);
+  for (const k of ["id", "adapter", "exit", "host", "retain", "since", "vantage"]) text(t, k);
   const p = t.attrs.params;
   if (p !== undefined && (!p || typeof p !== "object" || Array.isArray(p))) throw new Error(`${where(t)} params is an object ({ series: "CPIAUCSL" }), not ${JSON.stringify(p)}`);
   const s = durationSeconds(t.attrs.every);
@@ -158,6 +188,23 @@ function sourceOf(t: DocTree): MonitorSource {
 }
 
 const WORD = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+const DATA_PATH = /^[A-Za-z_]\w*(\.[A-Za-z_]\w*)*$/;
+const WHERE = /^[A-Za-z][\w.]*=[^,]+(,\s*[A-Za-z][\w.]*=[^,]+)*$/;
+function discoverOf(t: DocTree): MonitorDiscover {
+  for (const k of ["into", "match", "by", "component", "from", "name"]) text(t, k, "by");
+  if (!/^[A-Z][A-Za-z0-9_]{0,59}$/.test(t.attrs.component as string)) throw new Error(`<discover> component is the class's exported name (Conversation), not ${JSON.stringify(t.attrs.component)}`);
+  if (!/\.[jt]sx?$/.test(t.attrs.from as string)) throw new Error(`<discover> from is the class file (../conversation.tsx), not ${JSON.stringify(t.attrs.from)}`);
+  for (const k of ["by", "name"]) if (t.attrs[k] !== undefined && !DATA_PATH.test(t.attrs[k] as string)) throw new Error(`<discover> ${k} is a data path (conversation), not ${JSON.stringify(t.attrs[k])}`);
+  const props = t.attrs.props;
+  if (props !== undefined) {
+    if (!props || typeof props !== "object" || Array.isArray(props)) throw new Error(`<discover> props maps each prop to a data path ({ conversation: "conversation" }), not ${JSON.stringify(props)}`);
+    for (const [k, v] of Object.entries(props as Record<string, unknown>))
+      if (!/^[a-z][A-Za-z0-9]*$/.test(k) || typeof v !== "string" || !DATA_PATH.test(v)) throw new Error(`<discover> props.${k} is a data path, not ${JSON.stringify(v)}`);
+  }
+  const max = t.attrs.max;
+  if (max !== undefined && !(Number.isInteger(max) && (max as number) >= 1 && (max as number) <= DISCOVER_MAX)) throw new Error(`<discover> max is a whole number from 1 to ${DISCOVER_MAX}, not ${JSON.stringify(max)}`);
+  return said(t.attrs, DISCOVER_FIELDS) as unknown as MonitorDiscover;
+}
 function deriveOf(t: DocTree): MonitorDerive {
   for (const k of ["id", "op", "since"]) text(t, k);
   if (!WORD.test(t.attrs.id as string)) throw new Error(`${where(t)} id is a word (letters, digits, _ and -)`);
@@ -184,6 +231,8 @@ function monitorOf(t: DocTree): MonitorDoc {
   const follows = parts("follows").map((c) => {
     text(c, "monitor", "monitor");
     text(c, "match", "monitor");
+    text(c, "where", "monitor");
+    if (c.attrs.where !== undefined && !WHERE.test(c.attrs.where as string)) throw new Error(`<follows monitor="${c.attrs.monitor as string}"> where is name=value terms joined by "," (conversation=123), not ${JSON.stringify(c.attrs.where)}`);
     if (/^\.\/?$/.test(c.attrs.monitor as string)) throw new Error(`<follows monitor="${c.attrs.monitor as string}"> names this monitor; a follow names another monitor's folder`);
     return said(c.attrs, FOLLOW_FIELDS) as unknown as MonitorFollow;
   });
@@ -193,7 +242,7 @@ function monitorOf(t: DocTree): MonitorDoc {
     text(c, "prompt", "match");
     return said(c.attrs, WAKE_FIELDS) as unknown as MonitorWake;
   });
-  return { ...said(t.attrs, MONITOR_FIELDS), sources: parts("source").map(sourceOf), follows, derives, wakes };
+  return { ...said(t.attrs, MONITOR_FIELDS), sources: parts("source").map(sourceOf), follows, derives, wakes, discovers: parts("discover").map(discoverOf) };
 }
 
 export const monitorVocabulary: Vocabulary<MonitorDoc> = {
@@ -206,6 +255,7 @@ export const monitorVocabulary: Vocabulary<MonitorDoc> = {
     follows: { parents: ["monitor"], key: "monitor", required: ["monitor"], attrs: FOLLOW_FIELDS },
     derive: { parents: ["monitor"], key: "id", required: ["id", "op", "inputs"], attrs: DERIVE_FIELDS },
     wake: { parents: ["monitor"], required: ["prompt"], attrs: WAKE_FIELDS },
+    discover: { parents: ["monitor"], required: ["by", "component", "from"], attrs: DISCOVER_FIELDS },
   },
   // A follow names a monitor by its folder: the platform checks that one is there, not the file.
   fromTree: monitorOf,
@@ -218,10 +268,11 @@ export const monitorVocabulary: Vocabulary<MonitorDoc> = {
         ...(m.follows ?? []).map((f) => ({ tag: "follows", attrs: attrsOf(f, FOLLOW_FIELDS), children: [] })),
         ...(m.derives ?? []).map((d) => ({ tag: "derive", attrs: attrsOf(d, DERIVE_FIELDS), children: [] })),
         ...(m.wakes ?? []).map((w) => ({ tag: "wake", attrs: attrsOf(w, WAKE_FIELDS), children: [] })),
+        ...(m.discovers ?? []).map((d) => ({ tag: "discover", attrs: attrsOf(d, DISCOVER_FIELDS), children: [] })),
       ],
     };
   },
-  empty: () => ({ sources: [], follows: [], derives: [], wakes: [] }),
+  empty: () => ({ sources: [], follows: [], derives: [], wakes: [], discovers: [] }),
 };
 
 registerVocabulary(monitorVocabulary);
@@ -237,9 +288,10 @@ export function monitorWithDefaults(m: MonitorDoc) {
     about: m.about ?? null,
     readme: m.readme ?? null,
     sameAs: m.sameAs ?? [],
-    sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null, host: s.host ?? null, mode: s.mode ?? "poll", retain: s.mode === "stream" ? (s.retain ?? "derived") : null, since: s.since ?? null })),
-    follows: m.follows.map((f) => ({ monitor: f.monitor, match: f.match ?? null })),
+    sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null, host: s.host ?? null, mode: s.mode ?? "poll", retain: s.mode === "stream" ? (s.retain ?? "derived") : null, since: s.since ?? null, vantage: s.vantage ?? null })),
+    follows: m.follows.map((f) => ({ monitor: f.monitor, match: f.match ?? null, where: f.where ?? null })),
     derives: (m.derives ?? []).map((d) => ({ id: d.id, op: d.op, inputs: d.inputs, params: d.params ?? {}, since: d.since ?? null })),
     wakes: m.wakes.map((w) => ({ match: w.match ?? null, prompt: w.prompt })),
+    discovers: (m.discovers ?? []).map((d) => ({ into: d.into ?? "./", match: d.match ?? null, by: d.by, component: d.component, from: d.from, props: d.props ?? {}, name: d.name ?? null, max: d.max ?? 10 })),
   };
 }

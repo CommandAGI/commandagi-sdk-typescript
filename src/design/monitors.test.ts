@@ -33,6 +33,7 @@ test("a monitor in JSX: a class is a component, an instance is one element, and 
     follows: [{ monitor: "../../central-banks/fed", match: "fomc.*" }],
     derives: [],
     wakes: [{ match: "sec.filing.8-k*", prompt: "Say what the report changes." }],
+    discovers: [],
   });
   assert.deepEqual(MONITORS.monitor.fromTree(MONITORS.monitor.toTree(doc as never)), doc, "both ways");
   assert.deepEqual(monitorWithDefaults(doc as never), {
@@ -41,17 +42,18 @@ test("a monitor in JSX: a class is a component, an instance is one element, and 
     about: "cik:0001045810",
     readme: null,
     sameAs: ["ticker:NVDA"],
-    sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m", via: "worker", exit: null, host: null, mode: "poll", retain: null, since: null }],
-    follows: [{ monitor: "../../central-banks/fed", match: "fomc.*" }],
+    sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m", via: "worker", exit: null, host: null, mode: "poll", retain: null, since: null, vantage: null }],
+    follows: [{ monitor: "../../central-banks/fed", match: "fomc.*", where: null }],
     derives: [],
     wakes: [{ match: "sec.filing.8-k*", prompt: "Say what the report changes." }],
+    discovers: [],
   });
 });
 
 test("an empty monitor and the empty file's first form", () => {
   const { document } = declarationOf({ default: el("monitor") });
-  assert.deepEqual(document!.document, { sources: [], follows: [], derives: [], wakes: [] });
-  assert.deepEqual(MONITORS.monitor.empty!("monitor"), { sources: [], follows: [], derives: [], wakes: [] });
+  assert.deepEqual(document!.document, { sources: [], follows: [], derives: [], wakes: [], discovers: [] });
+  assert.deepEqual(MONITORS.monitor.empty!("monitor"), { sources: [], follows: [], derives: [], wakes: [], discovers: [] });
 });
 
 test("a monitor refuses by name what it has no words for, and values out of range", () => {
@@ -72,7 +74,7 @@ test("a monitor refuses by name what it has no words for, and values out of rang
   assert.throws(one(src({ via: "host", retain: "all" })), /retain is for mode="stream" only/);
   assert.throws(one(src({ via: "host", mode: "stream", retain: "sample:soon" })), /retain is "all", "derived" or "sample:<duration>"/);
   const stream = declarationOf({ default: el("monitor", {}, src({ via: "host", host: "studio", mode: "stream", retain: "sample:1m" })) });
-  assert.deepEqual(monitorWithDefaults(stream.document!.document as never).sources[0], { id: "s", adapter: "fred", params: {}, every: "1h", via: "host", exit: null, host: "studio", mode: "stream", retain: "sample:1m", since: null });
+  assert.deepEqual(monitorWithDefaults(stream.document!.document as never).sources[0], { id: "s", adapter: "fred", params: {}, every: "1h", via: "host", exit: null, host: "studio", mode: "stream", retain: "sample:1m", since: null, vantage: null });
   assert.throws(one(src({ since: "2024-1-1" })), /since is a day/);
   assert.throws(one(src({ via: "host", mode: "stream", since: "2024-01-01" })), /since is for a polled source/);
   const started = declarationOf({ default: el("monitor", {}, src({ since: "2024-01-01" })) });
@@ -113,4 +115,34 @@ test("a derive names an operator, each port's input monitor by folder, its param
   assert.throws(one({ since: "soon" }), /since is a day/);
   assert.throws(one({ id: "a.b" }), /id is a word/);
   assert.throws(() => declarationOf({ default: el("monitor", {}, el("derive", { id: "d", inputs: { a: "../x" } })) }), /<derive id="d"> needs op/);
+});
+
+test("a mirror discovers its conversations: a source names its vantage, a follow filters, a discover writes one folder per conversation", () => {
+  const Conversation = ({ conversation, title }: { conversation: string; title: string }) =>
+    el("monitor", { title, class: "conversation" }, el("follows", { monitor: "../", match: "message.*", where: `conversation=${conversation}` }));
+  const mirror = declarationOf({
+    default: el(
+      "monitor",
+      { title: "Telegram: commandagi", class: "mirror" },
+      el("source", { id: "user-api", adapter: "telegram-user", params: { account: "commandagi" }, every: "1m", via: "host", vantage: "../../../infra/vantages/laptop-linux" }),
+      el("discover", { match: "message.*", by: "conversation", component: "Conversation", from: "../../conversation.tsx", props: { conversation: "conversation", title: "fromName" }, name: "fromName", max: 5 }),
+    ),
+  }).document!.document as never;
+  assert.deepEqual(monitorWithDefaults(mirror).discovers, [
+    { into: "./", match: "message.*", by: "conversation", component: "Conversation", from: "../../conversation.tsx", props: { conversation: "conversation", title: "fromName" }, name: "fromName", max: 5 },
+  ]);
+  assert.equal(monitorWithDefaults(mirror).sources[0]!.vantage, "../../../infra/vantages/laptop-linux");
+  assert.deepEqual(MONITORS.monitor.fromTree(MONITORS.monitor.toTree(mirror)), mirror, "both ways");
+  const one = declarationOf({ default: () => el(Conversation, { conversation: "4412", title: "Alice" }) }).document!.document as { follows: unknown[] };
+  assert.deepEqual(one.follows, [{ monitor: "../", match: "message.*", where: "conversation=4412" }]);
+  const refuse = (props: Record<string, unknown>) => () =>
+    declarationOf({ default: el("monitor", {}, el("discover", { by: "conversation", component: "Conversation", from: "../c.tsx", ...props })) });
+  assert.doesNotThrow(refuse({}));
+  assert.throws(refuse({ component: "conversation" }), /component is the class's exported name/);
+  assert.throws(refuse({ from: "../c.md" }), /from is the class file/);
+  assert.throws(refuse({ by: "data[0]" }), /by is a data path/);
+  assert.throws(refuse({ props: { title: "a b" } }), /props.title is a data path/);
+  assert.throws(refuse({ max: 500 }), /max is a whole number from 1 to 50/);
+  assert.throws(refuse({ delete: true }), /delete is not read/);
+  assert.throws(() => declarationOf({ default: el("monitor", {}, el("follows", { monitor: "../x", where: "conversation" })) }), /where is name=value terms/);
 });

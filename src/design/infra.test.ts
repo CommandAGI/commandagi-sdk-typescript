@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { declarationOf, exitWithDefaults, INFRA, jsx } from "./index.js";
+import { declarationOf, exitWithDefaults, INFRA, jsx, vantageWithDefaults } from "./index.js";
 
 const el = (tag: unknown, props: Record<string, unknown> = {}, ...children: unknown[]) => jsx(tag as string, { ...props, ...(children.length ? { children } : {}) });
 
@@ -37,4 +37,35 @@ test("an exit refuses by name what it has no words for, and values out of range"
   assert.throws(exit({ enabled: "yes" }), /enabled is true or false/);
   assert.throws(exit({ maxMonthlyUsd: "6.99" }), /maxMonthlyUsd is a price in USD/);
   assert.throws(exit({ ip: "1.2.3.4" }), /ip is not read/);
+});
+
+test("a vantage is a device, a place and a session: the run gives the VantageDoc, and the vocabulary has no words for a person", () => {
+  const { document } = declarationOf({
+    default: el("vantage", { name: "fsn-1", path: "worker", exit: "fsn-1", location: { city: "Falkenstein", region: "DE-SN", country: "DE", precision: "city" }, locale: "de-DE", timezone: "Europe/Berlin" }),
+  });
+  assert.equal(document!.format, "vantage");
+  assert.deepEqual(INFRA.vantage.fromTree(INFRA.vantage.toTree(document!.document as never)), document!.document, "both ways");
+  assert.deepEqual(vantageWithDefaults(document!.document as never), {
+    name: "fsn-1", path: "worker", host: null, unit: null, snapshot: null, exit: "fsn-1",
+    location: { city: "Falkenstein", region: "DE-SN", country: "DE", precision: "city" }, locale: "de-DE", timezone: "Europe/Berlin",
+    session: null, device: null, clock: null, enabled: true,
+  });
+  const phone = declarationOf({ default: el("vantage", { name: "android-01", path: "phone", host: "laptop-linux", unit: "../../../worlds/fleet/world.tsx#android-01", device: { kind: "phone", os: "android" }, enabled: false }) });
+  assert.equal(vantageWithDefaults(phone.document!.document as never).enabled, false);
+  const v = (props: Record<string, unknown>) => () => declarationOf({ default: el("vantage", { name: "v-1", path: "host", host: "laptop-linux", ...props }) });
+  assert.doesNotThrow(v({}));
+  // An invented identity has no words here: each is refused by name.
+  for (const k of ["displayName", "birthday", "gender", "persona", "profile", "history", "age", "email"]) assert.throws(v({ [k]: "x" }), new RegExp(`${k} is not read`));
+  assert.throws(v({ device: { kind: "desktop", owner: "Jane" } }), /device.owner is not read/);
+  assert.throws(v({ location: { city: "Austin", street: "1 Main St" } }), /location.street is not read/);
+  assert.throws(v({ name: "Jane Doe" }), /name is the folder's word/);
+  assert.throws(v({ path: "satellite" }), /path is "browser"/);
+  assert.throws(() => declarationOf({ default: el("vantage", { name: "b-1", path: "browser" }) }), /a browser is driven by a host/);
+  assert.throws(() => declarationOf({ default: el("vantage", { name: "w-1", path: "worker", host: "x" }) }), /the worker's path has no host/);
+  assert.throws(v({ unit: "x#y" }), /for path="phone" only/);
+  assert.throws(v({ exit: "Germany" }), /exit is an exit's name/);
+  assert.throws(v({ locale: "English" }), /locale is a BCP 47 tag/);
+  assert.throws(v({ timezone: "CST 6" }), /timezone is an IANA zone/);
+  assert.throws(v({ location: { lat: 120 } }), /location.lat is a number from -90 to 90/);
+  assert.throws(v({ clock: 50 }), /clock is \{ sd \} in ms/);
 });
