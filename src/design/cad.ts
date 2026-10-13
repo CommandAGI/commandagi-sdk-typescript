@@ -39,16 +39,22 @@ const axisRef = (axis: AxisName) => ({ type: "datumAxis", axis });
 const planeRef = (plane: PlaneName) => ({ type: "datum", plane: PLANES[plane] });
 
 /**
- * A body: the feature that last shaped it, and every feature it is made of (what a later boolean or
- * modifier must see first).
+ * A body: the feature that last shaped it (`id`), and the features that started the solids it is (`heads`).
+ *
+ * A feature that acts on a body is wired to its `heads` and to `id` (`actsOn`). The heads say which solids it acts
+ * on (the engine reads a solid's lineage); `id` says what runs first, and every earlier feature of the body runs
+ * before `id`. So a part of n features declares about 2n wires. A wire to every earlier feature said the same and
+ * declared n² of them: a plate with 129 holes was 566 kB.
  */
 export class Body extends NodeRef {
-  constructor(
-    scope: Scope,
-    id: string,
-    readonly state: readonly string[],
-  ) {
+  readonly heads: readonly string[];
+  constructor(scope: Scope, id: string, heads: readonly string[]) {
     super(scope, id);
+    this.heads = [...new Set(heads)];
+  }
+  /** What a feature that acts on this body is wired to, in order: its heads, then the feature that last shaped it. */
+  actsOn(): string[] {
+    return [...new Set([...this.heads, this.id])];
   }
 }
 
@@ -65,13 +71,16 @@ function feature(
   what: string,
   type: string,
   fields: Record<string, PortValue>,
-  opts: { name?: string; after?: readonly string[]; port?: "base" | "on" },
+  opts: { name?: string; after?: readonly Body[]; port?: "base" | "on" },
 ): Body {
   const s = scope(what);
   const after = opts.after ?? [];
-  for (const id of after) if (!s.nodes[id]) throw new Error(`${what}: ${id} is not a feature of this part`);
-  const ref = s.add(type, { ...fields, ...channels(opts.port ?? "base", after.map((id) => new NodeRef(s, id))) }, { label: opts.name ?? defaultName(s, type) });
-  return new Body(s, ref.id, [...after, ref.id]);
+  const wires = [...new Set(after.flatMap((b) => b.actsOn()))];
+  for (const id of wires) if (!s.nodes[id]) throw new Error(`${what}: ${id} is not a feature of this part`);
+  const ref = s.add(type, { ...fields, ...channels(opts.port ?? "base", wires.map((id) => new NodeRef(s, id))) }, { label: opts.name ?? defaultName(s, type) });
+  // A solid that combines with nothing ("new") is a body of its own, whatever it runs after.
+  const own = fields.operation === "new" || after.length === 0;
+  return new Body(s, ref.id, own ? [ref.id] : after.flatMap((b) => b.heads));
 }
 
 function defaultName(s: Scope, type: string): string {
@@ -116,7 +125,7 @@ export interface SolidOpts {
   /** Bodies it must run after (a boolean's targets). */
   after?: Body[];
 }
-const afterIds = (o: SolidOpts) => (o.after ?? []).flatMap((b) => b.state);
+const afterIds = (o: SolidOpts) => o.after ?? [];
 
 /** A box, centred on `center` (default the origin). */
 export function box(o: { size: Vec3; center?: Vec3 } & SolidOpts): Body {
@@ -281,19 +290,18 @@ export function revolve(profile: SketchRef, o: { axis: AxisName; angle?: number 
 function boolean(what: string, op: "add" | "cut" | "intersect", target: Body, tools: Body[]): Body {
   if (!tools.length) throw new Error(`${what} needs at least one tool body`);
   const s = scope(what);
-  let state = [...target.state];
+  let body = target;
   for (const tool of tools) {
     const n = s.nodes[tool.id];
     if (!n || !("operation" in n.inputs)) throw new Error(`${what}: ${tool.id} is not a solid primitive or extrude`);
     n.inputs.operation = op;
-    const before = state.filter((id) => !tool.state.includes(id));
     const prior = Object.keys(n.inputs).filter((k) => k.startsWith("base."));
     for (const k of prior) delete n.inputs[k];
-    Object.assign(n.inputs, channels("base", before.map((id) => ({ wire: { node: id, port: "out" } }))));
-    state = [...state, ...tool.state.filter((id) => !state.includes(id))];
+    Object.assign(n.inputs, channels("base", body.actsOn().filter((id) => id !== tool.id).map((id) => ({ wire: { node: id, port: "out" } }))));
+    // The tool is now part of the target. A solid the tool was made beside (its other heads) stays a solid.
+    body = new Body(s, tool.id, [...body.heads, ...tool.heads.filter((h) => h !== tool.id)]);
   }
-  const last = tools[tools.length - 1]!;
-  return new Body(s, last.id, state);
+  return body;
 }
 
 /** Fuse tools into the target. */
@@ -328,7 +336,7 @@ const edgeRef = (e: EdgeAt) => ({ kind: "edge", signature: { point: e.at, ...(e.
 const faceRef = (f: FaceAt) => ({ kind: "face", signature: { point: f.at, normal: f.normal } });
 
 function modifier(what: string, type: string, target: Body, fields: Record<string, PortValue>, name?: string): Body {
-  return feature(what, type, fields, { name, after: target.state, port: "on" });
+  return feature(what, type, fields, { name, after: [target], port: "on" });
 }
 
 /** Round these edges of `target`. */
@@ -350,7 +358,7 @@ export function shell(target: Body, o: { thickness: number; open: FaceAt[]; name
 function seeded(what: string, type: string, seed: Body, fields: Record<string, PortValue>, name?: string): Body {
   const s = scope(what);
   const ref = s.add(type, { seed, ...fields }, { label: name ?? defaultName(s, type) });
-  return new Body(s, ref.id, [...seed.state, ref.id]);
+  return new Body(s, ref.id, seed.heads);
 }
 
 /** A copy of the seed feature's solid, moved and/or turned about a datum axis, fused into the part. */

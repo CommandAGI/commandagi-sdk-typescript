@@ -16,6 +16,6 @@
  */
 export { CommandAGI, CommandAGIError, createClient, type CommandAGIConfig, type ToolContent } from "./client.js";
 export { Session, type Frame, type ControlChannel } from "./session.js";
-export { Kernel, KernelError, kernelWhere, type KernelConfig, type EntityRef } from "./kernel.js";
+export { Kernel, KernelError, kernelWhere, linkedParts, type KernelConfig, type EntityRef, type BuildFailure, type LinkedParts, type Measure, type Measured, type InterferenceReport } from "./kernel.js";
 export * from "./generated.js";
 export { CommandAGI as default } from "./client.js";

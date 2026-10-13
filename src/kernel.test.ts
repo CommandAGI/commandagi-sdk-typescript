@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import { test } from "node:test";
-import { Kernel, KernelError, kernelWhere } from "./kernel.js";
+import { Kernel, KernelError, kernelWhere, linkedParts } from "./kernel.js";
 
 test("one setting chooses the service: an argument, then a running service's URL, then COMMANDAGI_THREED, then the platform", () => {
   assert.equal(kernelWhere(undefined, {}), "platform");
@@ -20,8 +20,16 @@ test("a service on this computer gets its own bearer and never the account's API
     req.on("data", (c) => (text += c));
     req.on("end", () => {
       seen.push({ url: req.url, auth: req.headers.authorization, body: JSON.parse(text) });
-      res.writeHead(req.url === "/export" ? 200 : 422, { "content-type": "application/json" });
-      res.end(JSON.stringify(req.url === "/export" ? { content: "ISO-10303-21;" } : { error: "no such body" }));
+      const failed = { error: "build_failed", status: "failed", reason: "the build failed in 1 feature, so its geometry is not whole: cbore, a hole: hole face not found", failures: [{ feature: "cbore", type: "hole", message: "hole face not found" }] };
+      const answers: Record<string, [number, unknown]> = {
+        "/export": [200, { content: "ISO-10303-21;" }],
+        "/measure": [422, { error: "measures[0]: no such body" }],
+        "/interference": [200, { clashes: [], engagements: [], close: [], pairs: 1 }],
+        "/tessellate": [422, failed],
+      };
+      const [status, answer] = answers[req.url!]!;
+      res.writeHead(status, { "content-type": "application/json" });
+      res.end(JSON.stringify(answer));
     });
   });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
@@ -37,9 +45,17 @@ test("a service on this computer gets its own bearer and never the account's API
       kernel.measure("{}", "radius", { body: "body_9", kind: "edge", index: 0 }),
       (e: unknown) => e instanceof KernelError && e.status === 422 && /no such body/.test(e.message),
     );
-    assert.deepEqual(seen, [
+    const parts = linkedParts({ "bolt.3d.tsx": { id: "3d-bolt", nodes: {} } });
+    assert.equal((await kernel.interference("{}", { clearance: 0.5, parts })).pairs, 1);
+    // A build that is not whole is refused, and the refusal lists what failed.
+    await assert.rejects(
+      kernel.tessellate("{}", 0.1),
+      (e: unknown) => e instanceof KernelError && e.status === 422 && e.failures[0]!.feature === "cbore" && /the build failed in 1 feature/.test(e.message),
+    );
+    assert.deepEqual(seen.slice(0, 3), [
       { url: "/export", auth: "Bearer service-bearer", body: { docText: '{"id":"3d-plate","nodes":{}}', format: "step", bodies: ["body_0"] } },
-      { url: "/measure", auth: "Bearer service-bearer", body: { docText: "{}", op: "radius", a: { body: "body_9", kind: "edge", index: 0 } } },
+      { url: "/measure", auth: "Bearer service-bearer", body: { docText: "{}", measures: [{ quantity: "radius", a: { body: "body_9", kind: "edge", index: 0 } }] } },
+      { url: "/interference", auth: "Bearer service-bearer", body: { docText: "{}", clearance: 0.5, parts: { "3d:name:bolt.3d.tsx": { docText: '{"id":"3d-bolt","nodes":{}}' } } } },
     ]);
   } finally {
     process.env = saved;

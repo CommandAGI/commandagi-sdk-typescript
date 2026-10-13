@@ -220,9 +220,9 @@ An agent connected to the host over MCP does the same with the `evaluate_code` t
 import { Kernel } from "commandagi";
 
 const kernel = new Kernel();                                  // reads COMMANDAGI_THREED
-const { observation } = await kernel.observe(graph);          // bodies, faces, edges, mass properties, each feature's error
-if (Object.keys(observation.errors).length) throw new Error(JSON.stringify(observation.errors));
-const step = await kernel.export(graph, "step");
+const { observation } = await kernel.observe(graph);          // bodies, faces, edges, mass properties; status and failures
+if (observation.status === "failed") throw new Error(JSON.stringify(observation.failures));
+const step = await kernel.export(graph, "step");              // refused (KernelError.failures) when a feature failed
 ```
 
 `graph` is what a `.3d.tsx` declares (`commandagi code eval "Plate.3d.tsx"` prints it), or its JSON text. One setting
@@ -235,10 +235,19 @@ chooses the service:
 | a URL (or `COMMANDAGI_THREED_URL`) | one that runs already: `commandagi threed serve --port 8091` | `COMMANDAGI_THREED_TOKEN`, the bearer you started it with |
 
 `observe(doc)`, `export(doc, "step" | "iges", { bodies })`, `measure(doc, "distance" | "angle" | "radius" | "closest",
-a, b)`, `drawing(doc, { direction, up, section })`, `tessellate(doc, deflection)`. An entity is `{ body: "body_0",
-kind: "face" | "edge" | "vertex" | "body", index }`, with the index as `observe` lists it. One service keeps the last
-documents it built, so `observe` then `export` then `measure` of one document is one build. `measure` works with a
-local service only.
+a, b)`, `measureAll(doc, [{ quantity, a, b }, …])` (many on one build), `interference(doc, { clearance, bodies })`,
+`drawing(doc, { direction, up, section })`, `tessellate(doc, deflection)`. An entity is `{ body: "body_0",
+kind: "face" | "edge" | "vertex" | "body", index }`, with the index as `observe` lists it.
+
+- **A build in which a feature failed is not whole.** `observe` answers it with `status: "failed"` and `failures`.
+  Every other call refuses it: `KernelError` with `status` 422 and `failures` (each failed feature, with why).
+- **`interference`** compares every pair of bodies: `clashes` (shared volume), `engagements` (shared volume that all
+  lies in a declared `thread`: a screw in a tapped hole) and, with `clearance`, `close` (nearer than it). Each body
+  has its part's name.
+- **An assembly's files** go with the call: `{ parts: linkedParts({ "bolt.3d.tsx": boltGraph, "bracket.step": text }) }`,
+  each under the name its `<externalPart>` gives.
+- **A STEP file names its parts**: each body is a product of its part's name, an assembly the product they are
+  components of.
 
 `commandagi threed serve` needs no checkout of the CommandAGI repository: this package carries the service.
 `commandagi threed status` says whether it is installed.

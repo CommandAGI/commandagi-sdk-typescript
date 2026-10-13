@@ -97,6 +97,40 @@ test("a feature element whose fields do not fit its type is refused with the op 
   assert.doesNotThrow(read(jsx("pointCloud", { id: "pc", positions })));
 });
 
+// sdk/python tests/test_threed.py holds the same document and the same refusals.
+test("a hole is placed, and faces and edges are chosen by a query; no feature names what it follows", () => {
+  const top = { kind: "face", select: { normal: [0, 0, 1], farthest: [0, 0, 1] } };
+  const xy = { type: "datum", plane: "plane_xy" };
+  const g = declarationOf({
+    default: jsx("part", {
+      name: "Plate",
+      children: [
+        jsx("box", { id: "plate", center: [0, 0, 4], size: [100, 60, 8], operation: "new" }),
+        jsx("sketch", { id: "places", plane: xy, children: [jsx("point", { id: "a", x: -30, y: 0 }), jsx("point", { id: "b", x: 30, y: 0 })] }),
+        jsx("hole", { id: "cbore", face: top, positions: [[10, 20, 8], [-10, 20, 8]], diameter: 5.5, through: true, style: "counterbore", headDiameter: 10, headDepth: 5 }),
+        jsx("hole", { id: "pins", face: top, sketch: "places", diameter: 3, through: true, style: "simple" }),
+        jsx("chamfer", { id: "rims", distance: 0.5, edges: [{ kind: "edge", select: { any: [{ createdBy: "cbore" }, { createdBy: "pins" }], geometry: "circle", radius: { max: 3 } } }] }),
+        jsx("fillet", { id: "corners", radius: 2, edges: [{ kind: "edge", select: { parallel: [0, 0, 1], not: { inBox: { min: [0, -99, -99], max: [99, 99, 99] } } } }] }),
+      ],
+    }),
+  }).graph;
+  const n = g.nodes;
+  assert.deepEqual(n.cbore!.inputs.positions, [[10, 20, 8], [-10, 20, 8]]);
+  assert.deepEqual(n.cbore!.inputs.face, top);
+  assert.equal(n.pins!.inputs.sketch, "places");
+  assert.deepEqual((n.rims!.inputs.edges as { select: { any: unknown[] } }[])[0]!.select.any[1], { createdBy: "pins" });
+  // The order of the file says what each feature follows (the reader fills `consumes`).
+  assert.equal(n.rims!.inputs.consumes, undefined);
+  assert.deepEqual((g.meta!.presentation as { order: string[] }).order, ["plate", "places", "cbore", "pins", "rims", "corners"]);
+
+  const read = (el: unknown) => () => declarationOf({ default: jsx("part", { name: "P", children: [jsx("box", { id: "plate", size: [1, 1, 1] }), el] }) });
+  assert.throws(read(jsx("hole", { id: "h", face: top, positions: [[1, 2]] })), { message: '<hole id="h">: positions/0: needs at least 3 items (got 2)' });
+  assert.throws(read(jsx("fillet", { id: "f", edges: [{ kind: "edge", select: { vertical: true } }] })), { message: '<fillet id="f">: edges/0/select/vertical: is not one of its fields' });
+  assert.throws(read(jsx("fillet", { id: "f", edges: [{ kind: "edge", select: { geometry: "helix" } }] })), {
+    message: '<fillet id="f">: edges/0/select/geometry: must be one of line, circle, arc, ellipse, spline, other, plane, cylinder, cone, sphere, torus (got "helix")',
+  });
+});
+
 // sdk/python and sdk/rust read the same assembly to the same inputs (their tests hold the same values).
 test("a required field with a declared default may be left out: it reads as the default, at every depth", () => {
   const read = (...children: unknown[]) => declarationOf({ default: jsx("assembly", { name: "A", children }) }).graph;
