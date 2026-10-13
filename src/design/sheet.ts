@@ -37,6 +37,10 @@
  *                                                                          [{ number: "1", name: "VBAT" }, …])
  *   <net name pins>                                                        a stored net of a netlist circuit: the pins
  *                                                                          on it ([".C1 > .pin1", ".U1 > .pin6"])
+ *   … noConnect={["3", "4"]}                                               on any part: the pins it leaves open on
+ *                                                                          purpose, by pin NUMBER (KiCad's no-connect
+ *                                                                          marker): the electrical rule check does
+ *                                                                          not report them as pins on nothing
  *   … spice={[{ id, model, terminals }]}                                   on any part: the vendor SPICE packages it
  *                                                                          binds, each formal by pin NUMBER
  *   <attachment name role file mime>                                       a KiCad file the circuit carries for
@@ -167,6 +171,15 @@ function spiceOf(el: DesignElement): { spice?: unknown } {
   return { spice: plainData(v, `${where(el)} spice`) };
 }
 
+/** The pins a part leaves open on purpose (`noConnect={["3", "4"]}`), by pin number, as written. */
+function noConnectOf(el: DesignElement): { noConnect?: string[] } {
+  const v = el.props.noConnect;
+  if (v === undefined) return {};
+  if (!Array.isArray(v) || !v.length || !v.every((n) => typeof n === "string" && n) || new Set(v).size !== v.length)
+    throw new Error(`${where(el)}: noConnect is a list of pin numbers (["3", "4"]), each once`);
+  return { noConnect: [...(v as string[])] };
+}
+
 /** Add the placement of `unit` of `part` that `el` declares (its schX, schY, schRotation, schMirror). */
 function place(s: Scope, part: Placed, unit: number, el: DesignElement, pins: readonly string[]): void {
   const x = num(el, "schX"), y = num(el, "schY"), rot = num(el, "schRotation");
@@ -202,7 +215,7 @@ export function declareSheet(children: unknown): void {
   for (const el of childElements(children)) {
     const ideal = SHEET_PARTS[el.type];
     if (ideal) {
-      refuseUnknown(el, ["name", "spice", ...PLACE_PROPS, ...(ideal.value ? [ideal.value] : []), ...(ideal.excitation ? ["excitation"] : [])]);
+      refuseUnknown(el, ["name", "spice", "noConnect", ...PLACE_PROPS, ...(ideal.value ? [ideal.value] : []), ...(ideal.excitation ? ["excitation"] : [])]);
       const ref = el.props.name;
       if (typeof ref !== "string" || !ref) throw new Error(`<${el.type}> needs a name`);
       // The netlist leaves power symbols out by their reference (KiCad's rule), so a ground's says it is one.
@@ -225,6 +238,7 @@ export function declareSheet(children: unknown): void {
           ...(ideal.power ? { powerSymbol: true } : {}),
           ...(excitation !== undefined ? { excitation } : {}),
           ...spiceOf(el),
+          ...noConnectOf(el),
         },
         { id: ref, label: ref, meta: meta(el) },
       );
@@ -235,7 +249,7 @@ export function declareSheet(children: unknown): void {
     }
     switch (el.type) {
       case "part": {
-        refuseUnknown(el, ["name", "symbol", "library", "value", "pins", "spice", ...PLACE_PROPS]);
+        refuseUnknown(el, ["name", "symbol", "library", "value", "pins", "spice", "noConnect", ...PLACE_PROPS]);
         const ref = str(el, "name", "the part's reference (U1)");
         if (parts.has(ref)) throw new Error(`two parts are called ${ref}`);
         if (el.props.pins !== undefined) {
@@ -251,7 +265,7 @@ export function declareSheet(children: unknown): void {
         // The pins are the library's: the editor reads them (and the part's type) from the library file.
         const part = s.add(
           partTypeFor([]),
-          { ref, ...(raw !== undefined ? { value: String(raw) } : {}), symbol, library, pins: [], ...spiceOf(el) },
+          { ref, ...(raw !== undefined ? { value: String(raw) } : {}), symbol, library, pins: [], ...spiceOf(el), ...noConnectOf(el) },
           { id: ref, label: ref, meta: meta(el) },
         );
         const placed: Placed = { ref, id: part.id, units: new Map(), ideal: null, el };
@@ -419,7 +433,7 @@ function netlistPart(s: Scope, el: DesignElement, ref: string): Placed {
   if (raw2 !== undefined && typeof raw2 !== "string" && typeof raw2 !== "number") throw new Error(`${where(el)}: value is a value ("LM358", 1000), not ${JSON.stringify(raw2)}`);
   const part = s.add(
     partTypeFor(pins),
-    { ref, ...(raw2 !== undefined ? { value: String(raw2) } : {}), ...(symbol !== undefined ? { symbol } : {}), pins, ...spiceOf(el) },
+    { ref, ...(raw2 !== undefined ? { value: String(raw2) } : {}), ...(symbol !== undefined ? { symbol } : {}), pins, ...spiceOf(el), ...noConnectOf(el) },
     { id: ref, label: ref, meta: meta(el) },
   );
   return { ref, id: part.id, units: new Map(), ideal: null, pins, el };

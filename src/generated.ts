@@ -1176,6 +1176,166 @@ export const SDK_SCHEMA = {
           },
         ],
       },
+      {
+        name: "eda",
+        doc: "A circuit in code (docs/eda-authoring.md): check it, route it and make its files with no editor open. fileId is the Drive id of its schematic (.sch.tsx, .sch.py, .sch.rs) or of its board (.pcb.tsx, .pcb.py, .pcb.rs).",
+        factory: null,
+        methods: [
+          {
+            name: "erc",
+            tool: "sch_erc",
+            doc: "Electrical rule check of the schematic: each violation with its rule, severity, pins, and the code elements (file, line) that declare them. CommandAGI's rules over the netlist, not KiCad's ERC. `warnings: false` lists the errors only.",
+            params: [
+              {
+                name: "fileId",
+                key: "fileId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "drc",
+            tool: "pcb_drc",
+            doc: "Design rule check of the board: each violation with the code elements it is about. A rule given in opts (clearance, trackWidth …) replaces the board's.",
+            params: [
+              {
+                name: "fileId",
+                key: "fileId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "netlist",
+            tool: "sch_netlist",
+            doc: "The circuit's parts, pins and nets, as the schematic states them.",
+            params: [
+              {
+                name: "fileId",
+                key: "fileId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "autoroute",
+            tool: "pcb_autoroute",
+            doc: "Route the board's open connections on the copper layers given (default the two outer layers, through vias) and write the traces into its code. The result names each connection left unrouted; `complete` is false while one is.",
+            params: [
+              {
+                name: "fileId",
+                key: "fileId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "fabricate",
+            tool: "pcb_fabricate",
+            doc: "The manufacturing files of the board (Gerber layers, drill files, bill of materials, pick-and-place); `omitted` names what a file leaves out.",
+            params: [
+              {
+                name: "fileId",
+                key: "fileId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "model3d",
+            tool: "pcb_model3d",
+            doc: "The board as a 3D model (format: step or obj). The STEP is an assembly: the board with its holes, each part's own model where its footprint names one in the drive, else a bounding body that says so.",
+            params: [
+              {
+                name: "fileId",
+                key: "fileId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+        ],
+      },
     ],
   },
   session: {
@@ -2200,6 +2360,35 @@ export class Vpn {
   }
 }
 
+/** A circuit in code (docs/eda-authoring.md): check it, route it and make its files with no editor open. fileId is the Drive id of its schematic (.sch.tsx, .sch.py, .sch.rs) or of its board (.pcb.tsx, .pcb.py, .pcb.rs). */
+export class Eda {
+  constructor(private readonly t: Transport) {}
+  /** Electrical rule check of the schematic: each violation with its rule, severity, pins, and the code elements (file, line) that declare them. CommandAGI's rules over the netlist, not KiCad's ERC. `warnings: false` lists the errors only. */
+  erc(fileId: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("sch_erc", { ...prune({ fileId: fileId }), ...opts });
+  }
+  /** Design rule check of the board: each violation with the code elements it is about. A rule given in opts (clearance, trackWidth …) replaces the board's. */
+  drc(fileId: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("pcb_drc", { ...prune({ fileId: fileId }), ...opts });
+  }
+  /** The circuit's parts, pins and nets, as the schematic states them. */
+  netlist(fileId: string): Promise<unknown> {
+    return this.t.call("sch_netlist", prune({ fileId: fileId }));
+  }
+  /** Route the board's open connections on the copper layers given (default the two outer layers, through vias) and write the traces into its code. The result names each connection left unrouted; `complete` is false while one is. */
+  autoroute(fileId: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("pcb_autoroute", { ...prune({ fileId: fileId }), ...opts });
+  }
+  /** The manufacturing files of the board (Gerber layers, drill files, bill of materials, pick-and-place); `omitted` names what a file leaves out. */
+  fabricate(fileId: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("pcb_fabricate", { ...prune({ fileId: fileId }), ...opts });
+  }
+  /** The board as a 3D model (format: step or obj). The STEP is an assembly: the board with its holes, each part's own model where its footprint names one in the drive, else a bounding body that says so. */
+  model3d(fileId: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("pcb_model3d", { ...prune({ fileId: fileId }), ...opts });
+  }
+}
+
 /**
  * Everything above the transport. The hand-written client (./client.ts) implements `call` over
  * /mcp and `withThread`; every method here is sugar over those two.
@@ -2227,6 +2416,8 @@ export abstract class GeneratedClient implements Transport {
   readonly phone = new Phone(this);
   /** The VPN overlay (docs/vpn.md): its nodes and exits, and egress from an exit's address. */
   readonly vpn = new Vpn(this);
+  /** A circuit in code (docs/eda-authoring.md): check it, route it and make its files with no editor open. fileId is the Drive id of its schematic (.sch.tsx, .sch.py, .sch.rs) or of its board (.pcb.tsx, .pcb.py, .pcb.rs). */
+  readonly eda = new Eda(this);
   /** A single connected social account, bound: cagi.social('tiktok', '@brand').post(fileId). */
   social(platform: string, account?: string): Social {
     return new Social(this, platform, account);
@@ -2840,5 +3031,52 @@ export const CLI_COMMANDS: readonly Command[] = [
     params: [{ name: "url" }],
     spread: true,
     doc: "Fetch a URL from a VPN exit's address (method, headers, body, exit in opts); refused without an exit grant.",
+  },
+  {
+    group: "eda",
+    verb: "erc",
+    tool: "sch_erc",
+    params: [{ name: "fileId" }],
+    spread: true,
+    doc: "Electrical rule check of the schematic: each violation with its rule, severity, pins, and the code elements (file, line) that declare them. CommandAGI's rules over the netlist, not KiCad's ERC. `warnings: false` lists the errors only.",
+  },
+  {
+    group: "eda",
+    verb: "drc",
+    tool: "pcb_drc",
+    params: [{ name: "fileId" }],
+    spread: true,
+    doc: "Design rule check of the board: each violation with the code elements it is about. A rule given in opts (clearance, trackWidth …) replaces the board's.",
+  },
+  {
+    group: "eda",
+    verb: "netlist",
+    tool: "sch_netlist",
+    params: [{ name: "fileId" }],
+    doc: "The circuit's parts, pins and nets, as the schematic states them.",
+  },
+  {
+    group: "eda",
+    verb: "autoroute",
+    tool: "pcb_autoroute",
+    params: [{ name: "fileId" }],
+    spread: true,
+    doc: "Route the board's open connections on the copper layers given (default the two outer layers, through vias) and write the traces into its code. The result names each connection left unrouted; `complete` is false while one is.",
+  },
+  {
+    group: "eda",
+    verb: "fabricate",
+    tool: "pcb_fabricate",
+    params: [{ name: "fileId" }],
+    spread: true,
+    doc: "The manufacturing files of the board (Gerber layers, drill files, bill of materials, pick-and-place); `omitted` names what a file leaves out.",
+  },
+  {
+    group: "eda",
+    verb: "model3d",
+    tool: "pcb_model3d",
+    params: [{ name: "fileId" }],
+    spread: true,
+    doc: "The board as a 3D model (format: step or obj). The STEP is an assembly: the board with its holes, each part's own model where its footprint names one in the drive, else a bounding body that says so.",
   },
 ];

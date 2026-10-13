@@ -267,3 +267,24 @@ test("declarationOf reads params, calls the default with them, and refuses what 
   assert.throws(() => declarationOf({ default: 42 }), /not a part, a circuit, a graph/);
   assert.throws(() => declarationOf({ default: { id: "g", nodes: { a: { id: "a", type: "x", inputs: { p: wireTo("zz") } } } } }), /wired from zz, which is not declared/);
 });
+
+test("a part names the pins it leaves open on purpose (noConnect), by pin number: an ideal part, a library part, a netlist part", () => {
+  const { graph: g } = declarationOf({
+    default: () =>
+      jsx("group", {
+        name: "Open",
+        children: [
+          jsx("resistor", { name: "R1", resistance: "1k", schX: 0, schY: 0, noConnect: ["2"] }),
+          jsx("part", { name: "K2", symbol: "station:SSR", library: "station.kicad_sym", schX: 50.8, schY: 0, noConnect: ["3", "4"] }),
+          jsx("part", { name: "J1", pins: ["1", "2", "3"], noConnect: ["3"] }),
+        ],
+      }),
+  });
+  assert.deepEqual(g.nodes.R1!.inputs.noConnect, ["2"]);
+  assert.deepEqual(g.nodes.K2!.inputs, { ref: "K2", symbol: "station:SSR", library: "station.kicad_sym", pins: [], noConnect: ["3", "4"] });
+  assert.deepEqual(g.nodes.J1!.inputs.noConnect, ["3"]);
+  const sheet = (...children: unknown[]) => () => declarationOf({ default: jsx("group", { name: "S", children }) });
+  for (const bad of [[], "3", [3], ["3", "3"], [""]])
+    assert.throws(sheet(jsx("part", { name: "K2", symbol: "a:B", library: "a.kicad_sym", noConnect: bad })), /noConnect is a list of pin numbers/);
+  assert.throws(sheet(jsx("junction", { name: "J", schX: 0, schY: 0, noConnect: ["1"] })), /prop noConnect is not read/);
+});
