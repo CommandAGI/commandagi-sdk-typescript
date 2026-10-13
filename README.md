@@ -211,6 +211,34 @@ commandagi code eval blinker.circuit.ts --no-ir --out blinker.json
 
 An agent connected to the host over MCP does the same with the `evaluate_code` tool.
 
+## Engineering data: materials, standard sizes, joints, drawings
+
+A 3D document says what a mechanical engineer needs with typed elements, checked when the file is read:
+
+```tsx
+export default () => (
+  <part name="Deck plate">
+    <box id="plate" center={[0, 0, 3]} size={[60, 40, 6]} operation="new" />
+    <hole id="h1" face={{ kind: "face", signature: { point: [0, 0, 6], normal: [0, 0, 1] } }}
+          size="M4 normal fit" style="counterbore" through consumes={["plate"]} />
+    <body id="plate" engineering={{ partNumber: "EX-0001", material: "6061-T6", process: "cnc-milling", finish: "anodize clear",
+          cost: { amount: 18, currency: "USD", source: "quote Q-118", date: "2026-10-13" } }} />
+    <joint id="j1" kind="revolute" a="plate" anchor={[0, 0, 0]} axis={[0, 0, 1]} limits={[-1.57, 1.57]} />
+    <sheet id="sheet1" size="A3" scale={2} views={[{ id: "front", view: "front" }, { id: "top", view: "top" }]} />
+  </part>
+);
+```
+
+- `size="M4 normal fit"` is the clearance hole of ISO 273 (4.5 mm) and, with `style="counterbore"`, the counterbore
+  for an ISO 4762 screw (Ø8 × 4.4). `"M4 tap"` is the tap drill. `holeSize("M4 close fit")` gives the same row.
+- `engineering.material` names a row of a materials table: `material("6061-T6")` is its density, modulus and
+  strengths, and where they were read. `Kernel.observe` then says the body's mass (`mass.grams`).
+- `Kernel.sheet(doc, { format: "pdf" })` draws the sheet from the build: views with hidden edges dashed, hole
+  callouts, the document's dimensions and a title block. `Kernel.bom(doc)` lists the parts.
+- `standardRow("iso-4762", "M4")`, `standardRow("bearings", "608")`: the dimension tables of standard parts.
+  `STANDARD_SOURCES` names where each table was read; the rows with their full provenance are
+  `cloud://global/standards/<table>.csv`.
+
 ## The 3D kernel: `Kernel`
 
 `commandagi/design` declares a part and builds nothing. `Kernel` asks the CommandAGI 3D design service

@@ -4,6 +4,33 @@ One entry for each release. A release is the tag `v<version>` in this repository
 Python and Rust SDKs carry the same version number. A version promises nothing about the next one (README
 § Versions): read this file before you change the version you pin.
 
+## Unreleased
+
+Added
+
+- A 3D document's engineering vocabulary (`commandagi/design`, checked against the one schema):
+  - `<body engineering={{ … }}>`: what a part is, apart from how it looks: `material` (a grade: the id of a row of a
+    materials table), `process`, `finish`, `vendor`, `cost` (amount, currency, source, date), `partNumber`, `mass`.
+  - `<joint>`: a joint between two bodies: `fixed`, `revolute`, `prismatic`, `cylindrical`, `planar`, `screw`,
+    `spherical` or `universal`, with its anchor, axis, limits and the geometry it binds (`refA`, `refB`).
+  - `<mate>`: a mate between two components of an assembly.
+  - `<sheet>`: an engineering drawing sheet: standard views, the document's dimensions and a title block.
+  - `<hole size="M4 close fit">`: a hole by its standard name. The size gives the diameter and, for a counterbore
+    or a countersink, the head.
+- `material`, `massGrams`, `holeSize`, `sizedHole`, `standardRow`, `MATERIALS`, `HOLE_SIZES`, `STANDARD_TABLES`,
+  `STANDARD_SOURCES`: the material grades, the standard holes and the dimension tables of standard parts (ISO 4762,
+  7380-1, 10642, 4014/4017, 4026, 4032, 4035, 7089, 7093-1, 273, 2306; DIN 974-1; ASME B18.3, B18.2.8; bearings,
+  MGN linear guides, T-slot profiles, heat-set inserts, parallel pins). Each table names where its rows were read.
+- `hole(body, { at, size: "M4 close fit", depth })` in the code-part primitives.
+- `Kernel.sheet` (a drawing sheet as SVG, DXF or PDF), `Kernel.bom` (the bill of materials), and
+  `Kernel.observe(doc, { materials })`: a body's `mass.grams` is its volume × the density of its material.
+
+Changed
+
+- A joint's kinds are named as mechanisms are: `hinge` is `revolute`, `slider` is `prismatic`, `ball` is
+  `spherical`. A document's joints and mates are `<joint>` and `<mate>` elements: the reader refuses `joints` in
+  `<slot name="dynamics">` and `mates` in `<slot name="assembly">`, and says which element to write.
+
 ## 0.5.0 (2026-10-13)
 
 The first release that contains `commandagi/design`. npm 0.4.1 was built on 2026-09-24, before the design layer was

@@ -20,8 +20,9 @@ test("a service on this computer gets its own bearer and never the account's API
     req.on("data", (c) => (text += c));
     req.on("end", () => {
       seen.push({ url: req.url, auth: req.headers.authorization, body: JSON.parse(text) });
-      res.writeHead(req.url === "/export" ? 200 : 422, { "content-type": "application/json" });
-      res.end(JSON.stringify(req.url === "/export" ? { content: "ISO-10303-21;" } : { error: "no such body" }));
+      const answers: Record<string, object> = { "/export": { content: "ISO-10303-21;" }, "/sheet": { sheet: "sheet1", format: "pdf", contentBase64: "JVBERg==", dimensions: [] }, "/bom": { lines: [], csv: "item\n" }, "/observe": { observation: { bodies: [], errors: {} }, meshes: [], meshTris: 0 } };
+      res.writeHead(answers[req.url ?? ""] ? 200 : 422, { "content-type": "application/json" });
+      res.end(JSON.stringify(answers[req.url ?? ""] ?? { error: "no such body" }));
     });
   });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
@@ -37,9 +38,18 @@ test("a service on this computer gets its own bearer and never the account's API
       kernel.measure("{}", "radius", { body: "body_9", kind: "edge", index: 0 }),
       (e: unknown) => e instanceof KernelError && e.status === 422 && /no such body/.test(e.message),
     );
+    // A drawing sheet, a bill of materials with an assembly's linked part, and an observation with the caller's own
+    // materials table (the density a body's mass uses).
+    const mine = [{ id: "6061-T6", densityGCm3: 2.71, source: "mill certificate 4711" }];
+    assert.equal((await kernel.sheet("{}", { sheet: "sheet1", format: "pdf" })).contentBase64, "JVBERg==");
+    assert.equal((await kernel.bom("{}", { parts: { "plate.3d.tsx": { id: "3d-plate", nodes: {} } }, materials: mine })).csv, "item\n");
+    await kernel.observe("{}", { materials: mine });
     assert.deepEqual(seen, [
       { url: "/export", auth: "Bearer service-bearer", body: { docText: '{"id":"3d-plate","nodes":{}}', format: "step", bodies: ["body_0"] } },
       { url: "/measure", auth: "Bearer service-bearer", body: { docText: "{}", op: "radius", a: { body: "body_9", kind: "edge", index: 0 } } },
+      { url: "/sheet", auth: "Bearer service-bearer", body: { docText: "{}", sheet: "sheet1", format: "pdf" } },
+      { url: "/bom", auth: "Bearer service-bearer", body: { docText: "{}", parts: { "plate.3d.tsx": '{"id":"3d-plate","nodes":{}}' }, materials: mine } },
+      { url: "/observe", auth: "Bearer service-bearer", body: { docText: "{}", digest: "", materials: mine } },
     ]);
   } finally {
     process.env = saved;

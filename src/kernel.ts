@@ -2,7 +2,7 @@
  * The 3D kernel: what a 3D document IS once OpenCascade has built it.
  *
  * `commandagi/design` declares a part; it builds nothing. `Kernel` asks the CommandAGI 3D design service to build it:
- * its solids, their exact volume and area, a STEP file, a measurement, a drawing view. One service, in one of three
+ * its solids, their exact volume, area and mass, a STEP file, a measurement, a drawing sheet, a bill of materials. One service, in one of three
  * places, chosen by one setting (`COMMANDAGI_THREED`, or `where`):
  *
  *   platform   (the default) the hosted service, with your COMMANDAGI_API_KEY. Needs the network and an account.
@@ -52,6 +52,20 @@ export interface EntityRef {
   body: string;
   kind: "body" | "face" | "edge" | "vertex";
   index?: number;
+}
+
+/** A drawn sheet: the file, and what the sheet measured on the build. */
+export interface SheetFile {
+  sheet: string;
+  format: "svg" | "dxf" | "pdf";
+  mime: string;
+  extension: string;
+  content?: string;
+  contentBase64?: string;
+  dimensions: { view: string; kind: "overall" | "hole" | "linear" | "radial" | "note"; value?: number; text: string; of?: string; count?: number }[];
+  views: { id: string; view: string; at: [number, number]; scale: number; visible: number; hidden: number }[];
+  title: Record<string, string>;
+  warnings: string[];
 }
 
 type Env = Record<string, string | undefined>;
@@ -190,10 +204,15 @@ export class Kernel {
    * Build the document. `observation`: each body's bounds, mass properties, faces, edges and vertices, and each failed
    * feature's error by its id (`observation.errors`: read it, a body is built from what did not fail). `meshes`: the
    * triangles.
+   *
+   * A body whose `engineering.material` names a grade has its mass: `mass.grams` is its volume × that grade's density,
+   * and `mass.massFrom` says the row and its source. `materials` are the rows of your own tables, nearest first
+   * (`commandagi/design` `material`); the shipped table is read after them. A body with no grade has `mass.noMass`.
    */
-  observe(doc: Doc, opts: { docId?: string } = {}): Promise<{ observation: Record<string, any>; meshes: unknown[]; meshTris: number }> {
+  observe(doc: Doc, opts: { docId?: string; materials?: readonly object[] } = {}): Promise<{ observation: Record<string, any>; meshes: unknown[]; meshTris: number }> {
     const text = docText(doc);
-    if (this.where !== "platform") return this.post("/observe", { docText: text, digest: "" });
+    const materials = opts.materials?.length ? { materials: opts.materials } : {};
+    if (this.where !== "platform") return this.post("/observe", { docText: text, digest: "", ...materials });
     let docId = opts.docId;
     if (!docId) {
       try {
@@ -202,7 +221,27 @@ export class Kernel {
         docId = "sdk";
       }
     }
-    return this.post("/threed/observe", { docId, docText: text, digest: "" });
+    return this.post("/threed/observe", { docId, docText: text, digest: "", ...materials });
+  }
+
+  /**
+   * An engineering drawing sheet the document declares (`<sheet>`), as a file: `content` is its text (SVG, DXF),
+   * `contentBase64` its bytes (PDF). The views are projected from this build with hidden edges dashed, the
+   * dimensions are measured on it (`dimensions`: each one's value and text) and the title block is the document's
+   * engineering data. A document with a failed feature draws no sheet.
+   */
+  sheet(doc: Doc, opts: { sheet?: string; format?: "svg" | "dxf" | "pdf"; materials?: readonly object[] } = {}): Promise<SheetFile> {
+    return this.op<SheetFile>("sheet", doc, { sheet: opts.sheet, format: opts.format ?? "svg", materials: opts.materials });
+  }
+
+  /**
+   * The bill of materials: a line per part with its engineering data and its mass from this build, and the same table
+   * as CSV. `parts` are an assembly's linked parts, each by the path the assembly names it with: its document (graph
+   * or text). A linked part that is not given is a line with its name.
+   */
+  bom(doc: Doc, opts: { parts?: Record<string, Doc>; materials?: readonly object[] } = {}): Promise<{ lines: Record<string, unknown>[]; csv: string }> {
+    const parts = opts.parts ? Object.fromEntries(Object.entries(opts.parts).map(([path, part]) => [path, docText(part)])) : undefined;
+    return this.op("bom", doc, { parts, materials: opts.materials });
   }
 
   /** The document as a STEP or IGES file's text; `bodies` keeps only those body ids. */
