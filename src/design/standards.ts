@@ -76,26 +76,29 @@ export function holeSize(name: string): NamedHole {
 
 /**
  * A hole's fields with what its `size` says: the diameter, and for a counterbore or a countersink the head the
- * tables give for that thread where the hole does not say its own. A countersink's depth follows from its diameter
- * and angle. A `diameter` that differs from the size's is refused: leave it out, or clear `size`.
+ * tables give for that thread (a counterbore for a hexagon socket head cap screw, DIN 974-1; a countersink for a
+ * countersunk screw, DIN 74 form F, its depth from its diameter and angle). The size wins: a `diameter`,
+ * `headDiameter` or `headDepth` that differs from the size's is refused. Leave it out, or clear `size` to give your
+ * own.
  */
 export function sizedHole(hole: Record<string, unknown>): Record<string, unknown> {
   if (typeof hole.size !== "string") return hole;
   const named = holeSize(hole.size);
-  if (typeof hole.diameter === "number" && Math.abs(hole.diameter - named.diameter) > 1e-9)
-    throw new Error(`diameter: "${hole.size}" is ${named.diameter} mm (got ${hole.diameter}); leave diameter out, or clear size`);
-  const out: Record<string, unknown> = { ...hole, diameter: named.diameter };
-  if (named.fit === "tap") return out;
+  const says: Record<string, number> = { diameter: named.diameter };
   const { counterbore, countersink } = named.row;
-  if (hole.style === "counterbore" && counterbore) {
-    out.headDiameter = hole.headDiameter ?? counterbore.diameter;
-    out.headDepth = hole.headDepth ?? counterbore.depth;
-  } else if (hole.style === "countersink" && countersink) {
-    const head = typeof hole.headDiameter === "number" ? hole.headDiameter : countersink.diameter;
-    out.headDiameter = head;
-    out.headDepth = hole.headDepth ?? Math.round(((head - named.diameter) / 2 / Math.tan((countersink.angleDeg * Math.PI) / 360)) * 1e4) / 1e4;
+  if (named.fit !== "tap" && hole.style === "counterbore" && counterbore) {
+    says.headDiameter = counterbore.diameter;
+    says.headDepth = counterbore.depth;
+  } else if (named.fit !== "tap" && hole.style === "countersink" && countersink) {
+    says.headDiameter = countersink.diameter;
+    says.headDepth = Math.floor(((countersink.diameter - named.diameter) / 2 / Math.tan((countersink.angleDeg * Math.PI) / 360)) * 1e4 + 0.5) / 1e4;
   }
-  return out;
+  for (const [field, value] of Object.entries(says)) {
+    const written = hole[field];
+    if (typeof written === "number" && Math.abs(written - value) > 1e-9)
+      throw new Error(`${field}: "${hole.size}" is ${value} mm (got ${written}); leave ${field} out, or clear size`);
+  }
+  return { ...hole, ...says };
 }
 
 /**
