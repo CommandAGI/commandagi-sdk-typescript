@@ -1,23 +1,32 @@
 /**
  * The 3D kernel: what a 3D document IS once OpenCascade has built it.
  *
- * `commandagi/design` declares a part; it builds nothing. `Kernel` asks the CommandAGI 3D design service to build it:
- * its solids, their exact volume, area and mass, a STEP file, a measurement, a drawing sheet, a bill of materials. One service, in one of three
- * places, chosen by one setting (`COMMANDAGI_THREED`, or `where`):
+ * `commandagi/design` declares a part; it builds nothing. `Kernel` asks the CommandAGI 3D kernel to build it: its
+ * solids, their exact volume, area and mass, a STEP file, a measurement, a drawing sheet, a bill of materials. Every
+ * call is the kernel contract (`POST <kernel>/v1/<op>`, the CommandAGI repository's docs/local-platform.md § kernels),
+ * placed by the one placement function (./kernels.ts, generated from the repository's
+ * packages/domain/world/kernels.js) at the places one setting names (`COMMANDAGI_THREED`, or `where`):
  *
- *   platform   (the default) the hosted service, with your COMMANDAGI_API_KEY. Needs the network and an account.
- *   local      this computer, offline, no account. The SDK starts `commandagi threed serve` (this package's CLI;
- *              run `commandagi threed install` once) and stops it when the process exits.
- *   a URL      a service that already runs (`commandagi threed serve`), with COMMANDAGI_THREED_TOKEN as its bearer.
- *              COMMANDAGI_THREED_URL names it too, as it does for the local host.
+ *   local,cloud  (the default) this computer when its 3D service is installed (`commandagi threed install`, once),
+ *                else the platform's kernel door with your COMMANDAGI_API_KEY
+ *   local        this computer only, offline, no account. The SDK starts `commandagi threed serve` (this package's
+ *                CLI) and stops it when the process exits
+ *   cloud        the platform only (`/kernels/3d/v1/<op>`), with your COMMANDAGI_API_KEY
+ *   a URL        a service that already runs (`commandagi threed serve`), with COMMANDAGI_THREED_TOKEN as its bearer:
+ *                the local place. COMMANDAGI_THREED_URL names it too, as it does for the local host.
+ *
+ * A place where the kernel is not installed, or has no key, is passed over. A refusal of the op itself (a build that
+ * is not whole) is the answer and is never sent to the next place.
  *
  *   const kernel = new Kernel();                       // reads COMMANDAGI_THREED
  *   const { observation } = await kernel.observe(graph);
  *   const step = await kernel.export(graph, "step");
+ *   kernel.lastRan;                                    // { kernel: "3d", build, place: "local" | "cloud" }
  *
  * `doc` is a 3D document's graph (what a `.3d.tsx` declares, `commandagi code eval` prints it) or its JSON text.
  */
 import { DEFAULT_BASE_URL, ENV } from "./generated.js";
+import { callKernel, kernelPlaces } from "./kernels.js";
 
 export const ENV_THREED = "COMMANDAGI_THREED";
 export const ENV_THREED_URL = "COMMANDAGI_THREED_URL";
@@ -95,7 +104,7 @@ export interface InterferenceReport {
 }
 
 export interface KernelConfig {
-  /** `platform`, `local` or the URL of a running service. Default: the environment (see above). */
+  /** The places (`local`, `cloud`, `local,cloud`) or the URL of a running service. Default: the environment (see above). */
   where?: string;
   apiKey?: string;
   baseUrl?: string;
@@ -131,15 +140,39 @@ export interface SheetFile {
 type Env = Record<string, string | undefined>;
 type Doc = string | object;
 
-/** Which service: an argument wins, then COMMANDAGI_THREED_URL (a service that runs already), then
- *  COMMANDAGI_THREED, then the platform. */
-export function kernelWhere(where: string | undefined, env: Env): string {
-  const chosen = (where || env[ENV_THREED_URL] || env[ENV_THREED] || "platform").trim();
-  if (chosen === "platform" || chosen === "local" || /^https?:\/\//.test(chosen)) return chosen.replace(/\/+$/, "");
-  throw new Error(`${ENV_THREED} is "platform", "local" or the URL of a running service, not ${JSON.stringify(chosen)}`);
+/** A place where a kernel runs. */
+export type KernelPlace = "local" | "cloud";
+/** Where an answer ran: set by the placement from the place the request went to, never from the answer. */
+export interface KernelRan {
+  kernel: string;
+  build: string | null;
+  place: KernelPlace;
+}
+type Answer = { status: number; body: Record<string, any> & { ran?: KernelRan } };
+type Transport = (path: string, request: object | null) => Promise<{ status: number; body: unknown }>;
+
+/**
+ * Where the 3D kernel runs: an argument wins, then COMMANDAGI_THREED_URL (a service that runs already: the local
+ * place), then COMMANDAGI_THREED (a list of places, or a running service's URL), then local, then cloud.
+ */
+export function kernelWhere(where: string | undefined, env: Env): { places: KernelPlace[]; url?: string } {
+  const chosen = (where || env[ENV_THREED_URL] || env[ENV_THREED] || "").trim();
+  if (/^https?:\/\//.test(chosen)) return { places: ["local"], url: chosen.replace(/\/+$/, "") };
+  try {
+    return { places: kernelPlaces("3d", chosen) as KernelPlace[] };
+  } catch {
+    throw new Error(`${ENV_THREED} is a list of "local" and "cloud" (each once, joined by ",") or the URL of a running service, not ${JSON.stringify(chosen)}`);
+  }
 }
 
 const docText = (doc: Doc) => (typeof doc === "string" ? doc : JSON.stringify(doc));
+const absent = (why: string) => Object.assign(new Error(why), { absent: true });
+
+/** Whether this package's 3D service is installed (`commandagi threed install`), so `commandagi threed serve` runs. */
+async function localInstalled(): Promise<boolean> {
+  const [{ existsSync }, { fileURLToPath }] = await Promise.all([import("node:fs"), import("node:url")]);
+  return existsSync(fileURLToPath(new URL("./daemon/host/packages/applets/3d-design/" + "eval" + "/node_modules/opencascade.js/package.json", import.meta.url)));
+}
 
 /** The one service this process started (`commandagi threed serve`), shared by every local Kernel. */
 let local: Promise<{ url: string; token: string }> | null = null;
@@ -191,75 +224,107 @@ async function startLocal(startTimeoutMs: number): Promise<{ url: string; token:
   });
 }
 
+/** One HTTP request of a transport → { status, body }; no answer at all throws a KernelError. */
+async function ask(url: string, bearer: string, request: object | null, signal: AbortSignal): Promise<{ status: number; body: unknown }> {
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: request ? "POST" : "GET",
+      headers: { authorization: `Bearer ${bearer}`, ...(request ? { "content-type": "application/json" } : {}) },
+      ...(request ? { body: JSON.stringify(request) } : {}),
+      signal,
+    });
+  } catch (e) {
+    throw new KernelError(`no answer from ${url} (${(e as Error)?.message ?? e})`);
+  }
+  const text = await res.text();
+  try {
+    return { status: res.status, body: JSON.parse(text) };
+  } catch {
+    return { status: res.status, body: { error: text.slice(0, 300) || `HTTP ${res.status}` } };
+  }
+}
+
 export class Kernel {
-  readonly where: string;
-  private readonly base: string = "";
-  private readonly key: string = "";
+  /** The places tried, in order. */
+  readonly places: KernelPlace[];
+  /** Where the last answer ran (`place: "local"` is this computer's result, never a cloud one), or null. */
+  lastRan: KernelRan | null = null;
+  private readonly url: string | undefined;
+  private readonly token: string;
+  private readonly base: string;
+  private readonly key: string;
   private readonly timeoutMs: number;
   private readonly startTimeoutMs: number;
 
   constructor(cfg: KernelConfig = {}) {
     const env: Env = typeof process !== "undefined" ? process.env : {};
-    this.where = kernelWhere(cfg.where, env);
+    const where = kernelWhere(cfg.where, env);
+    this.places = where.places;
+    this.url = where.url;
     this.timeoutMs = cfg.timeoutMs ?? 300_000;
     this.startTimeoutMs = cfg.startTimeoutMs ?? 180_000;
-    if (this.where === "platform") {
-      this.key = cfg.apiKey ?? env[ENV.apiKey] ?? "";
-      if (!this.key)
-        throw new KernelError(`the platform's 3D service needs an API key: pass apiKey or set ${ENV.apiKey}, or set ${ENV_THREED}=local`);
-      this.base = (cfg.baseUrl ?? env[ENV.baseUrl] ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
-    } else if (this.where !== "local") {
-      this.key = cfg.token ?? env[ENV_THREED_TOKEN] ?? "";
-      if (!this.key) throw new KernelError(`a running 3D service asks for its bearer: pass token or set ${ENV_THREED_TOKEN}`);
-      this.base = this.where;
-    }
+    this.token = cfg.token ?? env[ENV_THREED_TOKEN] ?? "";
+    if (this.url && !this.token) throw new KernelError(`a running 3D service asks for its bearer: pass token or set ${ENV_THREED_TOKEN}`);
+    this.key = cfg.apiKey ?? env[ENV.apiKey] ?? "";
+    this.base = (cfg.baseUrl ?? env[ENV.baseUrl] ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
   }
 
-  private async post<T>(route: string, body: object): Promise<T> {
-    let base = this.base;
-    let key = this.key;
-    if (this.where === "local") {
+  /** This computer's 3D service: the running one named by URL, else the one this process starts when installed. */
+  private localTransport(signal: AbortSignal): Transport {
+    return async (path, request) => {
+      if (this.url) return ask(this.url + path, this.token, request, signal);
+      if (!(await localInstalled())) throw absent("the local 3D service is not installed (commandagi threed install)");
       const started = await (local ??= startLocal(this.startTimeoutMs));
-      base = started.url;
-      key = started.token;
-    }
-    // The platform starts a host for the first caller and answers 503 until it is up: ask again until the time is
-    // spent. A service on this computer is asked once.
-    const deadline = Date.now() + this.timeoutMs;
-    for (;;) {
-      let res: Response;
-      try {
-        res = await fetch(base + route, {
-          method: "POST",
-          headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-          body: JSON.stringify(body),
-          signal: AbortSignal.timeout(Math.max(1000, deadline - Date.now())),
-        });
-      } catch (e) {
-        throw new KernelError(`${route}: no answer from ${base} (${(e as Error)?.message ?? e})`);
-      }
-      const text = await res.text();
-      if (res.ok) return JSON.parse(text) as T;
-      let why = text.slice(0, 300);
-      let failures: BuildFailure[] = [];
-      try {
-        const said = JSON.parse(text) as { error?: string; reason?: string; failures?: BuildFailure[] };
-        why = said.error && said.reason ? `${said.error}: ${said.reason}` : (said.error ?? said.reason ?? why);
-        if (Array.isArray(said.failures)) failures = said.failures;
-      } catch {
-        /* not JSON: its text says why */
-      }
-      if (res.status === 503 && this.where === "platform" && Date.now() + 3000 < deadline) {
-        await new Promise((r) => setTimeout(r, 3000));
-        continue;
-      }
-      throw new KernelError(`${route}: ${why} (HTTP ${res.status})`, res.status, failures);
-    }
+      return ask(started.url + path, started.token, request, signal);
+    };
   }
 
-  private op<T>(op: string, doc: Doc, fields: Record<string, unknown>): Promise<T> {
-    const body = { docText: docText(doc), ...Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined)) };
-    return this.where === "platform" ? this.post<T>("/threed/op", { op, ...body }) : this.post<T>(`/${op}`, body);
+  /**
+   * The platform's kernel door, with the account's key, or null with no key. The platform starts a host for the
+   * first caller and answers 503 until it is up: ask again until the time is spent. A 503 `kernel_unavailable` says
+   * no place there has the kernel, so it is the answer at once.
+   */
+  private cloudTransport(signal: AbortSignal, deadline: number): Transport | null {
+    if (!this.key) return null;
+    return async (path, request) => {
+      for (;;) {
+        const out = await ask(`${this.base}/kernels/3d${path}`, this.key, request, signal);
+        const error = (out.body as { error?: unknown } | null)?.error;
+        if (out.status === 503 && error !== "kernel_unavailable" && Date.now() + 3000 < deadline) {
+          await new Promise((r) => setTimeout(r, 3000));
+          continue;
+        }
+        return out;
+      }
+    };
+  }
+
+  /**
+   * One op of the kernel, placed → the whole answer: `{ outputs, result, ran }`. `ran.place` is where the request
+   * went (a result that ran on this computer says `local`, whatever the service claims). A refusal is a KernelError.
+   */
+  async call(op: string, doc: Doc, params: Record<string, unknown> = {}): Promise<{ outputs: Record<string, { id: string; bytes?: string }>; result: any; ran: KernelRan }> {
+    const deadline = Date.now() + this.timeoutMs;
+    const signal = AbortSignal.timeout(this.timeoutMs);
+    const fields = Object.fromEntries(Object.entries(params).filter(([, v]) => v !== undefined));
+    const out = (await callKernel({
+      kernel: "3d",
+      op,
+      files: { doc: docText(doc) },
+      params: fields,
+      places: this.places,
+      at: { local: this.localTransport(signal), cloud: this.cloudTransport(signal, deadline) },
+    })) as Answer;
+    if (out.body.ran) this.lastRan = out.body.ran;
+    if (out.status === 200) return out.body as { outputs: Record<string, { id: string; bytes?: string }>; result: any; ran: KernelRan };
+    const said = out.body as { error?: string; reason?: string; failures?: BuildFailure[] };
+    const why = said.error && said.reason ? `${said.error}: ${said.reason}` : (said.error ?? said.reason ?? "no reason given");
+    throw new KernelError(`${op}: ${why} (HTTP ${out.status})`, out.status, Array.isArray(said.failures) ? said.failures : []);
+  }
+
+  private async result<T>(op: string, doc: Doc, params: Record<string, unknown>): Promise<T> {
+    return (await this.call(op, doc, params)).result as T;
   }
 
   /**
@@ -274,19 +339,8 @@ export class Kernel {
    * and `mass.massFrom` says the row and its source. `materials` are the rows of your own tables, nearest first
    * (`commandagi/design` `material`); the shipped table is read after them. A body with no grade has `mass.noMass`.
    */
-  observe(doc: Doc, opts: { docId?: string; materials?: readonly object[] } = {}): Promise<{ observation: Record<string, any>; meshes: unknown[]; meshTris: number }> {
-    const text = docText(doc);
-    const materials = opts.materials?.length ? { materials: opts.materials } : {};
-    if (this.where !== "platform") return this.post("/observe", { docText: text, digest: "", ...materials });
-    let docId = opts.docId;
-    if (!docId) {
-      try {
-        docId = String((JSON.parse(text) as { id?: unknown }).id || "sdk");
-      } catch {
-        docId = "sdk";
-      }
-    }
-    return this.post("/threed/observe", { docId, docText: text, digest: "", ...materials });
+  observe(doc: Doc, opts: { materials?: readonly object[] } = {}): Promise<{ observation: Record<string, any>; meshes: unknown[]; meshTris: number }> {
+    return this.result("observe", doc, { digest: "", ...(opts.materials?.length ? { materials: opts.materials } : {}) });
   }
 
   /**
@@ -296,7 +350,7 @@ export class Kernel {
    * engineering data. A document with a failed feature draws no sheet.
    */
   sheet(doc: Doc, opts: { sheet?: string; format?: "svg" | "dxf" | "pdf"; materials?: readonly object[]; parts?: LinkedParts } = {}): Promise<SheetFile> {
-    return this.op<SheetFile>("sheet", doc, { sheet: opts.sheet, format: opts.format ?? "svg", materials: opts.materials, parts: opts.parts });
+    return this.result<SheetFile>("sheet", doc, { sheet: opts.sheet, format: opts.format ?? "svg", materials: opts.materials, parts: opts.parts });
   }
 
   /**
@@ -306,7 +360,7 @@ export class Kernel {
    * line's mass is then of what was built).
    */
   bom(doc: Doc, opts: { parts?: LinkedParts; materials?: readonly object[] } = {}): Promise<{ lines: Record<string, unknown>[]; csv: string; failures: Record<string, string> }> {
-    return this.op("bom", doc, { parts: opts.parts, materials: opts.materials });
+    return this.result("bom", doc, { parts: opts.parts, materials: opts.materials });
   }
 
   /**
@@ -314,7 +368,7 @@ export class Kernel {
    * product of its part's name, and an assembly as the product they are components of.
    */
   async export(doc: Doc, format: "step" | "iges" = "step", opts: { bodies?: string[]; parts?: LinkedParts } = {}): Promise<string> {
-    return (await this.op<{ content: string }>("export", doc, { format, ...opts })).content;
+    return (await this.result<{ content: string }>("export", doc, { format, ...opts })).content;
   }
 
   /** `distance`, `angle` or `closest` between two entities, or the `radius` of one. */
@@ -324,7 +378,7 @@ export class Kernel {
 
   /** Many measurements on ONE build, answered in the same order. */
   async measureAll(doc: Doc, measures: Measure[], opts: { parts?: LinkedParts } = {}): Promise<Measured[]> {
-    return (await this.op<{ results: Measured[] }>("measure", doc, { measures, ...opts })).results;
+    return (await this.result<{ results: Measured[] }>("measure", doc, { measures, ...opts })).results;
   }
 
   /**
@@ -334,7 +388,7 @@ export class Kernel {
    * volume and are nearer than it.
    */
   interference(doc: Doc, opts: { clearance?: number; bodies?: string[]; parts?: LinkedParts } = {}): Promise<InterferenceReport> {
-    return this.op<InterferenceReport>("interference", doc, opts);
+    return this.result<InterferenceReport>("interference", doc, opts);
   }
 
   /** A drawing view with hidden lines removed: the visible and hidden edges projected along `direction`. */
@@ -342,11 +396,11 @@ export class Kernel {
     doc: Doc,
     opts: { direction?: [number, number, number]; up?: [number, number, number]; bodies?: string[]; section?: { origin: [number, number, number]; normal: [number, number, number] }; parts?: LinkedParts } = {},
   ): Promise<unknown> {
-    return (await this.op<{ projection: unknown }>("drawing", doc, opts)).projection;
+    return (await this.result<{ projection: unknown }>("drawing", doc, opts)).projection;
   }
 
   /** Each body's triangles at this chord deflection (mm). */
   async tessellate(doc: Doc, deflection: number, opts: { bodies?: string[]; parts?: LinkedParts } = {}): Promise<{ id: string; name: string; triangles: number; mesh: unknown }[]> {
-    return (await this.op<{ bodies: { id: string; name: string; triangles: number; mesh: unknown }[] }>("tessellate", doc, { deflection, ...opts })).bodies;
+    return (await this.result<{ bodies: { id: string; name: string; triangles: number; mesh: unknown }[] }>("tessellate", doc, { deflection, ...opts })).bodies;
   }
 }

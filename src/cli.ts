@@ -123,7 +123,7 @@ export function helpText(): string {
     "  commandagi agents                                The agent command center: every thread, what needs you (a terminal).",
     "  commandagi daemon start | status | stop | logs | run   Host this computer: the CommandAGI local host (workbench, files, devices, MCP, account link).",
     "  commandagi code eval <path> [--input name=value]…     Evaluate a code part headless (no network, bounded time and memory); prints its op graph and summary.",
-    "  commandagi threed install | status | serve [--port N]  The 3D design service (OpenCascade) on this computer, offline: what Kernel uses for COMMANDAGI_THREED=local.",
+    "  commandagi threed install | status | serve [--port N]  The 3D design service (OpenCascade) on this computer, offline: the local place of Kernel (COMMANDAGI_THREED=local, or local,cloud: the default).",
     "",
     `Env: ${ENV.apiKey} (required), ${ENV.baseUrl}, ${ENV.threadId}`,
     "",
@@ -343,7 +343,7 @@ async function runCode(argv: string[]): Promise<void> {
  * `commandagi threed install | status | serve` — the CommandAGI 3D design service (the OpenCascade kernel behind
  * observe, export and measure) on this computer. Needs no API key: nothing leaves this computer. `install` downloads
  * its dependencies once; `serve` runs it on 127.0.0.1 with COMMANDAGI_THREED_TOKEN as its bearer, which is what the
- * SDK's `Kernel` starts for COMMANDAGI_THREED=local. The host's packed CLI does the work (dist/daemon/).
+ * SDK's `Kernel` starts for its local place (COMMANDAGI_THREED `local` or `local,cloud`). The host's packed CLI does the work (dist/daemon/).
  */
 async function runThreed(argv: string[]): Promise<void> {
   const daemon = await loadDaemon();
