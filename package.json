@@ -5,8 +5,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/CommandAGI/commandagi.git",
-    "directory": "sdk/typescript"
+    "url": "git+https://github.com/CommandAGI/commandagi-sdk-typescript.git"
   },
   "homepage": "https://commandagi.com",
   "type": "module",
