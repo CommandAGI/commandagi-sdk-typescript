@@ -12,6 +12,9 @@
  *   // cloud://global/agents/harnesses/symbolic-planner-001/harness.tsx — a program with no model, one variant of a family
  *   export default () => <harness kind="program" label="Symbolic Planner 001" family="symbolic" experimental runs={["host"]} />;
  *
+ *   // cloud://global/agents/harnesses/scaledown-classify-1/harness.tsx — a model that does one task in one pass
+ *   export default () => <harness kind="api" label="ScaleDown Classify-1" provider="scaledown" tasks={["classify", "decide"]} family="system-one" experimental runs={["host"]} />;
+ *
  *   // cloud://global/agents/claude-code/agent.tsx — the one base instance of a CLI harness
  *   export default () => <agent harness="claude-code" name="Claude Code" />;
  *
@@ -30,7 +33,14 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 export const HARNESS_KINDS = ["cli", "api", "program"] as const;
 /** Where a harness runs: this machine's host (`local-host/agent-clis.mjs`), a cloud computer (the thread's VM kernel), or the api worker's loop. */
 export const HARNESS_RUNTIMES = ["host", "vm", "worker"] as const;
-export const HARNESS_FIELDS = ["kind", "label", "provider", "cli", "runs", "family", "experimental", "homepage", "about"] as const;
+/**
+ * What a single-task model does in one turn: it takes a task-shaped input and answers a typed value. `classify`: one of
+ * the caller's labels with a probability for each; `decide`: typed answers (yes or no, one of several, a level of a
+ * scale); `extract`: the spans of the fields the caller describes; `summarize`: a bounded summary; `act`: one input
+ * action on a computer.
+ */
+export const HARNESS_TASKS = ["classify", "decide", "extract", "summarize", "act"] as const;
+export const HARNESS_FIELDS = ["kind", "label", "provider", "cli", "runs", "tasks", "family", "experimental", "homepage", "about"] as const;
 export const AGENT_FIELDS = ["harness", "parent", "name", "model", "effort", "instructions", "voice", "voiceMode", "tools", "persona", "color", "icon", "gender"] as const;
 export const VOICE_MODES = ["off", "push-to-talk", "open-mic"] as const;
 
@@ -49,7 +59,12 @@ export interface HarnessDoc {
   cli?: string;
   /** Where it runs today. Absent or empty: declared only; nothing runs it yet. */
   runs?: (typeof HARNESS_RUNTIMES)[number][];
-  /** The family it is a variant of (`symbolic`): harnesses that share one runtime and one repertoire and differ in how they decide. */
+  /**
+   * api only: the tasks its model does, one in a turn (a model that holds no conversation and calls no tools). Such a
+   * harness has exactly one base instance, which names the model. Absent: its agents converse and use tools.
+   */
+  tasks?: (typeof HARNESS_TASKS)[number][];
+  /** The family it is a variant of (`symbolic`, `system-one`): harnesses that share one runtime and differ in how they decide. */
   family?: string;
   /** It may change or go without notice; what it does is not commissioned. Absent: not said. */
   experimental?: boolean;
@@ -108,6 +123,10 @@ function harnessOf(t: DocTree): HarnessDoc {
   const runs = t.attrs.runs;
   if (runs !== undefined && !(Array.isArray(runs) && runs.every((r) => (HARNESS_RUNTIMES as readonly string[]).includes(r as string)) && new Set(runs).size === runs.length))
     throw new Error(`<harness> runs is a list of ${HARNESS_RUNTIMES.map((r) => `"${r}"`).join(", ")}, not ${JSON.stringify(runs)}`);
+  const tasks = t.attrs.tasks;
+  if (tasks !== undefined && !(Array.isArray(tasks) && tasks.length && tasks.every((x) => (HARNESS_TASKS as readonly string[]).includes(x as string)) && new Set(tasks).size === tasks.length))
+    throw new Error(`<harness> tasks is a list of ${HARNESS_TASKS.map((x) => `"${x}"`).join(", ")}, not ${JSON.stringify(tasks)}`);
+  if (tasks !== undefined && t.attrs.kind !== "api") throw new Error(`<harness> tasks is for kind="api" only: a model that does one task in a turn`);
   if (t.attrs.kind === "cli" && t.attrs.cli === undefined) throw new Error(`<harness kind="cli"> names the program it starts: cli="claude"`);
   if (t.attrs.kind !== "cli" && t.attrs.cli !== undefined) throw new Error(`<harness> cli is for kind="cli" only`);
   if (t.attrs.kind === "api" && t.attrs.provider === undefined) throw new Error(`<harness kind="api"> names its provider in the model catalog: provider="anthropic"`);

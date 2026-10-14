@@ -15,7 +15,9 @@ test("a harness of each kind, and both ways", () => {
   assert.deepEqual(cli.document, { kind: "cli", label: "Claude Code", provider: "anthropic", cli: "claude", runs: ["host", "vm"] });
   const program = declare(el("harness", { kind: "program", label: "Symbolic Planner 001", family: "symbolic", experimental: true, runs: ["host"] }));
   assert.deepEqual(program.document, { kind: "program", label: "Symbolic Planner 001", family: "symbolic", experimental: true, runs: ["host"] }, "a program harness has no model and no provider");
-  for (const doc of [cli.document, program.document]) assert.deepEqual(AGENTS.harness.fromTree(AGENTS.harness.toTree(doc as never)), doc);
+  const single = declare(el("harness", { kind: "api", label: "ScaleDown Classify-1", provider: "scaledown", tasks: ["classify", "decide"], family: "system-one", experimental: true, runs: ["host"] }));
+  assert.deepEqual(single.document, { kind: "api", label: "ScaleDown Classify-1", provider: "scaledown", runs: ["host"], tasks: ["classify", "decide"], family: "system-one", experimental: true }, "a single-task model's harness says its tasks");
+  for (const doc of [cli.document, program.document, single.document]) assert.deepEqual(AGENTS.harness.fromTree(AGENTS.harness.toTree(doc as never)), doc);
 });
 
 test("a base names its harness; a fork names its parent", () => {
@@ -38,4 +40,6 @@ test("refusals, by name", () => {
   assert.throws(() => declare(el("harness", { kind: "api", label: "X", provider: "p", runs: ["cloud"] })), /runs is a list of/);
   assert.throws(() => declare(el("harness", { kind: "robot", label: "X" })), /kind is/);
   assert.throws(() => declare(el("harness", { kind: "program", label: "X", experimental: "yes" })), /experimental is true or false/);
+  assert.throws(() => declare(el("harness", { kind: "api", label: "X", provider: "p", tasks: ["chat"] })), /tasks is a list of/);
+  assert.throws(() => declare(el("harness", { kind: "program", label: "X", tasks: ["classify"] })), /tasks is for kind="api" only/);
 });
