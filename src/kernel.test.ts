@@ -125,7 +125,7 @@ test("local, then cloud: a local refusal is the answer, and a place with no kern
     });
     // No key and no local kernel: no place runs it, and the error says why for each place.
     await withEnv({ COMMANDAGI_THREED: "local,cloud" }, async () => {
-      await assert.rejects(new Kernel().export("{}"), (e: unknown) => e instanceof KernelError && e.status === 503 && /kernel_unavailable: no place ran 3d export: local: .*not installed.*; cloud: no such place here/.test(e.message));
+      await assert.rejects(new Kernel().export("{}"), (e: unknown) => e instanceof KernelError && e.status === 503 && /kernel_unavailable: no place ran 3d export: local: .*not installed \(commandagi threed install\); cloud: no such place here/.test(e.message));
     });
   } finally {
     local.server.close();
