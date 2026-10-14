@@ -1,7 +1,7 @@
 # Publish `commandagi` (this package, the TypeScript SDK) to npm.
 #
 # npm trusted publishing (OIDC): no token and no second factor. The trusted publisher on npmjs.com names this
-# repository and this file (publish.yml), with no environment: rename the file and the publish is refused.
+# repository and this file (publish-sdks.yml), with no environment: rename the file and the publish is refused.
 # This repository is public, so npm attaches provenance (the build is linked to this commit).
 #
 # The local host and the `commandagi` command are another package, `@commandagi/host`, published from the CommandAGI

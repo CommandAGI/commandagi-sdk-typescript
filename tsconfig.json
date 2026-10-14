@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  // Complete in itself: this repository builds alone (.github/workflows/publish.yml) and as sdk/typescript of the
+  // Complete in itself: this repository builds alone (.github/workflows/publish-sdks.yml) and as sdk/typescript of the
   // CommandAGI repository.
   "compilerOptions": {
     "target": "ES2022",
