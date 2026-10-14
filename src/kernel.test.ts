@@ -115,8 +115,8 @@ test("local, then cloud: a local refusal is the answer, and a place with no kern
       await assert.rejects(kernel.export("{}"), (e: unknown) => e instanceof KernelError && e.status === 422 && e.failures[0]!.feature === "f1");
       assert.equal(cloud.seen.length, 0, "a refusal of the op is never sent to the next place");
     });
-    // No local service is installed in this checkout (no packed daemon beside the source): the cloud answers.
-    await withEnv({ COMMANDAGI_API_KEY: "cagi_account", COMMANDAGI_BASE_URL: cloud.url, COMMANDAGI_THREED: "local,cloud" }, async () => {
+    // No local host is installed (none beside this package, none on PATH): the cloud answers.
+    await withEnv({ COMMANDAGI_API_KEY: "cagi_account", COMMANDAGI_BASE_URL: cloud.url, COMMANDAGI_THREED: "local,cloud", PATH: "" }, async () => {
       const kernel = new Kernel();
       assert.equal((await kernel.measure("{}", "radius", { body: "body_0", kind: "edge", index: 0 })).value, 2);
       assert.deepEqual(kernel.lastRan, { kernel: "3d", build: "sha256:fixture", place: "cloud" });
@@ -124,8 +124,8 @@ test("local, then cloud: a local refusal is the answer, and a place with no kern
       assert.deepEqual(cloud.seen[0]!.body.inputs, { doc: input("{}") });
     });
     // No key and no local kernel: no place runs it, and the error says why for each place.
-    await withEnv({ COMMANDAGI_THREED: "local,cloud" }, async () => {
-      await assert.rejects(new Kernel().export("{}"), (e: unknown) => e instanceof KernelError && e.status === 503 && /kernel_unavailable: no place ran 3d export: local: .*not installed \(commandagi threed install\); cloud: no such place here/.test(e.message));
+    await withEnv({ COMMANDAGI_THREED: "local,cloud", PATH: "" }, async () => {
+      await assert.rejects(new Kernel().export("{}"), (e: unknown) => e instanceof KernelError && e.status === 503 && /kernel_unavailable: no place ran 3d export: local: the local 3D service is not installed: it is the local host.s \(npm install -g @commandagi\/host, then commandagi threed install\); cloud: no such place here/.test(e.message));
     });
   } finally {
     local.server.close();

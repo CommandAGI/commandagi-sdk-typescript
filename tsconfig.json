@@ -1,14 +1,33 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // Complete in itself: this repository builds alone (.github/workflows/publish.yml) and as sdk/typescript of the
+  // CommandAGI repository.
   "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "moduleDetection": "force",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
     "outDir": "dist",
     "rootDir": "src",
-    // Override base `incremental: true`: a shared .tsbuildinfo between `tsc --noEmit` (typecheck) and
-    // `tsc` (build) makes the build think it's up-to-date and emit NOTHING. The package is tiny, so
-    // disable incremental — `pnpm build` then always emits dist reliably (locally and in CI).
+    // Not incremental: a .tsbuildinfo shared by `tsc --noEmit` (typecheck) and `tsc` (build) makes the build think
+    // it is up to date and emit nothing.
     "incremental": false
   },
-  // Tests run via tsx (`pnpm test`), never shipped — keep them out of the published dist.
+  // Tests run via tsx (`npm test`), never shipped: they stay out of dist.
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.test.ts", "dist"]
+  "exclude": ["src/**/*.test.ts", "dist", "node_modules"]
 }

@@ -1,11 +1,18 @@
-# commandagi — the CommandAGI SDK and CLI
+# commandagi — the CommandAGI SDK
 
 Drive the whole CommandAGI platform as code: agent threads, memory and integrations, and live
 **embodiments** (cloud computers, robots, simulated worlds) that you watch and control.
 
 ```bash
-npm i commandagi                   # the library (and the `commandagi` CLI)
+npm i commandagi                   # the library
 export COMMANDAGI_API_KEY=cagi_... # Settings → API keys
+```
+
+This package is the library only. The `commandagi` command and the local host (the workbench, the files and devices
+of this computer, the MCP host, the 3D design service) are the package `@commandagi/host`:
+
+```bash
+npm install -g @commandagi/host
 ```
 
 ```ts
@@ -33,6 +40,9 @@ await cagi.call("list_snapshots");
 
 ## The CLI
 
+The `commandagi` command (from `@commandagi/host`) has this SDK's surface, rendered from the same table
+(`src/cli.ts`), beside the local host's own commands:
+
 ```bash
 commandagi whoami
 commandagi threads create --intent "research X"
@@ -57,30 +67,10 @@ can reach, grouped by where it lives (personal, each org, shared with you), filt
 `tab`/`shift+tab` filter, `↑`/`↓` move, `enter` opens the thread in the chat, `n` starts a new one,
 `g` toggles grouping, `?` help, `esc` back. It refreshes itself every few seconds.
 
-### Host this computer in the background
+### Host this computer
 
-`commandagi daemon` is the CommandAGI local host — the same program the desktop app runs: the workbench
-in your browser, the files of the folder you open, the devices on this machine, the MCP host your CLI
-agents connect to, and the link to your CommandAGI account.
-
-```bash
-commandagi daemon start     # host this machine; returns at once, keeps running in the background
-commandagi daemon status    # who hosts it (the daemon, the desktop app, or a dev checkout) and how
-commandagi daemon logs      # the background host's log
-commandagi daemon stop
-commandagi daemon run       # the same host in the foreground (what `start` runs detached)
-```
-
-`start` and `run` take `--port N` (the workbench's port), `--project DIR` (the folder to open),
-`--name X` (this machine's name on your account), `--monetize` (offer it for rent) and
-`--no-platform` (host locally, with no account link). The account key lives in
-`~/.commandagi/host.json` (a sign-in in the desktop app or the workbench puts it there;
-`COMMANDAGI_API_KEY` also works); the user folder is `~/.commandagi` (`COMMANDAGI_USER_DIR`).
-
-One machine is hosted by one process at a time, found through `~/.commandagi/daemon.json`. The desktop
-app takes over hosting when it starts, and `daemon status` shows that. The native modules the account
-link needs (screen capture and input) are `optionalDependencies`, loaded only when the host starts that
-link, so importing the SDK never loads them.
+`commandagi daemon start | status | stop | logs | run` hosts this computer: the same program the desktop app runs.
+`@commandagi/host`'s README says how.
 
 ## One surface, generated
 
@@ -201,8 +191,8 @@ so you change the part by editing the file. A code file may import only `command
 `declarationOf(module, inputs)` is what the sandbox calls, and you can call it in your own tests.
 The `params` a file declares are the ports of its block (typed, with their defaults; a wire overrides one).
 
-Without a browser, evaluate a part headless in the local host's sandbox (a process of its own with no
-network, no file writes and bounded time and memory; Python parts under the Pyodide the host ships):
+Without a browser, evaluate a part headless in the local host's sandbox (`@commandagi/host`: a process of its own with
+no network, no file writes and bounded time and memory; Python parts under the Pyodide the host ships):
 
 ```bash
 commandagi code eval bracket.part.ts --input width=80     # prints its op graph and a summary as JSON
@@ -260,7 +250,7 @@ places the kernel: the places to try, in order (the CommandAGI setting `kernels.
 | `COMMANDAGI_THREED` | where it runs | needs |
 | --- | --- | --- |
 | `local,cloud` (the default) | this computer when its kernel is installed, else the cloud | one of the two below |
-| `local` | this computer, offline, no account. `Kernel` starts it and it stops with your process | once: `commandagi threed install` (it downloads OpenCascade as WebAssembly, about 130 MB) |
+| `local` | this computer, offline, no account. `Kernel` starts it and it stops with your process | once: `npm install -g @commandagi/host`, then `commandagi threed install` (it downloads OpenCascade as WebAssembly, about 130 MB) |
 | `cloud` | the platform's kernel door (`/kernels/3d/v1/<op>`) | the network and `COMMANDAGI_API_KEY` |
 | a URL (or `COMMANDAGI_THREED_URL`) | one that runs already: `commandagi threed serve --port 8091` (the local place) | `COMMANDAGI_THREED_TOKEN`, the bearer you started it with |
 
@@ -285,8 +275,9 @@ kind: "face" | "edge" | "vertex" | "body", index }`, with the index as `observe`
 - **A STEP file names its parts**: each body is a product of its part's name, an assembly the product they are
   components of.
 
-`commandagi threed serve` needs no checkout of the CommandAGI repository: this package carries the service.
-`commandagi threed status` says whether it is installed.
+The local place is the local host's 3D design service (`@commandagi/host`, which needs no checkout of the CommandAGI
+repository). `Kernel` uses the host installed beside this package, else the `commandagi` command on PATH.
+`commandagi threed status` says whether the service is installed.
 
 ## Environment
 

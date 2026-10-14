@@ -1,0 +1,51 @@
+# Publish `commandagi` (this package, the TypeScript SDK) to npm.
+#
+# npm trusted publishing (OIDC): no token and no second factor. The trusted publisher on npmjs.com names this
+# repository and this file (publish.yml), with no environment: rename the file and the publish is refused.
+# This repository is public, so npm attaches provenance (the build is linked to this commit).
+#
+# The local host and the `commandagi` command are another package, `@commandagi/host`, published from the CommandAGI
+# repository (its .github/workflows/publish-sdks.yml).
+#
+# Trigger: by hand, after the CommandAGI repository's `make sdk-check` passed for this commit. A release is also the tag
+# `v<version>` here. The job is idempotent: a version already on npm is skipped.
+name: publish
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  npm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.14"
+      # Trusted publishing needs npm 11.5.1 or later; Node 22 ships npm 10.
+      - name: npm with trusted publishing
+        run: npm install -g npm@^11.5.1
+      - name: Install
+        run: npm install --no-audit --no-fund --no-package-lock
+      - name: Build
+        run: npm run build
+      - name: Test
+        run: npm test
+      - name: Skip if the version is already on npm
+        id: gate
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$(npm view "commandagi@$VERSION" version 2>/dev/null)" = "$VERSION" ]; then
+            echo "commandagi $VERSION is already on npm: nothing to publish."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish
+        if: steps.gate.outputs.publish == 'true'
+        run: npm publish --access public --provenance

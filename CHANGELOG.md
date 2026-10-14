@@ -29,6 +29,10 @@ Added
 
 Changed
 
+- This package is the SDK only, and declares no `commandagi` command. The command and the local host it carried
+  (`daemon`, `code`, `threed` …) are the package `@commandagi/host` (`npm install -g @commandagi/host`). `Kernel`'s
+  local place is that host's 3D design service: the one installed beside this package, else the `commandagi` on PATH.
+  The package is 0.44 MB packed (it was 148.5 MB with the host).
 - A joint's kinds are named as mechanisms are: `hinge` is `revolute`, `slider` is `prismatic`, `ball` is
   `spherical`. A document's joints and mates are `<joint>` and `<mate>` elements: the reader refuses `joints` in
   `<slot name="dynamics">` and `mates` in `<slot name="assembly">`, and says which element to write.

@@ -1,7 +1,7 @@
-#!/usr/bin/env node
 /**
  * `commandagi` — the CommandAGI CLI: the same surface as the SDK, from a terminal (and from inside the
- * platform's own agent runtimes, which inject the same environment).
+ * platform's own agent runtimes, which inject the same environment). The binary is the local host's package, npm
+ * `@commandagi/host`: it runs `main` here with its own commands beside this table.
  *
  * Auth is the SDK's: a `cagi_…` API key in $COMMANDAGI_API_KEY whose scopes decide reach — a developer's
  * broad key or an agent's session-restricted key, no code difference. Every command prints JSON, so it
@@ -21,8 +21,7 @@
  *   commandagi call <tool> --json '{...}'          # the universal escape hatch — ANY platform tool
  *   commandagi run script.py                       # run a snippet server-side (stdin with -)
  */
-import { readFileSync, realpathSync } from "node:fs";
-import { pathToFileURL } from "node:url";
+import { readFileSync } from "node:fs";
 import { CommandAGI } from "./client.js";
 import { CLI_COMMANDS, ENV, type CliParam, type Command } from "./generated.js";
 
@@ -107,7 +106,8 @@ function usage(c: Command): string {
   return ["commandagi", head, ...args, ...flagged].join(" ");
 }
 
-export function helpText(): string {
+/** The table's usage, then `host`: the local host's usage lines, when the host runs this. */
+export function helpText(host = ""): string {
   const rows = CLI_COMMANDS.map((c) => ({ left: usage(c), doc: c.doc }));
   const width = Math.max(...rows.map((r) => r.left.length));
   return [
@@ -121,11 +121,9 @@ export function helpText(): string {
       "   Any platform tool by name — the escape hatch.",
     "",
     "  commandagi agents                                The agent command center: every thread, what needs you (a terminal).",
-    "  commandagi daemon start | status | stop | logs | run   Host this computer: the CommandAGI local host (workbench, files, devices, MCP, account link).",
-    "  commandagi code eval <path> [--input name=value]…     Evaluate a code part headless (no network, bounded time and memory); prints its op graph and summary.",
-    "  commandagi threed install | status | serve [--port N]  The 3D design service (OpenCascade) on this computer, offline: the local place of Kernel (COMMANDAGI_THREED=local, or local,cloud: the default).",
     "",
-    `Env: ${ENV.apiKey} (required), ${ENV.baseUrl}, ${ENV.threadId}`,
+    `Env: ${ENV.apiKey} (required by the commands above), ${ENV.baseUrl}, ${ENV.threadId}`,
+    ...(host ? ["", "This computer (the local host):", ...host.split("\n").map((l) => "  " + l)] : []),
     "",
   ].join("\n");
 }
@@ -291,93 +289,46 @@ export async function runCli(argv: string[], cagi: CommandAGI): Promise<unknown>
   return out(await (method as Fn).apply(owner, args));
 }
 
-async function main(): Promise<void> {
-  const argv = process.argv.slice(2);
+/**
+ * The local host's side of the `commandagi` command. The host's package (npm `@commandagi/host`) owns the binary and
+ * calls `main`; this package declares no binary, since two global packages that name one binary overwrite each other.
+ */
+export interface HostCommands {
+  /** The first words the host answers (daemon, mcp, grant, threed, platform, code …). They win over a group of the
+   *  same name in the table (`web`, `vpn`); those platform tools stay reachable as `commandagi call <tool>`. */
+  commands: readonly string[];
+  /** The host's usage lines, printed after the table's. */
+  help: string;
+  run(argv: string[]): Promise<unknown>;
+  /** Who hosts this computer, for the interactive session's `/daemon`. */
+  probeHost(): Promise<{ state: { owner: string; pid: number; url?: string; platform?: string; direct?: string } } | null>;
+}
+
+/**
+ * The whole `commandagi` command. No arguments in a real terminal is the interactive session (./tui); `agents` alone
+ * opens it on the agent command center. A host command goes to the host; anything else is the table's.
+ */
+export async function main(argv: string[], host: HostCommands): Promise<void> {
   const first = argv[0];
-  // No arguments in a real terminal: the interactive session (./tui); `agents` opens it on the agent
-  // command center. Piped or scripted, help.
-  if ((!first || first === "agents") && process.stdin.isTTY && process.stdout.isTTY) {
+  if ((!first || (first === "agents" && argv.length === 1)) && process.stdin.isTTY && process.stdout.isTTY) {
     if (!process.env[ENV.apiKey])
       fail(`set ${ENV.apiKey} (a cagi_ API key from Settings → API keys)`);
     const { runTui } = await import("./tui.js");
-    return runTui(new CommandAGI(), loadDaemon, {
+    const daemon = { main: async (a: string[]) => void (await host.run(["daemon", ...a])), probeHost: host.probeHost };
+    return runTui(new CommandAGI(), async () => daemon, {
       startIn: first === "agents" ? "agents" : "chat",
     });
   }
-  if (!first || first === "help" || argv.includes("--help")) {
-    process.stdout.write(helpText());
+  if (first && host.commands.includes(first)) {
+    await host.run(argv);
     return;
   }
-  if (first === "daemon") return runDaemon(argv.slice(1));
-  if (first === "code") return runCode(argv.slice(1));
-  if (first === "threed") return runThreed(argv.slice(1));
+  if (!first || first === "help" || argv.includes("--help")) {
+    process.stdout.write(helpText(host.help));
+    return;
+  }
   if (!process.env[ENV.apiKey])
     fail(`set ${ENV.apiKey} (a cagi_ API key from Settings → API keys)`);
-  const cagi = new CommandAGI();
-  await runCli(argv, cagi);
+  await runCli(argv, new CommandAGI());
 }
 
-/**
- * `commandagi daemon …` — host this computer: the CommandAGI local host (workbench, files, devices, MCP,
- * account link). The host is not SDK: the monorepo packs it into dist/daemon/ (scripts/bundle-daemon.mjs)
- * and it is loaded only here, so importing the SDK never loads it or the native modules its account link
- * needs. A path in a variable, so the compiler does not look for it in src/.
- */
-async function runDaemon(argv: string[]): Promise<void> {
-  await (await loadDaemon()).main(argv);
-}
-
-/**
- * `commandagi code eval <path> …` — evaluate a code part (a file declaring a board or a part with
- * `commandagi/design`, tscircuit, JSCAD, replicad or CadQuery style) headless, in the local host's sandbox:
- * a process of its own with no network and bounded time and memory. Needs no API key: nothing leaves this
- * computer. The host's packed CLI does the work (dist/daemon/, like `daemon`).
- */
-async function runCode(argv: string[]): Promise<void> {
-  const daemon = await loadDaemon();
-  if (!daemon.code) fail("this build of the CLI does not carry the local host's code sandbox");
-  await daemon.code(argv);
-}
-
-/**
- * `commandagi threed install | status | serve` — the CommandAGI 3D design service (the OpenCascade kernel behind
- * observe, export and measure) on this computer. Needs no API key: nothing leaves this computer. `install` downloads
- * its dependencies once; `serve` runs it on 127.0.0.1 with COMMANDAGI_THREED_TOKEN as its bearer, which is what the
- * SDK's `Kernel` starts for its local place (COMMANDAGI_THREED `local` or `local,cloud`). The host's packed CLI does the work (dist/daemon/).
- */
-async function runThreed(argv: string[]): Promise<void> {
-  const daemon = await loadDaemon();
-  if (!daemon.threed) fail("this build of the CLI does not carry the 3D design service");
-  await daemon.threed(argv);
-}
-
-function loadDaemon() {
-  const entry = "./daemon/daemon-cli.js";
-  return import(new URL(entry, import.meta.url).href) as Promise<{
-    main(argv: string[]): Promise<void>;
-    code?(argv: string[]): Promise<unknown>;
-    threed?(argv: string[]): Promise<unknown>;
-    probeHost(): Promise<{ state: { owner: string; pid: number; url?: string; platform?: string; direct?: string } } | null>;
-  }>;
-}
-
-// Run ONLY when invoked as the binary. The conformance test imports this module to drive `runCli`
-// against a recording client, and a top-level `main()` would try to dispatch the test runner's own argv.
-// npm runs the binary through a link (node_modules/.bin/commandagi) and Node gives the link's path, so the file the
-// link names is compared. Compared as given, an installed `commandagi` ran nothing and exited 0.
-function invokedFile(): string {
-  try {
-    return pathToFileURL(realpathSync(process.argv[1]!)).href;
-  } catch {
-    return "";
-  }
-}
-if (process.argv[1] && import.meta.url === invokedFile()) {
-  main().catch((e) => {
-    const detail =
-      e && typeof e === "object" && "detail" in e ? (e as { detail: unknown }).detail : undefined;
-    process.stderr.write("commandagi: " + String((e as Error)?.message ?? e) + "\n");
-    if (detail !== undefined) process.stderr.write(JSON.stringify(detail, null, 2) + "\n");
-    process.exit(1);
-  });
-}
