@@ -19,7 +19,9 @@
  *
  * The tags (each attribute is the field of the same name; nothing is renamed):
  *   <part name> | <assembly name>             the document; <assembly> opens in the assembly mode (`isAssembly`)
- *   <parameter name value unit comment min max step bindings>    a parameter; `bindings` [{ target, field }]
+ *   <parameter name value unit comment min max step tolerance bindings>    a parameter; `bindings` [{ target, field }];
+ *                                             `tolerance` { upper, lower } | { class: "k5" } | { basic: true }
+ *                                             (`./tolerances.ts`), what a fit or stack-up check reads
  *   <part builtinPlanes={[…]}>                the built-in planes the document has (plane_xy, plane_xz, plane_yz);
  *                                             absent: all three, `builtinPlanes={[]}`: none
  *   <plane id name origin normal xAxis>       a datum plane
@@ -56,7 +58,9 @@
  *   <sheet id size scale projection views …>  an engineering drawing sheet of the document (`drawings`): standard
  *                                             views, the document's dimensions and a title block
  *   <check id kind bodies severity …>          a check the design must pass (`checks`): interference, clearance,
- *                                             holes, fasteners, edges, symmetry, or a registered kind
+ *                                             holes, fasteners, edges, symmetry, tolerances, fit (`hole shaft
+ *                                             intent`), stackup (`chain limit method samples seed`), or a
+ *                                             registered kind
  *   <accept id check body region reason>      a finding accepted on purpose, in a bounded region of one body
  *                                             (`accepted`)
  *   <permitted id check body process edgeDir region reason>   findings a process or a purpose permits (`permitted`)
@@ -86,6 +90,7 @@ import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
 import { describeIssue, validate, withDefaults } from "./schema.js";
 import { sizedHole } from "./standards.js";
 import { THREED_SCHEMA } from "./threed-schema.js";
+import { toleranceProblem, type DimensionTolerance } from "./tolerances.js";
 
 /**
  * The feature types a 3D document holds, by tag: the roots of `THREED_SCHEMA`, generated from the `Feature` union
@@ -106,7 +111,7 @@ export const BUILTIN_PLANES = {
 } as const;
 /** The document's view fields a root element may hold (the graph's `meta`), beside `name`. */
 const VIEW_ATTRS = new Set(["semanticVisibility"]);
-const PARAM_FIELDS = ["value", "unit", "comment", "min", "max", "step"];
+const PARAM_FIELDS = ["value", "unit", "comment", "min", "max", "step", "tolerance"];
 /** Document fields a <slot> may not hold: they have elements of their own, or are the graph itself. */
 const NOT_SLOTS = new Set(["id", "name", "units", "planes", "features", "parameters", "presentation", "isAssembly", "bodyMeta", "semanticVisibility", "drawings", "checks", "accepted", "permitted", "fasteners"]);
 /**
@@ -262,6 +267,10 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
       for (const k of Object.keys(el.props))
         if (!["children", "key", "name", "bindings", ...PARAM_FIELDS].includes(k)) throw new Error(`${where(el)}: prop ${k} is not read on a parameter`);
       if (typeof el.props.value !== "number") throw new Error(`${where(el)}: value is a number`);
+      if (el.props.tolerance !== undefined) {
+        const problem = toleranceProblem(el.props.tolerance as DimensionTolerance);
+        if (problem) throw new Error(`${where(el)}: tolerance: ${problem}`);
+      }
       claim(pname, `parameter "${pname}"`);
       const f = fields(el, ["name", "bindings"]);
       const bindings = el.props.bindings === undefined ? [] : plain(el.props.bindings, `${where(el)} bindings`);

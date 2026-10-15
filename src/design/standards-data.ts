@@ -1216,6 +1216,2102 @@ export const FASTENER_TABLES: Readonly<Record<string, readonly Readonly<Record<s
  ]
 };
 
+/** The tolerance tables a tolerance class is read from (iso-286, iso-492-normal): sizes in millimetres, deviations in micrometres, each row with its source. */
+export const TOLERANCE_TABLES: Readonly<Record<string, readonly Readonly<Record<string, string | number>>[]>> = {
+ "iso-286": [
+  {
+   "class": "H6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 6,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 8,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 9,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 11,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 13,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 16,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 19,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 22,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 10,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 12,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 15,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 18,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 21,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 25,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 30,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 35,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H8",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 14,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H8",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 18,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H8",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 22,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H8",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 27,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H8",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 33,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H8",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 39,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H8",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 46,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H8",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 54,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H9",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 25,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H9",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 30,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H9",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 36,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H9",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 43,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H9",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 52,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H9",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 62,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H9",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 74,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H9",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 87,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "H11",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 60,
+   "lowerUm": 0,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "H11",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 75,
+   "lowerUm": 0,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "H11",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 90,
+   "lowerUm": 0,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "H11",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 110,
+   "lowerUm": 0,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "H11",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 130,
+   "lowerUm": 0,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "H11",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 160,
+   "lowerUm": 0,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "H11",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 190,
+   "lowerUm": 0,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "H11",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 220,
+   "lowerUm": 0,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "G7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 12,
+   "lowerUm": 2,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "G7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 16,
+   "lowerUm": 4,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "G7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 20,
+   "lowerUm": 5,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "G7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 24,
+   "lowerUm": 6,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "G7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 28,
+   "lowerUm": 7,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "G7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 34,
+   "lowerUm": 9,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "G7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 40,
+   "lowerUm": 10,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "G7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 47,
+   "lowerUm": 12,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 16,
+   "lowerUm": 6,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 22,
+   "lowerUm": 10,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 28,
+   "lowerUm": 13,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 34,
+   "lowerUm": 16,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 41,
+   "lowerUm": 20,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 50,
+   "lowerUm": 25,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 60,
+   "lowerUm": 30,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 71,
+   "lowerUm": 36,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F8",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 20,
+   "lowerUm": 6,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F8",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 28,
+   "lowerUm": 10,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F8",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 35,
+   "lowerUm": 13,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F8",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 43,
+   "lowerUm": 16,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F8",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 53,
+   "lowerUm": 20,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F8",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 64,
+   "lowerUm": 25,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F8",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 76,
+   "lowerUm": 30,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "F8",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 90,
+   "lowerUm": 36,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "JS7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 5,
+   "lowerUm": -5,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "JS7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 6,
+   "lowerUm": -6,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "JS7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 7.5,
+   "lowerUm": -7.5,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "JS7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 9,
+   "lowerUm": -9,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "JS7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 10.5,
+   "lowerUm": -10.5,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "JS7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 12.5,
+   "lowerUm": -12.5,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "JS7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 15,
+   "lowerUm": -15,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "JS7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 17.5,
+   "lowerUm": -17.5,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "K7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 0,
+   "lowerUm": -10,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "K7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 3,
+   "lowerUm": -9,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "K7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 5,
+   "lowerUm": -10,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "K7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 6,
+   "lowerUm": -12,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "K7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 6,
+   "lowerUm": -15,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "K7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 7,
+   "lowerUm": -18,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "K7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 9,
+   "lowerUm": -21,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "K7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 10,
+   "lowerUm": -25,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "M7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": -2,
+   "lowerUm": -12,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "M7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 0,
+   "lowerUm": -12,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "M7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 0,
+   "lowerUm": -15,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "M7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -18,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "M7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -21,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "M7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -25,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "M7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 0,
+   "lowerUm": -30,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "M7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 0,
+   "lowerUm": -35,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "N7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": -4,
+   "lowerUm": -14,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "N7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": -4,
+   "lowerUm": -16,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "N7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": -4,
+   "lowerUm": -19,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "N7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": -5,
+   "lowerUm": -23,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "N7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": -7,
+   "lowerUm": -28,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "N7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": -8,
+   "lowerUm": -33,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "N7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": -9,
+   "lowerUm": -39,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "N7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": -10,
+   "lowerUm": -45,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "P7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": -6,
+   "lowerUm": -16,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "P7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": -8,
+   "lowerUm": -20,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "P7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": -9,
+   "lowerUm": -24,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "P7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": -11,
+   "lowerUm": -29,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "P7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": -14,
+   "lowerUm": -35,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "P7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": -17,
+   "lowerUm": -42,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "P7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": -21,
+   "lowerUm": -51,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "P7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": -24,
+   "lowerUm": -59,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 0,
+   "lowerUm": -6,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 0,
+   "lowerUm": -8,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 0,
+   "lowerUm": -9,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -11,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -13,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -16,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 0,
+   "lowerUm": -19,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 0,
+   "lowerUm": -22,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 0,
+   "lowerUm": -10,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 0,
+   "lowerUm": -12,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 0,
+   "lowerUm": -15,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -18,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -21,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -25,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 0,
+   "lowerUm": -30,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 0,
+   "lowerUm": -35,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h9",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 0,
+   "lowerUm": -25,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h9",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 0,
+   "lowerUm": -30,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h9",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 0,
+   "lowerUm": -36,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h9",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -43,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h9",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -52,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h9",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -62,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h9",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 0,
+   "lowerUm": -74,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h9",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 0,
+   "lowerUm": -87,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "h11",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 0,
+   "lowerUm": -60,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "h11",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 0,
+   "lowerUm": -75,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "h11",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 0,
+   "lowerUm": -90,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "h11",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -110,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "h11",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -130,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "h11",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -160,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "h11",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 0,
+   "lowerUm": -190,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "h11",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 0,
+   "lowerUm": -220,
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf"
+  },
+  {
+   "class": "g6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": -2,
+   "lowerUm": -8,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "g6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": -4,
+   "lowerUm": -12,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "g6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": -5,
+   "lowerUm": -14,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "g6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": -6,
+   "lowerUm": -17,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "g6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": -7,
+   "lowerUm": -20,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "g6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": -9,
+   "lowerUm": -25,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "g6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": -10,
+   "lowerUm": -29,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "g6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": -12,
+   "lowerUm": -34,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "f7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": -6,
+   "lowerUm": -16,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "f7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": -10,
+   "lowerUm": -22,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "f7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": -13,
+   "lowerUm": -28,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "f7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": -16,
+   "lowerUm": -34,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "f7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": -20,
+   "lowerUm": -41,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "f7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": -25,
+   "lowerUm": -50,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "f7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": -30,
+   "lowerUm": -60,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "f7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": -36,
+   "lowerUm": -71,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "js6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 3,
+   "lowerUm": -3,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "js6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 4,
+   "lowerUm": -4,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "js6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 4.5,
+   "lowerUm": -4.5,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "js6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 5.5,
+   "lowerUm": -5.5,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "js6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 6.5,
+   "lowerUm": -6.5,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "js6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 8,
+   "lowerUm": -8,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "js6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 9.5,
+   "lowerUm": -9.5,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "js6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 11,
+   "lowerUm": -11,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k5",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 4,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k5",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 6,
+   "lowerUm": 1,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k5",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 7,
+   "lowerUm": 1,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k5",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 9,
+   "lowerUm": 1,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k5",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 11,
+   "lowerUm": 2,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k5",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 13,
+   "lowerUm": 2,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k5",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 15,
+   "lowerUm": 2,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k5",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 18,
+   "lowerUm": 3,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 6,
+   "lowerUm": 0,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 9,
+   "lowerUm": 1,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 10,
+   "lowerUm": 1,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 12,
+   "lowerUm": 1,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 15,
+   "lowerUm": 2,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 18,
+   "lowerUm": 2,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 21,
+   "lowerUm": 2,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "k6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 25,
+   "lowerUm": 3,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "m6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 8,
+   "lowerUm": 2,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "m6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 12,
+   "lowerUm": 4,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "m6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 15,
+   "lowerUm": 6,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "m6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 18,
+   "lowerUm": 7,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "m6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 21,
+   "lowerUm": 8,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "m6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 25,
+   "lowerUm": 9,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "m6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 30,
+   "lowerUm": 11,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "m6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 35,
+   "lowerUm": 13,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "n6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 10,
+   "lowerUm": 4,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "n6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 16,
+   "lowerUm": 8,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "n6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 19,
+   "lowerUm": 10,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "n6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 23,
+   "lowerUm": 12,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "n6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 28,
+   "lowerUm": 15,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "n6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 33,
+   "lowerUm": 17,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "n6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 39,
+   "lowerUm": 20,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "n6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 45,
+   "lowerUm": 23,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "p6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 12,
+   "lowerUm": 6,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "p6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 20,
+   "lowerUm": 12,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "p6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 24,
+   "lowerUm": 15,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "p6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 29,
+   "lowerUm": 18,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "p6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 35,
+   "lowerUm": 22,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "p6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 42,
+   "lowerUm": 26,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "p6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 51,
+   "lowerUm": 32,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "p6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 59,
+   "lowerUm": 37,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "r6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 16,
+   "lowerUm": 10,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "r6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 23,
+   "lowerUm": 15,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "r6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 28,
+   "lowerUm": 19,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "r6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 34,
+   "lowerUm": 23,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "r6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 41,
+   "lowerUm": 28,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "r6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 50,
+   "lowerUm": 34,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "r6",
+   "overMm": 50,
+   "uptoMm": 65,
+   "upperUm": 60,
+   "lowerUm": 41,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "r6",
+   "overMm": 65,
+   "uptoMm": 80,
+   "upperUm": 62,
+   "lowerUm": 43,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "r6",
+   "overMm": 80,
+   "uptoMm": 100,
+   "upperUm": 73,
+   "lowerUm": 51,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "r6",
+   "overMm": 100,
+   "uptoMm": 120,
+   "upperUm": 76,
+   "lowerUm": 54,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "s6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 20,
+   "lowerUm": 14,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "s6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 27,
+   "lowerUm": 19,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "s6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 32,
+   "lowerUm": 23,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "s6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 39,
+   "lowerUm": 28,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "s6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 48,
+   "lowerUm": 35,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "s6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 59,
+   "lowerUm": 43,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "s6",
+   "overMm": 50,
+   "uptoMm": 65,
+   "upperUm": 72,
+   "lowerUm": 53,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "s6",
+   "overMm": 65,
+   "uptoMm": 80,
+   "upperUm": 78,
+   "lowerUm": 59,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "s6",
+   "overMm": 80,
+   "uptoMm": 100,
+   "upperUm": 93,
+   "lowerUm": 71,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  },
+  {
+   "class": "s6",
+   "overMm": 100,
+   "uptoMm": 120,
+   "upperUm": 101,
+   "lowerUm": 79,
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf"
+  }
+ ],
+ "iso-492-normal": [
+  {
+   "ring": "bore",
+   "overMm": 2.5,
+   "uptoMm": 10,
+   "upperUm": 0,
+   "lowerUm": -8,
+   "source": "ISO 492 Normal class as JIS B 1514-1 Class 0, NTN catalogue section 6 \"Bearing tolerances\", Table 6.4",
+   "sourceUrl": "https://www.ntnglobal.com/en/products/catalog/pdf/2203E_a06.pdf"
+  },
+  {
+   "ring": "bore",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -8,
+   "source": "ISO 492 Normal class as JIS B 1514-1 Class 0, NTN catalogue section 6 \"Bearing tolerances\", Table 6.4",
+   "sourceUrl": "https://www.ntnglobal.com/en/products/catalog/pdf/2203E_a06.pdf"
+  },
+  {
+   "ring": "bore",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -10,
+   "source": "ISO 492 Normal class as JIS B 1514-1 Class 0, NTN catalogue section 6 \"Bearing tolerances\", Table 6.4",
+   "sourceUrl": "https://www.ntnglobal.com/en/products/catalog/pdf/2203E_a06.pdf"
+  },
+  {
+   "ring": "bore",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -12,
+   "source": "ISO 492 Normal class as JIS B 1514-1 Class 0, NTN catalogue section 6 \"Bearing tolerances\", Table 6.4",
+   "sourceUrl": "https://www.ntnglobal.com/en/products/catalog/pdf/2203E_a06.pdf"
+  },
+  {
+   "ring": "outside",
+   "overMm": 6,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -8,
+   "source": "ISO 492 Normal class as JIS B 1514-1 Class 0, NTN catalogue section 6 \"Bearing tolerances\", Table 6.4",
+   "sourceUrl": "https://www.ntnglobal.com/en/products/catalog/pdf/2203E_a06.pdf"
+  },
+  {
+   "ring": "outside",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -9,
+   "source": "ISO 492 Normal class as JIS B 1514-1 Class 0, NTN catalogue section 6 \"Bearing tolerances\", Table 6.4",
+   "sourceUrl": "https://www.ntnglobal.com/en/products/catalog/pdf/2203E_a06.pdf"
+  },
+  {
+   "ring": "outside",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -11,
+   "source": "ISO 492 Normal class as JIS B 1514-1 Class 0, NTN catalogue section 6 \"Bearing tolerances\", Table 6.4",
+   "sourceUrl": "https://www.ntnglobal.com/en/products/catalog/pdf/2203E_a06.pdf"
+  },
+  {
+   "ring": "outside",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 0,
+   "lowerUm": -13,
+   "source": "ISO 492 Normal class as JIS B 1514-1 Class 0, NTN catalogue section 6 \"Bearing tolerances\", Table 6.4",
+   "sourceUrl": "https://www.ntnglobal.com/en/products/catalog/pdf/2203E_a06.pdf"
+  },
+  {
+   "ring": "width",
+   "overMm": 2.5,
+   "uptoMm": 10,
+   "upperUm": 0,
+   "lowerUm": -120,
+   "source": "ISO 492 Normal class as JIS B 1514-1 Class 0, NTN catalogue section 6 \"Bearing tolerances\", Table 6.4",
+   "sourceUrl": "https://www.ntnglobal.com/en/products/catalog/pdf/2203E_a06.pdf"
+  },
+  {
+   "ring": "width",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -120,
+   "source": "ISO 492 Normal class as JIS B 1514-1 Class 0, NTN catalogue section 6 \"Bearing tolerances\", Table 6.4",
+   "sourceUrl": "https://www.ntnglobal.com/en/products/catalog/pdf/2203E_a06.pdf"
+  },
+  {
+   "ring": "width",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -120,
+   "source": "ISO 492 Normal class as JIS B 1514-1 Class 0, NTN catalogue section 6 \"Bearing tolerances\", Table 6.4",
+   "sourceUrl": "https://www.ntnglobal.com/en/products/catalog/pdf/2203E_a06.pdf"
+  },
+  {
+   "ring": "width",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -120,
+   "source": "ISO 492 Normal class as JIS B 1514-1 Class 0, NTN catalogue section 6 \"Bearing tolerances\", Table 6.4",
+   "sourceUrl": "https://www.ntnglobal.com/en/products/catalog/pdf/2203E_a06.pdf"
+  }
+ ]
+};
+
 /** A row of a dimension table: its columns by name (`dkMax`, `kMax`), in millimetres unless the name says inch. */
 export type StandardRow = Readonly<Record<string, string | number>>;
 
@@ -1922,6 +4018,1548 @@ export const STANDARD_TABLES: Readonly<Record<string, readonly StandardRow[]>> =
    "coarse": 24
   }
  ],
+ "iso-286": [
+  {
+   "class": "H6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 6,
+   "lowerUm": 0
+  },
+  {
+   "class": "H6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 8,
+   "lowerUm": 0
+  },
+  {
+   "class": "H6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 9,
+   "lowerUm": 0
+  },
+  {
+   "class": "H6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 11,
+   "lowerUm": 0
+  },
+  {
+   "class": "H6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 13,
+   "lowerUm": 0
+  },
+  {
+   "class": "H6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 16,
+   "lowerUm": 0
+  },
+  {
+   "class": "H6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 19,
+   "lowerUm": 0
+  },
+  {
+   "class": "H6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 22,
+   "lowerUm": 0
+  },
+  {
+   "class": "H7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 10,
+   "lowerUm": 0
+  },
+  {
+   "class": "H7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 12,
+   "lowerUm": 0
+  },
+  {
+   "class": "H7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 15,
+   "lowerUm": 0
+  },
+  {
+   "class": "H7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 18,
+   "lowerUm": 0
+  },
+  {
+   "class": "H7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 21,
+   "lowerUm": 0
+  },
+  {
+   "class": "H7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 25,
+   "lowerUm": 0
+  },
+  {
+   "class": "H7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 30,
+   "lowerUm": 0
+  },
+  {
+   "class": "H7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 35,
+   "lowerUm": 0
+  },
+  {
+   "class": "H8",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 14,
+   "lowerUm": 0
+  },
+  {
+   "class": "H8",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 18,
+   "lowerUm": 0
+  },
+  {
+   "class": "H8",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 22,
+   "lowerUm": 0
+  },
+  {
+   "class": "H8",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 27,
+   "lowerUm": 0
+  },
+  {
+   "class": "H8",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 33,
+   "lowerUm": 0
+  },
+  {
+   "class": "H8",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 39,
+   "lowerUm": 0
+  },
+  {
+   "class": "H8",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 46,
+   "lowerUm": 0
+  },
+  {
+   "class": "H8",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 54,
+   "lowerUm": 0
+  },
+  {
+   "class": "H9",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 25,
+   "lowerUm": 0
+  },
+  {
+   "class": "H9",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 30,
+   "lowerUm": 0
+  },
+  {
+   "class": "H9",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 36,
+   "lowerUm": 0
+  },
+  {
+   "class": "H9",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 43,
+   "lowerUm": 0
+  },
+  {
+   "class": "H9",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 52,
+   "lowerUm": 0
+  },
+  {
+   "class": "H9",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 62,
+   "lowerUm": 0
+  },
+  {
+   "class": "H9",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 74,
+   "lowerUm": 0
+  },
+  {
+   "class": "H9",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 87,
+   "lowerUm": 0
+  },
+  {
+   "class": "H11",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 60,
+   "lowerUm": 0
+  },
+  {
+   "class": "H11",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 75,
+   "lowerUm": 0
+  },
+  {
+   "class": "H11",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 90,
+   "lowerUm": 0
+  },
+  {
+   "class": "H11",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 110,
+   "lowerUm": 0
+  },
+  {
+   "class": "H11",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 130,
+   "lowerUm": 0
+  },
+  {
+   "class": "H11",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 160,
+   "lowerUm": 0
+  },
+  {
+   "class": "H11",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 190,
+   "lowerUm": 0
+  },
+  {
+   "class": "H11",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 220,
+   "lowerUm": 0
+  },
+  {
+   "class": "G7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 12,
+   "lowerUm": 2
+  },
+  {
+   "class": "G7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 16,
+   "lowerUm": 4
+  },
+  {
+   "class": "G7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 20,
+   "lowerUm": 5
+  },
+  {
+   "class": "G7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 24,
+   "lowerUm": 6
+  },
+  {
+   "class": "G7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 28,
+   "lowerUm": 7
+  },
+  {
+   "class": "G7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 34,
+   "lowerUm": 9
+  },
+  {
+   "class": "G7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 40,
+   "lowerUm": 10
+  },
+  {
+   "class": "G7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 47,
+   "lowerUm": 12
+  },
+  {
+   "class": "F7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 16,
+   "lowerUm": 6
+  },
+  {
+   "class": "F7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 22,
+   "lowerUm": 10
+  },
+  {
+   "class": "F7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 28,
+   "lowerUm": 13
+  },
+  {
+   "class": "F7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 34,
+   "lowerUm": 16
+  },
+  {
+   "class": "F7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 41,
+   "lowerUm": 20
+  },
+  {
+   "class": "F7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 50,
+   "lowerUm": 25
+  },
+  {
+   "class": "F7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 60,
+   "lowerUm": 30
+  },
+  {
+   "class": "F7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 71,
+   "lowerUm": 36
+  },
+  {
+   "class": "F8",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 20,
+   "lowerUm": 6
+  },
+  {
+   "class": "F8",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 28,
+   "lowerUm": 10
+  },
+  {
+   "class": "F8",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 35,
+   "lowerUm": 13
+  },
+  {
+   "class": "F8",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 43,
+   "lowerUm": 16
+  },
+  {
+   "class": "F8",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 53,
+   "lowerUm": 20
+  },
+  {
+   "class": "F8",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 64,
+   "lowerUm": 25
+  },
+  {
+   "class": "F8",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 76,
+   "lowerUm": 30
+  },
+  {
+   "class": "F8",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 90,
+   "lowerUm": 36
+  },
+  {
+   "class": "JS7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 5,
+   "lowerUm": -5
+  },
+  {
+   "class": "JS7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 6,
+   "lowerUm": -6
+  },
+  {
+   "class": "JS7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 7.5,
+   "lowerUm": -7.5
+  },
+  {
+   "class": "JS7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 9,
+   "lowerUm": -9
+  },
+  {
+   "class": "JS7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 10.5,
+   "lowerUm": -10.5
+  },
+  {
+   "class": "JS7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 12.5,
+   "lowerUm": -12.5
+  },
+  {
+   "class": "JS7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 15,
+   "lowerUm": -15
+  },
+  {
+   "class": "JS7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 17.5,
+   "lowerUm": -17.5
+  },
+  {
+   "class": "K7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 0,
+   "lowerUm": -10
+  },
+  {
+   "class": "K7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 3,
+   "lowerUm": -9
+  },
+  {
+   "class": "K7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 5,
+   "lowerUm": -10
+  },
+  {
+   "class": "K7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 6,
+   "lowerUm": -12
+  },
+  {
+   "class": "K7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 6,
+   "lowerUm": -15
+  },
+  {
+   "class": "K7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 7,
+   "lowerUm": -18
+  },
+  {
+   "class": "K7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 9,
+   "lowerUm": -21
+  },
+  {
+   "class": "K7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 10,
+   "lowerUm": -25
+  },
+  {
+   "class": "M7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": -2,
+   "lowerUm": -12
+  },
+  {
+   "class": "M7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 0,
+   "lowerUm": -12
+  },
+  {
+   "class": "M7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 0,
+   "lowerUm": -15
+  },
+  {
+   "class": "M7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -18
+  },
+  {
+   "class": "M7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -21
+  },
+  {
+   "class": "M7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -25
+  },
+  {
+   "class": "M7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 0,
+   "lowerUm": -30
+  },
+  {
+   "class": "M7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 0,
+   "lowerUm": -35
+  },
+  {
+   "class": "N7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": -4,
+   "lowerUm": -14
+  },
+  {
+   "class": "N7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": -4,
+   "lowerUm": -16
+  },
+  {
+   "class": "N7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": -4,
+   "lowerUm": -19
+  },
+  {
+   "class": "N7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": -5,
+   "lowerUm": -23
+  },
+  {
+   "class": "N7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": -7,
+   "lowerUm": -28
+  },
+  {
+   "class": "N7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": -8,
+   "lowerUm": -33
+  },
+  {
+   "class": "N7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": -9,
+   "lowerUm": -39
+  },
+  {
+   "class": "N7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": -10,
+   "lowerUm": -45
+  },
+  {
+   "class": "P7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": -6,
+   "lowerUm": -16
+  },
+  {
+   "class": "P7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": -8,
+   "lowerUm": -20
+  },
+  {
+   "class": "P7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": -9,
+   "lowerUm": -24
+  },
+  {
+   "class": "P7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": -11,
+   "lowerUm": -29
+  },
+  {
+   "class": "P7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": -14,
+   "lowerUm": -35
+  },
+  {
+   "class": "P7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": -17,
+   "lowerUm": -42
+  },
+  {
+   "class": "P7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": -21,
+   "lowerUm": -51
+  },
+  {
+   "class": "P7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": -24,
+   "lowerUm": -59
+  },
+  {
+   "class": "h6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 0,
+   "lowerUm": -6
+  },
+  {
+   "class": "h6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 0,
+   "lowerUm": -8
+  },
+  {
+   "class": "h6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 0,
+   "lowerUm": -9
+  },
+  {
+   "class": "h6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -11
+  },
+  {
+   "class": "h6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -13
+  },
+  {
+   "class": "h6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -16
+  },
+  {
+   "class": "h6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 0,
+   "lowerUm": -19
+  },
+  {
+   "class": "h6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 0,
+   "lowerUm": -22
+  },
+  {
+   "class": "h7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 0,
+   "lowerUm": -10
+  },
+  {
+   "class": "h7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 0,
+   "lowerUm": -12
+  },
+  {
+   "class": "h7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 0,
+   "lowerUm": -15
+  },
+  {
+   "class": "h7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -18
+  },
+  {
+   "class": "h7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -21
+  },
+  {
+   "class": "h7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -25
+  },
+  {
+   "class": "h7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 0,
+   "lowerUm": -30
+  },
+  {
+   "class": "h7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 0,
+   "lowerUm": -35
+  },
+  {
+   "class": "h9",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 0,
+   "lowerUm": -25
+  },
+  {
+   "class": "h9",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 0,
+   "lowerUm": -30
+  },
+  {
+   "class": "h9",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 0,
+   "lowerUm": -36
+  },
+  {
+   "class": "h9",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -43
+  },
+  {
+   "class": "h9",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -52
+  },
+  {
+   "class": "h9",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -62
+  },
+  {
+   "class": "h9",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 0,
+   "lowerUm": -74
+  },
+  {
+   "class": "h9",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 0,
+   "lowerUm": -87
+  },
+  {
+   "class": "h11",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 0,
+   "lowerUm": -60
+  },
+  {
+   "class": "h11",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 0,
+   "lowerUm": -75
+  },
+  {
+   "class": "h11",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 0,
+   "lowerUm": -90
+  },
+  {
+   "class": "h11",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -110
+  },
+  {
+   "class": "h11",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -130
+  },
+  {
+   "class": "h11",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -160
+  },
+  {
+   "class": "h11",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 0,
+   "lowerUm": -190
+  },
+  {
+   "class": "h11",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 0,
+   "lowerUm": -220
+  },
+  {
+   "class": "g6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": -2,
+   "lowerUm": -8
+  },
+  {
+   "class": "g6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": -4,
+   "lowerUm": -12
+  },
+  {
+   "class": "g6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": -5,
+   "lowerUm": -14
+  },
+  {
+   "class": "g6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": -6,
+   "lowerUm": -17
+  },
+  {
+   "class": "g6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": -7,
+   "lowerUm": -20
+  },
+  {
+   "class": "g6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": -9,
+   "lowerUm": -25
+  },
+  {
+   "class": "g6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": -10,
+   "lowerUm": -29
+  },
+  {
+   "class": "g6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": -12,
+   "lowerUm": -34
+  },
+  {
+   "class": "f7",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": -6,
+   "lowerUm": -16
+  },
+  {
+   "class": "f7",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": -10,
+   "lowerUm": -22
+  },
+  {
+   "class": "f7",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": -13,
+   "lowerUm": -28
+  },
+  {
+   "class": "f7",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": -16,
+   "lowerUm": -34
+  },
+  {
+   "class": "f7",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": -20,
+   "lowerUm": -41
+  },
+  {
+   "class": "f7",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": -25,
+   "lowerUm": -50
+  },
+  {
+   "class": "f7",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": -30,
+   "lowerUm": -60
+  },
+  {
+   "class": "f7",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": -36,
+   "lowerUm": -71
+  },
+  {
+   "class": "js6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 3,
+   "lowerUm": -3
+  },
+  {
+   "class": "js6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 4,
+   "lowerUm": -4
+  },
+  {
+   "class": "js6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 4.5,
+   "lowerUm": -4.5
+  },
+  {
+   "class": "js6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 5.5,
+   "lowerUm": -5.5
+  },
+  {
+   "class": "js6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 6.5,
+   "lowerUm": -6.5
+  },
+  {
+   "class": "js6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 8,
+   "lowerUm": -8
+  },
+  {
+   "class": "js6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 9.5,
+   "lowerUm": -9.5
+  },
+  {
+   "class": "js6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 11,
+   "lowerUm": -11
+  },
+  {
+   "class": "k5",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 4,
+   "lowerUm": 0
+  },
+  {
+   "class": "k5",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 6,
+   "lowerUm": 1
+  },
+  {
+   "class": "k5",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 7,
+   "lowerUm": 1
+  },
+  {
+   "class": "k5",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 9,
+   "lowerUm": 1
+  },
+  {
+   "class": "k5",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 11,
+   "lowerUm": 2
+  },
+  {
+   "class": "k5",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 13,
+   "lowerUm": 2
+  },
+  {
+   "class": "k5",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 15,
+   "lowerUm": 2
+  },
+  {
+   "class": "k5",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 18,
+   "lowerUm": 3
+  },
+  {
+   "class": "k6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 6,
+   "lowerUm": 0
+  },
+  {
+   "class": "k6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 9,
+   "lowerUm": 1
+  },
+  {
+   "class": "k6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 10,
+   "lowerUm": 1
+  },
+  {
+   "class": "k6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 12,
+   "lowerUm": 1
+  },
+  {
+   "class": "k6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 15,
+   "lowerUm": 2
+  },
+  {
+   "class": "k6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 18,
+   "lowerUm": 2
+  },
+  {
+   "class": "k6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 21,
+   "lowerUm": 2
+  },
+  {
+   "class": "k6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 25,
+   "lowerUm": 3
+  },
+  {
+   "class": "m6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 8,
+   "lowerUm": 2
+  },
+  {
+   "class": "m6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 12,
+   "lowerUm": 4
+  },
+  {
+   "class": "m6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 15,
+   "lowerUm": 6
+  },
+  {
+   "class": "m6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 18,
+   "lowerUm": 7
+  },
+  {
+   "class": "m6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 21,
+   "lowerUm": 8
+  },
+  {
+   "class": "m6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 25,
+   "lowerUm": 9
+  },
+  {
+   "class": "m6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 30,
+   "lowerUm": 11
+  },
+  {
+   "class": "m6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 35,
+   "lowerUm": 13
+  },
+  {
+   "class": "n6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 10,
+   "lowerUm": 4
+  },
+  {
+   "class": "n6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 16,
+   "lowerUm": 8
+  },
+  {
+   "class": "n6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 19,
+   "lowerUm": 10
+  },
+  {
+   "class": "n6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 23,
+   "lowerUm": 12
+  },
+  {
+   "class": "n6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 28,
+   "lowerUm": 15
+  },
+  {
+   "class": "n6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 33,
+   "lowerUm": 17
+  },
+  {
+   "class": "n6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 39,
+   "lowerUm": 20
+  },
+  {
+   "class": "n6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 45,
+   "lowerUm": 23
+  },
+  {
+   "class": "p6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 12,
+   "lowerUm": 6
+  },
+  {
+   "class": "p6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 20,
+   "lowerUm": 12
+  },
+  {
+   "class": "p6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 24,
+   "lowerUm": 15
+  },
+  {
+   "class": "p6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 29,
+   "lowerUm": 18
+  },
+  {
+   "class": "p6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 35,
+   "lowerUm": 22
+  },
+  {
+   "class": "p6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 42,
+   "lowerUm": 26
+  },
+  {
+   "class": "p6",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 51,
+   "lowerUm": 32
+  },
+  {
+   "class": "p6",
+   "overMm": 80,
+   "uptoMm": 120,
+   "upperUm": 59,
+   "lowerUm": 37
+  },
+  {
+   "class": "r6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 16,
+   "lowerUm": 10
+  },
+  {
+   "class": "r6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 23,
+   "lowerUm": 15
+  },
+  {
+   "class": "r6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 28,
+   "lowerUm": 19
+  },
+  {
+   "class": "r6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 34,
+   "lowerUm": 23
+  },
+  {
+   "class": "r6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 41,
+   "lowerUm": 28
+  },
+  {
+   "class": "r6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 50,
+   "lowerUm": 34
+  },
+  {
+   "class": "r6",
+   "overMm": 50,
+   "uptoMm": 65,
+   "upperUm": 60,
+   "lowerUm": 41
+  },
+  {
+   "class": "r6",
+   "overMm": 65,
+   "uptoMm": 80,
+   "upperUm": 62,
+   "lowerUm": 43
+  },
+  {
+   "class": "r6",
+   "overMm": 80,
+   "uptoMm": 100,
+   "upperUm": 73,
+   "lowerUm": 51
+  },
+  {
+   "class": "r6",
+   "overMm": 100,
+   "uptoMm": 120,
+   "upperUm": 76,
+   "lowerUm": 54
+  },
+  {
+   "class": "s6",
+   "overMm": 0,
+   "uptoMm": 3,
+   "upperUm": 20,
+   "lowerUm": 14
+  },
+  {
+   "class": "s6",
+   "overMm": 3,
+   "uptoMm": 6,
+   "upperUm": 27,
+   "lowerUm": 19
+  },
+  {
+   "class": "s6",
+   "overMm": 6,
+   "uptoMm": 10,
+   "upperUm": 32,
+   "lowerUm": 23
+  },
+  {
+   "class": "s6",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 39,
+   "lowerUm": 28
+  },
+  {
+   "class": "s6",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 48,
+   "lowerUm": 35
+  },
+  {
+   "class": "s6",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 59,
+   "lowerUm": 43
+  },
+  {
+   "class": "s6",
+   "overMm": 50,
+   "uptoMm": 65,
+   "upperUm": 72,
+   "lowerUm": 53
+  },
+  {
+   "class": "s6",
+   "overMm": 65,
+   "uptoMm": 80,
+   "upperUm": 78,
+   "lowerUm": 59
+  },
+  {
+   "class": "s6",
+   "overMm": 80,
+   "uptoMm": 100,
+   "upperUm": 93,
+   "lowerUm": 71
+  },
+  {
+   "class": "s6",
+   "overMm": 100,
+   "uptoMm": 120,
+   "upperUm": 101,
+   "lowerUm": 79
+  }
+ ],
  "iso-4014-4017": [
   {
    "thread": "M3",
@@ -2222,6 +5860,92 @@ export const STANDARD_TABLES: Readonly<Record<string, readonly StandardRow[]>> =
    "s": 14,
    "tMin": 8,
    "bRef": 44
+  }
+ ],
+ "iso-492-normal": [
+  {
+   "ring": "bore",
+   "overMm": 2.5,
+   "uptoMm": 10,
+   "upperUm": 0,
+   "lowerUm": -8
+  },
+  {
+   "ring": "bore",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -8
+  },
+  {
+   "ring": "bore",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -10
+  },
+  {
+   "ring": "bore",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -12
+  },
+  {
+   "ring": "outside",
+   "overMm": 6,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -8
+  },
+  {
+   "ring": "outside",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -9
+  },
+  {
+   "ring": "outside",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -11
+  },
+  {
+   "ring": "outside",
+   "overMm": 50,
+   "uptoMm": 80,
+   "upperUm": 0,
+   "lowerUm": -13
+  },
+  {
+   "ring": "width",
+   "overMm": 2.5,
+   "uptoMm": 10,
+   "upperUm": 0,
+   "lowerUm": -120
+  },
+  {
+   "ring": "width",
+   "overMm": 10,
+   "uptoMm": 18,
+   "upperUm": 0,
+   "lowerUm": -120
+  },
+  {
+   "ring": "width",
+   "overMm": 18,
+   "uptoMm": 30,
+   "upperUm": 0,
+   "lowerUm": -120
+  },
+  {
+   "ring": "width",
+   "overMm": 30,
+   "uptoMm": 50,
+   "upperUm": 0,
+   "lowerUm": -120
   }
  ],
  "iso-7089": [
@@ -2823,6 +6547,18 @@ export const STANDARD_SOURCES: Readonly<Record<string, readonly { source: string
    "observedAt": "2026-10-13"
   }
  ],
+ "iso-286": [
+  {
+   "source": "ISO 286-2 as JIS B 0401-2 (1998), MISUMI technical data sheet",
+   "sourceUrl": "https://uk.misumi-ec.com/files/images/techblog/1_general-tolerances/tolerance-tables-according-to-ji.pdf",
+   "observedAt": "2026-10-15"
+  },
+  {
+   "source": "ISO 286 values as ANSI B4.2 tolerance zone tables, GOmetricUSA/KOK handbook chapter 6",
+   "sourceUrl": "https://kiralytool.com/wp-content/uploads/2017/05/hole-shaft-tolerance-chart.pdf",
+   "observedAt": "2026-10-15"
+  }
+ ],
  "iso-4014-4017": [
   {
    "source": "ISO 4017 dimension table, product grade A, as DIN EN ISO 4017 publication 10/2014 (the ISO 4014 page of the same site, publication 06-2011, gives the same s and k)",
@@ -2856,6 +6592,13 @@ export const STANDARD_SOURCES: Readonly<Record<string, readonly { source: string
    "source": "ISO 4762 dimension table, as DIN EN ISO 4762 publication 06-2004 (supersedes 02-1998)",
    "sourceUrl": "https://www.fasten.it/en/norms/norm/din_en_iso_4762",
    "observedAt": "2026-10-13"
+  }
+ ],
+ "iso-492-normal": [
+  {
+   "source": "ISO 492 Normal class as JIS B 1514-1 Class 0, NTN catalogue section 6 \"Bearing tolerances\", Table 6.4",
+   "sourceUrl": "https://www.ntnglobal.com/en/products/catalog/pdf/2203E_a06.pdf",
+   "observedAt": "2026-10-15"
   }
  ],
  "iso-7089": [

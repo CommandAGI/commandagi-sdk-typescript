@@ -558,12 +558,14 @@ export type DeleteFaceFeature = {
 };
 
 /**
- * A CHECK THE DOCUMENT MUST PASS: `<check kind … />`. The kinds built in are `interference`, `clearance`, `holes`, `fasteners`, `edges` and `symmetry`; another kind is a check that a registered function runs (a manufacturability check), and where none is registered the check is skipped with that reason, never passed.
+ * A CHECK THE DOCUMENT MUST PASS: `<check kind … />`. The kinds built in are `interference`, `clearance`, `holes`, `fasteners`, `edges`, `symmetry`, and the tolerance kinds `tolerances`, `fit` and `stackup` (`./tolerances.ts`); another kind is a check that a registered function runs (a manufacturability check), and where none is registered the check is skipped with that reason, never passed.
  */
 export type DesignCheck = {
   /** The name a finding, an `<accept>` and a `<permitted>` give the check by. */
   id: string;
-  /** What is checked: interference, clearance, holes, fasteners, edges, symmetry, or a registered kind. */
+  /**
+   * What is checked: interference, clearance, holes, fasteners, edges, symmetry, tolerances, fit, stackup, or a registered kind.
+   */
   kind: string;
   /** The bodies checked, by id, name or part number (`*` matches any text). Absent: every body. */
   bodies?: string[];
@@ -617,6 +619,42 @@ export type DesignCheck = {
    * @default 0.05
    */
   tolerance?: number;
+  /** fit: the hole's diameter, by a dimension's id, a parameter's name or a hole feature's id. */
+  hole?: string;
+  /** fit: the shaft's diameter (a bearing's bore is a hole; its outside a shaft), named as `hole` is. */
+  shaft?: string;
+  /** fit: the fit the design intends. The check fails when the two tolerances give another. */
+  intent?: "clearance" | "transition" | "interference";
+  /**
+   * stackup: the chain of sizes whose sum is the closing dimension, each a term `+name`, `-name` or `-0.5*name` (a sensitivity times a dimension's id, a parameter's name or a hole's id). The check refuses a term of another form (`bad-term`); the schema holds no pattern for it, since the Rust SDK reads only its two.
+   * @minItems 1
+   */
+  chain?: string[];
+  /**
+   * stackup: the closing dimension's limits; the check fails when the judged ends lie outside them.
+   * @unit mm
+   */
+  limit?: {
+    min?: number;
+    max?: number;
+  };
+  /**
+   * stackup: the method judged: worst case (every size at its worst end), RSS (bands as ±3σ) or Monte Carlo (sampled).
+   * @default "worst-case"
+   */
+  method?: "worst-case" | "rss" | "monte-carlo";
+  /**
+   * stackup, monte-carlo: how many assemblies are sampled.
+   * @minimum 100
+   * @maximum 1000000
+   * @default 20000
+   */
+  samples?: number;
+  /**
+   * stackup, monte-carlo: the generator's seed, so a run gives the same answer each time.
+   * @default 1
+   */
+  seed?: number;
   /**
    * The fields of a registered kind's own check (a printer's nozzle, a tool's radius), as that check reads them.
    */
@@ -635,6 +673,28 @@ export type DevelopabilityVerdict = {
   area: number;
   /** Present only on a refusal: what failed, in the terms a reader goes and fixes. */
   because?: string;
+};
+
+/** A size's tolerance. Give deviations, or a class, or `basic`: one way, never two. */
+export type DimensionTolerance = {
+  /**
+   * The upper deviation from the nominal, signed (`0.1`, or `-0.02` for a size wholly under it).
+   * @unit mm
+   */
+  upper?: number;
+  /**
+   * The lower deviation from the nominal, signed (`-0.1`).
+   * @unit mm
+   */
+  lower?: number;
+  /**
+   * A tolerance class by name, its deviations read from the shipped tables at the nominal size: an ISO 286 class (`H7`, `g6`, `JS7`, `k6`: capital for a hole, small for a shaft) or a radial bearing ring's ISO 492 Normal class (`ISO 492 bore`, `ISO 492 outside`, `ISO 492 width`).
+   */
+  class?: string;
+  /**
+   * A basic dimension: theoretically exact, boxed on a drawing; the geometric tolerances that refer to it tolerance it.
+   */
+  basic?: boolean;
 };
 
 export type DomeFeature = {
@@ -765,6 +825,10 @@ export type DrawingTitle = {
   company?: string;
   /** The general tolerance note ("ISO 2768-mK"). */
   tolerance?: string;
+  /**
+   * The standard the geometric tolerances are read by ("ISO 1101:2017", "ASME Y14.5-2018"). A sheet that draws a feature control frame and names none warns: a frame means different things under each.
+   */
+  standard?: string;
 };
 
 /** A standard view, named by the side of the model the viewer stands on. */
@@ -1341,6 +1405,10 @@ export type HoleFeature = {
    * A standard hole by name: a thread and a fit, "M4 close fit", "M4 normal fit", "M4 loose fit", "M4 tap" (`./hole-sizes.ts`; the sizes are the shipped tables of ISO 273 and ISO 2306). It gives `diameter`, and for a counterbore or a countersink the head. Clear it to give a diameter that is not in the table.
    */
   size?: string;
+  /**
+   * The diameter's tolerance: an ISO 286 class (`{ class: "H7" }`), deviations (`{ upper: 0.02, lower: 0 }`) or basic (`./tolerances.ts`). The drawing's hole callout writes it; a fit check names the hole by its id.
+   */
+  tolerance?: DimensionTolerance;
   id: string;
   name: string;
   suppressed?: boolean;

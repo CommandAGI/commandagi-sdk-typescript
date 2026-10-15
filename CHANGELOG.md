@@ -4,6 +4,16 @@ One entry for each release. A release is the tag `v<version>` in this repository
 Python and Rust SDKs carry the same version number. A version promises nothing about the next one (README
 § Versions): read this file before you change the version you pin.
 
+## Unreleased
+
+Added
+
+- Tolerances. `<parameter tolerance>` and `<hole tolerance>` take `{ upper, lower }` (mm), `{ class: "H7" }` (an ISO
+  286 class or `ISO 492 bore|outside|width`) or `{ basic: true }`; a tolerance given two ways is refused.
+  `toleranceLimits(nominal, tol)` and `fitOf(hole, shaft)` read the classes from the shipped tables
+  (`TOLERANCE_TABLES`). `<check kind="fit" hole shaft intent>` and `<check kind="stackup" chain limit method samples
+  seed>` are checks of a 3D document (`Kernel.check`); a drawing sheet's `title.standard` names the GD&T standard.
+
 ## 0.6.0 (2026-10-15)
 
 Read **Removed** first: a script that calls `eda.autoroute` stops with `unknown tool` on the platform today, with 0.5.1

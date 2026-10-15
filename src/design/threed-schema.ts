@@ -1301,7 +1301,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "kind": {
      "type": "string",
-     "description": "What is checked: interference, clearance, holes, fasteners, edges, symmetry, or a registered kind.",
+     "description": "What is checked: interference, clearance, holes, fasteners, edges, symmetry, tolerances, fit, stackup, or a registered kind.",
      "pattern": "\\S"
     },
     "bodies": {
@@ -1370,6 +1370,69 @@ export const THREED_SCHEMA: SchemaDocument = {
      "exclusiveMinimum": 0,
      "default": 0.05
     },
+    "hole": {
+     "type": "string",
+     "description": "fit: the hole's diameter, by a dimension's id, a parameter's name or a hole feature's id.",
+     "pattern": "\\S"
+    },
+    "shaft": {
+     "type": "string",
+     "description": "fit: the shaft's diameter (a bearing's bore is a hole; its outside a shaft), named as `hole` is.",
+     "pattern": "\\S"
+    },
+    "intent": {
+     "type": "string",
+     "enum": [
+      "clearance",
+      "transition",
+      "interference"
+     ],
+     "description": "fit: the fit the design intends. The check fails when the two tolerances give another."
+    },
+    "chain": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "stackup: the chain of sizes whose sum is the closing dimension, each a term `+name`, `-name` or `-0.5*name` (a sensitivity times a dimension's id, a parameter's name or a hole's id). The check refuses a term of another form (`bad-term`); the schema holds no pattern for it, since the Rust SDK reads only its two.",
+     "minItems": 1
+    },
+    "limit": {
+     "type": "object",
+     "properties": {
+      "min": {
+       "type": "number"
+      },
+      "max": {
+       "type": "number"
+      }
+     },
+     "additionalProperties": false,
+     "description": "stackup: the closing dimension's limits; the check fails when the judged ends lie outside them.",
+     "x-unit": "mm"
+    },
+    "method": {
+     "type": "string",
+     "enum": [
+      "worst-case",
+      "rss",
+      "monte-carlo"
+     ],
+     "description": "stackup: the method judged: worst case (every size at its worst end), RSS (bands as ±3σ) or Monte Carlo (sampled).",
+     "default": "worst-case"
+    },
+    "samples": {
+     "type": "integer",
+     "description": "stackup, monte-carlo: how many assemblies are sampled.",
+     "minimum": 100,
+     "maximum": 1000000,
+     "default": 20000
+    },
+    "seed": {
+     "type": "integer",
+     "description": "stackup, monte-carlo: the generator's seed, so a run gives the same answer each time.",
+     "default": 1
+    },
     "options": {
      "type": "object",
      "properties": {},
@@ -1382,7 +1445,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "kind"
    ],
    "additionalProperties": false,
-   "description": "A CHECK THE DOCUMENT MUST PASS: `<check kind … />`. The kinds built in are `interference`, `clearance`, `holes`, `fasteners`, `edges` and `symmetry`; another kind is a check that a registered function runs (a manufacturability check), and where none is registered the check is skipped with that reason, never passed."
+   "description": "A CHECK THE DOCUMENT MUST PASS: `<check kind … />`. The kinds built in are `interference`, `clearance`, `holes`, `fasteners`, `edges`, `symmetry`, and the tolerance kinds `tolerances`, `fit` and `stackup` (`./tolerances.ts`); another kind is a check that a registered function runs (a manufacturability check), and where none is registered the check is skipped with that reason, never passed."
   },
   "DevelopabilityVerdict": {
    "type": "object",
@@ -1419,6 +1482,32 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "How far a patch is from flattenable, and by how much."
+  },
+  "DimensionTolerance": {
+   "type": "object",
+   "properties": {
+    "upper": {
+     "type": "number",
+     "description": "The upper deviation from the nominal, signed (`0.1`, or `-0.02` for a size wholly under it).",
+     "x-unit": "mm"
+    },
+    "lower": {
+     "type": "number",
+     "description": "The lower deviation from the nominal, signed (`-0.1`).",
+     "x-unit": "mm"
+    },
+    "class": {
+     "type": "string",
+     "description": "A tolerance class by name, its deviations read from the shipped tables at the nominal size: an ISO 286 class (`H7`, `g6`, `JS7`, `k6`: capital for a hole, small for a shaft) or a radial bearing ring's ISO 492 Normal class (`ISO 492 bore`, `ISO 492 outside`, `ISO 492 width`).",
+     "pattern": "\\S"
+    },
+    "basic": {
+     "type": "boolean",
+     "description": "A basic dimension: theoretically exact, boxed on a drawing; the geometric tolerances that refer to it tolerance it."
+    }
+   },
+   "additionalProperties": false,
+   "description": "A size's tolerance. Give deviations, or a class, or `basic`: one way, never two."
   },
   "DomeFeature": {
    "type": "object",
@@ -1660,6 +1749,10 @@ export const THREED_SCHEMA: SchemaDocument = {
     "tolerance": {
      "type": "string",
      "description": "The general tolerance note (\"ISO 2768-mK\")."
+    },
+    "standard": {
+     "type": "string",
+     "description": "The standard the geometric tolerances are read by (\"ISO 1101:2017\", \"ASME Y14.5-2018\"). A sheet that draws a feature control frame and names none warns: a frame means different things under each."
     }
    },
    "additionalProperties": false,
@@ -2846,6 +2939,10 @@ export const THREED_SCHEMA: SchemaDocument = {
     "size": {
      "type": "string",
      "description": "A standard hole by name: a thread and a fit, \"M4 close fit\", \"M4 normal fit\", \"M4 loose fit\", \"M4 tap\" (`./hole-sizes.ts`; the sizes are the shipped tables of ISO 273 and ISO 2306). It gives `diameter`, and for a counterbore or a countersink the head. Clear it to give a diameter that is not in the table."
+    },
+    "tolerance": {
+     "$ref": "#/$defs/DimensionTolerance",
+     "description": "The diameter's tolerance: an ISO 286 class (`{ class: \"H7\" }`), deviations (`{ upper: 0.02, lower: 0 }`) or basic (`./tolerances.ts`). The drawing's hole callout writes it; a fit check names the hole by its id."
     },
     "id": {
      "type": "string"

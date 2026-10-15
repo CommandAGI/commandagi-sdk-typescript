@@ -100,6 +100,7 @@ export {
   type NamedHole,
   type StandardRow,
 } from "./standards.js";
+export { toleranceLimits, toleranceProblem, toleranceClasses, fitOf, type DimensionTolerance, type ToleranceLimits, type FitKind } from "./tolerances.js";
 export { THREED_SCHEMA } from "./threed-schema.js";
 export type * as ThreeD from "./threed-elements.js";
 export { validate, withDefaults, describeIssue, type JsonSchema, type SchemaDocument, type Issue, type IssueCode } from "./schema.js";
