@@ -49,8 +49,14 @@
  *                                             value reference>, <projection id ref feature>
  *   <body id name material engineering …>     a body's own data (`bodyMeta[id]`): its name, its look (`material`: a
  *                                             colour, a metalness) and what it is (`engineering`: the material grade
- *                                             by its id in a materials table, the process, the finish, the vendor and
- *                                             the cost; `ThreeD.PartEngineering`)
+ *                                             by its id in a materials table, the process and how it is made, the
+ *                                             finish, its suppliers and their terms, its inspection, compliance,
+ *                                             shipping and lifecycle; `ThreeD.PartEngineering`, docs/formats.md §
+ *                                             logistics)
+ *   <item id name qty ref engineering>        a part of the product with no geometry here (`items`): a cable in the
+ *                                             box, or another design by `ref` (a board's .pcb.tsx)
+ *   <assemble id order parts fasteners tools fixture by minutes ratePerHour currency instruction>
+ *                                             one assembly step (`assemblySteps`)
  *   <joint id kind a b anchor axis limits …>  a joint between two bodies (`dynamics.joints`): fixed, revolute,
  *                                             prismatic, cylindrical, planar, screw, spherical or universal, its
  *                                             axis, its limits and the geometry it binds (`refA`, `refB`)
@@ -99,7 +105,7 @@ import { toleranceProblem, type DimensionTolerance } from "./tolerances.js";
 export const THREED_FEATURES: readonly string[] = Object.keys(THREED_SCHEMA.roots);
 const FEATURES = new Set(THREED_FEATURES);
 /** Tags with a meaning of their own: never a `<feature type>`. */
-const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "joint", "mate", "sheet", "check", "accept", "permitted", "fastener", "point", "constraint", "projection", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input"]);
+const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "joint", "mate", "sheet", "check", "accept", "permitted", "fastener", "item", "assemble", "point", "constraint", "projection", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input"]);
 /** A sketch's segment kinds, by tag. */
 export const SKETCH_SEGMENTS: readonly string[] = ["line", "circle", "arc", "spline", "ellipse", "ellipseArc"];
 const SEGMENTS = new Set(SKETCH_SEGMENTS);
@@ -113,7 +119,7 @@ export const BUILTIN_PLANES = {
 const VIEW_ATTRS = new Set(["semanticVisibility"]);
 const PARAM_FIELDS = ["value", "unit", "comment", "min", "max", "step", "tolerance"];
 /** Document fields a <slot> may not hold: they have elements of their own, or are the graph itself. */
-const NOT_SLOTS = new Set(["id", "name", "units", "planes", "features", "parameters", "presentation", "isAssembly", "bodyMeta", "semanticVisibility", "drawings", "checks", "accepted", "permitted", "fasteners"]);
+const NOT_SLOTS = new Set(["id", "name", "units", "planes", "features", "parameters", "presentation", "isAssembly", "bodyMeta", "semanticVisibility", "drawings", "checks", "accepted", "permitted", "fasteners", "items", "assemblySteps"]);
 /**
  * Elements that are the items of a list the document holds: the tag, the document field (its node), the port of that
  * node that holds the list, and the definition each item is checked against (`THREED_SCHEMA.$defs`).
@@ -126,6 +132,8 @@ export const THREED_LISTS: Readonly<Record<string, { node: string; port: string;
   accept: { node: "accepted", port: "value", def: "AcceptedFinding" },
   permitted: { node: "permitted", port: "value", def: "PermittedFinding" },
   fastener: { node: "fasteners", port: "value", def: "FastenerStack" },
+  item: { node: "items", port: "value", def: "ProductItem" },
+  assemble: { node: "assemblySteps", port: "value", def: "AssemblyStep" },
 };
 
 interface Node {

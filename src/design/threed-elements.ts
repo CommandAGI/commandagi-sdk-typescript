@@ -5,18 +5,54 @@
 // default may be left out: the reader fills it.
 
 /**
- * A FINDING ACCEPTED ON PURPOSE: `<accept check body region reason />`. It suppresses the findings of that check on that body whose location, in the body's own frame, lies in `region`. A region larger than 5 % of the body's box or than 100 000 mm³ is refused: it suppresses nothing and is itself an error. A suppressed finding stays in the report with the accept that suppressed it.
+ * A FINDING ACCEPTED ON PURPOSE: `<accept check body region reason />`. It suppresses the findings of that check on that body whose location, in the body's own frame, lies in `region`. A region larger than 5 % of the body's box or than 100 000 mm³ is refused: it suppresses nothing and is itself an error. A suppressed finding stays in the report with the accept that suppressed it. An accept with no region covers only findings with no place (a logistics finding: `<accept check="sourcing" body="Label" rule="no-supplier" reason="…" />`).
  */
 export type AcceptedFinding = {
   id: string;
   /** The check (its id) whose findings this accepts. */
   check: string;
-  /** The body, by id, name or part number (`*` matches any text). */
+  /** The body, by id, name or part number (`*` matches any text); or an `<item>` by its id. */
   body: string;
-  /** Where, in the body's own frame. */
-  region: CheckRegion;
+  /** Only the findings of this rule. */
+  rule?: string;
+  /** Where, in the body's own frame. Absent: the findings that have no place. */
+  region?: CheckRegion;
   /** Why this finding is right on purpose. */
   reason: string;
+};
+
+/** An approved second source: another maker's part that may be fitted in place of this one. */
+export type Alternate = {
+  manufacturer: string;
+  mpn: string;
+  note?: string;
+};
+
+/** ONE ASSEMBLY STEP: `<assemble>`. */
+export type AssemblyStep = {
+  id: string;
+  /**
+   * Its place in the order.
+   * @minimum 1
+   */
+  order?: number;
+  /** The parts it puts in: bodies by id, name or part number (`*` matches any text), items by id. */
+  parts?: string[];
+  /** The fastener stacks it drives, by id. */
+  fasteners?: string[];
+  tools?: string[];
+  fixture?: string;
+  /** Who does it: "in-house", a contract house, or a device definition's ref. */
+  by?: string;
+  /**
+   * @unit min
+   * @exclusiveMinimum 0
+   */
+  minutes?: number;
+  /** @minimum 0 */
+  ratePerHour?: number;
+  currency?: string;
+  instruction?: string;
 };
 
 export type AxisRef = {
@@ -273,6 +309,20 @@ export type CombineFeature = {
   declaredBy?: CodeFeature;
 };
 
+/** WHAT A PART COMPLIES WITH. */
+export type Compliance = {
+  rohs?: "compliant" | "exempt" | "non-compliant";
+  /** The RoHS annex III exemption it relies on ("7(c)-I"). */
+  rohsExemption?: string;
+  reach?: "compliant" | "non-compliant" | "svhc";
+  /** "reported": the maker's conflict minerals report names the smelters. */
+  conflictMinerals?: "none" | "reported" | "unknown";
+  /** The export control classification: "EAR99", "5A992.c". */
+  eccn?: string;
+  /** Certifications it holds: "FCC ID 2AJYU-8BAE003", "CE", "UL 94 V-0". */
+  certifications?: string[];
+};
+
 /** A placed component's footprint — the pads it contributes, and the planes they land on. */
 export type ComponentFootprint = {
   /** Footprint library id, when the part came from one (`Resistor_SMD:R_0805_2012Metric`). */
@@ -451,6 +501,26 @@ export type CopyBodyFeature = {
    * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
    */
   declaredBy?: CodeFeature;
+};
+
+/** A dimension to inspect, with its tolerance. */
+export type CriticalDimension = {
+  name: string;
+  nominal: number;
+  /**
+   * The upper tolerance (added to nominal).
+   * @minimum 0
+   */
+  plus: number;
+  /**
+   * The lower tolerance (taken from nominal).
+   * @minimum 0
+   */
+  minus: number;
+  /** @default "mm" */
+  unit?: "mm" | "deg";
+  /** How it is measured: "caliper", "CMM", "go/no-go gauge". */
+  method?: string;
 };
 
 export type CylinderFeature = {
@@ -1080,6 +1150,12 @@ export type FastenerStack = {
    * @default 1
    */
   minEngagement?: number;
+  /**
+   * The tightening torque.
+   * @unit N·m
+   * @exclusiveMinimum 0
+   */
+  torque?: number;
 };
 
 export type FilletFeature = {
@@ -1454,6 +1530,28 @@ export type ImportFeature = {
   declaredBy?: CodeFeature;
 };
 
+/** HOW A PART IS INSPECTED OR TESTED, AND WHEN IT IS ACCEPTED. */
+export type Inspection = {
+  dimensions?: CriticalDimension[];
+  /** The procedure, or the path of the file that holds it. */
+  procedure?: string;
+  /** What passes. */
+  acceptance?: string;
+  /** How many are inspected: "every part", "AQL 1.0 level II". */
+  sampling?: string;
+  /** A board's electrical test. */
+  electrical?: "none" | "flying-probe" | "fixture";
+  /**
+   * The time to inspect one part.
+   * @unit min
+   * @minimum 0
+   */
+  minutes?: number;
+  /** @minimum 0 */
+  ratePerHour?: number;
+  currency?: string;
+};
+
 /**
  * The kinds of joint, by the relative motion each leaves between its two bodies: `fixed` none; `revolute` a turn about the axis; `prismatic` a slide along it; `cylindrical` a turn about it and a slide along it; `planar` a slide in the plane normal to the axis and a turn about the axis; `screw` a turn that advances `pitch` along the axis; `spherical` any turn about the anchor; `universal` two turns about crossed axes.
  */
@@ -1471,6 +1569,26 @@ export type JointReference = {
   direction?: Vec32;
   /** What a person calls it ("bore of the housing"). */
   label?: string;
+};
+
+/** WHERE A BOUGHT PART IS IN ITS LIFE, AND HOW MANY ARE ON THE SHELF. */
+export type Lifecycle = {
+  status: "active" | "nrnd" | "eol" | "obsolete";
+  /** The last day it can be ordered, YYYY-MM-DD. */
+  lastTimeBuy?: string;
+  /**
+   * Units on hand.
+   * @minimum 0
+   */
+  onHand?: number;
+  /**
+   * Order more at or below this many.
+   * @minimum 0
+   */
+  reorderPoint?: number;
+  /** Where the status was read. */
+  source?: string;
+  date?: string;
 };
 
 export type LinearPatternFeature = {
@@ -1641,6 +1759,42 @@ export type MakeHumanFeature = {
    * @default 0.3333333333333333
    */
   caucasian?: number;
+};
+
+/**
+ * HOW AND WHERE A MADE PART IS MADE: the device or the shop, the process parameters, the time and its rate.
+ */
+export type MakeSpec = {
+  /** The device definition that makes it: a path relative to the document, or an address. */
+  device?: string;
+  /** The shop that makes it, when it is not one of the fleet's devices. */
+  shop?: string;
+  /** The process parameters (layer height, walls, infill, feed, stepdown …), by name. */
+  parameters?: { [key: string]: boolean | string | number };
+  /**
+   * The time to set up one batch.
+   * @unit min
+   * @minimum 0
+   */
+  setupMinutes?: number;
+  /**
+   * The time to make one part.
+   * @unit min
+   * @exclusiveMinimum 0
+   */
+  cycleMinutes?: number;
+  /**
+   * What an hour of the device or the shop costs.
+   * @minimum 0
+   */
+  ratePerHour?: number;
+  /** ISO 4217 currency code of the rate. */
+  currency?: string;
+  /**
+   * Days from order to a made part.
+   * @minimum 0
+   */
+  leadTimeDays?: number;
 };
 
 /** How a part is made. */
@@ -1938,6 +2092,21 @@ export type OffsetFacesFeature = {
 
 export type OffsetJoin = "miter" | "round" | "bevel";
 
+/** A packed part's size and mass. */
+export type PackagedSize = {
+  /**
+   * @unit mm
+   * @minItems 3
+   * @maxItems 3
+   */
+  size: [number, number, number];
+  /**
+   * @unit g
+   * @exclusiveMinimum 0
+   */
+  grams: number;
+};
+
 /** The rectangle of parameter space a chart occupies. Half-open in the periodic direction. */
 export type ParamRect = {
   uMin: number;
@@ -1946,32 +2115,9 @@ export type ParamRect = {
   vMax: number;
 };
 
-/** What a part costs, with where and when the price was read. */
-export type PartCost = {
-  /**
-   * The price of one unit.
-   * @minimum 0
-   */
-  amount: number;
-  /** ISO 4217 currency code. */
-  currency: string;
-  /**
-   * What one unit is.
-   * @default "each"
-   */
-  per?: "each" | "m" | "kg" | "m2";
-  /**
-   * The order quantity this price holds from.
-   * @minimum 1
-   */
-  quantity?: number;
-  /** Where the price was read: a page, a quote, or "estimate" with its basis. */
-  source: string;
-  /** The day the price was read, YYYY-MM-DD. */
-  date: string;
-};
-
-/** A part's engineering data: its material grade, process, finish, vendor, cost. */
+/**
+ * A part's engineering data: its material grade and finish, how it is made or who sells it, and the logistics a declared check may require (docs/formats.md § logistics).
+ */
 export type PartEngineering = {
   /** The part's number in its owner's numbering. */
   partNumber?: string;
@@ -1981,16 +2127,28 @@ export type PartEngineering = {
   designation?: string;
   /** The engineering material: the id of a row of a materials table ("6061-T6", "304", "PETG"). */
   material?: string;
-  /** How the part is made. */
+  /** How the part is made; "purchased" when it is bought. */
   process?: ManufacturingProcess;
   /** The finish, as a drawing note says it ("anodize clear, 10 µm"). */
   finish?: string;
-  /** Who sells it, and under which number. */
-  vendor?: PartVendor;
-  /** What it costs, with where and when the price was read. */
-  cost?: PartCost;
   /** A weighed or datasheet mass. Absent: the mass is volume × the material's density. */
   mass?: PartMass;
+  /** The maker of a bought part. */
+  manufacturer?: string;
+  /** The maker's part number. */
+  mpn?: string;
+  /** The maker's datasheet: a URL or a path. */
+  datasheet?: string;
+  /** Who sells it, on what terms. */
+  suppliers?: SupplierOffer[];
+  /** Approved second sources. */
+  alternates?: Alternate[];
+  /** How and where a made part is made. */
+  make?: MakeSpec;
+  inspection?: Inspection;
+  compliance?: Compliance;
+  shipping?: Shipping;
+  lifecycle?: Lifecycle;
 };
 
 /** A mass that was weighed or read from a datasheet. It stands in place of volume × density. */
@@ -2002,16 +2160,6 @@ export type PartMass = {
   grams: number;
   /** Where the mass came from: a scale reading, a datasheet. */
   source: string;
-};
-
-/** Who sells a part, and under which number. */
-export type PartVendor = {
-  /** The vendor's name. */
-  name: string;
-  /** The vendor's own number for the part. */
-  partNumber?: string;
-  /** The page that sells it. */
-  url?: string;
 };
 
 export type PathPatternFeature = {
@@ -2218,6 +2366,39 @@ export type PointCloudFeature = {
   declaredBy?: CodeFeature;
 };
 
+/** The unit price from a quantity up (`@commandagi/core` quantity-terms' PriceBreak). */
+export type PriceBreak = {
+  /**
+   * The order quantity this price holds from.
+   * @minimum 1
+   */
+  quantity: number;
+  /**
+   * The price of one unit.
+   * @minimum 0
+   */
+  unitPrice: number;
+};
+
+/**
+ * A PART OF THE PRODUCT WITH NO GEOMETRY HERE: `<item>` (a cable in the box, foam tape, or another design by `ref`).
+ */
+export type ProductItem = {
+  id: string;
+  name: string;
+  /**
+   * How many one product holds.
+   * @minimum 1
+   * @default 1
+   */
+  qty?: number;
+  /**
+   * Another design this item is (a board's `.pcb.tsx`, a part's `.3d.tsx`), by its path from this document.
+   */
+  ref?: string;
+  engineering?: PartEngineering;
+};
+
 /** A profile drawn from a sketch's solved closed regions. */
 export type ProfileRef = {
   sketch: string;
@@ -2408,6 +2589,20 @@ export type ShellFeature = {
    * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
    */
   declaredBy?: CodeFeature;
+};
+
+/** WHAT CUSTOMS AND A CARRIER NEED OF A PART. */
+export type Shipping = {
+  /** The Harmonized System code ("8517.62"). */
+  hsCode?: string;
+  /** The country of origin, ISO 3166-1 alpha-2. */
+  origin?: string;
+  /** "none", or the UN number and class ("UN3481 class 9: lithium ion batteries packed with equipment"). */
+  hazmat?: string;
+  /** Its packed size and mass. */
+  packaged?: PackagedSize;
+  /** How it is packed: "tape and reel", "tray", "bag of 100". */
+  packaging?: string;
 };
 
 /**
@@ -2855,6 +3050,46 @@ export type SubdivBodyFeature = {
    * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
    */
   declaredBy?: CodeFeature;
+};
+
+/**
+ * WHO SELLS A PART, AND ON WHAT TERMS: one supplier's offer (docs/formats.md § logistics). The quantity terms (`stock`, `moq`, `orderMultiple`, `leadTimeDays`, `priceBreaks`) are the ones a component catalog's offer states. A price or a stock says where and when it was read (`source`, `date`).
+ */
+export type SupplierOffer = {
+  /** The supplier: a distributor, a shop, a fab house ("LCSC", "DigiKey", "JLCPCB"). */
+  name: string;
+  /** The supplier's own number for the part (its SKU). */
+  sku?: string;
+  /** The page that sells it. */
+  url?: string;
+  /** ISO 4217 currency code of the prices. */
+  currency?: string;
+  /** The unit price from each quantity up; below the smallest there is no price. */
+  priceBreaks?: PriceBreak[];
+  /**
+   * The smallest order.
+   * @minimum 1
+   */
+  moq?: number;
+  /**
+   * An order is a multiple of this (a reel, a tray).
+   * @minimum 1
+   */
+  orderMultiple?: number;
+  /**
+   * Days from order to shipment.
+   * @minimum 0
+   */
+  leadTimeDays?: number;
+  /**
+   * Units the supplier says it has.
+   * @minimum 0
+   */
+  stock?: number;
+  /** Where the terms were read: a page, a quote, or "estimate" with its basis. */
+  source?: string;
+  /** The day the terms were read, YYYY-MM-DD. */
+  date?: string;
 };
 
 export type SweepFeature = {

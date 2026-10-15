@@ -72,12 +72,16 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "body": {
      "type": "string",
-     "description": "The body, by id, name or part number (`*` matches any text).",
+     "description": "The body, by id, name or part number (`*` matches any text); or an `<item>` by its id.",
      "pattern": "\\S"
+    },
+    "rule": {
+     "type": "string",
+     "description": "Only the findings of this rule."
     },
     "region": {
      "$ref": "#/$defs/CheckRegion",
-     "description": "Where, in the body's own frame."
+     "description": "Where, in the body's own frame. Absent: the findings that have no place."
     },
     "reason": {
      "type": "string",
@@ -89,11 +93,94 @@ export const THREED_SCHEMA: SchemaDocument = {
     "id",
     "check",
     "body",
-    "region",
     "reason"
    ],
    "additionalProperties": false,
-   "description": "A FINDING ACCEPTED ON PURPOSE: `<accept check body region reason />`. It suppresses the findings of that check on that body whose location, in the body's own frame, lies in `region`. A region larger than 5 % of the body's box or than 100 000 mm³ is refused: it suppresses nothing and is itself an error. A suppressed finding stays in the report with the accept that suppressed it."
+   "description": "A FINDING ACCEPTED ON PURPOSE: `<accept check body region reason />`. It suppresses the findings of that check on that body whose location, in the body's own frame, lies in `region`. A region larger than 5 % of the body's box or than 100 000 mm³ is refused: it suppresses nothing and is itself an error. A suppressed finding stays in the report with the accept that suppressed it. An accept with no region covers only findings with no place (a logistics finding: `<accept check=\"sourcing\" body=\"Label\" rule=\"no-supplier\" reason=\"…\" />`)."
+  },
+  "Alternate": {
+   "type": "object",
+   "properties": {
+    "manufacturer": {
+     "type": "string",
+     "pattern": "\\S"
+    },
+    "mpn": {
+     "type": "string",
+     "pattern": "\\S"
+    },
+    "note": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "manufacturer",
+    "mpn"
+   ],
+   "additionalProperties": false,
+   "description": "An approved second source: another maker's part that may be fitted in place of this one."
+  },
+  "AssemblyStep": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "order": {
+     "type": "integer",
+     "description": "Its place in the order.",
+     "minimum": 1
+    },
+    "parts": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "The parts it puts in: bodies by id, name or part number (`*` matches any text), items by id."
+    },
+    "fasteners": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "The fastener stacks it drives, by id."
+    },
+    "tools": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "fixture": {
+     "type": "string"
+    },
+    "by": {
+     "type": "string",
+     "description": "Who does it: \"in-house\", a contract house, or a device definition's ref."
+    },
+    "minutes": {
+     "type": "number",
+     "x-unit": "min",
+     "exclusiveMinimum": 0
+    },
+    "ratePerHour": {
+     "type": "number",
+     "minimum": 0
+    },
+    "currency": {
+     "type": "string",
+     "pattern": "^[A-Z]{3}$"
+    },
+    "instruction": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "id"
+   ],
+   "additionalProperties": false,
+   "description": "ONE ASSEMBLY STEP: `<assemble>`."
   },
   "AxisRef": {
    "anyOf": [
@@ -679,6 +766,53 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false
   },
+  "Compliance": {
+   "type": "object",
+   "properties": {
+    "rohs": {
+     "type": "string",
+     "enum": [
+      "compliant",
+      "exempt",
+      "non-compliant"
+     ]
+    },
+    "rohsExemption": {
+     "type": "string",
+     "description": "The RoHS annex III exemption it relies on (\"7(c)-I\")."
+    },
+    "reach": {
+     "type": "string",
+     "enum": [
+      "compliant",
+      "non-compliant",
+      "svhc"
+     ]
+    },
+    "conflictMinerals": {
+     "type": "string",
+     "enum": [
+      "none",
+      "reported",
+      "unknown"
+     ],
+     "description": "\"reported\": the maker's conflict minerals report names the smelters."
+    },
+    "eccn": {
+     "type": "string",
+     "description": "The export control classification: \"EAR99\", \"5A992.c\"."
+    },
+    "certifications": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Certifications it holds: \"FCC ID 2AJYU-8BAE003\", \"CE\", \"UL 94 V-0\"."
+    }
+   },
+   "additionalProperties": false,
+   "description": "WHAT A PART COMPLIES WITH."
+  },
   "ComponentFootprint": {
    "type": "object",
    "properties": {
@@ -1075,6 +1209,48 @@ export const THREED_SCHEMA: SchemaDocument = {
     "name"
    ],
    "additionalProperties": false
+  },
+  "CriticalDimension": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "pattern": "\\S"
+    },
+    "nominal": {
+     "type": "number"
+    },
+    "plus": {
+     "type": "number",
+     "description": "The upper tolerance (added to nominal).",
+     "minimum": 0
+    },
+    "minus": {
+     "type": "number",
+     "description": "The lower tolerance (taken from nominal).",
+     "minimum": 0
+    },
+    "unit": {
+     "type": "string",
+     "enum": [
+      "mm",
+      "deg"
+     ],
+     "default": "mm"
+    },
+    "method": {
+     "type": "string",
+     "description": "How it is measured: \"caliper\", \"CMM\", \"go/no-go gauge\"."
+    }
+   },
+   "required": [
+    "name",
+    "nominal",
+    "plus",
+    "minus"
+   ],
+   "additionalProperties": false,
+   "description": "A dimension to inspect, with its tolerance."
   },
   "CylinderFeature": {
    "type": "object",
@@ -2228,6 +2404,12 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "The thread a tapped receiver must engage, in diameters of the screw.",
      "exclusiveMinimum": 0,
      "default": 1
+    },
+    "torque": {
+     "type": "number",
+     "description": "The tightening torque.",
+     "x-unit": "N·m",
+     "exclusiveMinimum": 0
     }
    },
    "required": [
@@ -3048,6 +3230,54 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false
   },
+  "Inspection": {
+   "type": "object",
+   "properties": {
+    "dimensions": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/CriticalDimension"
+     }
+    },
+    "procedure": {
+     "type": "string",
+     "description": "The procedure, or the path of the file that holds it."
+    },
+    "acceptance": {
+     "type": "string",
+     "description": "What passes."
+    },
+    "sampling": {
+     "type": "string",
+     "description": "How many are inspected: \"every part\", \"AQL 1.0 level II\"."
+    },
+    "electrical": {
+     "type": "string",
+     "enum": [
+      "none",
+      "flying-probe",
+      "fixture"
+     ],
+     "description": "A board's electrical test."
+    },
+    "minutes": {
+     "type": "number",
+     "description": "The time to inspect one part.",
+     "x-unit": "min",
+     "minimum": 0
+    },
+    "ratePerHour": {
+     "type": "number",
+     "minimum": 0
+    },
+    "currency": {
+     "type": "string",
+     "pattern": "^[A-Z]{3}$"
+    }
+   },
+   "additionalProperties": false,
+   "description": "HOW A PART IS INSPECTED OR TESTED, AND WHEN IT IS ACCEPTED."
+  },
   "JointKind": {
    "type": "string",
    "enum": [
@@ -3093,6 +3323,48 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "The geometry of a body that a joint binds: a face, an edge or a vertex, named by where it is."
+  },
+  "Lifecycle": {
+   "type": "object",
+   "properties": {
+    "status": {
+     "type": "string",
+     "enum": [
+      "active",
+      "nrnd",
+      "eol",
+      "obsolete"
+     ]
+    },
+    "lastTimeBuy": {
+     "type": "string",
+     "description": "The last day it can be ordered, YYYY-MM-DD.",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "onHand": {
+     "type": "integer",
+     "description": "Units on hand.",
+     "minimum": 0
+    },
+    "reorderPoint": {
+     "type": "integer",
+     "description": "Order more at or below this many.",
+     "minimum": 0
+    },
+    "source": {
+     "type": "string",
+     "description": "Where the status was read."
+    },
+    "date": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+   },
+   "required": [
+    "status"
+   ],
+   "additionalProperties": false,
+   "description": "WHERE A BOUGHT PART IS IN ITS LIFE, AND HOW MANY ARE ON THE SHELF."
   },
   "LinearPatternFeature": {
    "type": "object",
@@ -3385,6 +3657,66 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A REAL human body: MakeHuman's hm08 basemesh morphed by its macro targets."
+  },
+  "MakeSpec": {
+   "type": "object",
+   "properties": {
+    "device": {
+     "type": "string",
+     "description": "The device definition that makes it: a path relative to the document, or an address."
+    },
+    "shop": {
+     "type": "string",
+     "description": "The shop that makes it, when it is not one of the fleet's devices."
+    },
+    "parameters": {
+     "type": "object",
+     "properties": {},
+     "additionalProperties": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       }
+      ]
+     },
+     "description": "The process parameters (layer height, walls, infill, feed, stepdown …), by name."
+    },
+    "setupMinutes": {
+     "type": "number",
+     "description": "The time to set up one batch.",
+     "x-unit": "min",
+     "minimum": 0
+    },
+    "cycleMinutes": {
+     "type": "number",
+     "description": "The time to make one part.",
+     "x-unit": "min",
+     "exclusiveMinimum": 0
+    },
+    "ratePerHour": {
+     "type": "number",
+     "description": "What an hour of the device or the shop costs.",
+     "minimum": 0
+    },
+    "currency": {
+     "type": "string",
+     "description": "ISO 4217 currency code of the rate.",
+     "pattern": "^[A-Z]{3}$"
+    },
+    "leadTimeDays": {
+     "type": "number",
+     "description": "Days from order to a made part.",
+     "minimum": 0
+    }
+   },
+   "additionalProperties": false,
+   "description": "HOW AND WHERE A MADE PART IS MADE: the device or the shop, the process parameters, the time and its rate."
   },
   "ManufacturingProcess": {
    "type": "string",
@@ -4153,6 +4485,31 @@ export const THREED_SCHEMA: SchemaDocument = {
     "bevel"
    ]
   },
+  "PackagedSize": {
+   "type": "object",
+   "properties": {
+    "size": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 3,
+     "maxItems": 3,
+     "x-unit": "mm"
+    },
+    "grams": {
+     "type": "number",
+     "x-unit": "g",
+     "exclusiveMinimum": 0
+    }
+   },
+   "required": [
+    "size",
+    "grams"
+   ],
+   "additionalProperties": false,
+   "description": "A packed part's size and mass."
+  },
   "ParamRect": {
    "type": "object",
    "properties": {
@@ -4178,52 +4535,6 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "The rectangle of parameter space a chart occupies. Half-open in the periodic direction."
   },
-  "PartCost": {
-   "type": "object",
-   "properties": {
-    "amount": {
-     "type": "number",
-     "description": "The price of one unit.",
-     "minimum": 0
-    },
-    "currency": {
-     "type": "string",
-     "description": "ISO 4217 currency code."
-    },
-    "per": {
-     "type": "string",
-     "enum": [
-      "each",
-      "m",
-      "kg",
-      "m2"
-     ],
-     "description": "What one unit is.",
-     "default": "each"
-    },
-    "quantity": {
-     "type": "integer",
-     "description": "The order quantity this price holds from.",
-     "minimum": 1
-    },
-    "source": {
-     "type": "string",
-     "description": "Where the price was read: a page, a quote, or \"estimate\" with its basis."
-    },
-    "date": {
-     "type": "string",
-     "description": "The day the price was read, YYYY-MM-DD."
-    }
-   },
-   "required": [
-    "amount",
-    "currency",
-    "source",
-    "date"
-   ],
-   "additionalProperties": false,
-   "description": "What a part costs, with where and when the price was read."
-  },
   "PartEngineering": {
    "type": "object",
    "properties": {
@@ -4245,27 +4556,61 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "process": {
      "$ref": "#/$defs/ManufacturingProcess",
-     "description": "How the part is made."
+     "description": "How the part is made; \"purchased\" when it is bought."
     },
     "finish": {
      "type": "string",
      "description": "The finish, as a drawing note says it (\"anodize clear, 10 µm\")."
     },
-    "vendor": {
-     "$ref": "#/$defs/PartVendor",
-     "description": "Who sells it, and under which number."
-    },
-    "cost": {
-     "$ref": "#/$defs/PartCost",
-     "description": "What it costs, with where and when the price was read."
-    },
     "mass": {
      "$ref": "#/$defs/PartMass",
      "description": "A weighed or datasheet mass. Absent: the mass is volume × the material's density."
+    },
+    "manufacturer": {
+     "type": "string",
+     "description": "The maker of a bought part."
+    },
+    "mpn": {
+     "type": "string",
+     "description": "The maker's part number."
+    },
+    "datasheet": {
+     "type": "string",
+     "description": "The maker's datasheet: a URL or a path."
+    },
+    "suppliers": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/SupplierOffer"
+     },
+     "description": "Who sells it, on what terms."
+    },
+    "alternates": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/Alternate"
+     },
+     "description": "Approved second sources."
+    },
+    "make": {
+     "$ref": "#/$defs/MakeSpec",
+     "description": "How and where a made part is made."
+    },
+    "inspection": {
+     "$ref": "#/$defs/Inspection"
+    },
+    "compliance": {
+     "$ref": "#/$defs/Compliance"
+    },
+    "shipping": {
+     "$ref": "#/$defs/Shipping"
+    },
+    "lifecycle": {
+     "$ref": "#/$defs/Lifecycle"
     }
    },
    "additionalProperties": false,
-   "description": "A part's engineering data: its material grade, process, finish, vendor, cost."
+   "description": "A part's engineering data: its material grade and finish, how it is made or who sells it, and the logistics a declared check may require (docs/formats.md § logistics)."
   },
   "PartMass": {
    "type": "object",
@@ -4286,28 +4631,6 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A mass that was weighed or read from a datasheet. It stands in place of volume × density."
-  },
-  "PartVendor": {
-   "type": "object",
-   "properties": {
-    "name": {
-     "type": "string",
-     "description": "The vendor's name."
-    },
-    "partNumber": {
-     "type": "string",
-     "description": "The vendor's own number for the part."
-    },
-    "url": {
-     "type": "string",
-     "description": "The page that sells it."
-    }
-   },
-   "required": [
-    "name"
-   ],
-   "additionalProperties": false,
-   "description": "Who sells a part, and under which number."
   },
   "PathPatternFeature": {
    "type": "object",
@@ -4791,6 +5114,59 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "A raw point cloud — scan points, SWC point sets, or a splat stripped of covariance."
   },
+  "PriceBreak": {
+   "type": "object",
+   "properties": {
+    "quantity": {
+     "type": "integer",
+     "description": "The order quantity this price holds from.",
+     "minimum": 1
+    },
+    "unitPrice": {
+     "type": "number",
+     "description": "The price of one unit.",
+     "minimum": 0
+    }
+   },
+   "required": [
+    "quantity",
+    "unitPrice"
+   ],
+   "additionalProperties": false,
+   "description": "The unit price from a quantity up (`@commandagi/core` quantity-terms' PriceBreak)."
+  },
+  "ProductItem": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "name": {
+     "type": "string",
+     "pattern": "\\S"
+    },
+    "qty": {
+     "type": "integer",
+     "description": "How many one product holds.",
+     "minimum": 1,
+     "default": 1
+    },
+    "ref": {
+     "type": "string",
+     "description": "Another design this item is (a board's `.pcb.tsx`, a part's `.3d.tsx`), by its path from this document."
+    },
+    "engineering": {
+     "$ref": "#/$defs/PartEngineering"
+    }
+   },
+   "required": [
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "A PART OF THE PRODUCT WITH NO GEOMETRY HERE: `<item>` (a cable in the box, foam tape, or another design by `ref`)."
+  },
   "ProfileRef": {
    "type": "object",
    "properties": {
@@ -5152,6 +5528,34 @@ export const THREED_SCHEMA: SchemaDocument = {
     "name"
    ],
    "additionalProperties": false
+  },
+  "Shipping": {
+   "type": "object",
+   "properties": {
+    "hsCode": {
+     "type": "string",
+     "description": "The Harmonized System code (\"8517.62\")."
+    },
+    "origin": {
+     "type": "string",
+     "description": "The country of origin, ISO 3166-1 alpha-2.",
+     "pattern": "^[A-Z]{2}$"
+    },
+    "hazmat": {
+     "type": "string",
+     "description": "\"none\", or the UN number and class (\"UN3481 class 9: lithium ion batteries packed with equipment\")."
+    },
+    "packaged": {
+     "$ref": "#/$defs/PackagedSize",
+     "description": "Its packed size and mass."
+    },
+    "packaging": {
+     "type": "string",
+     "description": "How it is packed: \"tape and reel\", \"tray\", \"bag of 100\"."
+    }
+   },
+   "additionalProperties": false,
+   "description": "WHAT CUSTOMS AND A CARRIER NEED OF A PART."
   },
   "SkeletonFeature": {
    "type": "object",
@@ -6459,6 +6863,70 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A subdivision-surface body (Catmull-Clark). Authored in the **sculpt** mode as an editable control cage — a quad mesh you push/pull/subdivide — and committed into the document as a body. The cage is stored verbatim (control points + quad faces); the surface is computed by subdividing `level` times (pure TS subdivision in `cad/model/subdiv.ts`), then meshed for display. Independent of the OCC kernel (which has no native subdivision), so it works everywhere."
+  },
+  "SupplierOffer": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "description": "The supplier: a distributor, a shop, a fab house (\"LCSC\", \"DigiKey\", \"JLCPCB\").",
+     "pattern": "\\S"
+    },
+    "sku": {
+     "type": "string",
+     "description": "The supplier's own number for the part (its SKU)."
+    },
+    "url": {
+     "type": "string",
+     "description": "The page that sells it."
+    },
+    "currency": {
+     "type": "string",
+     "description": "ISO 4217 currency code of the prices.",
+     "pattern": "^[A-Z]{3}$"
+    },
+    "priceBreaks": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/PriceBreak"
+     },
+     "description": "The unit price from each quantity up; below the smallest there is no price."
+    },
+    "moq": {
+     "type": "integer",
+     "description": "The smallest order.",
+     "minimum": 1
+    },
+    "orderMultiple": {
+     "type": "integer",
+     "description": "An order is a multiple of this (a reel, a tray).",
+     "minimum": 1
+    },
+    "leadTimeDays": {
+     "type": "number",
+     "description": "Days from order to shipment.",
+     "minimum": 0
+    },
+    "stock": {
+     "type": "integer",
+     "description": "Units the supplier says it has.",
+     "minimum": 0
+    },
+    "source": {
+     "type": "string",
+     "description": "Where the terms were read: a page, a quote, or \"estimate\" with its basis."
+    },
+    "date": {
+     "type": "string",
+     "description": "The day the terms were read, YYYY-MM-DD.",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+   },
+   "required": [
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "WHO SELLS A PART, AND ON WHAT TERMS: one supplier's offer (docs/formats.md § logistics). The quantity terms (`stock`, `moq`, `orderMultiple`, `leadTimeDays`, `priceBreaks`) are the ones a component catalog's offer states. A price or a stock says where and when it was read (`source`, `date`)."
   },
   "SweepFeature": {
    "type": "object",
