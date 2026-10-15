@@ -393,6 +393,22 @@ test("a part states its engineering data (partNumber, manufacturer, mpn, rating,
   assert.throws(sheet(jsx("junction", { name: "J", schX: 0, schY: 0, mpn: "X" })), /prop mpn is not read/);
 });
 
+test("how a part's pinout and pads are known, and its datasheet package, are fields of a schematic's part and a circuit's part; a value off the grammar is refused", () => {
+  const checked = "datasheet https://www.ti.com/lit/ds/symlink/sn74lvc1t45.pdf p. 3, 2026-10-15";
+  const pkg = "6 pins, pitch 0.95 mm, body 2.9 x 1.6 mm";
+  const { graph: g } = declarationOf({
+    default: () => jsx("group", { name: "S", children: [jsx("part", { name: "U5", pins: ["1", "2", "3", "4", "5", "6"], pinoutVerified: checked, footprintVerified: "memory", packageDimensions: pkg })] }),
+  });
+  assert.deepEqual(g.nodes.U5!.inputs.foreign, [fieldForm("Pinout Verified", checked), fieldForm("Footprint Verified", "memory"), fieldForm("Package Dimensions", pkg)]);
+  assert.deepEqual(partFields(g.nodes.U5!.inputs), { pinoutVerified: checked, footprintVerified: "memory", packageDimensions: pkg });
+  const c = circuit("C", () => void component({ ref: "U5", footprint: footprints.sot23(), pinoutVerified: "measured 2026-10-15, continuity on the bench", mpn: "MMBT3904" })).ir;
+  assert.deepEqual(partFields(Object.values(c.nodes).find((n) => n.inputs.ref === "U5")!.inputs), { mpn: "MMBT3904", pinoutVerified: "measured 2026-10-15, continuity on the bench" });
+  for (const bad of ["checked", "datasheet p. 3, 2026-10-15", "datasheet https://x.test/a.pdf p. 3", "measured yesterday"])
+    assert.throws(() => circuit("C", () => void component({ ref: "U5", footprint: footprints.sot23(), pinoutVerified: bad })), /U5: pinoutVerified is text/);
+  assert.throws(() => circuit("C", () => void component({ ref: "U5", footprint: footprints.sot23(), packageDimensions: "SOT-23" })), /packageDimensions is text \("6 pins, pitch 0.95 mm/);
+  assert.throws(() => circuit("C", () => void component({ ref: "U5", footprint: footprints.sot23(), attrs: { "Pinout Verified": "memory" } })), /say it with pinoutVerified=/);
+});
+
 test("a circuit's <check> and <accept> are kept in the graph's meta, not as nodes; a wrong one is refused by name", () => {
   const sheet = (...children: unknown[]) => declarationOf({ default: jsx("group", { name: "S", children }) }).graph;
   const g = sheet(

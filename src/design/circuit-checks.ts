@@ -3,6 +3,10 @@
  *
  *   <check id="erc" kind="erc" />                         the electrical rule check (a schematic, a board)
  *   <check id="drc" kind="drc" severity="warning" />      the design rule check (a board); its errors as warnings
+ *   <check id="pinout" kind="pinout" />                   every part's pinout checked against its datasheet or
+ *                                                         measured (its `pinoutVerified`, `./part-fields.ts`)
+ *   <check id="footprint" kind="footprint" />             every part's pads checked, and its footprint's pad count,
+ *                                                         pitch and body equal to its `packageDimensions`
  *   <accept id="tx" check="erc" rule="pin_conflict" refs={["U1", "U3"]} reason="the bus is open-drain" />
  *   <accept id="edge" check="drc" rule="clearance" region={{ min: [0, 0], max: [3, 3] }} reason="…" />
  *
@@ -46,7 +50,7 @@ export function declareCircuitChecks(s: Scope, elements: readonly DesignElement[
       const id = text(el, "id", "the check's name (erc)")!;
       if (!ID.test(id)) throw new Error(`${where(el)}: id is letters, digits, _ . -`);
       if ([...checks, ...accepted].some((c) => c.id === id)) throw new Error(`two checks or accepts are called ${id}`);
-      const kind = text(el, "kind", "what is checked: erc, drc")!;
+      const kind = text(el, "kind", "what is checked: erc, drc, pinout, footprint")!;
       const severity = el.props.severity;
       if (severity !== undefined && severity !== "error" && severity !== "warning") throw new Error(`${where(el)}: severity is error or warning`);
       checks.push({ id, kind, ...(severity ? { severity } : {}), ...at(el) });

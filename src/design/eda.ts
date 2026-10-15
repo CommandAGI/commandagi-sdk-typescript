@@ -27,6 +27,7 @@
  * patterns, named after the KiCad library footprints they follow; check them against your fabricator.
  */
 import { Declaration, NodeRef, Out, Scope, currentScope, withScope, channels, slug } from "./ir.js";
+import { fieldForms, type PartFieldValues } from "./part-fields.js";
 
 /** One pad's geometry, in footprint-local millimetres (y down, as KiCad draws). */
 export interface Pad {
@@ -229,8 +230,12 @@ export function board(o: { width: number; height: number; origin?: [number, numb
 /** Where a part sits on the board: `[x, y]` mm, or with rotation (degrees) and side. */
 export type At = [number, number] | { x: number; y: number; rot?: number; side?: "top" | "bottom" };
 
-/** Declare a part. Unplaced (`at` absent) is a real state: a part not yet put on the board. */
-export function part(o: {
+/**
+ * Declare a part. Unplaced (`at` absent) is a real state: a part not yet put on the board. Its engineering data
+ * (`mpn`, `pinoutVerified`, `packageDimensions`, `attrs` …) are KiCad properties of the part, as on a schematic's
+ * part (`./part-fields.ts`).
+ */
+export function part(o: PartFieldValues & {
   ref: string;
   value?: string;
   footprint: Footprint;
@@ -272,6 +277,7 @@ export function part(o: {
       ...(at ? { placement: at } : {}),
       ...(o.footprint.attr ? { attr: o.footprint.attr } : {}),
       ...(o.noConnect?.length ? { noConnect: o.noConnect.map(String) } : {}),
+      ...fieldForms(o as Readonly<Record<string, unknown>>, o.ref),
     },
     { id: `part_${o.ref}`, label: o.ref },
   );
