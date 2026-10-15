@@ -20,6 +20,11 @@ Added
     (`visible`, `invisible`, `integrations`, `operations`, `economics`), each `<capability id title need have effort
     run labour ref note>` with its `<evidence source claim>`, and the `<decision>`, `<differentiation>` and
     `<economics>`.
+- A board's layout constraints, each a board fact: `<netclass>`, `<diffpair>`, `<group>`, `<keepout>`, `<thermal>`,
+  `<objective>` (`commandagi/design` `pcb`; CommandAGI's `docs/eda-layout.md`). The circuit editor's placer, router,
+  layout score and layout checks read them, and its edits write them back.
+- `eda.layout`, `eda.layoutScore`, `eda.checkLayout`, `eda.constrain`, `eda.placeGroup`, `eda.routeNets`,
+  `eda.ripUp`: the layout tools (`pcb_layout`, `pcb_layout_score`, …).
 
 ## 0.5.1 (2026-10-15)
 
