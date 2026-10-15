@@ -832,6 +832,44 @@ export type DraftFeature = {
   declaredBy?: CodeFeature;
 };
 
+/** A detail: everything a view of the sheet draws within a circle, enlarged. */
+export type DrawingDetail = {
+  /** The id of the view it enlarges: a view of the same sheet that is not a detail. */
+  of: string;
+  /**
+   * The centre of the circle: a point of the model, projected into that view.
+   * @unit mm
+   */
+  center: Vec3;
+  /**
+   * The circle's radius, in model millimetres.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  radius: number;
+  /**
+   * The letter of the detail (`DETAIL B (2:1)`). Absent: the next letter that no other section or detail of the sheet has.
+   */
+  label?: string;
+};
+
+/**
+ * A section's cutting plane. The viewer stands on the +normal side; the material on that side is removed. The view shows the cut face, hatched, and the material behind it. Up is +Y; when the normal is within 25° of ±Y, up is as in the top view (for +Y) or the bottom view (for −Y).
+ */
+export type DrawingSection = {
+  /**
+   * A point of the cutting plane.
+   * @unit mm
+   */
+  point: Vec3;
+  /** The plane's normal, towards the viewer. */
+  normal: Vec3;
+  /**
+   * The letter of the section (`SECTION A-A`). Absent: the next letter that no other section or detail of the sheet has.
+   */
+  label?: string;
+};
+
 /**
  * An engineering drawing sheet of the document: views, dimensions and a title block. `<sheet>` in code.
  */
@@ -901,30 +939,38 @@ export type DrawingTitle = {
   standard?: string;
 };
 
-/** A standard view, named by the side of the model the viewer stands on. */
-export type DrawingViewName = "iso" | "front" | "top" | "right" | "left" | "bottom" | "back";
+/**
+ * A view: a standard view, named by the side of the model the viewer stands on; a section, cut by a plane; or a detail, an enlarged part of another view.
+ */
+export type DrawingViewName = "iso" | "front" | "top" | "right" | "left" | "bottom" | "back" | "section" | "detail";
 
 /** One view on a sheet. */
 export type DrawingViewSpec = {
   id: string;
-  /** The side of the model the viewer stands on. */
+  /** The side of the model the viewer stands on, or `section`, or `detail`. */
   view: DrawingViewName;
   /**
-   * The centre of the view on the sheet, from the sheet's lower left. Absent: placed by the projection method.
+   * The centre of the view on the sheet, from the sheet's lower left. Absent: a standard view is placed by the projection method; an iso, section or detail view goes in a column right of them.
    * @unit mm
    * @minItems 2
    * @maxItems 2
    */
   at?: [number, number];
   /**
-   * The view's own scale. Absent: the sheet's.
+   * The view's own scale. Absent: the sheet's; a detail's is twice the scale of the view it enlarges.
    * @exclusiveMinimum 0
    */
   scale?: number;
-  /** Draw the edges behind the model's faces, dashed. Absent: the sheet's `hiddenLines`. */
+  /**
+   * Draw the edges behind the model's faces, dashed. Absent: the sheet's `hiddenLines`; for a section, off.
+   */
   hiddenLines?: boolean;
   /** Show dimensions in this view. Absent: shown. */
   dimensions?: boolean;
+  /** The cutting plane: required on a section view, not read on another. */
+  section?: DrawingSection;
+  /** The circle it enlarges: required on a detail view, not read on another. */
+  detail?: DrawingDetail;
 };
 
 /**

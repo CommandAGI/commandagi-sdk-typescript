@@ -1810,6 +1810,61 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false
   },
+  "DrawingDetail": {
+   "type": "object",
+   "properties": {
+    "of": {
+     "type": "string",
+     "description": "The id of the view it enlarges: a view of the same sheet that is not a detail."
+    },
+    "center": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The centre of the circle: a point of the model, projected into that view.",
+     "x-unit": "mm"
+    },
+    "radius": {
+     "type": "number",
+     "description": "The circle's radius, in model millimetres.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "label": {
+     "type": "string",
+     "description": "The letter of the detail (`DETAIL B (2:1)`). Absent: the next letter that no other section or detail of the sheet has."
+    }
+   },
+   "required": [
+    "of",
+    "center",
+    "radius"
+   ],
+   "additionalProperties": false,
+   "description": "A detail: everything a view of the sheet draws within a circle, enlarged."
+  },
+  "DrawingSection": {
+   "type": "object",
+   "properties": {
+    "point": {
+     "$ref": "#/$defs/Vec3",
+     "description": "A point of the cutting plane.",
+     "x-unit": "mm"
+    },
+    "normal": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The plane's normal, towards the viewer."
+    },
+    "label": {
+     "type": "string",
+     "description": "The letter of the section (`SECTION A-A`). Absent: the next letter that no other section or detail of the sheet has."
+    }
+   },
+   "required": [
+    "point",
+    "normal"
+   ],
+   "additionalProperties": false,
+   "description": "A section's cutting plane. The viewer stands on the +normal side; the material on that side is removed. The view shows the cut face, hatched, and the material behind it. Up is +Y; when the normal is within 25° of ±Y, up is as in the top view (for +Y) or the bottom view (for −Y)."
+  },
   "DrawingSheet": {
    "type": "object",
    "properties": {
@@ -1943,9 +1998,11 @@ export const THREED_SCHEMA: SchemaDocument = {
     "right",
     "left",
     "bottom",
-    "back"
+    "back",
+    "section",
+    "detail"
    ],
-   "description": "A standard view, named by the side of the model the viewer stands on."
+   "description": "A view: a standard view, named by the side of the model the viewer stands on; a section, cut by a plane; or a detail, an enlarged part of another view."
   },
   "DrawingViewSpec": {
    "type": "object",
@@ -1955,7 +2012,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "view": {
      "$ref": "#/$defs/DrawingViewName",
-     "description": "The side of the model the viewer stands on."
+     "description": "The side of the model the viewer stands on, or `section`, or `detail`."
     },
     "at": {
      "type": "array",
@@ -1964,21 +2021,29 @@ export const THREED_SCHEMA: SchemaDocument = {
      },
      "minItems": 2,
      "maxItems": 2,
-     "description": "The centre of the view on the sheet, from the sheet's lower left. Absent: placed by the projection method.",
+     "description": "The centre of the view on the sheet, from the sheet's lower left. Absent: a standard view is placed by the projection method; an iso, section or detail view goes in a column right of them.",
      "x-unit": "mm"
     },
     "scale": {
      "type": "number",
-     "description": "The view's own scale. Absent: the sheet's.",
+     "description": "The view's own scale. Absent: the sheet's; a detail's is twice the scale of the view it enlarges.",
      "exclusiveMinimum": 0
     },
     "hiddenLines": {
      "type": "boolean",
-     "description": "Draw the edges behind the model's faces, dashed. Absent: the sheet's `hiddenLines`."
+     "description": "Draw the edges behind the model's faces, dashed. Absent: the sheet's `hiddenLines`; for a section, off."
     },
     "dimensions": {
      "type": "boolean",
      "description": "Show dimensions in this view. Absent: shown."
+    },
+    "section": {
+     "$ref": "#/$defs/DrawingSection",
+     "description": "The cutting plane: required on a section view, not read on another."
+    },
+    "detail": {
+     "$ref": "#/$defs/DrawingDetail",
+     "description": "The circle it enlarges: required on a detail view, not read on another."
     }
    },
    "required": [

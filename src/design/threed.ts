@@ -304,7 +304,12 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
       const id = idOf(el);
       const list = (lists[el.type] ??= { items: [], sources: {} });
       if (list.items.some((x) => x.id === id)) throw new Error(`two <${el.type}> elements are called ${id}`);
-      list.items.push(checkValue(el, THREED_LISTS[el.type]!.def, fields(el)) as Record<string, unknown>);
+      const item = checkValue(el, THREED_LISTS[el.type]!.def, fields(el)) as Record<string, unknown>;
+      if (el.type === "sheet") {
+        const problems = sheetViewProblems(item.views as SheetView[]);
+        if (problems.length) throw new Error(`${where(el)}: ${problems.join("; ")}`);
+      }
+      list.items.push(item);
       if (el.source !== undefined) list.sources[`${el.type}:${id}`] = el.source;
     } else if (el.type === "slot") {
       noChildren(el);
@@ -431,6 +436,28 @@ function checkValue(el: DesignElement, def: string, value: unknown, at = ""): un
   const issues = validate(root, filled, THREED_SCHEMA.$defs, at);
   if (issues.length) throw new Error(`${where(el)}: ${issues.map(describeIssue).join("; ")}`);
   return filled;
+}
+
+type SheetView = { id: string; view: string; section?: unknown; detail?: { of: string } };
+
+/**
+ * What is wrong with a sheet's section and detail views, one sentence each, as the 3D core's `sheetViewProblems`
+ * says it (packages/domain/3d-core/drawing-sheet.ts); the Python and Rust SDKs say the same sentences.
+ */
+function sheetViewProblems(views: readonly SheetView[]): string[] {
+  const out: string[] = [];
+  for (const v of views) {
+    if (v.view === "section" && !v.section) out.push(`view ${v.id} is a section view with no section: give its cutting plane (point and normal)`);
+    if (v.view !== "detail") continue;
+    if (!v.detail) {
+      out.push(`view ${v.id} is a detail view with no detail: give the view it enlarges, its centre and its radius`);
+      continue;
+    }
+    const of = views.find((w) => w.id === v.detail!.of);
+    if (!of) out.push(`view ${v.id} is a detail of ${v.detail.of}, which is no view of this sheet`);
+    else if (of.view === "detail") out.push(`view ${v.id} is a detail of ${v.detail.of}, which is a detail itself`);
+  }
+  return out;
 }
 
 /** The built-in planes a root says the document has (`builtinPlanes`); absent: all three. */

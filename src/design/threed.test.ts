@@ -220,6 +220,23 @@ test("a body's engineering data, a joint, a mate and a sheet are typed elements 
   assert.throws(refused(jsx("sheet", { id: "s", views: [] })), /<sheet id="s">: views: /);
 });
 
+// sdk/python and sdk/rust accept and refuse the same sheet with the same sentence.
+test("a sheet's section view has its cutting plane, and a detail view enlarges another view of the sheet", () => {
+  const read = (...children: unknown[]) => declarationOf({ default: jsx("part", { name: "P", children }) }).graph.nodes;
+  const views = [
+    { id: "front", view: "front" },
+    { id: "a", view: "section", section: { point: [0, 0, 3], normal: [0, 1, 0] } },
+    { id: "b", view: "detail", detail: { of: "front", center: [-20, 0, 6], radius: 5, label: "C" } },
+  ];
+  assert.deepEqual((read(jsx("sheet", { id: "s", views })).drawings!.inputs!.value as { views: unknown }[])[0]!.views, views);
+  assert.throws(() => read(jsx("sheet", { id: "s", views: [{ id: "front", view: "front" }, { id: "a", view: "section" }] })), {
+    message: '<sheet id="s">: view a is a section view with no section: give its cutting plane (point and normal)',
+  });
+  assert.throws(() => read(jsx("sheet", { id: "s", views: [{ id: "b", view: "detail", detail: { of: "b", center: [0, 0, 0], radius: 5 } }] })), {
+    message: '<sheet id="s">: view b is a detail of b, which is a detail itself',
+  });
+});
+
 test("<check>, <accept>, <permitted> and <fastener> are the document's lists, each checked against its schema", () => {
   const doc = (...children: unknown[]) => declarationOf({ default: () => jsx("assembly", { name: "Stack", children }) }).graph;
   const g = doc(
