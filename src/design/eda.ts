@@ -237,8 +237,15 @@ export function part(o: {
   /** Other words a pin answers to in `pin()` (`{ pos: "2" }`). */
   aliases?: Record<string, string>;
   symbol?: string;
+  /** The pins left open on purpose, by pin number (`["3", "4"]`): the ERC does not report them as unconnected. */
+  noConnect?: string[];
 }): PartRef {
   const s = scope("part()");
+  if (o.noConnect !== undefined) {
+    const numbers = new Set(o.footprint.pads.map((p) => p.number));
+    if (!Array.isArray(o.noConnect) || new Set(o.noConnect).size !== o.noConnect.length || o.noConnect.some((n) => !numbers.has(String(n))))
+      throw new Error(`${o.ref}: noConnect is a list of its pin numbers, each once`);
+  }
   const pins = o.footprint.pads.map((p) => {
     const name = o.pinNames?.[p.number] ?? p.name;
     return { id: `p${slug(p.number)}`, number: p.number, ...(name ? { name } : {}), pad: p.pad };
@@ -254,6 +261,7 @@ export function part(o: {
       pins,
       ...(at ? { placement: at } : {}),
       ...(o.footprint.attr ? { attr: o.footprint.attr } : {}),
+      ...(o.noConnect?.length ? { noConnect: o.noConnect.map(String) } : {}),
     },
     { id: `part_${o.ref}`, label: o.ref },
   );
