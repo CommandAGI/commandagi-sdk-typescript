@@ -43,13 +43,13 @@ async function withEnv(vars: Record<string, string>, body: () => Promise<void>) 
 }
 
 test("one setting places the kernel: an argument, then a running service's URL, then COMMANDAGI_THREED, then local and cloud", () => {
-  assert.deepEqual(kernelWhere(undefined, {}), { places: ["local", "cloud"] });
+  assert.deepEqual(kernelWhere(undefined, {}), { places: ["page", "local", "cloud"] });
   assert.deepEqual(kernelWhere(undefined, { COMMANDAGI_THREED: "cloud" }), { places: ["cloud"] });
   assert.deepEqual(kernelWhere(undefined, { COMMANDAGI_THREED: "cloud, local" }), { places: ["cloud", "local"] });
   assert.deepEqual(kernelWhere(undefined, { COMMANDAGI_THREED: "local", COMMANDAGI_THREED_URL: "http://127.0.0.1:8091/" }), { places: ["local"], url: "http://127.0.0.1:8091" });
   assert.deepEqual(kernelWhere("cloud", { COMMANDAGI_THREED: "local" }), { places: ["cloud"] });
-  assert.throws(() => kernelWhere(undefined, { COMMANDAGI_THREED: "platform" }), /a list of "local" and "cloud"/);
-  assert.throws(() => kernelWhere(undefined, { COMMANDAGI_THREED: "local,local" }), /a list of "local" and "cloud"/);
+  assert.throws(() => kernelWhere(undefined, { COMMANDAGI_THREED: "platform" }), /a list of "page", "local" and "cloud"/);
+  assert.throws(() => kernelWhere(undefined, { COMMANDAGI_THREED: "local,local" }), /a list of "page", "local" and "cloud"/);
 });
 
 test("a running service gets the contract with its own bearer, never the account's key, and its answer is recorded as local", async () => {

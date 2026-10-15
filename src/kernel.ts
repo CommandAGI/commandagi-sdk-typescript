@@ -171,8 +171,8 @@ export interface SheetFile {
 type Env = Record<string, string | undefined>;
 type Doc = string | object;
 
-/** A place where a kernel runs. */
-export type KernelPlace = "local" | "cloud";
+/** A place where a kernel runs. `page` is the workbench page's own kernel: the SDK has no transport for it and passes it over. */
+export type KernelPlace = "page" | "local" | "cloud";
 /** Where an answer ran: set by the placement from the place the request went to, never from the answer. */
 export interface KernelRan {
   kernel: string;
@@ -184,7 +184,8 @@ type Transport = (path: string, request: object | null) => Promise<{ status: num
 
 /**
  * Where the 3D kernel runs: an argument wins, then COMMANDAGI_THREED_URL (a service that runs already: the local
- * place), then COMMANDAGI_THREED (a list of places, or a running service's URL), then local, then cloud.
+ * place), then COMMANDAGI_THREED (a list of places, or a running service's URL), then the default: the page (which
+ * this SDK passes over), local, then cloud.
  */
 export function kernelWhere(where: string | undefined, env: Env): { places: KernelPlace[]; url?: string } {
   const chosen = (where || env[ENV_THREED_URL] || env[ENV_THREED] || "").trim();
@@ -192,7 +193,7 @@ export function kernelWhere(where: string | undefined, env: Env): { places: Kern
   try {
     return { places: kernelPlaces("3d", chosen) as KernelPlace[] };
   } catch {
-    throw new Error(`${ENV_THREED} is a list of "local" and "cloud" (each once, joined by ",") or the URL of a running service, not ${JSON.stringify(chosen)}`);
+    throw new Error(`${ENV_THREED} is a list of "page", "local" and "cloud" (each once, joined by ","; this SDK passes "page" over) or the URL of a running service, not ${JSON.stringify(chosen)}`);
   }
 }
 
