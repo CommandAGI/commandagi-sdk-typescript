@@ -8,6 +8,9 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- A realtime harness: `<harness realtime={{ in, out, audio: { in, out }, fps, hz, minutes, videoMinutes }}>` says what
+  its model takes and gives live (`api` only, not with `tasks`). The Python and Rust SDKs have the same `agents`
+  vocabulary now.
 - Tolerances. `<parameter tolerance>` and `<hole tolerance>` take `{ upper, lower }` (mm), `{ class: "H7" }` (an ISO
   286 class or `ISO 492 bore|outside|width`) or `{ basic: true }`; a tolerance given two ways is refused.
   `toleranceLimits(nominal, tol)` and `fitOf(hole, shaft)` read the classes from the shipped tables

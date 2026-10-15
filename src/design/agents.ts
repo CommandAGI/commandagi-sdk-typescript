@@ -15,6 +15,16 @@
  *   // cloud://global/agents/harnesses/scaledown-classify-1/harness.tsx — a model that does one task in one pass
  *   export default () => <harness kind="api" label="ScaleDown Classify-1" provider="scaledown" tasks={["classify", "decide"]} family="system-one" experimental runs={["host"]} />;
  *
+ *   // cloud://global/agents/harnesses/openai-realtime/harness.tsx — a model that converses live (docs/realtime-agents.md)
+ *   export default () => (
+ *     <harness kind="api" label="OpenAI Realtime API" provider="openai" runs={["worker", "host"]}
+ *       realtime={{ in: ["audio", "video", "text"], out: ["audio", "text", "tools"],
+ *         audio: { in: ["g711-ulaw@8000", "pcm16@24000"], out: ["g711-ulaw@8000", "pcm16@24000"] }, fps: 1, hz: 2, minutes: 60 }} />
+ *   );
+ *
+ *   // cloud://global/agents/openai-gpt-realtime-2-1/agent.tsx — a base of a realtime harness: one per realtime model of its provider
+ *   export default () => <agent harness="openai-realtime" name="GPT Realtime 2.1" model="openai/gpt-realtime-2.1" />;
+ *
  *   // cloud://global/agents/claude-code/agent.tsx — the one base instance of a CLI harness
  *   export default () => <agent harness="claude-code" name="Claude Code" />;
  *
