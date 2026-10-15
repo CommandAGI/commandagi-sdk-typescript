@@ -1334,6 +1334,195 @@ export const SDK_SCHEMA = {
             bound: {},
             withThread: false,
           },
+          {
+            name: "layout",
+            tool: "pcb_layout",
+            doc: "Lay out the board by its constraints (<netclass>, <group>, <keepout> …): place the parts with no place, route every net with its class's rules, check, repair, score; again until clean or the budget (budgetMinutes) is spent. Writes the placements and copper into the board's code and says each attempt.",
+            params: [
+              {
+                name: "fileId",
+                key: "fileId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "layoutScore",
+            tool: "pcb_layout_score",
+            doc: "Every term of the board's layout objective (unrouted, DRC errors, overlaps, keep-outs, regions, wire length, vias …) with its weight, the weighted total, and each layout check's verdict.",
+            params: [
+              {
+                name: "fileId",
+                key: "fileId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "checkLayout",
+            tool: "pcb_check_layout",
+            doc: "The layout checks' findings (placed, routed, DRC with the net classes, courtyards, keep-outs, regions, near, width, length, vias, skew, heat, octolinear, detour, return path): what, where, on which part or net.",
+            params: [
+              {
+                name: "fileId",
+                key: "fileId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "constrain",
+            tool: "pcb_constrain",
+            doc: 'Set or remove one constraint of the board ({ constraint: "netclass", name, attributes: { nets, width, … } }); written into the board\'s code as its element.',
+            params: [
+              {
+                name: "fileId",
+                key: "fileId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "placeGroup",
+            tool: "pcb_place_group",
+            doc: "Place the parts of one group ({ group } or { parts }) by the constraint model; the copper of their nets is ripped up, to be routed again.",
+            params: [
+              {
+                name: "fileId",
+                key: "fileId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "routeNets",
+            tool: "pcb_route_nets",
+            doc: "Route the nets named ({ nets }; all when none) with their net classes' rules; their copper is ripped up first. Names each connection it could not route.",
+            params: [
+              {
+                name: "fileId",
+                key: "fileId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "ripUp",
+            tool: "pcb_rip_up",
+            doc: "Remove the tracks and vias of the nets named ({ nets }).",
+            params: [
+              {
+                name: "fileId",
+                key: "fileId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
         ],
       },
     ],
@@ -2387,6 +2576,34 @@ export class Eda {
   model3d(fileId: string, opts: Args = {}): Promise<unknown> {
     return this.t.call("pcb_model3d", { ...prune({ fileId: fileId }), ...opts });
   }
+  /** Lay out the board by its constraints (<netclass>, <group>, <keepout> …): place the parts with no place, route every net with its class's rules, check, repair, score; again until clean or the budget (budgetMinutes) is spent. Writes the placements and copper into the board's code and says each attempt. */
+  layout(fileId: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("pcb_layout", { ...prune({ fileId: fileId }), ...opts });
+  }
+  /** Every term of the board's layout objective (unrouted, DRC errors, overlaps, keep-outs, regions, wire length, vias …) with its weight, the weighted total, and each layout check's verdict. */
+  layoutScore(fileId: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("pcb_layout_score", { ...prune({ fileId: fileId }), ...opts });
+  }
+  /** The layout checks' findings (placed, routed, DRC with the net classes, courtyards, keep-outs, regions, near, width, length, vias, skew, heat, octolinear, detour, return path): what, where, on which part or net. */
+  checkLayout(fileId: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("pcb_check_layout", { ...prune({ fileId: fileId }), ...opts });
+  }
+  /** Set or remove one constraint of the board ({ constraint: "netclass", name, attributes: { nets, width, … } }); written into the board's code as its element. */
+  constrain(fileId: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("pcb_constrain", { ...prune({ fileId: fileId }), ...opts });
+  }
+  /** Place the parts of one group ({ group } or { parts }) by the constraint model; the copper of their nets is ripped up, to be routed again. */
+  placeGroup(fileId: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("pcb_place_group", { ...prune({ fileId: fileId }), ...opts });
+  }
+  /** Route the nets named ({ nets }; all when none) with their net classes' rules; their copper is ripped up first. Names each connection it could not route. */
+  routeNets(fileId: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("pcb_route_nets", { ...prune({ fileId: fileId }), ...opts });
+  }
+  /** Remove the tracks and vias of the nets named ({ nets }). */
+  ripUp(fileId: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("pcb_rip_up", { ...prune({ fileId: fileId }), ...opts });
+  }
 }
 
 /**
@@ -3078,5 +3295,61 @@ export const CLI_COMMANDS: readonly Command[] = [
     params: [{ name: "fileId" }],
     spread: true,
     doc: "The board as a 3D model (format: step or obj). The STEP is an assembly: the board with its holes, each part's own model where its footprint names one in the drive, else a bounding body that says so.",
+  },
+  {
+    group: "eda",
+    verb: "layout",
+    tool: "pcb_layout",
+    params: [{ name: "fileId" }],
+    spread: true,
+    doc: "Lay out the board by its constraints (<netclass>, <group>, <keepout> …): place the parts with no place, route every net with its class's rules, check, repair, score; again until clean or the budget (budgetMinutes) is spent. Writes the placements and copper into the board's code and says each attempt.",
+  },
+  {
+    group: "eda",
+    verb: "layoutScore",
+    tool: "pcb_layout_score",
+    params: [{ name: "fileId" }],
+    spread: true,
+    doc: "Every term of the board's layout objective (unrouted, DRC errors, overlaps, keep-outs, regions, wire length, vias …) with its weight, the weighted total, and each layout check's verdict.",
+  },
+  {
+    group: "eda",
+    verb: "checkLayout",
+    tool: "pcb_check_layout",
+    params: [{ name: "fileId" }],
+    spread: true,
+    doc: "The layout checks' findings (placed, routed, DRC with the net classes, courtyards, keep-outs, regions, near, width, length, vias, skew, heat, octolinear, detour, return path): what, where, on which part or net.",
+  },
+  {
+    group: "eda",
+    verb: "constrain",
+    tool: "pcb_constrain",
+    params: [{ name: "fileId" }],
+    spread: true,
+    doc: 'Set or remove one constraint of the board ({ constraint: "netclass", name, attributes: { nets, width, … } }); written into the board\'s code as its element.',
+  },
+  {
+    group: "eda",
+    verb: "placeGroup",
+    tool: "pcb_place_group",
+    params: [{ name: "fileId" }],
+    spread: true,
+    doc: "Place the parts of one group ({ group } or { parts }) by the constraint model; the copper of their nets is ripped up, to be routed again.",
+  },
+  {
+    group: "eda",
+    verb: "routeNets",
+    tool: "pcb_route_nets",
+    params: [{ name: "fileId" }],
+    spread: true,
+    doc: "Route the nets named ({ nets }; all when none) with their net classes' rules; their copper is ripped up first. Names each connection it could not route.",
+  },
+  {
+    group: "eda",
+    verb: "ripUp",
+    tool: "pcb_rip_up",
+    params: [{ name: "fileId" }],
+    spread: true,
+    doc: "Remove the tracks and vias of the nets named ({ nets }).",
   },
 ];
