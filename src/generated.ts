@@ -1254,33 +1254,6 @@ export const SDK_SCHEMA = {
             withThread: false,
           },
           {
-            name: "autoroute",
-            tool: "pcb_autoroute",
-            doc: "Route the board's open connections on the copper layers given (default the two outer layers, through vias) and write the traces into its code. The result names each connection left unrouted; `complete` is false while one is.",
-            params: [
-              {
-                name: "fileId",
-                key: "fileId",
-                type: "string",
-                required: true,
-                spread: false,
-                prefix: null,
-                cli: "positional",
-              },
-              {
-                name: "opts",
-                key: null,
-                type: "object",
-                required: false,
-                spread: true,
-                prefix: null,
-                cli: "spread",
-              },
-            ],
-            bound: {},
-            withThread: false,
-          },
-          {
             name: "fabricate",
             tool: "pcb_fabricate",
             doc: "The manufacturing files of the board (Gerber layers, drill files, bill of materials, pick-and-place); `omitted` names what a file leaves out.",
@@ -1472,7 +1445,7 @@ export const SDK_SCHEMA = {
           {
             name: "routeNets",
             tool: "pcb_route_nets",
-            doc: "Route the nets named ({ nets }; all when none) with their net classes' rules; their copper is ripped up first. Names each connection it could not route.",
+            doc: "Route what is open of the nets named ({ nets }; all when none) with their net classes' rules, from the copper they have, on the copper layers given ({ layers }; default the two outer layers, through vias), and write the traces into the board's code. { ripUp: true } removes the nets' copper first. The result names each connection left unrouted; `complete` is false while one is.",
             params: [
               {
                 name: "fileId",
@@ -2564,10 +2537,6 @@ export class Eda {
   netlist(fileId: string): Promise<unknown> {
     return this.t.call("sch_netlist", prune({ fileId: fileId }));
   }
-  /** Route the board's open connections on the copper layers given (default the two outer layers, through vias) and write the traces into its code. The result names each connection left unrouted; `complete` is false while one is. */
-  autoroute(fileId: string, opts: Args = {}): Promise<unknown> {
-    return this.t.call("pcb_autoroute", { ...prune({ fileId: fileId }), ...opts });
-  }
   /** The manufacturing files of the board (Gerber layers, drill files, bill of materials, pick-and-place); `omitted` names what a file leaves out. */
   fabricate(fileId: string, opts: Args = {}): Promise<unknown> {
     return this.t.call("pcb_fabricate", { ...prune({ fileId: fileId }), ...opts });
@@ -2596,7 +2565,7 @@ export class Eda {
   placeGroup(fileId: string, opts: Args = {}): Promise<unknown> {
     return this.t.call("pcb_place_group", { ...prune({ fileId: fileId }), ...opts });
   }
-  /** Route the nets named ({ nets }; all when none) with their net classes' rules; their copper is ripped up first. Names each connection it could not route. */
+  /** Route what is open of the nets named ({ nets }; all when none) with their net classes' rules, from the copper they have, on the copper layers given ({ layers }; default the two outer layers, through vias), and write the traces into the board's code. { ripUp: true } removes the nets' copper first. The result names each connection left unrouted; `complete` is false while one is. */
   routeNets(fileId: string, opts: Args = {}): Promise<unknown> {
     return this.t.call("pcb_route_nets", { ...prune({ fileId: fileId }), ...opts });
   }
@@ -3274,14 +3243,6 @@ export const CLI_COMMANDS: readonly Command[] = [
   },
   {
     group: "eda",
-    verb: "autoroute",
-    tool: "pcb_autoroute",
-    params: [{ name: "fileId" }],
-    spread: true,
-    doc: "Route the board's open connections on the copper layers given (default the two outer layers, through vias) and write the traces into its code. The result names each connection left unrouted; `complete` is false while one is.",
-  },
-  {
-    group: "eda",
     verb: "fabricate",
     tool: "pcb_fabricate",
     params: [{ name: "fileId" }],
@@ -3342,7 +3303,7 @@ export const CLI_COMMANDS: readonly Command[] = [
     tool: "pcb_route_nets",
     params: [{ name: "fileId" }],
     spread: true,
-    doc: "Route the nets named ({ nets }; all when none) with their net classes' rules; their copper is ripped up first. Names each connection it could not route.",
+    doc: "Route what is open of the nets named ({ nets }; all when none) with their net classes' rules, from the copper they have, on the copper layers given ({ layers }; default the two outer layers, through vias), and write the traces into the board's code. { ripUp: true } removes the nets' copper first. The result names each connection left unrouted; `complete` is false while one is.",
   },
   {
     group: "eda",

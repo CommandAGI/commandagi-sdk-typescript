@@ -26,6 +26,12 @@ Added
 - `eda.layout`, `eda.layoutScore`, `eda.checkLayout`, `eda.constrain`, `eda.placeGroup`, `eda.routeNets`,
   `eda.ripUp`: the layout tools (`pcb_layout`, `pcb_layout_score`, …).
 
+Removed
+
+- `eda.autoroute` (`pcb_autoroute`, and the CLI's `eda autoroute`): the board has one router. `eda.routeNets` routes
+  what is open of the nets from the copper they have, on the copper layers given (`layers`), and `ripUp: true` routes
+  them whole.
+
 ## 0.5.1 (2026-10-15)
 
 No change in this SDK. The version moves with the Python SDK, which carries the same number (its 0.5.1 fixes its
