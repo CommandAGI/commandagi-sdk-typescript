@@ -38,7 +38,7 @@
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
 
-export const SCOUT_FIELDS = ["title", "budget", "repeats", "margin", "relativeMargin", "errorFloor", "minCalls", "resamples", "alpha", "seed", "maxCases", "readme"] as const;
+export const SCOUT_FIELDS = ["title", "budget", "repeats", "margin", "relativeMargin", "errorFloor", "minCalls", "minCases", "resamples", "alpha", "seed", "maxCases", "readme"] as const;
 export const CONFIGURATION_FIELDS = ["id", "model", "harness", "effort", "instructions", "maxTokens", "incumbent"] as const;
 export const WORKLOAD_FIELDS = ["id", "title", "needs", "sample", "context"] as const;
 export const CASE_FIELDS = ["id", "from", "prompt", "system", "check", "rubric", "source", "terms"] as const;
@@ -112,6 +112,8 @@ export interface ScoutDoc {
   errorFloor?: number;
   /** The fewest calls the error gate is judged on. */
   minCalls?: number;
+  /** The fewest shared cases a verdict is given on; fewer is undecided. */
+  minCases?: number;
   resamples?: number;
   alpha?: number;
   seed?: number;
@@ -237,7 +239,7 @@ function scoutOf(t: DocTree): ScoutDoc {
   text(t, "title");
   text(t, "readme");
   positive(t, "budget");
-  for (const k of ["repeats", "minCalls", "resamples", "maxCases"]) positive(t, k, { integer: true });
+  for (const k of ["repeats", "minCalls", "minCases", "resamples", "maxCases"]) positive(t, k, { integer: true });
   for (const k of ["margin", "relativeMargin", "errorFloor"]) positive(t, k, { zero: true });
   positive(t, "alpha");
   if (typeof t.attrs.alpha === "number" && t.attrs.alpha >= 1) throw new Error(`<scout> alpha is below 1`);

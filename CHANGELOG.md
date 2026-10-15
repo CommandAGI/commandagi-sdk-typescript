@@ -12,7 +12,7 @@ Added
   - `<scout>` (`<name>.scout.tsx`): one comparison of configurations (`<configuration id model harness effort
     instructions maxTokens incumbent>`) on the cases of each `<workload>` (`<case id from prompt check rubric source
     terms>`), scored by a check or by a `<judge>` panel, with the verdict's rules (`budget`, `repeats`, `margin`,
-    `relativeMargin`, `errorFloor`, `minCalls`, `resamples`, `alpha`, `seed`). A case's `from` is `public`,
+    `relativeMargin`, `errorFloor`, `minCalls`, `minCases`, `resamples`, `alpha`, `seed`, `maxCases`). A case's `from` is `public`,
     `synthetic` or `own-run`; nothing else may be a case.
   - `<replacement>` (`<name>.replacement.tsx`): what replacing a product would cost, by `<layer kind title>`
     (`visible`, `invisible`, `integrations`, `operations`, `economics`), each `<capability id title need have effort
