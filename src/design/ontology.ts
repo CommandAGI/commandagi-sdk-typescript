@@ -44,7 +44,8 @@ const leaf = (tag: string, attrs: Record<string, unknown>): DocTree => ({ tag, a
 // ── world.tsx ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** The fields of a unit in a world's file (packages/domain/world/worlds.js). */
-export const UNIT_FIELDS = ["uid", "name", "device", "domain", "size_mm", "support", "channels", "manualUrl", "position", "rotation"] as const;
+/** `serial`: the serial number of the one physical thing a unit is; `revision`: its hardware revision (a firmware release says which it supports). */
+export const UNIT_FIELDS = ["uid", "name", "device", "serial", "revision", "domain", "size_mm", "support", "channels", "manualUrl", "position", "rotation"] as const;
 /**
  * `links`: the parts of the world's model that a run moves (packages/domain/world/pose.js modelPose). A definition's
  * link grammar, with the unit named in each joint and emit: `links={[{ node: "ram", joint: { unit: "press-1",
