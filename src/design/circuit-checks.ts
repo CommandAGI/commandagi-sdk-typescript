@@ -7,6 +7,11 @@
  *                                                         measured (its `pinoutVerified`, `./part-fields.ts`)
  *   <check id="footprint" kind="footprint" />             every part's pads checked, and its footprint's pad count,
  *                                                         pitch and body equal to its `packageDimensions`
+ *   <check id="cost" kind="cost" options={{ quantities: [10, 100] }} />
+ *                                                         a logistics check (sourcing, process, assembly, inspection,
+ *                                                         compliance, shipping, lifecycle, cost: docs/formats.md §
+ *                                                         logistics), with its own options
+ *   <accept id="lbl" check="sourcing" rule="no-supplier" refs={["J9"]} reason="…" />  a logistics finding of one part
  *   <accept id="tx" check="erc" rule="pin_conflict" refs={["U1", "U3"]} reason="the bus is open-drain" />
  *   <accept id="edge" check="drc" rule="clearance" region={{ min: [0, 0], max: [3, 3] }} reason="…" />
  *
@@ -46,14 +51,16 @@ export function declareCircuitChecks(s: Scope, elements: readonly DesignElement[
   const at = (el: DesignElement) => (el.source !== undefined ? { source: el.source } : {});
   for (const el of elements) {
     if (el.type === "check") {
-      only(el, ["id", "kind", "severity"]);
+      only(el, ["id", "kind", "severity", "options"]);
       const id = text(el, "id", "the check's name (erc)")!;
       if (!ID.test(id)) throw new Error(`${where(el)}: id is letters, digits, _ . -`);
       if ([...checks, ...accepted].some((c) => c.id === id)) throw new Error(`two checks or accepts are called ${id}`);
-      const kind = text(el, "kind", "what is checked: erc, drc, pinout, footprint")!;
+      const kind = text(el, "kind", "what is checked: erc, drc, pinout, footprint, or a logistics kind (sourcing, process, assembly, inspection, compliance, shipping, lifecycle, cost)")!;
       const severity = el.props.severity;
       if (severity !== undefined && severity !== "error" && severity !== "warning") throw new Error(`${where(el)}: severity is error or warning`);
-      checks.push({ id, kind, ...(severity ? { severity } : {}), ...at(el) });
+      const options = el.props.options;
+      if (options !== undefined && !(options && typeof options === "object" && !Array.isArray(options))) throw new Error(`${where(el)}: options is an object (the cost check's { quantities: [10, 100] })`);
+      checks.push({ id, kind, ...(severity ? { severity } : {}), ...(options ? { options: JSON.parse(JSON.stringify(options)) } : {}), ...at(el) });
     } else if (el.type === "accept") {
       only(el, ["id", "check", "rule", "refs", "net", "region", "reason"]);
       const id = text(el, "id", "the accept's name")!;

@@ -27,7 +27,7 @@
  * patterns, named after the KiCad library footprints they follow; check them against your fabricator.
  */
 import { Declaration, NodeRef, Out, Scope, currentScope, withScope, channels, slug } from "./ir.js";
-import { fieldForms, type PartFieldValues } from "./part-fields.js";
+import { partFieldForms, type PartFields } from "./part-fields.js";
 
 /** One pad's geometry, in footprint-local millimetres (y down, as KiCad draws). */
 export interface Pad {
@@ -232,10 +232,10 @@ export type At = [number, number] | { x: number; y: number; rot?: number; side?:
 
 /**
  * Declare a part. Unplaced (`at` absent) is a real state: a part not yet put on the board. Its engineering data
- * (`mpn`, `pinoutVerified`, `packageDimensions`, `attrs` …) are KiCad properties of the part, as on a schematic's
- * part (`./part-fields.ts`).
+ * (`mpn`, `pinoutVerified`, `packageDimensions`, `attrs` …) and its logistics (`suppliers`, `datasheet` …) are KiCad
+ * properties of the part, as on a schematic's part (`./part-fields.ts`).
  */
-export function part(o: PartFieldValues & {
+export function part(o: {
   ref: string;
   value?: string;
   footprint: Footprint;
@@ -247,8 +247,10 @@ export function part(o: PartFieldValues & {
   symbol?: string;
   /** The pins left open on purpose, by pin number (`["3", "4"]`): the ERC does not report them as unconnected. */
   noConnect?: string[];
-}): PartRef {
+} & Omit<PartFields, "attrs"> & { attrs?: Record<string, string> }): PartRef {
   const s = scope("part()");
+  // Its engineering data and its logistics: KiCad property forms, as a schematic part in code states them.
+  const fields = partFieldForms(`component({ ref: "${o.ref}" })`, o as unknown as Record<string, unknown>);
   if (o.noConnect !== undefined) {
     const numbers = new Set(o.footprint.pads.map((p) => p.number));
     if (!Array.isArray(o.noConnect) || new Set(o.noConnect).size !== o.noConnect.length || o.noConnect.some((n) => !numbers.has(String(n))))
@@ -277,7 +279,7 @@ export function part(o: PartFieldValues & {
       ...(at ? { placement: at } : {}),
       ...(o.footprint.attr ? { attr: o.footprint.attr } : {}),
       ...(o.noConnect?.length ? { noConnect: o.noConnect.map(String) } : {}),
-      ...fieldForms(o as Readonly<Record<string, unknown>>, o.ref),
+      ...(fields.length ? { foreign: fields } : {}),
     },
     { id: `part_${o.ref}`, label: o.ref },
   );

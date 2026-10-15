@@ -83,6 +83,15 @@
  *                                     parts (`awayFrom`) they keep `distance` from.
  *   <objective weights>               the weight of each term of the layout score ({ wirelength: 1, vias: 2, … }).
  *
+ * How the board is made (docs/formats.md § logistics):
+ *   <fab suppliers finish mask silk minTrack minSpace minDrill minAnnularRing maxLayers thicknesses assembly
+ *        inspection compliance shipping>
+ *                                     the fab house (the first of `suppliers`, with its terms), its capabilities for
+ *                                     the service ordered (mm), the finish, the solder mask and silk colours, the
+ *                                     assembly ({ house, sides }), the board's test ({ electrical, procedure,
+ *                                     acceptance, … }), its compliance and shipping. One per board. The board's
+ *                                     layers, thickness and copper stay its own.
+ *
  * `from` and `to` say what a run's first and last points land on; `net` names the schematic net the copper realises.
  * Coordinates are the board's own: millimetres, Y DOWN, from the outline's corner (tscircuit's board is centred and
  * Y up; a `<board>` that names no schematic is read as tscircuit, `./tscircuit.ts`). An end is bound by what it
@@ -93,6 +102,7 @@
 import { Declaration, Scope, slug, withScope } from "./ir.js";
 import { childElements, type DesignElement } from "./jsx-runtime.js";
 import { declareCircuitChecks } from "./circuit-checks.js";
+import { checkFacet, checkOffers } from "./part-fields.js";
 
 export const BOARD_PART = "eda.footprint";
 export const CONDUCTOR = "eda.conductor";
@@ -202,7 +212,7 @@ export function isBoardFile(root: unknown): boolean {
 }
 
 const CONDUCTORS = new Set(["trace", "arc", "via", "pour"]);
-const FACTS = new Set(["graphic", "text", "dimension", "kicad", "net", "netclass", "diffpair", "group", "keepout", "thermal", "objective"]);
+const FACTS = new Set(["graphic", "text", "dimension", "kicad", "net", "netclass", "diffpair", "group", "keepout", "thermal", "objective", "fab"]);
 
 /** The layout's constraints, each a board fact (`fact` is its tag): what each takes, and its check. */
 const NET_KINDS = ["signal", "power", "ground", "noisy", "sensitive", "highspeed"];
@@ -276,6 +286,63 @@ function constraintFact(el: DesignElement): Record<string, unknown> {
   return out;
 }
 const CONSTRAINTS = new Set(["netclass", "diffpair", "group", "keepout", "thermal", "objective"]);
+
+const FAB_CAPABILITIES = ["minTrack", "minSpace", "minDrill", "minAnnularRing"];
+const SIDES = ["top", "bottom"];
+const ELECTRICAL = ["flying-probe", "fixture", "none"];
+const INSPECTION_KEYS = ["dimensions", "procedure", "acceptance", "sampling", "electrical", "minutes", "ratePerHour", "currency"];
+
+/**
+ * The board's `<fab>`: the house that makes it (`suppliers`, the first is the one that makes it), its capabilities
+ * for the service ordered, the finish, mask and silk, the assembly, the board's test and its compliance and shipping
+ * (docs/formats.md § logistics). The board's layers, thickness and copper are its own and are not restated here.
+ */
+function fabFact(el: DesignElement): Record<string, unknown> {
+  refuseUnknown(el, ["suppliers", "finish", "mask", "silk", ...FAB_CAPABILITIES, "maxLayers", "thicknesses", "assembly", "inspection", "compliance", "shipping"]);
+  const w = where(el);
+  const out: Record<string, unknown> = {};
+  if (el.props.suppliers !== undefined) out.suppliers = checkOffers(w, el.props.suppliers);
+  for (const k of ["finish", "mask", "silk"]) {
+    const v = text(el, k);
+    if (v !== undefined) {
+      if (!v.trim()) throw new Error(`${w}: ${k} is text`);
+      out[k] = v;
+    }
+  }
+  for (const k of FAB_CAPABILITIES) {
+    const v = positive(el, k);
+    if (v !== undefined) out[k] = v;
+  }
+  const maxLayers = num(el, "maxLayers");
+  if (maxLayers !== undefined) {
+    if (!(Number.isInteger(maxLayers) && maxLayers >= 1)) throw new Error(`${w}: maxLayers is a whole number of copper layers`);
+    out.maxLayers = maxLayers;
+  }
+  const t = plain(el, "thicknesses", (v) => Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "number" && x > 0), "a list of the finished thicknesses the house offers (mm)");
+  if (t !== undefined) out.thicknesses = t;
+  const assembly = el.props.assembly;
+  if (assembly !== undefined) {
+    const a = assembly as Record<string, unknown>;
+    if (!isObject(a) || Object.keys(a).some((k) => k !== "house" && k !== "sides")) throw new Error(`${w}: assembly is { house, sides }`);
+    if (a.house !== undefined && !(typeof a.house === "string" && a.house.trim())) throw new Error(`${w}: assembly.house is the house that places the parts`);
+    if (a.sides !== undefined && !(Array.isArray(a.sides) && a.sides.length && a.sides.every((s) => SIDES.includes(s as string)) && new Set(a.sides).size === a.sides.length))
+      throw new Error(`${w}: assembly.sides is a list of "top", "bottom"`);
+    out.assembly = JSON.parse(JSON.stringify(a));
+  }
+  const inspection = el.props.inspection;
+  if (inspection !== undefined) {
+    const i = inspection as Record<string, unknown>;
+    if (!isObject(i)) throw new Error(`${w}: inspection is an object ({ ${INSPECTION_KEYS.join(", ")} })`);
+    for (const k of Object.keys(i)) if (!INSPECTION_KEYS.includes(k)) throw new Error(`${w}: inspection.${k} is not read (it takes ${INSPECTION_KEYS.join(", ")})`);
+    if (i.electrical !== undefined && !ELECTRICAL.includes(i.electrical as string)) throw new Error(`${w}: inspection.electrical is one of ${ELECTRICAL.join(", ")}`);
+    for (const k of ["procedure", "acceptance", "sampling"]) if (i[k] !== undefined && !(typeof i[k] === "string" && (i[k] as string).trim())) throw new Error(`${w}: inspection.${k} is text`);
+    for (const k of ["minutes", "ratePerHour"]) if (i[k] !== undefined && !(typeof i[k] === "number" && (i[k] as number) >= 0)) throw new Error(`${w}: inspection.${k} is a number, 0 or more`);
+    if (i.currency !== undefined && !(typeof i.currency === "string" && /^[A-Z]{3}$/.test(i.currency))) throw new Error(`${w}: inspection.currency is an ISO 4217 code ("USD")`);
+    out.inspection = JSON.parse(JSON.stringify(i));
+  }
+  for (const k of ["compliance", "shipping"] as const) if (el.props[k] !== undefined) out[k] = checkFacet(w, k, el.props[k]);
+  return out;
+}
 
 /** Declare a board in code (its root is `<board schematic="…">`). */
 export function declareBoardFile(root: DesignElement, name?: string): Declaration {
@@ -365,6 +432,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
     const nets = new Set<string>();
     const constraintNames = new Set<string>();
     let kicadForms = 0;
+    let fabs = 0;
     let n = 0;
     const freeId = () => {
       let id: string;
@@ -389,6 +457,8 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
         nets.add(nm);
       } else if (el.type === "kicad") {
         if (++kicadForms > 1) throw new Error("a board has one <kicad>");
+      } else if (el.type === "fab") {
+        if (++fabs > 1) throw new Error("a board has one <fab>");
       } else if (CONSTRAINTS.has(el.type)) {
         const key = el.type === "objective" ? "objective" : typeof nm === "string" ? `${el.type}:${nm}` : null;
         if (key && constraintNames.has(key)) throw new Error(el.type === "objective" ? "a board has one <objective>" : `two <${el.type}> elements are called ${nm}`);
@@ -635,6 +705,9 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
           s.add(BOARD_FACT, { fact: "net", name: el.props.name as string, code }, { label: "Net", meta: meta(el) });
           break;
         }
+        case "fab":
+          s.add(BOARD_FACT, { fact: "fab", ...fabFact(el) }, { label: "Fab", meta: meta(el) });
+          break;
         default:
           if (CONSTRAINTS.has(el.type)) s.add(BOARD_FACT, { fact: el.type, ...constraintFact(el) }, { label: el.type, meta: meta(el) });
       }

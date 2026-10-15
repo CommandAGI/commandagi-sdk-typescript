@@ -51,6 +51,9 @@
  *   … pinoutVerified footprintVerified packageDimensions                   on any part: how its pinout and its pads
  *                                                                          are known, and its datasheet package
  *                                                                          (`./part-fields.ts`)
+ *   … suppliers alternates datasheet lifecycle compliance shipping          its logistics, as KiCad properties too
+ *                                                                          (`./part-fields.ts`; LCSC Part, Datasheet,
+ *                                                                          RoHS, HS Code …)
  *   <check id kind severity>, <accept id check rule refs net reason>    the checks the circuit must pass, and the
  *                                                                          findings it accepts on purpose
  *                                                                          (`./circuit-checks.ts`)
@@ -71,8 +74,7 @@
 import { channels, currentScope, slug, type Scope } from "./ir.js";
 import { declareCircuitChecks } from "./circuit-checks.js";
 import { partTypeFor } from "./eda.js";
-import { FIELD_PROPS, fieldForms } from "./part-fields.js";
-export { PART_FIELDS, partFields } from "./part-fields.js";
+import { FIELD_ARGUMENTS, partFieldForms } from "./part-fields.js";
 import { childElements, type DesignElement } from "./jsx-runtime.js";
 
 export const SCH_WIRE = "sch.wire";
@@ -194,8 +196,14 @@ function noConnectOf(el: DesignElement): { noConnect?: string[] } {
   return { noConnect: [...(v as string[])] };
 }
 
+/** The arguments that state a part's fields (its text fields and its logistics: `./part-fields.ts`). */
+const FIELD_PROPS = FIELD_ARGUMENTS;
+
 /** The fields a part states, as its `property` forms (`./part-fields.ts`). */
-const fieldsOf = (el: DesignElement) => fieldForms(el.props, where(el));
+function fieldsOf(el: DesignElement): { foreign?: unknown[] } {
+  const forms = partFieldForms(where(el), el.props);
+  return forms.length ? { foreign: forms } : {};
+}
 
 /** Add the placement of `unit` of `part` that `el` declares (its schX, schY, schRotation, schMirror). */
 function place(s: Scope, part: Placed, unit: number, el: DesignElement, pins: readonly string[]): void {
