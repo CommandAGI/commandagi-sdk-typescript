@@ -10,7 +10,7 @@ Added
 
 - The scouts' two documents (`commandagi/design` `scouts.ts`; docs/scouts.md in the CommandAGI repository):
   - `<scout>` (`<name>.scout.tsx`): one comparison of configurations (`<configuration id model harness effort
-    instructions maxTokens incumbent>`) on the cases of each `<workload id title needs sample context axis>` (`<case
+    instructions maxTokens incumbent>`) on the cases of each `<workload id title needs sample context>` (`<case
     id from prompt system check rubric tools turns source terms>`), scored by a check (`exact`, `oneOf`, `number`,
     `contains`, `regex`, `json`, `letter`, `literal`, `tool`) or by a `<judge>` panel, with the verdict's rules
     (`budget`, `repeats`, `margin`, `relativeMargin`, `errorFloor`, `minCalls`, `minCases`, `resamples`, `alpha`,

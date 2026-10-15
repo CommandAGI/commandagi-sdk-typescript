@@ -40,7 +40,7 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 
 export const SCOUT_FIELDS = ["title", "budget", "repeats", "margin", "relativeMargin", "errorFloor", "minCalls", "minCases", "resamples", "alpha", "seed", "maxCases", "readme"] as const;
 export const CONFIGURATION_FIELDS = ["id", "model", "harness", "effort", "instructions", "maxTokens", "incumbent"] as const;
-export const WORKLOAD_FIELDS = ["id", "title", "needs", "sample", "context", "axis"] as const;
+export const WORKLOAD_FIELDS = ["id", "title", "needs", "sample", "context"] as const;
 export const CASE_FIELDS = ["id", "from", "prompt", "system", "check", "rubric", "tools", "turns", "source", "terms"] as const;
 export const JUDGE_FIELDS = ["model", "effort"] as const;
 
@@ -114,8 +114,6 @@ export interface ScoutWorkload {
   sample?: number;
   /** The context, in tokens, a model must take. */
   context?: number;
-  /** The quality axis of the catalog it measures when a run publishes (`math`, `reasoning`, `coding`), or `agentic`. */
-  axis?: string;
   cases: ScoutCase[];
 }
 export interface ScoutJudge {
@@ -300,7 +298,6 @@ function scoutOf(t: DocTree): ScoutDoc {
   const workloads = parts("workload").map((w) => {
     text(w, "id");
     text(w, "title");
-    text(w, "axis");
     positive(w, "sample", { integer: true });
     positive(w, "context", { integer: true });
     const needs = w.attrs.needs;
