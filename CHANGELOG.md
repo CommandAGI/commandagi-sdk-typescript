@@ -4,6 +4,11 @@ One entry for each release. A release is the tag `v<version>` in this repository
 Python and Rust SDKs carry the same version number. A version promises nothing about the next one (README
 § Versions): read this file before you change the version you pin.
 
+## 0.5.1 (2026-10-15)
+
+No change in this SDK. The version moves with the Python SDK, which carries the same number (its 0.5.1 fixes its
+install message and its fixed call timeout). This client has no fixed timeout: a call waits as long as `fetch` does.
+
 ## 0.5.0 (2026-10-14)
 
 The first release with the design layer. 0.5.0 was prepared on 2026-10-13 and not published; this entry holds all of it.
