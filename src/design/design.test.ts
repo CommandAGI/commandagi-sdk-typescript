@@ -171,6 +171,17 @@ test("a circuit: the part type is the engine's pin-signature hash; nets join by 
   assert.throws(() => circuit("X", () => void component({ ref: "R1", footprint: footprints.chip("0402") }).pin(3)), /R1 has no pin 3/);
 });
 
+test("a circuit's part on the bottom holds its pads as the board holds a flipped part: mirrored, on the B. layers", () => {
+  const g = circuit("Flip", () => {
+    component({ ref: "R1", footprint: footprints.chip("0603", "R"), at: { x: 5, y: 5, side: "bottom" } });
+    component({ ref: "R2", footprint: footprints.chip("0603", "R"), at: { x: 9, y: 5 } });
+  }).ir;
+  const pads = (ref: string) => (g.nodes[`part_${ref}`]!.inputs.pins as { pad: { at: { x: number }; layers: string[] } }[]).map((p) => p.pad);
+  assert.deepEqual(pads("R1").map((p) => p.at.x), pads("R2").map((p) => 0 - p.at.x));
+  assert.deepEqual(pads("R1")[0]!.layers, ["B.Cu", "B.Paste", "B.Mask"]);
+  assert.deepEqual(pads("R2")[0]!.layers, ["F.Cu", "F.Paste", "F.Mask"]);
+});
+
 test("a circuit's part names the pins it leaves open on purpose (noConnect), by its own pin numbers", () => {
   const g = circuit("Open", () => void component({ ref: "J1", footprint: footprints.pinHeader(3), noConnect: ["3"] })).ir;
   assert.deepEqual(g.nodes.part_J1!.inputs.noConnect, ["3"]);

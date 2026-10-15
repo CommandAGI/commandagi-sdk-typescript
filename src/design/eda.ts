@@ -246,11 +246,18 @@ export function part(o: {
     if (!Array.isArray(o.noConnect) || new Set(o.noConnect).size !== o.noConnect.length || o.noConnect.some((n) => !numbers.has(String(n))))
       throw new Error(`${o.ref}: noConnect is a list of its pin numbers, each once`);
   }
+  const at = o.at === undefined ? undefined : Array.isArray(o.at) ? { x: o.at[0], y: o.at[1], rot: 0, side: "top" as const } : { rot: 0, side: "top" as const, ...o.at };
+  // A footprint is written as seen from the front. On the bottom its pads are as the board holds a flipped part (the
+  // editor's flip): mirrored about its own vertical axis, each F. layer swapped for its B. layer.
+  const swap = (layer: string) => (layer.startsWith("F.") ? `B.${layer.slice(2)}` : layer.startsWith("B.") ? `F.${layer.slice(2)}` : layer);
+  const placed = (pad: Pad): Pad =>
+    at?.side === "bottom"
+      ? { ...pad, at: { ...pad.at, x: 0 - pad.at.x, ...(pad.at.rot !== undefined ? { rot: 0 - pad.at.rot } : {}) }, layers: pad.layers.map(swap) }
+      : pad;
   const pins = o.footprint.pads.map((p) => {
     const name = o.pinNames?.[p.number] ?? p.name;
-    return { id: `p${slug(p.number)}`, number: p.number, ...(name ? { name } : {}), pad: p.pad };
+    return { id: `p${slug(p.number)}`, number: p.number, ...(name ? { name } : {}), pad: placed(p.pad) };
   });
-  const at = o.at === undefined ? undefined : Array.isArray(o.at) ? { x: o.at[0], y: o.at[1], rot: 0, side: "top" as const } : { rot: 0, side: "top" as const, ...o.at };
   const ref = s.add(
     partTypeFor(pins),
     {
