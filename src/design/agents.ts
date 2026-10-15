@@ -40,7 +40,12 @@ export const HARNESS_RUNTIMES = ["host", "vm", "worker"] as const;
  * action on a computer.
  */
 export const HARNESS_TASKS = ["classify", "decide", "extract", "summarize", "act"] as const;
-export const HARNESS_FIELDS = ["kind", "label", "provider", "cli", "runs", "tasks", "family", "experimental", "homepage", "about"] as const;
+/** What a realtime harness's model takes live, and gives live (docs/realtime-agents.md). */
+export const REALTIME_IN = ["audio", "video", "text"] as const;
+export const REALTIME_OUT = ["audio", "text", "tools"] as const;
+/** G.711 μ-law (a telephone call) and 16-bit little-endian PCM, mono, at a rate. */
+export const AUDIO_FORMATS = ["g711-ulaw@8000", "pcm16@8000", "pcm16@16000", "pcm16@24000"] as const;
+export const HARNESS_FIELDS = ["kind", "label", "provider", "cli", "runs", "tasks", "realtime", "family", "experimental", "homepage", "about"] as const;
 export const AGENT_FIELDS = ["harness", "parent", "name", "model", "effort", "instructions", "voice", "voiceMode", "tools", "persona", "color", "icon", "gender"] as const;
 export const VOICE_MODES = ["off", "push-to-talk", "open-mic"] as const;
 
@@ -64,12 +69,29 @@ export interface HarnessDoc {
    * harness has exactly one base instance, which names the model. Absent: its agents converse and use tools.
    */
   tasks?: (typeof HARNESS_TASKS)[number][];
+  /**
+   * api only, not with `tasks`: what its model does in real time. `in`: audio, video (frames), text; `out`: audio
+   * (speech), text, tools (calls: actions); `audio`: the formats it takes and gives without conversion; `fps`: the
+   * most video frames a second (when it takes video); `hz`: the most tool calls a second (when it calls tools);
+   * `minutes`, `videoMinutes`: the longest session the provider allows, and with video.
+   */
+  realtime?: RealtimeDoc;
   /** The family it is a variant of (`symbolic`, `system-one`): harnesses that share one runtime and differ in how they decide. */
   family?: string;
   /** It may change or go without notice; what it does is not commissioned. Absent: not said. */
   experimental?: boolean;
   homepage?: string;
   about?: string;
+}
+
+export interface RealtimeDoc {
+  in: (typeof REALTIME_IN)[number][];
+  out: (typeof REALTIME_OUT)[number][];
+  audio?: { in?: (typeof AUDIO_FORMATS)[number][]; out?: (typeof AUDIO_FORMATS)[number][] };
+  fps?: number;
+  hz?: number;
+  minutes?: number;
+  videoMinutes?: number;
 }
 
 export interface AgentDoc {
@@ -116,6 +138,30 @@ function attrsOf(o: object, keys: readonly string[]): Record<string, unknown> {
   return out;
 }
 
+const REALTIME_FIELDS = ["in", "out", "audio", "fps", "hz", "minutes", "videoMinutes"];
+function checkRealtime(v: unknown): void {
+  const no = (why: string): never => {
+    throw new Error(`<harness> realtime ${why}`);
+  };
+  if (!v || typeof v !== "object" || Array.isArray(v)) no(`is an object ({ in: ["audio"], out: ["audio", "tools"], … }), not ${JSON.stringify(v)}`);
+  const r = v as Record<string, unknown>;
+  for (const k of Object.keys(r)) if (!REALTIME_FIELDS.includes(k)) no(`has no field ${k}; its fields are ${REALTIME_FIELDS.join(", ")}`);
+  const list = (x: unknown, allowed: readonly string[]) => Array.isArray(x) && x.length > 0 && x.every((y) => allowed.includes(y as string)) && new Set(x).size === x.length;
+  if (!list(r.in, REALTIME_IN)) no(`in is a list of ${REALTIME_IN.map((x) => `"${x}"`).join(", ")}`);
+  if (!list(r.out, REALTIME_OUT)) no(`out is a list of ${REALTIME_OUT.map((x) => `"${x}"`).join(", ")}`);
+  const ins = r.in as string[], outs = r.out as string[];
+  const audio = r.audio as Record<string, unknown> | undefined;
+  if (ins.includes("audio") || outs.includes("audio")) {
+    if (!audio || typeof audio !== "object") no(`audio names the formats it takes and gives: { in: ["pcm16@24000"], out: ["pcm16@24000"] }`);
+    for (const side of ["in", "out"] as const)
+      if ((side === "in" ? ins : outs).includes("audio") && !list(audio![side], AUDIO_FORMATS)) no(`audio.${side} is a list of ${AUDIO_FORMATS.map((x) => `"${x}"`).join(", ")}`);
+  } else if (audio !== undefined) no(`audio is for a harness that takes or gives audio`);
+  const positive = (x: unknown) => typeof x === "number" && Number.isFinite(x) && x > 0;
+  if (ins.includes("video") && !positive(r.fps)) no(`fps is the most video frames a second it takes (a harness that takes video says it)`);
+  if (outs.includes("tools") && !positive(r.hz)) no(`hz is the most tool calls a second it decides (a harness that calls tools says it)`);
+  for (const k of ["fps", "hz", "minutes", "videoMinutes"]) if (r[k] !== undefined && !positive(r[k])) no(`${k} is a positive number, not ${JSON.stringify(r[k])}`);
+}
+
 function harnessOf(t: DocTree): HarnessDoc {
   for (const k of ["label", "provider", "cli", "family", "homepage", "about"]) word(t, k);
   oneOf(t, "kind", HARNESS_KINDS);
@@ -130,6 +176,10 @@ function harnessOf(t: DocTree): HarnessDoc {
   if (t.attrs.kind === "cli" && t.attrs.cli === undefined) throw new Error(`<harness kind="cli"> names the program it starts: cli="claude"`);
   if (t.attrs.kind !== "cli" && t.attrs.cli !== undefined) throw new Error(`<harness> cli is for kind="cli" only`);
   if (t.attrs.kind === "api" && t.attrs.provider === undefined) throw new Error(`<harness kind="api"> names its provider in the model catalog: provider="anthropic"`);
+  if (t.attrs.realtime !== undefined) {
+    if (t.attrs.kind !== "api" || tasks !== undefined) throw new Error(`<harness> realtime is for kind="api" with no tasks: a model that converses live`);
+    checkRealtime(t.attrs.realtime);
+  }
   return said(t.attrs, HARNESS_FIELDS) as unknown as HarnessDoc;
 }
 

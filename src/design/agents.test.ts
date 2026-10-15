@@ -43,3 +43,17 @@ test("refusals, by name", () => {
   assert.throws(() => declare(el("harness", { kind: "api", label: "X", provider: "p", tasks: ["chat"] })), /tasks is a list of/);
   assert.throws(() => declare(el("harness", { kind: "program", label: "X", tasks: ["classify"] })), /tasks is for kind="api" only/);
 });
+
+test("a realtime harness says what its model takes and gives live, and the bounds it holds to", () => {
+  const realtime = { in: ["audio", "video", "text"], out: ["audio", "text", "tools"], audio: { in: ["g711-ulaw@8000", "pcm16@24000"], out: ["g711-ulaw@8000"] }, fps: 1, hz: 2, minutes: 60 };
+  const h = declare(el("harness", { kind: "api", label: "OpenAI Realtime API", provider: "openai", runs: ["worker", "host"], realtime }));
+  assert.deepEqual((h.document as { realtime: unknown }).realtime, realtime);
+  assert.deepEqual(AGENTS.harness.fromTree(AGENTS.harness.toTree(h.document as never)), h.document);
+  const api = (r: unknown, more: Record<string, unknown> = {}) => declare(el("harness", { kind: "api", label: "X", provider: "p", realtime: r, ...more }));
+  assert.throws(() => api({ ...realtime, fps: undefined }), /fps is the most video frames/);
+  assert.throws(() => api({ ...realtime, hz: 0 }), /hz is the most tool calls/);
+  assert.throws(() => api({ in: ["audio"], out: ["text"] }), /audio names the formats/);
+  assert.throws(() => api({ in: ["smell"], out: ["text"] }), /in is a list of/);
+  assert.throws(() => api({ ...realtime, latency: 1 }), /has no field latency/);
+  assert.throws(() => api(realtime, { tasks: ["act"] }), /realtime is for kind="api" with no tasks/);
+});
