@@ -63,6 +63,7 @@ test("a running service gets the contract with its own bearer, never the account
     "/v1/sheet": [200, { outputs: {}, result: { sheet: "sheet1", format: "pdf", contentBase64: "JVBERg==", dimensions: [] }, ran: ran("local") }],
     "/v1/bom": [200, { outputs: {}, result: { lines: [], csv: "item\n" }, ran: ran("local") }],
     "/v1/observe": [200, { outputs: {}, result: { observation: { bodies: [], errors: {} }, meshes: [], meshTris: 0 }, ran: ran("local") }],
+    "/v1/check": [200, { outputs: {}, result: { declared: true, checks: [{ id: "clash", kind: "interference", status: "passed", findings: 0, limits: [] }], findings: [], errors: 0, warnings: 0, suppressed: 0, accepts: [], problems: 0 }, ran: ran("local") }],
   });
   try {
     await withEnv({ COMMANDAGI_API_KEY: "cagi_account", COMMANDAGI_THREED_URL: svc.url, COMMANDAGI_THREED_TOKEN: "service-bearer" }, async () => {
@@ -84,6 +85,7 @@ test("a running service gets the contract with its own bearer, never the account
       assert.equal((await kernel.sheet("{}", { sheet: "sheet1", format: "pdf" })).contentBase64, "JVBERg==");
       assert.equal((await kernel.bom("{}", { parts: linkedParts({ "plate.3d.tsx": { id: "3d-plate", nodes: {} } }), materials: mine })).csv, "item\n");
       await kernel.observe("{}", { materials: mine });
+      assert.equal((await kernel.check("{}")).checks[0]!.status, "passed");
       assert.ok(svc.seen.every((s) => s.auth === "Bearer service-bearer"), "the account's key never reaches a service on this computer");
       assert.deepEqual(svc.seen.map((s) => [s.url, s.body]), [
         ["/v1/export", { inputs: { doc: input('{"id":"3d-plate","nodes":{}}') }, params: { format: "step", bodies: ["body_0"] } }],
@@ -93,6 +95,7 @@ test("a running service gets the contract with its own bearer, never the account
         ["/v1/sheet", { inputs: { doc: input("{}") }, params: { sheet: "sheet1", format: "pdf" } }],
         ["/v1/bom", { inputs: { doc: input("{}") }, params: { parts: { "3d:name:plate.3d.tsx": { docText: '{"id":"3d-plate","nodes":{}}' } }, materials: mine } }],
         ["/v1/observe", { inputs: { doc: input("{}") }, params: { digest: "", materials: mine } }],
+        ["/v1/check", { inputs: { doc: input("{}") }, params: {} }],
       ]);
     });
   } finally {

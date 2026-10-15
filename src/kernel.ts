@@ -104,6 +104,36 @@ export interface InterferenceReport {
   pairs: number;
 }
 
+type Vec3 = [number, number, number];
+/** One finding of a design check. */
+export interface CheckFinding {
+  check: string;
+  kind: string;
+  rule: string;
+  severity: "error" | "warning" | "info";
+  message: string;
+  body?: { id: string; name: string; partNumber?: string };
+  other?: { id: string; name: string; partNumber?: string };
+  /** Where, in model coordinates, and in the body's own frame. */
+  world?: Vec3;
+  local?: Vec3;
+  data?: Record<string, unknown>;
+  /** The `<accept>` or the `<permitted>` that covers it: it stays listed and is not counted. */
+  suppressedBy?: string;
+  permittedBy?: string;
+}
+/** What the checks a document declares found. */
+export interface CheckReport {
+  declared: boolean;
+  checks: { id: string; kind: string; status: "passed" | "warned" | "failed" | "skipped"; reason?: string; findings: number; limits: string[] }[];
+  findings: CheckFinding[];
+  errors: number;
+  warnings: number;
+  suppressed: number;
+  accepts: { id: string; status: "used" | "unused" | "refused"; reason?: string }[];
+  problems: number;
+}
+
 export interface KernelConfig {
   /** The places (`local`, `cloud`, `local,cloud`) or the URL of a running service. Default: the environment (see above). */
   where?: string;
@@ -428,6 +458,16 @@ export class Kernel {
    */
   interference(doc: Doc, opts: { clearance?: number; bodies?: string[]; parts?: LinkedParts } = {}): Promise<InterferenceReport> {
     return this.result<InterferenceReport>("interference", doc, opts);
+  }
+
+  /**
+   * The checks the document declares (`<check kind … />`), run on one build, with its `<accept>` and `<permitted>`
+   * applied: each finding with its check, rule, severity, body (id, name, part number), world and body-local location;
+   * each check's status (`skipped` with its reason when it could not run, never `passed`) and its limits. `problems`
+   * counts the standing errors and the skipped checks. A document that declares none gets the interference check.
+   */
+  check(doc: Doc, opts: { parts?: LinkedParts } = {}): Promise<CheckReport> {
+    return this.result<CheckReport>("check", doc, opts);
   }
 
   /** A drawing view with hidden lines removed: the visible and hidden edges projected along `direction`. */
