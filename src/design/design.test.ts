@@ -171,6 +171,16 @@ test("a circuit: the part type is the engine's pin-signature hash; nets join by 
   assert.throws(() => circuit("X", () => void component({ ref: "R1", footprint: footprints.chip("0402") }).pin(3)), /R1 has no pin 3/);
 });
 
+test("a circuit's board has two copper layers, or four when it says so", () => {
+  const copper = (layers?: 2 | 4) =>
+    (circuit("Stack", () => void board({ width: 10, height: 10, ...(layers ? { layers } : {}) })).ir.nodes.board!.inputs.layers as { name: string }[])
+      .map((l) => l.name)
+      .filter((n) => n.endsWith(".Cu"));
+  assert.deepEqual(copper(), ["F.Cu", "B.Cu"]);
+  assert.deepEqual(copper(4), ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"]);
+  assert.throws(() => circuit("X", () => void board({ width: 10, height: 10, layers: 3 as 4 })), /2 or 4 copper layers/);
+});
+
 test("a circuit's part on the bottom holds its pads as the board holds a flipped part: mirrored, on the B. layers", () => {
   const g = circuit("Flip", () => {
     component({ ref: "R1", footprint: footprints.chip("0603", "R"), at: { x: 5, y: 5, side: "bottom" } });

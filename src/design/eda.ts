@@ -187,10 +187,12 @@ export function circuit(name: string, fn: () => void, opts: { id?: string } = {}
   return new Declaration("circuit", ir);
 }
 
-/** Declare the board: a rectangle `width` × `height` mm with its corner at `origin`, two copper layers. */
-export function board(o: { width: number; height: number; origin?: [number, number]; thicknessMm?: number }): NodeRef {
+/** Declare the board: a rectangle `width` × `height` mm with its corner at `origin`, two copper layers or four. */
+export function board(o: { width: number; height: number; origin?: [number, number]; thicknessMm?: number; layers?: 2 | 4 }): NodeRef {
   const s = scope("board()");
   if (s.nodes.board) throw new Error("a circuit has one board");
+  if (o.layers !== undefined && o.layers !== 2 && o.layers !== 4) throw new Error("a board has 2 or 4 copper layers");
+  const inner = o.layers === 4 ? [{ ordinal: 1, name: "In1.Cu", type: "signal" }, { ordinal: 2, name: "In2.Cu", type: "signal" }] : [];
   const [x0, y0] = o.origin ?? [0, 0];
   const c = [
     { x: x0, y: y0 },
@@ -203,6 +205,7 @@ export function board(o: { width: number; height: number; origin?: [number, numb
     {
       layers: [
         { ordinal: 0, name: "F.Cu", type: "signal" },
+        ...inner,
         { ordinal: 31, name: "B.Cu", type: "signal" },
         { ordinal: 34, name: "B.Paste", type: "user" },
         { ordinal: 35, name: "F.Paste", type: "user" },
