@@ -181,8 +181,7 @@ test("a body's engineering data, a joint, a mate and a sheet are typed elements 
     material: "6061-T6",
     process: "cnc-milling",
     finish: "anodize clear, 10 µm",
-    vendor: { name: "Misumi", partNumber: "HFS5-2020-300" },
-    cost: { amount: 12.5, currency: "USD", source: "quote Q-118", date: "2026-10-01" },
+    suppliers: [{ name: "Misumi", sku: "HFS5-2020-300", currency: "USD", priceBreaks: [{ quantity: 1, unitPrice: 12.5 }], source: "quote Q-118", date: "2026-10-01" }],
   };
   const joint = { id: "j1", kind: "revolute", a: "base", b: "arm", anchor: [0, 0, 40], axis: [0, 0, 1], limits: [-1.5, 1.5], refA: { kind: "face", point: [0, 0, 40], direction: [0, 0, 1] } };
   const n = read(
@@ -211,9 +210,9 @@ test("a body's engineering data, a joint, a mate and a sheet are typed elements 
     message: '<joint id="j1">: kind: must be one of fixed, revolute, prismatic, cylindrical, planar, screw, spherical, universal (got "hinge")',
   });
   assert.throws(refused(jsx("joint", { id: "j1", kind: "fixed", a: "base" })), { message: '<joint id="j1">: anchor: is required' });
-  assert.throws(refused(jsx("body", { id: "base", engineering: { process: "magic", cost: { amount: 1, source: "x", date: "2026-10-01" } } })), {
+  assert.throws(refused(jsx("body", { id: "base", engineering: { process: "magic", suppliers: [{ sku: "x" }] } })), {
     message:
-      '<body id="base">: engineering/process: must be one of cnc-milling, cnc-turning, laser-cutting, waterjet-cutting, sheet-metal-bending, extrusion, casting, injection-moulding, fdm-printing, sla-printing, sls-printing, welding, grinding, manual, purchased (got "magic"); engineering/cost/currency: is required',
+      '<body id="base">: engineering/process: must be one of cnc-milling, cnc-turning, laser-cutting, waterjet-cutting, sheet-metal-bending, extrusion, casting, injection-moulding, fdm-printing, sla-printing, sls-printing, welding, grinding, manual, purchased (got "magic"); engineering/suppliers/0/name: is required',
   });
   assert.throws(refused(jsx("slot", { name: "dynamics", value: { joints: [] } })), { message: '<slot name="dynamics">: joints are written as <joint> elements' });
   assert.throws(refused(jsx("slot", { name: "drawings", value: [] })), /drawings is not a slot/);
