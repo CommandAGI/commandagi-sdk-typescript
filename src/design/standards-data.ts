@@ -15,6 +15,8 @@ export interface EngineeringMaterial {
   /** 0.2 % proof stress. */
   yieldStrengthMPa?: number;
   tensileStrengthMPa?: number;
+  /** Poisson's ratio ν, when a source states it: what a study uses when it states none. */
+  poissonsRatio?: number;
   /** Where the numbers were read. */
   source: string;
   sourceUrl?: string;
@@ -51,7 +53,8 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 70,
   "yieldStrengthMPa": 240,
   "tensileStrengthMPa": 260,
-  "source": "Aalco Metals datasheet, Aluminium Alloy 6061 - T6 Extrusions; designations from Wikipedia, 6061 aluminium alloy",
+  "poissonsRatio": 0.33,
+  "source": "Aalco Metals datasheet, Aluminium Alloy 6061 - T6 Extrusions; designations and Poisson's ratio from Wikipedia, 6061 aluminium alloy",
   "sourceUrl": "https://www.aalco.co.uk/datasheets/Aluminium-Alloy-6061-T6-Extrusions_145.ashx ; https://en.wikipedia.org/wiki/6061_aluminium_alloy",
   "observedAt": "2026-10-13"
  },
@@ -79,6 +82,7 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 71.7,
   "yieldStrengthMPa": 430,
   "tensileStrengthMPa": 510,
+  "poissonsRatio": 0.33,
   "source": "Wikipedia, 7075 aluminium alloy; EN designation from GLEICH Aluminium technical data sheet EN AW-7075",
   "sourceUrl": "https://en.wikipedia.org/wiki/7075_aluminium_alloy ; https://gleich.de/wp-content/uploads/2021/03/en_en_aw_7075-02-19.pdf",
   "observedAt": "2026-10-13"
@@ -92,8 +96,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 70,
   "yieldStrengthMPa": 130,
   "tensileStrengthMPa": 210,
-  "source": "Aalco Metals datasheet, Aluminium Alloy 5052 - H32 Sheet and Treadplate",
-  "sourceUrl": "https://www.aalco.co.uk/datasheets/Aluminium-Alloy-5052-H32-Sheet-and-Treadplate_138.ashx",
+  "poissonsRatio": 0.33,
+  "source": "Aalco Metals datasheet, Aluminium Alloy 5052 - H32 Sheet and Treadplate; Poisson's ratio from Wikipedia, 5052 aluminium alloy",
+  "sourceUrl": "https://www.aalco.co.uk/datasheets/Aluminium-Alloy-5052-H32-Sheet-and-Treadplate_138.ashx ; https://en.wikipedia.org/wiki/5052_aluminium_alloy",
   "observedAt": "2026-10-13"
  },
  {
@@ -120,8 +125,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 193,
   "yieldStrengthMPa": 230,
   "tensileStrengthMPa": 540,
-  "source": "Aalco Metals datasheet, Stainless Steel 1.4301 (304) Sheet and Plate",
-  "sourceUrl": "https://www.aalco.co.uk/datasheets/Stainless-Steel-14301-304-Sheet-and-Plate-Quarto-Plate--CPP-Plate_343.ashx",
+  "poissonsRatio": 0.27,
+  "source": "Aalco Metals datasheet, Stainless Steel 1.4301 (304) Sheet and Plate; Poisson's ratio from Wikipedia, SAE 304 stainless steel",
+  "sourceUrl": "https://www.aalco.co.uk/datasheets/Stainless-Steel-14301-304-Sheet-and-Plate-Quarto-Plate--CPP-Plate_343.ashx ; https://en.wikipedia.org/wiki/SAE_304_stainless_steel",
   "observedAt": "2026-10-13"
  },
  {
@@ -147,7 +153,8 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 210,
   "yieldStrengthMPa": 235,
   "tensileStrengthMPa": 360,
-  "source": "thyssenkrupp Materials Services material data sheet, Hot rolled non-alloyed structural steel S235Jxx (MX/TIS 11.2016)",
+  "poissonsRatio": 0.3,
+  "source": "thyssenkrupp Materials Services material data sheet, Hot rolled non-alloyed structural steel S235Jxx (MX/TIS 11.2016); Poisson's ratio from EN 1993-1-1:2005 (Eurocode 3), 3.2.6(1)",
   "sourceUrl": "https://ucpcdn.thyssenkrupp.com/_legacy/UCPthyssenkruppBAMXFrance/assets.files/product_pdf/carbon_flat_steel_/plates_and_slabs_carbon_steel/s235jr_1_0038_11_2016_engl.pdf",
   "observedAt": "2026-10-13"
  },
@@ -161,7 +168,8 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 210,
   "yieldStrengthMPa": 340,
   "tensileStrengthMPa": 620,
-  "source": "Saarstahl material specification sheet C45 (strength); Ovako Steel Navigator, C45 (density, modulus)",
+  "poissonsRatio": 0.3,
+  "source": "Saarstahl material specification sheet C45 (strength); Ovako Steel Navigator, C45 (density, modulus, Poisson's ratio)",
   "sourceUrl": "https://en.saarstahl.com/app/uploads/2024/03/20160401102929-0503_C45.pdf ; https://steelnavigator.ovako.com/steel-grades/c45/",
   "observedAt": "2026-10-13"
  },
@@ -175,8 +183,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 212,
   "yieldStrengthMPa": 900,
   "tensileStrengthMPa": 1100,
-  "source": "thyssenkrupp Materials Services Werkstoffdatenblatt 42CrMo4 / 42CrMoS4 (MX/TIS-TS 01.2017); AISI name from ABRAMS Industries, PREMIUM 1.7225+QT",
-  "sourceUrl": "https://ucpcdn.thyssenkrupp.com/_binary/UCPthyssenkruppBAMaterialsSchulte/dc4e3d67-9afe-4b41-8794-a82c0d3ab7bb/42CrMo4-42CrMoS4-1.7225-1.7227.pdf ; https://eu.abrams-industries.com/steel/premium-17225qt",
+  "poissonsRatio": 0.3,
+  "source": "thyssenkrupp Materials Services Werkstoffdatenblatt 42CrMo4 / 42CrMoS4 (MX/TIS-TS 01.2017); AISI name from ABRAMS Industries, PREMIUM 1.7225+QT; Poisson's ratio from Ovako Steel Navigator, 42CrMo4",
+  "sourceUrl": "https://ucpcdn.thyssenkrupp.com/_binary/UCPthyssenkruppBAMaterialsSchulte/dc4e3d67-9afe-4b41-8794-a82c0d3ab7bb/42CrMo4-42CrMoS4-1.7225-1.7227.pdf ; https://eu.abrams-industries.com/steel/premium-17225qt ; https://steelnavigator.ovako.com/steel-grades/42crmo4/",
   "observedAt": "2026-10-13"
  },
  {
@@ -217,7 +226,8 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 104,
   "yieldStrengthMPa": 830,
   "tensileStrengthMPa": 900,
-  "source": "voestalpine Specialty Metals data sheet, Titanium Grade 5 (Ti6Al4V); modulus and UNS from Wikipedia, Ti-6Al-4V",
+  "poissonsRatio": 0.31,
+  "source": "voestalpine Specialty Metals data sheet, Titanium Grade 5 (Ti6Al4V); modulus, Poisson's ratio and UNS from Wikipedia, Ti-6Al-4V",
   "sourceUrl": "https://www.voestalpine.com/specialtymetals/eu/app/uploads/sites/251/2026/03/Titanium-Grade-5-Ti6Al4V.pdf ; https://en.wikipedia.org/wiki/Ti-6Al-4V",
   "observedAt": "2026-10-13"
  },
@@ -297,8 +307,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 2.2,
   "yieldStrengthMPa": 69,
   "tensileStrengthMPa": 69,
-  "source": "Ensinger product page, Polycarbonate (PC) - TECANAT natural",
-  "sourceUrl": "https://www.ensingerplastics.com/en/shapes/polycarbonate-tecanat-natural",
+  "poissonsRatio": 0.37,
+  "source": "Ensinger product page, Polycarbonate (PC) - TECANAT natural; Poisson's ratio of polycarbonate (not of this grade) from Wikipedia, Polycarbonate",
+  "sourceUrl": "https://www.ensingerplastics.com/en/shapes/polycarbonate-tecanat-natural ; https://en.wikipedia.org/wiki/Polycarbonate",
   "observedAt": "2026-10-13"
  },
  {
@@ -308,6 +319,7 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "densityGCm3": 1.19,
   "youngsModulusGPa": 3.3,
   "tensileStrengthMPa": 80,
+  "poissonsRatio": 0.37,
   "source": "PLEXIGLAS GS/XT technical information, Ref. No. 211-1 (04/25); copy hosted by the distributor Vos Kunststoffen",
   "sourceUrl": "https://www.voskunststoffen.nl/files/166151/datasheet%20plexiglas%20XT%20GS.pdf",
   "observedAt": "2026-10-13"
