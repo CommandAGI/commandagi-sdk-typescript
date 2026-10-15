@@ -10,10 +10,12 @@ Added
 
 - The scouts' two documents (`commandagi/design` `scouts.ts`; docs/scouts.md in the CommandAGI repository):
   - `<scout>` (`<name>.scout.tsx`): one comparison of configurations (`<configuration id model harness effort
-    instructions maxTokens incumbent>`) on the cases of each `<workload>` (`<case id from prompt check rubric source
-    terms>`), scored by a check or by a `<judge>` panel, with the verdict's rules (`budget`, `repeats`, `margin`,
-    `relativeMargin`, `errorFloor`, `minCalls`, `minCases`, `resamples`, `alpha`, `seed`, `maxCases`). A case's `from` is `public`,
-    `synthetic` or `own-run`; nothing else may be a case.
+    instructions maxTokens incumbent>`) on the cases of each `<workload id title needs sample context axis>` (`<case
+    id from prompt system check rubric tools turns source terms>`), scored by a check (`exact`, `oneOf`, `number`,
+    `contains`, `regex`, `json`, `letter`, `literal`, `tool`) or by a `<judge>` panel, with the verdict's rules
+    (`budget`, `repeats`, `margin`, `relativeMargin`, `errorFloor`, `minCalls`, `minCases`, `resamples`, `alpha`,
+    `seed`, `maxCases`). A case's `from` is `public`, `synthetic` or `own-run`; nothing else may be a case. A case's
+    `tools` each give the answers the case returns to a call (`results: [{ when, result }]`).
   - `<replacement>` (`<name>.replacement.tsx`): what replacing a product would cost, by `<layer kind title>`
     (`visible`, `invisible`, `integrations`, `operations`, `economics`), each `<capability id title need have effort
     run labour ref note>` with its `<evidence source claim>`, and the `<decision>`, `<differentiation>` and
