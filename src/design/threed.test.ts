@@ -220,3 +220,21 @@ test("a body's engineering data, a joint, a mate and a sheet are typed elements 
   assert.throws(refused(jsx("joint", joint), jsx("joint", joint)), /two <joint> elements are called j1/);
   assert.throws(refused(jsx("sheet", { id: "s", views: [] })), /<sheet id="s">: views: /);
 });
+
+test("<check>, <accept>, <permitted> and <fastener> are the document's lists, each checked against its schema", () => {
+  const doc = (...children: unknown[]) => declarationOf({ default: () => jsx("assembly", { name: "Stack", children }) }).graph;
+  const g = doc(
+    jsx("box", { id: "base", name: "Base", center: [0, 0, 5], size: [40, 40, 10], operation: "new" }),
+    jsx("fastener", { id: "f1", part: "iso-4762-m6", length: 18, at: [0, 0, 20], clamped: ["Lid"], receiver: "Base" }),
+    jsx("check", { id: "clash", kind: "interference" }),
+    jsx("accept", { id: "weld", check: "clash", body: "Base", region: { min: [0, 0, 0], max: [1, 1, 1] }, reason: "welded" }),
+    jsx("permitted", { id: "cut", check: "edges", body: "Panel*", process: "laser-cutting", reason: "a laser cut" }),
+  );
+  assert.deepEqual(g.nodes.fasteners!.inputs.value, [{ id: "f1", part: "iso-4762-m6", length: 18, at: [0, 0, 20], clamped: ["Lid"], receiver: "Base" }]);
+  assert.deepEqual(g.nodes.checks!.inputs.value, [{ id: "clash", kind: "interference" }]);
+  assert.equal((g.nodes.accepted!.inputs.value as { reason: string }[])[0]!.reason, "welded");
+  assert.equal((g.nodes.permitted!.inputs.value as { process: string }[])[0]!.process, "laser-cutting");
+  assert.throws(() => doc(jsx("fastener", { id: "f1", part: "iso-4762-m6", length: -1, at: [0, 0, 0], clamped: ["A"] })), /length/);
+  assert.throws(() => doc(jsx("accept", { id: "a", check: "clash", body: "A", region: { min: [0, 0, 0], max: [1, 1, 1] } })), /reason/);
+  assert.throws(() => doc(jsx("slot", { name: "checks", value: [] })), /checks is not a slot/);
+});

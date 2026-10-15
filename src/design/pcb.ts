@@ -35,6 +35,9 @@
  *                                     (`setup`, `paper`, …): s-expression text. `kicad` on another element is that
  *                                     element's own carried forms.
  *   <net name code>                   the KiCad net code of the schematic's net `name`.
+ *   <check id kind severity>, <accept id check rule refs net region reason>
+ *                                     the checks the board must pass (erc, drc) and the findings it accepts on
+ *                                     purpose (`./circuit-checks.ts`)
  *   <component name footprint library pcbX pcbY pcbRotation layer chart uuid kicad>
  *                                     the schematic's part `name` on this board: its footprint (one of the editor's
  *                                     own land patterns, BOARD_FOOTPRINTS, or a library footprint by its ref,
@@ -67,6 +70,7 @@
  */
 import { Declaration, Scope, slug, withScope } from "./ir.js";
 import { childElements, type DesignElement } from "./jsx-runtime.js";
+import { declareCircuitChecks } from "./circuit-checks.js";
 
 export const BOARD_PART = "eda.footprint";
 export const CONDUCTOR = "eda.conductor";
@@ -187,7 +191,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
   const title = typeof root.props.name === "string" ? root.props.name : (name ?? "Board");
   const s = new Scope(`eda:${slug(title)}`, { domain: "eda", rung: "board", name: title, schematic });
   withScope(s, () => {
-    const children = childElements(root.props.children);
+    const children = declareCircuitChecks(s, childElements(root.props.children));
     const w = positive(root, "width"), h = positive(root, "height");
     const core = positive(root, "core"), copper = positive(root, "copper"), thickness = positive(root, "thickness");
     const layers = plain(

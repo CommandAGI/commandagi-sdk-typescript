@@ -4,6 +4,21 @@
 // THREED_SCHEMA (threed-schema.ts) and refuses a wrong one with the sentence an op panel shows. A field with a
 // default may be left out: the reader fills it.
 
+/**
+ * A FINDING ACCEPTED ON PURPOSE: `<accept check body region reason />`. It suppresses the findings of that check on that body whose location, in the body's own frame, lies in `region`. A region larger than 5 % of the body's box or than 100 000 mm³ is refused: it suppresses nothing and is itself an error. A suppressed finding stays in the report with the accept that suppressed it.
+ */
+export type AcceptedFinding = {
+  id: string;
+  /** The check (its id) whose findings this accepts. */
+  check: string;
+  /** The body, by id, name or part number (`*` matches any text). */
+  body: string;
+  /** Where, in the body's own frame. */
+  region: CheckRegion;
+  /** Why this finding is right on purpose. */
+  reason: string;
+};
+
 export type AxisRef = {
   type: "datumAxis";
   axis: "X" | "Y" | "Z";
@@ -123,6 +138,14 @@ export type ChartPlacement = {
   angle: number;
   /** MIRROR the chart before placing it. */
   mirror?: boolean;
+};
+
+/** A box in a body's own frame: what an `<accept>` or a `<permitted>` covers. */
+export type CheckRegion = {
+  /** @unit mm */
+  min: Vec3;
+  /** @unit mm */
+  max: Vec3;
 };
 
 export type CircularPatternFeature = {
@@ -534,6 +557,72 @@ export type DeleteFaceFeature = {
   declaredBy?: CodeFeature;
 };
 
+/**
+ * A CHECK THE DOCUMENT MUST PASS: `<check kind … />`. The kinds built in are `interference`, `clearance`, `holes`, `fasteners`, `edges` and `symmetry`; another kind is a check that a registered function runs (a manufacturability check), and where none is registered the check is skipped with that reason, never passed.
+ */
+export type DesignCheck = {
+  /** The name a finding, an `<accept>` and a `<permitted>` give the check by. */
+  id: string;
+  /** What is checked: interference, clearance, holes, fasteners, edges, symmetry, or a registered kind. */
+  kind: string;
+  /** The bodies checked, by id, name or part number (`*` matches any text). Absent: every body. */
+  bodies?: string[];
+  /**
+   * An error of this check is reported as this severity: `warning` for a design still being built.
+   * @default "error"
+   */
+  severity?: "error" | "warning";
+  /**
+   * clearance: the smallest gap two bodies may have when they do not touch.
+   * @unit mm
+   * @minimum 0
+   */
+  min?: number;
+  /**
+   * interference: a shared volume (in mm³) below this is not reported.
+   * @minimum 0
+   * @default 0.01
+   */
+  minVolume?: number;
+  /**
+   * edges: an edge between faces whose normals differ by less than this is tangent, not sharp (degrees).
+   * @maximum 90
+   * @exclusiveMinimum 0
+   * @default 20
+   */
+  angle?: number;
+  /**
+   * edges: a face narrower than this (2·area/perimeter) breaks the edges beside it (a chamfer, a fillet).
+   * @unit mm
+   * @exclusiveMinimum 0
+   * @default 2.5
+   */
+  breakWidth?: number;
+  /**
+   * holes: a round hole of a radius above this is an opening, not a hole.
+   * @unit mm
+   * @exclusiveMinimum 0
+   * @default 15
+   */
+  maxRadius?: number;
+  /**
+   * symmetry: the plane of the body's own frame the body is symmetric about, through its box's centre.
+   * @default "yz"
+   */
+  plane?: "yz" | "xz" | "xy";
+  /**
+   * symmetry: the mean depth of the difference between the body and its mirror image it may have.
+   * @unit mm
+   * @exclusiveMinimum 0
+   * @default 0.05
+   */
+  tolerance?: number;
+  /**
+   * The fields of a registered kind's own check (a printer's nozzle, a tool's radius), as that check reads them.
+   */
+  options?: { [key: string]: unknown };
+};
+
 /** How far a patch is from flattenable, and by how much. */
 export type DevelopabilityVerdict = {
   developable: boolean;
@@ -866,6 +955,67 @@ export type ExtrudeFeature = {
    * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
    */
   declaredBy?: CodeFeature;
+};
+
+/** How a clearance hole fits its screw (ISO 273: close is fine, normal is medium, loose is coarse). */
+export type FastenerFit = "close" | "normal" | "loose";
+
+/**
+ * A FASTENER STACK: `<fastener part length at axis clamped receiver washer nut grip />`. It places a screw of the fastener library (by its part id, `iso-4762-m6`: the library's `mechanical-fasteners` parts, built from the same tables), its washer and its nut, and it records what the screw does: it clamps these parts into this receiver. The fasteners check reads the record.
+ */
+export type FastenerStack = {
+  /** The screw's body id (its washer is `<id>.washer`, its nut `<id>.nut`). */
+  id: string;
+  /**
+   * The screw, by its library part id: iso-4762 (socket head cap), iso-4017 and iso-4014 (hexagon head), iso-7380-1 (button head), iso-10642 (countersunk), then the thread (`iso-4762-m6`, `iso-7380-1-m2-5`).
+   */
+  part: string;
+  /**
+   * The nominal length: under the head, or overall for a countersunk screw.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  length: number;
+  /**
+   * Where the stack bears on the first part it clamps: the centre of the washer's or the head's bearing face.
+   * @unit mm
+   */
+  at: Vec3;
+  /**
+   * The way the shank runs from the head.
+   * @default [0,0,-1]
+   */
+  axis?: Vec3;
+  /**
+   * The parts the screw clamps, from the head down, by id, name or part number.
+   * @minItems 1
+   */
+  clamped: string[];
+  /**
+   * The part the screw is screwed into (a tapped hole), by id, name or part number. Absent: the nut is the receiver.
+   */
+  receiver?: string;
+  /** A washer under the head, by its library part id (`iso-7089-m6`). */
+  washer?: string;
+  /** A nut on the far side, by its library part id (`iso-4032-m6`, `iso-4035-m6`). */
+  nut?: string;
+  /**
+   * With a nut: how far along the axis from `at` the nut bears (the thickness of the clamped parts).
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  grip?: number;
+  /**
+   * The clearance hole each clamped part should have.
+   * @default "normal"
+   */
+  fit?: FastenerFit;
+  /**
+   * The thread a tapped receiver must engage, in diameters of the screw.
+   * @exclusiveMinimum 0
+   * @default 1
+   */
+  minEngagement?: number;
 };
 
 export type FilletFeature = {
@@ -1867,6 +2017,25 @@ export type PcbTraceFeature = {
    * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
    */
   declaredBy?: CodeFeature;
+};
+
+/**
+ * A FINDING A PROCESS OR A PURPOSE PERMITS: `<permitted check body process edgeDir region reason />`. A square edge of a laser-cut sheet, a hole that is there for a cable. It permits the findings of that check on the bodies it names, made by that process, along that direction and in that region (each given test must hold). A permitted finding stays in the report with the entry that permitted it.
+ */
+export type PermittedFinding = {
+  id: string;
+  /** The check (its id) whose findings this permits. */
+  check: string;
+  /** The bodies, by id, name or part number (`*` matches any text). */
+  body: string;
+  /** Only bodies made by this process (`engineering.process`). */
+  process?: string;
+  /** Only edges along this direction (within 5°), in the body's own frame. */
+  edgeDir?: Vec3;
+  /** Only findings in this box of the body's own frame. */
+  region?: CheckRegion;
+  /** Why the finding is right here. */
+  reason: string;
 };
 
 /**

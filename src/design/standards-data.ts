@@ -689,6 +689,521 @@ export const HOLE_SIZES: Readonly<Record<string, HoleSize>> = {
  }
 };
 
+/** The fastener tables a `<fastener>` stack places from (metric-threads, iso-4762, iso-4014-4017, iso-7380-1, iso-10642, iso-4032, iso-4035, iso-7089): rows by table, in millimetres. */
+export const FASTENER_TABLES: Readonly<Record<string, readonly Readonly<Record<string, string | number>>[]>> = {
+ "metric-threads": [
+  {
+   "thread": "M1.6",
+   "d": 1.6,
+   "pitchCoarse": 0.35
+  },
+  {
+   "thread": "M1.8",
+   "d": 1.8,
+   "pitchCoarse": 0.35
+  },
+  {
+   "thread": "M2",
+   "d": 2,
+   "pitchCoarse": 0.4
+  },
+  {
+   "thread": "M2.5",
+   "d": 2.5,
+   "pitchCoarse": 0.45
+  },
+  {
+   "thread": "M3",
+   "d": 3,
+   "pitchCoarse": 0.5
+  },
+  {
+   "thread": "M3.5",
+   "d": 3.5,
+   "pitchCoarse": 0.6
+  },
+  {
+   "thread": "M4",
+   "d": 4,
+   "pitchCoarse": 0.7
+  },
+  {
+   "thread": "M5",
+   "d": 5,
+   "pitchCoarse": 0.8
+  },
+  {
+   "thread": "M6",
+   "d": 6,
+   "pitchCoarse": 1
+  },
+  {
+   "thread": "M7",
+   "d": 7,
+   "pitchCoarse": 1
+  },
+  {
+   "thread": "M8",
+   "d": 8,
+   "pitchCoarse": 1.25
+  },
+  {
+   "thread": "M10",
+   "d": 10,
+   "pitchCoarse": 1.5
+  },
+  {
+   "thread": "M12",
+   "d": 12,
+   "pitchCoarse": 1.75
+  },
+  {
+   "thread": "M14",
+   "d": 14,
+   "pitchCoarse": 2
+  },
+  {
+   "thread": "M16",
+   "d": 16,
+   "pitchCoarse": 2
+  },
+  {
+   "thread": "M18",
+   "d": 18,
+   "pitchCoarse": 2.5
+  },
+  {
+   "thread": "M20",
+   "d": 20,
+   "pitchCoarse": 2.5
+  }
+ ],
+ "iso-4762": [
+  {
+   "thread": "M2",
+   "dkMax": 3.8,
+   "kMax": 2,
+   "s": 1.5,
+   "tMin": 1,
+   "bRef": 16
+  },
+  {
+   "thread": "M2.5",
+   "dkMax": 4.5,
+   "kMax": 2.5,
+   "s": 2,
+   "tMin": 1.1,
+   "bRef": 17
+  },
+  {
+   "thread": "M3",
+   "dkMax": 5.5,
+   "kMax": 3,
+   "s": 2.5,
+   "tMin": 1.3,
+   "bRef": 18
+  },
+  {
+   "thread": "M4",
+   "dkMax": 7,
+   "kMax": 4,
+   "s": 3,
+   "tMin": 2,
+   "bRef": 20
+  },
+  {
+   "thread": "M5",
+   "dkMax": 8.5,
+   "kMax": 5,
+   "s": 4,
+   "tMin": 2.5,
+   "bRef": 22
+  },
+  {
+   "thread": "M6",
+   "dkMax": 10,
+   "kMax": 6,
+   "s": 5,
+   "tMin": 3,
+   "bRef": 24
+  },
+  {
+   "thread": "M8",
+   "dkMax": 13,
+   "kMax": 8,
+   "s": 6,
+   "tMin": 4,
+   "bRef": 28
+  },
+  {
+   "thread": "M10",
+   "dkMax": 16,
+   "kMax": 10,
+   "s": 8,
+   "tMin": 5,
+   "bRef": 32
+  },
+  {
+   "thread": "M12",
+   "dkMax": 18,
+   "kMax": 12,
+   "s": 10,
+   "tMin": 6,
+   "bRef": 36
+  },
+  {
+   "thread": "M16",
+   "dkMax": 24,
+   "kMax": 16,
+   "s": 14,
+   "tMin": 8,
+   "bRef": 44
+  }
+ ],
+ "iso-4014-4017": [
+  {
+   "thread": "M3",
+   "sMax": 5.5,
+   "kNom": 2,
+   "eMin": 6.01
+  },
+  {
+   "thread": "M4",
+   "sMax": 7,
+   "kNom": 2.8,
+   "eMin": 7.66
+  },
+  {
+   "thread": "M5",
+   "sMax": 8,
+   "kNom": 3.5,
+   "eMin": 8.79
+  },
+  {
+   "thread": "M6",
+   "sMax": 10,
+   "kNom": 4,
+   "eMin": 11.05
+  },
+  {
+   "thread": "M8",
+   "sMax": 13,
+   "kNom": 5.3,
+   "eMin": 14.38
+  },
+  {
+   "thread": "M10",
+   "sMax": 16,
+   "kNom": 6.4,
+   "eMin": 17.77
+  },
+  {
+   "thread": "M12",
+   "sMax": 18,
+   "kNom": 7.5,
+   "eMin": 20.03
+  },
+  {
+   "thread": "M16",
+   "sMax": 24,
+   "kNom": 10,
+   "eMin": 26.75
+  }
+ ],
+ "iso-7380-1": [
+  {
+   "thread": "M3",
+   "dkMax": 5.7,
+   "kMax": 1.65,
+   "s": 2,
+   "tMin": 1.04
+  },
+  {
+   "thread": "M4",
+   "dkMax": 7.6,
+   "kMax": 2.2,
+   "s": 2.5,
+   "tMin": 1.3
+  },
+  {
+   "thread": "M5",
+   "dkMax": 9.5,
+   "kMax": 2.75,
+   "s": 3,
+   "tMin": 1.56
+  },
+  {
+   "thread": "M6",
+   "dkMax": 10.5,
+   "kMax": 3.3,
+   "s": 4,
+   "tMin": 2.08
+  },
+  {
+   "thread": "M8",
+   "dkMax": 14,
+   "kMax": 4.4,
+   "s": 5,
+   "tMin": 2.6
+  },
+  {
+   "thread": "M10",
+   "dkMax": 17.5,
+   "kMax": 5.5,
+   "s": 6,
+   "tMin": 3.12
+  },
+  {
+   "thread": "M12",
+   "dkMax": 21,
+   "kMax": 6.6,
+   "s": 8,
+   "tMin": 4.16
+  }
+ ],
+ "iso-10642": [
+  {
+   "thread": "M3",
+   "dkTheoreticalMax": 6.72,
+   "dkActualMin": 5.54,
+   "kMax": 1.86,
+   "s": 2,
+   "tMin": 1.1,
+   "headAngleDeg": 90
+  },
+  {
+   "thread": "M4",
+   "dkTheoreticalMax": 8.96,
+   "dkActualMin": 7.53,
+   "kMax": 2.48,
+   "s": 2.5,
+   "tMin": 1.4,
+   "headAngleDeg": 90
+  },
+  {
+   "thread": "M5",
+   "dkTheoreticalMax": 11.2,
+   "dkActualMin": 9.43,
+   "kMax": 3.1,
+   "s": 3,
+   "tMin": 1.75,
+   "headAngleDeg": 90
+  },
+  {
+   "thread": "M6",
+   "dkTheoreticalMax": 13.44,
+   "dkActualMin": 11.34,
+   "kMax": 3.72,
+   "s": 4,
+   "tMin": 2.2,
+   "headAngleDeg": 90
+  },
+  {
+   "thread": "M8",
+   "dkTheoreticalMax": 17.92,
+   "dkActualMin": 15.24,
+   "kMax": 4.96,
+   "s": 5,
+   "tMin": 2.9,
+   "headAngleDeg": 90
+  },
+  {
+   "thread": "M10",
+   "dkTheoreticalMax": 22.4,
+   "dkActualMin": 19.22,
+   "kMax": 6.2,
+   "s": 6,
+   "tMin": 3.5,
+   "headAngleDeg": 90
+  },
+  {
+   "thread": "M12",
+   "dkTheoreticalMax": 26.88,
+   "dkActualMin": 23.12,
+   "kMax": 7.44,
+   "s": 8,
+   "tMin": 4.3,
+   "headAngleDeg": 90
+  }
+ ],
+ "iso-4032": [
+  {
+   "thread": "M2",
+   "sMax": 4,
+   "mMax": 1.6,
+   "eMin": 4.32
+  },
+  {
+   "thread": "M2.5",
+   "sMax": 5,
+   "mMax": 2,
+   "eMin": 5.45
+  },
+  {
+   "thread": "M3",
+   "sMax": 5.5,
+   "mMax": 2.4,
+   "eMin": 6.01
+  },
+  {
+   "thread": "M4",
+   "sMax": 7,
+   "mMax": 3.2,
+   "eMin": 7.66
+  },
+  {
+   "thread": "M5",
+   "sMax": 8,
+   "mMax": 4.7,
+   "eMin": 8.79
+  },
+  {
+   "thread": "M6",
+   "sMax": 10,
+   "mMax": 5.2,
+   "eMin": 11.05
+  },
+  {
+   "thread": "M8",
+   "sMax": 13,
+   "mMax": 6.8,
+   "eMin": 14.38
+  },
+  {
+   "thread": "M10",
+   "sMax": 16,
+   "mMax": 8.4,
+   "eMin": 17.77
+  },
+  {
+   "thread": "M12",
+   "sMax": 18,
+   "mMax": 10.8,
+   "eMin": 20.03
+  },
+  {
+   "thread": "M16",
+   "sMax": 24,
+   "mMax": 14.8,
+   "eMin": 26.75
+  }
+ ],
+ "iso-4035": [
+  {
+   "thread": "M2",
+   "sMax": 4,
+   "mMax": 1.2
+  },
+  {
+   "thread": "M2.5",
+   "sMax": 5,
+   "mMax": 1.6
+  },
+  {
+   "thread": "M3",
+   "sMax": 5.5,
+   "mMax": 1.8
+  },
+  {
+   "thread": "M4",
+   "sMax": 7,
+   "mMax": 2.2
+  },
+  {
+   "thread": "M5",
+   "sMax": 8,
+   "mMax": 2.7
+  },
+  {
+   "thread": "M6",
+   "sMax": 10,
+   "mMax": 3.2
+  },
+  {
+   "thread": "M8",
+   "sMax": 13,
+   "mMax": 4
+  },
+  {
+   "thread": "M10",
+   "sMax": 16,
+   "mMax": 5
+  },
+  {
+   "thread": "M12",
+   "sMax": 18,
+   "mMax": 6
+  },
+  {
+   "thread": "M16",
+   "sMax": 24,
+   "mMax": 8
+  }
+ ],
+ "iso-7089": [
+  {
+   "thread": "M2",
+   "d1Nom": 2.2,
+   "d2Nom": 5,
+   "hNom": 0.3
+  },
+  {
+   "thread": "M2.5",
+   "d1Nom": 2.7,
+   "d2Nom": 6,
+   "hNom": 0.5
+  },
+  {
+   "thread": "M3",
+   "d1Nom": 3.2,
+   "d2Nom": 7,
+   "hNom": 0.5
+  },
+  {
+   "thread": "M4",
+   "d1Nom": 4.3,
+   "d2Nom": 9,
+   "hNom": 0.8
+  },
+  {
+   "thread": "M5",
+   "d1Nom": 5.3,
+   "d2Nom": 10,
+   "hNom": 1
+  },
+  {
+   "thread": "M6",
+   "d1Nom": 6.4,
+   "d2Nom": 12,
+   "hNom": 1.6
+  },
+  {
+   "thread": "M8",
+   "d1Nom": 8.4,
+   "d2Nom": 16,
+   "hNom": 1.6
+  },
+  {
+   "thread": "M10",
+   "d1Nom": 10.5,
+   "d2Nom": 20,
+   "hNom": 2
+  },
+  {
+   "thread": "M12",
+   "d1Nom": 13,
+   "d2Nom": 24,
+   "hNom": 2.5
+  },
+  {
+   "thread": "M16",
+   "d1Nom": 17,
+   "d2Nom": 30,
+   "hNom": 3
+  }
+ ]
+};
+
 /** A row of a dimension table: its columns by name (`dkMax`, `kMax`), in millimetres unless the name says inch. */
 export type StandardRow = Readonly<Record<string, string | number>>;
 

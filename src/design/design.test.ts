@@ -364,3 +364,17 @@ test("a part states its engineering data (partNumber, manufacturer, mpn, rating,
   assert.throws(sheet(k2({ attrs: { Value: "X" } })), /attrs names Value, which is the part's own/);
   assert.throws(sheet(jsx("junction", { name: "J", schX: 0, schY: 0, mpn: "X" })), /prop mpn is not read/);
 });
+
+test("a circuit's <check> and <accept> are kept in the graph's meta, not as nodes; a wrong one is refused by name", () => {
+  const sheet = (...children: unknown[]) => declarationOf({ default: jsx("group", { name: "S", children }) }).graph;
+  const g = sheet(
+    jsx("resistor", { name: "R1", resistance: "1k", schX: 0, schY: 0 }),
+    jsx("check", { id: "erc", kind: "erc", severity: "warning" }),
+    jsx("accept", { id: "open", check: "erc", rule: "pin_not_connected", refs: ["R1"], reason: "a test point" }),
+  );
+  assert.deepEqual(g.meta?.checks, [{ id: "erc", kind: "erc", severity: "warning" }]);
+  assert.deepEqual(g.meta?.accepted, [{ id: "open", check: "erc", rule: "pin_not_connected", refs: ["R1"], reason: "a test point" }]);
+  assert.ok(Object.values(g.nodes).every((n) => n.type !== "check" && n.type !== "accept"));
+  assert.throws(() => sheet(jsx("check", { id: "erc", kind: "erc", min: 1 })), /prop min is not read/);
+  assert.throws(() => sheet(jsx("accept", { id: "a", check: "erc", rule: "x" })), /reason/);
+});

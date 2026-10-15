@@ -4,7 +4,7 @@
  * (`<extrude distance="10">` is an error before the file runs). The elements are the same as `commandagi`'s runtime
  * makes; the reader (`declareThreeD`) checks them again against `THREED_SCHEMA`, for files written without types.
  */
-import type { DrawingSheet, DynamicsJoint, Mate, PartEngineering, SketchElements, ThreeDFeatureElements, Vec3 } from "./threed-elements.js";
+import type { AcceptedFinding, DesignCheck, DrawingSheet, DynamicsJoint, FastenerStack, Mate, PermittedFinding, PartEngineering, SketchElements, ThreeDFeatureElements, Vec3 } from "./threed-elements.js";
 
 export { jsx, jsxs, jsxDEV, Fragment } from "./jsx-runtime.js";
 
@@ -39,6 +39,14 @@ export declare namespace JSX {
     mate: Mate;
     /** An engineering drawing sheet of the document. A field with a default may be left out. */
     sheet: Pick<DrawingSheet, "id" | "views"> & Partial<DrawingSheet>;
+    /** A check the design must pass. */
+    check: DesignCheck;
+    /** A finding accepted on purpose, in a bounded region of one body, with a reason. */
+    accept: AcceptedFinding;
+    /** Findings a process or a purpose permits, with a reason. */
+    permitted: PermittedFinding;
+    /** A fastener stack: a library screw, its washer and nut, and what it clamps into what. */
+    fastener: FastenerStack;
     /** Any other field of the document, whole. */
     slot: { name: string; value: unknown };
     /** A feature of a type the kernel does not know. A known type is written as its own tag. */

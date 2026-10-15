@@ -58,6 +58,43 @@ export const THREED_SCHEMA: SchemaDocument = {
   "copperPour": "CopperPourFeature"
  },
  "$defs": {
+  "AcceptedFinding": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "check": {
+     "type": "string",
+     "description": "The check (its id) whose findings this accepts.",
+     "pattern": "\\S"
+    },
+    "body": {
+     "type": "string",
+     "description": "The body, by id, name or part number (`*` matches any text).",
+     "pattern": "\\S"
+    },
+    "region": {
+     "$ref": "#/$defs/CheckRegion",
+     "description": "Where, in the body's own frame."
+    },
+    "reason": {
+     "type": "string",
+     "description": "Why this finding is right on purpose.",
+     "pattern": "\\S"
+    }
+   },
+   "required": [
+    "id",
+    "check",
+    "body",
+    "region",
+    "reason"
+   ],
+   "additionalProperties": false,
+   "description": "A FINDING ACCEPTED ON PURPOSE: `<accept check body region reason />`. It suppresses the findings of that check on that body whose location, in the body's own frame, lies in `region`. A region larger than 5 % of the body's box or than 100 000 mm³ is refused: it suppresses nothing and is itself an error. A suppressed finding stays in the report with the accept that suppressed it."
+  },
   "AxisRef": {
    "anyOf": [
     {
@@ -378,6 +415,25 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A rigid placement of a chart's local frame in the flat domain. Rotation + translation only."
+  },
+  "CheckRegion": {
+   "type": "object",
+   "properties": {
+    "min": {
+     "$ref": "#/$defs/Vec3",
+     "x-unit": "mm"
+    },
+    "max": {
+     "$ref": "#/$defs/Vec3",
+     "x-unit": "mm"
+    }
+   },
+   "required": [
+    "min",
+    "max"
+   ],
+   "additionalProperties": false,
+   "description": "A box in a body's own frame: what an `<accept>` or a `<permitted>` covers."
   },
   "CircularPatternFeature": {
    "type": "object",
@@ -1235,6 +1291,99 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false
   },
+  "DesignCheck": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "The name a finding, an `<accept>` and a `<permitted>` give the check by.",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "kind": {
+     "type": "string",
+     "description": "What is checked: interference, clearance, holes, fasteners, edges, symmetry, or a registered kind.",
+     "pattern": "\\S"
+    },
+    "bodies": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "The bodies checked, by id, name or part number (`*` matches any text). Absent: every body."
+    },
+    "severity": {
+     "type": "string",
+     "enum": [
+      "error",
+      "warning"
+     ],
+     "description": "An error of this check is reported as this severity: `warning` for a design still being built.",
+     "default": "error"
+    },
+    "min": {
+     "type": "number",
+     "description": "clearance: the smallest gap two bodies may have when they do not touch.",
+     "x-unit": "mm",
+     "minimum": 0
+    },
+    "minVolume": {
+     "type": "number",
+     "description": "interference: a shared volume (in mm³) below this is not reported.",
+     "minimum": 0,
+     "default": 0.01
+    },
+    "angle": {
+     "type": "number",
+     "description": "edges: an edge between faces whose normals differ by less than this is tangent, not sharp (degrees).",
+     "exclusiveMinimum": 0,
+     "maximum": 90,
+     "default": 20
+    },
+    "breakWidth": {
+     "type": "number",
+     "description": "edges: a face narrower than this (2·area/perimeter) breaks the edges beside it (a chamfer, a fillet).",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0,
+     "default": 2.5
+    },
+    "maxRadius": {
+     "type": "number",
+     "description": "holes: a round hole of a radius above this is an opening, not a hole.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0,
+     "default": 15
+    },
+    "plane": {
+     "type": "string",
+     "enum": [
+      "yz",
+      "xz",
+      "xy"
+     ],
+     "description": "symmetry: the plane of the body's own frame the body is symmetric about, through its box's centre.",
+     "default": "yz"
+    },
+    "tolerance": {
+     "type": "number",
+     "description": "symmetry: the mean depth of the difference between the body and its mirror image it may have.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0,
+     "default": 0.05
+    },
+    "options": {
+     "type": "object",
+     "properties": {},
+     "additionalProperties": {},
+     "description": "The fields of a registered kind's own check (a printer's nozzle, a tool's radius), as that check reads them."
+    }
+   },
+   "required": [
+    "id",
+    "kind"
+   ],
+   "additionalProperties": false,
+   "description": "A CHECK THE DOCUMENT MUST PASS: `<check kind … />`. The kinds built in are `interference`, `clearance`, `holes`, `fasteners`, `edges` and `symmetry`; another kind is a check that a registered function runs (a manufacturability check), and where none is registered the check is skipped with that reason, never passed."
+  },
   "DevelopabilityVerdict": {
    "type": "object",
    "properties": {
@@ -1907,6 +2056,96 @@ export const THREED_SCHEMA: SchemaDocument = {
     "name"
    ],
    "additionalProperties": false
+  },
+  "FastenerFit": {
+   "type": "string",
+   "enum": [
+    "close",
+    "normal",
+    "loose"
+   ],
+   "description": "How a clearance hole fits its screw (ISO 273: close is fine, normal is medium, loose is coarse)."
+  },
+  "FastenerStack": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "The screw's body id (its washer is `<id>.washer`, its nut `<id>.nut`).",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "part": {
+     "type": "string",
+     "description": "The screw, by its library part id: iso-4762 (socket head cap), iso-4017 and iso-4014 (hexagon head), iso-7380-1 (button head), iso-10642 (countersunk), then the thread (`iso-4762-m6`, `iso-7380-1-m2-5`).",
+     "pattern": "\\S"
+    },
+    "length": {
+     "type": "number",
+     "description": "The nominal length: under the head, or overall for a countersunk screw.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "at": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Where the stack bears on the first part it clamps: the centre of the washer's or the head's bearing face.",
+     "x-unit": "mm"
+    },
+    "axis": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The way the shank runs from the head.",
+     "default": [
+      0,
+      0,
+      -1
+     ]
+    },
+    "clamped": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "The parts the screw clamps, from the head down, by id, name or part number.",
+     "minItems": 1
+    },
+    "receiver": {
+     "type": "string",
+     "description": "The part the screw is screwed into (a tapped hole), by id, name or part number. Absent: the nut is the receiver."
+    },
+    "washer": {
+     "type": "string",
+     "description": "A washer under the head, by its library part id (`iso-7089-m6`)."
+    },
+    "nut": {
+     "type": "string",
+     "description": "A nut on the far side, by its library part id (`iso-4032-m6`, `iso-4035-m6`)."
+    },
+    "grip": {
+     "type": "number",
+     "description": "With a nut: how far along the axis from `at` the nut bears (the thickness of the clamped parts).",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "fit": {
+     "$ref": "#/$defs/FastenerFit",
+     "description": "The clearance hole each clamped part should have.",
+     "default": "normal"
+    },
+    "minEngagement": {
+     "type": "number",
+     "description": "The thread a tapped receiver must engage, in diameters of the screw.",
+     "exclusiveMinimum": 0,
+     "default": 1
+    }
+   },
+   "required": [
+    "id",
+    "part",
+    "length",
+    "at",
+    "clamped"
+   ],
+   "additionalProperties": false,
+   "description": "A FASTENER STACK: `<fastener part length at axis clamped receiver washer nut grip />`. It places a screw of the fastener library (by its part id, `iso-4762-m6`: the library's `mechanical-fasteners` parts, built from the same tables), its washer and its nut, and it records what the screw does: it clamps these parts into this receiver. The fasteners check reads the record."
   },
   "FilletFeature": {
    "type": "object",
@@ -4130,6 +4369,50 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A PCB TRACE — the 2D→3D rung. Points → route → centreline → offset → region → extrude."
+  },
+  "PermittedFinding": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "check": {
+     "type": "string",
+     "description": "The check (its id) whose findings this permits.",
+     "pattern": "\\S"
+    },
+    "body": {
+     "type": "string",
+     "description": "The bodies, by id, name or part number (`*` matches any text).",
+     "pattern": "\\S"
+    },
+    "process": {
+     "type": "string",
+     "description": "Only bodies made by this process (`engineering.process`)."
+    },
+    "edgeDir": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Only edges along this direction (within 5°), in the body's own frame."
+    },
+    "region": {
+     "$ref": "#/$defs/CheckRegion",
+     "description": "Only findings in this box of the body's own frame."
+    },
+    "reason": {
+     "type": "string",
+     "description": "Why the finding is right here.",
+     "pattern": "\\S"
+    }
+   },
+   "required": [
+    "id",
+    "check",
+    "body",
+    "reason"
+   ],
+   "additionalProperties": false,
+   "description": "A FINDING A PROCESS OR A PURPOSE PERMITS: `<permitted check body process edgeDir region reason />`. A square edge of a laser-cut sheet, a hole that is there for a cable. It permits the findings of that check on the bodies it names, made by that process, along that direction and in that region (each given test must hold). A permitted finding stays in the report with the entry that permitted it."
   },
   "Placement": {
    "type": "object",

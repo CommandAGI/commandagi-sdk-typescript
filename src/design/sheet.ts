@@ -48,6 +48,9 @@
  *                                                                          (CommandAGI IPN, Manufacturer, MPN, Rating,
  *                                                                          and attrs by their own names): the BOM and
  *                                                                          the board's footprint carry them
+ *   <check id kind severity>, <accept id check rule refs net reason>    the checks the circuit must pass, and the
+ *                                                                          findings it accepts on purpose
+ *                                                                          (`./circuit-checks.ts`)
  *   <attachment name role file mime>                                       a KiCad file the circuit carries for
  *                                                                          exchange (its drawing, `role="schematic"`;
  *                                                                          its project): the file, by its path
@@ -63,6 +66,7 @@
  * name, never guessed.
  */
 import { channels, currentScope, slug, type Scope } from "./ir.js";
+import { declareCircuitChecks } from "./circuit-checks.js";
 import { partTypeFor } from "./eda.js";
 import { childElements, type DesignElement } from "./jsx-runtime.js";
 
@@ -277,7 +281,7 @@ export function declareSheet(children: unknown): void {
   const junctions = new Map<string, string>();
   const later: DesignElement[] = [];
   let wires = 0;
-  for (const el of childElements(children)) {
+  for (const el of declareCircuitChecks(s, childElements(children))) {
     const ideal = SHEET_PARTS[el.type];
     if (ideal) {
       refuseUnknown(el, ["name", "spice", "noConnect", ...PLACE_PROPS, ...(ideal.value ? [ideal.value] : []), ...(ideal.excitation ? ["excitation"] : []), ...(ideal.power ? [] : FIELD_PROPS)]);
