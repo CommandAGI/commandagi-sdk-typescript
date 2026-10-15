@@ -274,6 +274,12 @@ kind: "face" | "edge" | "vertex" | "body", index }`, with the index as `observe`
   each under the name its `<externalPart>` gives.
 - **A STEP file names its parts**: each body is a product of its part's name, an assembly the product they are
   components of.
+- **`dfm(doc, { process: "print" | "mill", limits, setup })`** says whether a machine can make the part: `limits` are
+  a device definition's `process.print` or `process.mill`, `setup.tools` the mill's tool diameters
+  (`[{ diameter_mm: 3.175 }]`). Each finding is `pass`, `fail` or `unknown` (never `pass` when a limit or a tool is
+  missing) with its value, limit and `where` (the body, the B-rep `faces`, a point); `verdict` sums them.
+- **`check(doc, { devices })`**: a `<check kind="printability" | "mill" options={{ device }}>` reads its limits from
+  `devices`, `{ [ref]: { process } }`, the definitions you read; without them the check is skipped and says why.
 
 The local place is the local host's 3D design service (`@commandagi/host`, which needs no checkout of the CommandAGI
 repository). `Kernel` uses the host installed beside this package, else the `commandagi` command on PATH.

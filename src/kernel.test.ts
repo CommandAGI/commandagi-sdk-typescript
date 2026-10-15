@@ -64,6 +64,7 @@ test("a running service gets the contract with its own bearer, never the account
     "/v1/bom": [200, { outputs: {}, result: { lines: [], csv: "item\n" }, ran: ran("local") }],
     "/v1/observe": [200, { outputs: {}, result: { observation: { bodies: [], errors: {} }, meshes: [], meshTris: 0 }, ran: ran("local") }],
     "/v1/check": [200, { outputs: {}, result: { declared: true, checks: [{ id: "clash", kind: "interference", status: "passed", findings: 0, limits: [] }], findings: [], errors: 0, warnings: 0, suppressed: 0, accepts: [], problems: 0 }, ran: ran("local") }],
+    "/v1/dfm": [200, { outputs: {}, result: { process: "mill", part: "plate", verdict: "fail", findings: [{ check: "mill.depth", status: "fail", value: 3.78, limit: 3, unit: "xD", where: [{ body: "body_0", faces: [4], at: [0, 0, 3], depth_mm: 12 }], message: "too deep" }] }, ran: ran("local") }],
   });
   try {
     await withEnv({ COMMANDAGI_API_KEY: "cagi_account", COMMANDAGI_THREED_URL: svc.url, COMMANDAGI_THREED_TOKEN: "service-bearer" }, async () => {
@@ -86,6 +87,10 @@ test("a running service gets the contract with its own bearer, never the account
       assert.equal((await kernel.bom("{}", { parts: linkedParts({ "plate.3d.tsx": { id: "3d-plate", nodes: {} } }), materials: mine })).csv, "item\n");
       await kernel.observe("{}", { materials: mine });
       assert.equal((await kernel.check("{}")).checks[0]!.status, "passed");
+      const router = { process: { mill: { travel_mm: [300, 180, 45], max_depth_to_diameter: 3 } } };
+      await kernel.check("{}", { devices: { "devices/router/definition.tsx": router } });
+      const made = await kernel.dfm("{}", { process: "mill", limits: router.process.mill, setup: { tools: [{ diameter_mm: 3.175 }] }, part: "plate" });
+      assert.deepEqual([made.verdict, made.findings[0]!.where[0]!.faces], ["fail", [4]]);
       assert.ok(svc.seen.every((s) => s.auth === "Bearer service-bearer"), "the account's key never reaches a service on this computer");
       assert.deepEqual(svc.seen.map((s) => [s.url, s.body]), [
         ["/v1/export", { inputs: { doc: input('{"id":"3d-plate","nodes":{}}') }, params: { format: "step", bodies: ["body_0"] } }],
@@ -96,6 +101,8 @@ test("a running service gets the contract with its own bearer, never the account
         ["/v1/bom", { inputs: { doc: input("{}") }, params: { parts: { "3d:name:plate.3d.tsx": { docText: '{"id":"3d-plate","nodes":{}}' } }, materials: mine } }],
         ["/v1/observe", { inputs: { doc: input("{}") }, params: { digest: "", materials: mine } }],
         ["/v1/check", { inputs: { doc: input("{}") }, params: {} }],
+        ["/v1/check", { inputs: { doc: input("{}") }, params: { devices: { "devices/router/definition.tsx": { process: { mill: { travel_mm: [300, 180, 45], max_depth_to_diameter: 3 } } } } } }],
+        ["/v1/dfm", { inputs: { doc: input("{}") }, params: { process: "mill", limits: { travel_mm: [300, 180, 45], max_depth_to_diameter: 3 }, setup: { tools: [{ diameter_mm: 3.175 }] }, part: "plate" } }],
       ]);
     });
   } finally {

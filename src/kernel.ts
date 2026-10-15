@@ -134,6 +134,38 @@ export interface CheckReport {
   problems: number;
 }
 
+/**
+ * The device definitions a document's manufacturability checks name (`<check kind="mill" options={{ device }}>`), by
+ * the ref as written: each definition's `process` block, which you read (the kernel has no files). A check whose
+ * device is not given is skipped with that reason.
+ */
+export type CheckDevices = Record<string, { process: Record<string, unknown> | null } | { error: string }>;
+
+/** A mill setup: its tools (the smallest makes the corners) and the stock's top (default: the part's top). */
+export interface MillSetup {
+  tools?: { id?: string; diameter_mm: number }[];
+  stock_top_z?: number;
+}
+
+/** One manufacturability check's finding (docs/formats.md § manufacturability checks). */
+export interface DfmFinding {
+  check: string;
+  status: "pass" | "fail" | "unknown";
+  value: number | null;
+  limit: number | null;
+  unit: string;
+  /** Where: the body, the B-rep face indices the editor paints, a point (mm), and the check's own measure. */
+  where: { part?: string; body?: string; faces?: number[]; at?: number[]; [measure: string]: unknown }[];
+  message: string;
+}
+
+export interface DfmReport {
+  process: "print" | "mill";
+  part: string | null;
+  findings: DfmFinding[];
+  verdict: "pass" | "fail" | "unknown";
+}
+
 export interface KernelConfig {
   /** The places (`local`, `cloud`, `local,cloud`) or the URL of a running service. Default: the environment (see above). */
   where?: string;
@@ -466,9 +498,23 @@ export class Kernel {
    * applied: each finding with its check, rule, severity, body (id, name, part number), world and body-local location;
    * each check's status (`skipped` with its reason when it could not run, never `passed`) and its limits. `problems`
    * counts the standing errors and the skipped checks. A document that declares none gets the interference check.
+   * A manufacturability check (`printability`, `mill`) that names a device definition reads its limits from `devices`.
    */
-  check(doc: Doc, opts: { parts?: LinkedParts } = {}): Promise<CheckReport> {
+  check(doc: Doc, opts: { parts?: LinkedParts; devices?: CheckDevices } = {}): Promise<CheckReport> {
     return this.result<CheckReport>("check", doc, opts);
+  }
+
+  /**
+   * Can this process make this part: the manufacturability checks of the built bodies, judged by `limits` (a device
+   * definition's `process.print` or `process.mill`, each number with its `source`). `print` (FDM): build volume, a
+   * closed surface, overhangs, bridges, walls, vertical holes. `mill` (3-axis from +Z, `setup.tools` the tool
+   * diameters): travel, a closed surface, reach, inside corners, depth, walls. Each finding is `pass`, `fail` or
+   * `unknown` (a limit not declared, no tool: never `pass`) with its value, its limit and where: the body, the B-rep
+   * faces and a point. `verdict` is `fail` when any fails, else `unknown` when any is unknown, else `pass`. The part is
+   * checked as it stands in the model: Z is the build or spindle axis.
+   */
+  dfm(doc: Doc, opts: { process: "print" | "mill"; limits: Record<string, unknown>; setup?: MillSetup; part?: string; bodies?: string[]; parts?: LinkedParts }): Promise<DfmReport> {
+    return this.result<DfmReport>("dfm", doc, opts);
   }
 
   /** A drawing view with hidden lines removed: the visible and hidden edges projected along `direction`. */
