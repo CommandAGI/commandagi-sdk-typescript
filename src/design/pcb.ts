@@ -61,6 +61,28 @@
  *                                     a copper pour: its boundary on its layers; `terminals` names what boundary
  *                                     points land on ([[0, ".J1 > .pin2"], …]); `kicad` its fill settings.
  *
+ * The layout's constraints (the board's design intent, which the placer, the router, the layout score and the checks
+ * read; each element is one fact, written back by the editor and the layout operations):
+ *   <netclass name nets kind width clearance viaDiameter viaDrill current criticality maxLength maxVias impedance>
+ *                                     the rules of the nets named (`nets`: names, "FIN*" matches by prefix): the
+ *                                     track width and clearance (mm), the via, the current (A) the copper carries,
+ *                                     the kind ("signal", "power", "ground", "noisy", "sensitive", "highspeed"),
+ *                                     the criticality (0 to 1: routed first, kept short), the longest route (mm),
+ *                                     the most vias, the impedance (ohm) of a trace over its reference plane.
+ *   <diffpair name positive negative gap width impedance maxSkew>
+ *                                     two nets routed as a pair: the gap between the tracks, the most length
+ *                                     difference (mm).
+ *   <group name parts region near maxDistance conviction side>
+ *                                     parts placed together: `region` [x0, y0, x1, y1] the box they stay in; `near`
+ *                                     a part or a pin (".J1 > .pin5") they stay within `maxDistance` of; conviction
+ *                                     0 (free) to 1 (fixed where they are).
+ *   <keepout name points layers no>  a region where `no` ("track", "via", "component", "pour") may be, on `layers`
+ *                                     (all copper layers when absent).
+ *   <thermal name parts watts spacing awayFrom distance>
+ *                                     the heat each part dissipates (W), the least spacing between them, and the
+ *                                     parts (`awayFrom`) they keep `distance` from.
+ *   <objective weights>               the weight of each term of the layout score ({ wirelength: 1, vias: 2, … }).
+ *
  * `from` and `to` say what a run's first and last points land on; `net` names the schematic net the copper realises.
  * Coordinates are the board's own: millimetres, Y DOWN, from the outline's corner (tscircuit's board is centred and
  * Y up; a `<board>` that names no schematic is read as tscircuit, `./tscircuit.ts`). An end is bound by what it
@@ -180,7 +202,80 @@ export function isBoardFile(root: unknown): boolean {
 }
 
 const CONDUCTORS = new Set(["trace", "arc", "via", "pour"]);
-const FACTS = new Set(["graphic", "text", "dimension", "kicad", "net"]);
+const FACTS = new Set(["graphic", "text", "dimension", "kicad", "net", "netclass", "diffpair", "group", "keepout", "thermal", "objective"]);
+
+/** The layout's constraints, each a board fact (`fact` is its tag): what each takes, and its check. */
+const NET_KINDS = ["signal", "power", "ground", "noisy", "sensitive", "highspeed"];
+const KEEPOUT_KINDS = ["track", "via", "component", "pour"];
+const isNames = (v: unknown) => Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string" && x.length > 0);
+const isBox = (v: unknown) => Array.isArray(v) && v.length === 4 && v.every((x) => typeof x === "number" && Number.isFinite(x)) && (v[0] as number) < (v[2] as number) && (v[1] as number) < (v[3] as number);
+const isWeights = (v: unknown) => isObject(v) && Object.values(v as object).every((x) => typeof x === "number" && Number.isFinite(x) && x >= 0);
+
+function constraintFact(el: DesignElement): Record<string, unknown> {
+  const name = (required = true) => text(el, "name", required);
+  const unit = (prop: string) => {
+    const v = num(el, prop);
+    if (v !== undefined && !(v >= 0 && v <= 1)) throw new Error(`${where(el)}: ${prop} is from 0 to 1`);
+    return v;
+  };
+  const names = (prop: string, required: boolean) => plain(el, prop, isNames, "a list of names") ?? (required ? (() => { throw new Error(`${where(el)} needs ${prop}`); })() : undefined);
+  const out: Record<string, unknown> = {};
+  const put = (k: string, v: unknown) => { if (v !== undefined) out[k] = v; };
+  switch (el.type) {
+    case "netclass": {
+      refuseUnknown(el, ["name", "nets", "kind", "width", "clearance", "viaDiameter", "viaDrill", "current", "criticality", "maxLength", "maxVias", "impedance"]);
+      const kind = text(el, "kind");
+      if (kind !== undefined && !NET_KINDS.includes(kind)) throw new Error(`${where(el)}: kind is ${NET_KINDS.join(", ")}`);
+      const maxVias = num(el, "maxVias");
+      if (maxVias !== undefined && !(Number.isInteger(maxVias) && maxVias >= 0)) throw new Error(`${where(el)}: maxVias is a whole number, 0 or more`);
+      put("name", name()); put("nets", names("nets", true)); put("kind", kind);
+      for (const k of ["width", "clearance", "viaDiameter", "viaDrill", "current", "maxLength", "impedance"]) put(k, positive(el, k));
+      put("criticality", unit("criticality")); put("maxVias", maxVias);
+      const d = out.viaDiameter as number | undefined, h = out.viaDrill as number | undefined;
+      if (d !== undefined && h !== undefined && d <= h) throw new Error(`${where(el)}: viaDiameter is more than viaDrill`);
+      break;
+    }
+    case "diffpair":
+      refuseUnknown(el, ["name", "positive", "negative", "gap", "width", "impedance", "maxSkew"]);
+      put("name", name()); put("positive", text(el, "positive", true)); put("negative", text(el, "negative", true));
+      if (out.positive === out.negative) throw new Error(`${where(el)}: positive and negative are two nets`);
+      for (const k of ["gap", "width", "impedance", "maxSkew"]) put(k, positive(el, k));
+      break;
+    case "group": {
+      refuseUnknown(el, ["name", "parts", "region", "near", "maxDistance", "conviction", "side"]);
+      put("name", name()); put("parts", names("parts", true));
+      put("region", plain(el, "region", isBox, "[x0, y0, x1, y1] in mm, x0 < x1 and y0 < y1"));
+      const near = text(el, "near");
+      if (near !== undefined && !/^\s*\.[A-Za-z0-9_#\-]+(\s*>\s*\.[A-Za-z0-9_+\-]+)?\s*$/.test(near)) throw new Error(`${where(el)}: near is a part (".J1") or a pin (".J1 > .pin5")`);
+      put("near", near); put("maxDistance", positive(el, "maxDistance")); put("conviction", unit("conviction"));
+      if (out.maxDistance !== undefined && near === undefined) throw new Error(`${where(el)}: maxDistance needs near`);
+      const side = el.props.side;
+      if (side !== undefined && side !== "top" && side !== "bottom") throw new Error(`${where(el)}: side is "top" or "bottom"`);
+      put("side", side);
+      break;
+    }
+    case "keepout": {
+      refuseUnknown(el, ["name", "points", "layers", "no"]);
+      put("name", name(false)); put("points", pointList(el, "points", 3).map((p) => [p.x, p.y]));
+      if (el.props.layers !== undefined) put("layers", copperLayers(el));
+      const no = plain(el, "no", (v) => isNames(v) && (v as string[]).every((k) => KEEPOUT_KINDS.includes(k)), `a list of ${KEEPOUT_KINDS.join(", ")}`);
+      put("no", no);
+      break;
+    }
+    case "thermal":
+      refuseUnknown(el, ["name", "parts", "watts", "spacing", "awayFrom", "distance"]);
+      put("name", name()); put("parts", names("parts", true)); put("watts", positive(el, "watts", true));
+      put("spacing", positive(el, "spacing")); put("awayFrom", names("awayFrom", false)); put("distance", positive(el, "distance"));
+      if ((out.awayFrom === undefined) !== (out.distance === undefined)) throw new Error(`${where(el)}: give awayFrom and distance together`);
+      break;
+    case "objective":
+      refuseUnknown(el, ["weights"]);
+      put("weights", plain(el, "weights", isWeights, "an object of term → weight (0 or more)") ?? (() => { throw new Error(`${where(el)} needs weights`); })());
+      break;
+  }
+  return out;
+}
+const CONSTRAINTS = new Set(["netclass", "diffpair", "group", "keepout", "thermal", "objective"]);
 
 /** Declare a board in code (its root is `<board schematic="…">`). */
 export function declareBoardFile(root: DesignElement, name?: string): Declaration {
@@ -268,6 +363,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
     const components = new Set<string>();
     const conductors = new Map<string, { el: DesignElement; id: string }>();
     const nets = new Set<string>();
+    const constraintNames = new Set<string>();
     let kicadForms = 0;
     let n = 0;
     const freeId = () => {
@@ -293,6 +389,10 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
         nets.add(nm);
       } else if (el.type === "kicad") {
         if (++kicadForms > 1) throw new Error("a board has one <kicad>");
+      } else if (CONSTRAINTS.has(el.type)) {
+        const key = el.type === "objective" ? "objective" : typeof nm === "string" ? `${el.type}:${nm}` : null;
+        if (key && constraintNames.has(key)) throw new Error(el.type === "objective" ? "a board has one <objective>" : `two <${el.type}> elements are called ${nm}`);
+        if (key) constraintNames.add(key);
       } else if (el.type !== "stack" && !FACTS.has(el.type)) throw new Error(`<${el.type}> is not read on a board (see commandagi/design pcb)`);
     }
     const idOf = new Map<DesignElement, string>([...conductors.values()].map((c) => [c.el, c.id]));
@@ -535,6 +635,8 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
           s.add(BOARD_FACT, { fact: "net", name: el.props.name as string, code }, { label: "Net", meta: meta(el) });
           break;
         }
+        default:
+          if (CONSTRAINTS.has(el.type)) s.add(BOARD_FACT, { fact: el.type, ...constraintFact(el) }, { label: el.type, meta: meta(el) });
       }
     }
   });

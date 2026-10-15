@@ -126,3 +126,34 @@ test("a board on the faces of a CAD part: its surface, each component's face and
   assert.throws(() => board({}, jsx("component", { name: "R1", footprint: "smd-0805", pcbX: 4, pcbY: 5, chart: "top" }))(), /has no surface/);
   assert.throws(() => board({}, jsx("trace", { layer: "F.Cu", width: 0.3, points: [[4, 5], [9, 5]], surface: true }))(), /has no surface/);
 });
+
+test("the layout's constraints are board facts: net classes, pairs, groups, keep-outs, heat and the objective", () => {
+  const g = board(
+    { width: 100, height: 60 },
+    jsx("netclass", { name: "supply", nets: ["P24", "FIN*"], kind: "power", width: 0.5, clearance: 0.25, current: 0.5, criticality: 0.8, maxVias: 2 }),
+    jsx("diffpair", { name: "usb", positive: "D+", negative: "D-", gap: 0.15, maxSkew: 0.5 }),
+    jsx("group", { name: "in1", parts: ["R1", "U1"], region: [10, 30, 30, 50], near: ".J1 > .pin5", maxDistance: 4, conviction: 0.5 }),
+    jsx("keepout", { name: "label", points: [[80, 20], [96, 20], [96, 28]], no: ["track", "via"] }),
+    jsx("thermal", { name: "fets", parts: ["Q1", "Q2"], watts: 0.3, spacing: 4, awayFrom: ["U1"], distance: 6 }),
+    jsx("objective", { weights: { wirelength: 1, vias: 3 } }),
+  )();
+  const facts = Object.values(g.nodes).filter((n) => n.type === "eda.boardfact").map((n) => n.inputs);
+  assert.deepEqual(facts, [
+    { fact: "netclass", name: "supply", nets: ["P24", "FIN*"], kind: "power", width: 0.5, clearance: 0.25, current: 0.5, criticality: 0.8, maxVias: 2 },
+    { fact: "diffpair", name: "usb", positive: "D+", negative: "D-", gap: 0.15, maxSkew: 0.5 },
+    { fact: "group", name: "in1", parts: ["R1", "U1"], region: [10, 30, 30, 50], near: ".J1 > .pin5", maxDistance: 4, conviction: 0.5 },
+    { fact: "keepout", name: "label", points: [[80, 20], [96, 20], [96, 28]], no: ["track", "via"] },
+    { fact: "thermal", name: "fets", parts: ["Q1", "Q2"], watts: 0.3, spacing: 4, awayFrom: ["U1"], distance: 6 },
+    { fact: "objective", weights: { wirelength: 1, vias: 3 } },
+  ]);
+  const refused = (el: unknown, re: RegExp) => assert.throws(() => board({ width: 10, height: 10 }, el)(), re);
+  refused(jsx("netclass", { name: "a", nets: [], width: 0.2 }), /nets is a list of names/);
+  refused(jsx("netclass", { name: "a", nets: ["X"], kind: "loud" }), /kind is signal, power/);
+  refused(jsx("netclass", { name: "a", nets: ["X"], viaDiameter: 0.3, viaDrill: 0.4 }), /viaDiameter is more than viaDrill/);
+  refused(jsx("group", { name: "g", parts: ["R1"], region: [5, 5, 1, 1] }), /x0 < x1/);
+  refused(jsx("group", { name: "g", parts: ["R1"], maxDistance: 3 }), /maxDistance needs near/);
+  refused(jsx("keepout", { points: [[0, 0], [1, 0], [1, 1]], no: ["smoke"] }), /a list of track, via, component, pour/);
+  refused(jsx("thermal", { name: "t", parts: ["Q1"], watts: 1, awayFrom: ["U1"] }), /give awayFrom and distance together/);
+  assert.throws(() => board({}, jsx("objective", { weights: { vias: 1 } }), jsx("objective", { weights: { vias: 2 } }))(), /one <objective>/);
+  assert.throws(() => board({}, jsx("group", { name: "g", parts: ["R1"] }), jsx("group", { name: "g", parts: ["R2"] }))(), /two <group> elements are called g/);
+});
