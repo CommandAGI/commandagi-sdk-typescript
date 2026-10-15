@@ -1798,7 +1798,7 @@ export type MakeSpec = {
 };
 
 /** How a part is made. */
-export type ManufacturingProcess = "cnc-milling" | "cnc-turning" | "laser-cutting" | "waterjet-cutting" | "sheet-metal-bending" | "extrusion" | "casting" | "injection-moulding" | "fdm-printing" | "sla-printing" | "sls-printing" | "welding" | "grinding" | "manual" | "purchased";
+export type ManufacturingProcess = "cnc-milling" | "cnc-turning" | "laser-cutting" | "waterjet-cutting" | "sheet-metal-bending" | "extrusion" | "casting" | "injection-moulding" | "fdm-printing" | "sla-printing" | "sls-printing" | "welding" | "grinding" | "manual" | "purchased" | "reference";
 
 /**
  * A constraint between two placed components. References a component by its `ExternalPartRef` feature id and a local axis on that component. The assembly solver relaxes both components' placements (position AND orientation) toward simultaneous satisfaction of every mate with least motion; unsatisfiable mates (missing components) are reported, never silently dropped.

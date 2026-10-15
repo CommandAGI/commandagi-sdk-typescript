@@ -212,7 +212,7 @@ test("a body's engineering data, a joint, a mate and a sheet are typed elements 
   assert.throws(refused(jsx("joint", { id: "j1", kind: "fixed", a: "base" })), { message: '<joint id="j1">: anchor: is required' });
   assert.throws(refused(jsx("body", { id: "base", engineering: { process: "magic", suppliers: [{ sku: "x" }] } })), {
     message:
-      '<body id="base">: engineering/process: must be one of cnc-milling, cnc-turning, laser-cutting, waterjet-cutting, sheet-metal-bending, extrusion, casting, injection-moulding, fdm-printing, sla-printing, sls-printing, welding, grinding, manual, purchased (got "magic"); engineering/suppliers/0/name: is required',
+      '<body id="base">: engineering/process: must be one of cnc-milling, cnc-turning, laser-cutting, waterjet-cutting, sheet-metal-bending, extrusion, casting, injection-moulding, fdm-printing, sla-printing, sls-printing, welding, grinding, manual, purchased, reference (got "magic"); engineering/suppliers/0/name: is required',
   });
   assert.throws(refused(jsx("slot", { name: "dynamics", value: { joints: [] } })), { message: '<slot name="dynamics">: joints are written as <joint> elements' });
   assert.throws(refused(jsx("slot", { name: "drawings", value: [] })), /drawings is not a slot/);

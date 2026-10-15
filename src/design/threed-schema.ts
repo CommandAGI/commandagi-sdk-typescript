@@ -3735,7 +3735,8 @@ export const THREED_SCHEMA: SchemaDocument = {
     "welding",
     "grinding",
     "manual",
-    "purchased"
+    "purchased",
+    "reference"
    ],
    "description": "How a part is made."
   },
