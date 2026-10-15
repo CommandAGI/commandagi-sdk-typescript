@@ -20,7 +20,7 @@
  *   );
  *
  * One root, `<study kind part units>`, for every kind of study. A kind adds its own tags (`registerStudyKind`): this
- * file declares `structural` (FEA). `<criterion>` and `<revise>` are every kind's. The rule of the ontology's files: a
+ * file declares `structural` (FEA) and `flow` (CFD). `<criterion>` and `<revise>` are every kind's. The rule of the ontology's files: a
  * record is an element and its fields are its attributes, verbatim; a face pick is the 3D document's pick
  * (`{ kind: "face", select: { … } }`). Nothing adds a default: the runner says what it assumes, and a check fails on
  * what is missing.
@@ -86,6 +86,28 @@ registerStudyKind("structural", {
   pressure: { rule: { parents: ["loadCase"], key: "id", required: ["id", FACES, "value"], attrs: ["id", FACES, "value"] }, field: "loads", list: true, typed: true },
   mesh: { rule: { parents: ["study"], single: true, attrs: ["order", "size", "refine"] }, field: "mesh" },
   solver: { rule: { parents: ["study"], single: true, attrs: ["kind", "analysis"] }, field: "solver" },
+});
+
+/**
+ * A flow study (`kind="flow"`, `units="m-kg-s"`): incompressible steady flow through one body of the part, the fluid's
+ * volume. The inlet and the outlet are face picks on that body (in the part's millimetres); every other face is a
+ * wall. The flow kernel meshes the three patches (the 3D kernel's `surfaces` op writes them as STL, in metres), runs
+ * `levels` refinements of the background block's `cells`, and reads the pressure drop, inlet to outlet.
+ *
+ *   <study kind="flow" part="Channel.3d.tsx" units="m-kg-s">
+ *     <fluid nu={1e-6} />
+ *     <inlet faces={{ kind: "face", select: { normal: [-1, 0, 0] } }} velocity={0.5} />
+ *     <outlet faces={{ kind: "face", select: { normal: [1, 0, 0] } }} />
+ *     <flowMesh cells={[20, 3, 3]} levels={[1, 2, 4]} />
+ *     <criterion id="drop" quantity="pressureDrop" limit={2} />
+ *   </study>
+ */
+export const FLOW_UNITS = "m-kg-s";
+registerStudyKind("flow", {
+  fluid: { rule: { parents: ["study"], single: true, required: ["nu"], attrs: ["nu", "body"] }, field: "fluid" },
+  inlet: { rule: { parents: ["study"], single: true, required: [FACES, "velocity"], attrs: [FACES, "velocity"] }, field: "inlet" },
+  outlet: { rule: { parents: ["study"], single: true, required: [FACES], attrs: [FACES] }, field: "outlet" },
+  flowMesh: { rule: { parents: ["study"], single: true, required: ["cells"], attrs: ["cells", "levels", "iterations", "wallModel"] }, field: "flowMesh" },
 });
 
 export type StudyDocument = { kind: string; part: string; [field: string]: unknown };

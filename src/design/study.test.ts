@@ -43,6 +43,32 @@ test("a structural study in JSX is its question: fixtures, load cases with typed
   assert.throws(() => declarationOf({ default: el("study", { kind: "structural", part: "a.3d.tsx" }, el("mesh", { colour: "red" })) }), /colour is not read/);
 });
 
+test("a flow study in JSX: the fluid, the inlet and the outlet as face picks, the mesh levels; structural tags refused in it", () => {
+  const file = el(
+    "study",
+    { kind: "flow", part: "Channel.3d.tsx", units: "m-kg-s" },
+    el("fluid", { nu: 1e-6 }),
+    el("inlet", { faces: face({ normal: [-1, 0, 0] }), velocity: 0.5 }),
+    el("outlet", { faces: face({ normal: [1, 0, 0] }) }),
+    el("flowMesh", { cells: [20, 3, 3], levels: [1, 2, 4] }),
+    el("criterion", { id: "drop", quantity: "pressureDrop", limit: 2 }),
+  );
+  const doc = declarationOf({ default: () => file }).document!.document as Record<string, unknown>;
+  assert.deepEqual(doc, {
+    kind: "flow",
+    part: "Channel.3d.tsx",
+    units: "m-kg-s",
+    fluid: { nu: 1e-6 },
+    inlet: { faces: face({ normal: [-1, 0, 0] }), velocity: 0.5 },
+    outlet: { faces: face({ normal: [1, 0, 0] }) },
+    flowMesh: { cells: [20, 3, 3], levels: [1, 2, 4] },
+    criteria: [{ id: "drop", quantity: "pressureDrop", limit: 2 }],
+  });
+  assert.deepEqual(STUDY.study.fromTree(STUDY.study.toTree(doc as never)), doc, "both ways");
+  assert.throws(() => declarationOf({ default: el("study", { kind: "flow", part: "a.3d.tsx" }, el("mesh", { size: 2 })) }), /<mesh> belongs to a structural study, not to a flow one/);
+  assert.throws(() => declarationOf({ default: el("study", { kind: "flow", part: "a.3d.tsx" }, el("inlet", { faces: face({ normal: [1, 0, 0] }) })) }), /<inlet> needs velocity/);
+});
+
 test("a kind registered later reads its own tags and refuses them in a study of another kind", () => {
   registerStudyKind("probe-kind", { probe: { rule: { parents: ["study"], key: "id", required: ["id"], attrs: ["id", "depthMm"] }, field: "probes", list: true } });
   const ok = declarationOf({ default: el("study", { kind: "probe-kind", part: "a.3d.tsx" }, el("probe", { id: "p1", depthMm: 3 }), el("criterion", { id: "c", quantity: "probe.depth", limit: 4 })) });
