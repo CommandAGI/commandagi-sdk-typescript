@@ -31,9 +31,9 @@
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
 
 export const TESTPLAN_FIELDS = ["title", "device", "note"] as const;
-export const CONDITION_FIELDS = ["id", "quantity", "value", "min", "max", "unit", "note"] as const;
-export const FIXTURE_FIELDS = ["id", "kind", "unit", "channel", "note"] as const;
-export const STEP_FIELDS = ["id", "channel", "fixture", "command", "read", "min", "max", "equals", "unit", "settleMs", "timeoutMs", "condition", "verifies", "note"] as const;
+export const TESTPLAN_CONDITION_FIELDS = ["id", "quantity", "value", "min", "max", "unit", "note"] as const;
+export const TESTPLAN_FIXTURE_FIELDS = ["id", "kind", "unit", "channel", "note"] as const;
+export const TESTPLAN_STEP_FIELDS = ["id", "channel", "fixture", "command", "read", "min", "max", "equals", "unit", "settleMs", "timeoutMs", "condition", "verifies", "note"] as const;
 
 export interface TestPlanDoc {
   title?: string;
@@ -53,9 +53,9 @@ const attrsOf = (o: Record<string, unknown>, keys: readonly string[]) => {
 };
 const leaf = (tag: string, attrs: Record<string, unknown>): DocTree => ({ tag, attrs, children: [] });
 const LISTS = [
-  ["condition", "conditions", CONDITION_FIELDS],
-  ["fixture", "fixtures", FIXTURE_FIELDS],
-  ["step", "steps", STEP_FIELDS],
+  ["condition", "conditions", TESTPLAN_CONDITION_FIELDS],
+  ["fixture", "fixtures", TESTPLAN_FIXTURE_FIELDS],
+  ["step", "steps", TESTPLAN_STEP_FIELDS],
 ] as const;
 
 export const testplanVocabulary: Vocabulary<TestPlanDoc> = {
@@ -64,9 +64,9 @@ export const testplanVocabulary: Vocabulary<TestPlanDoc> = {
   root: "testplan",
   tags: {
     testplan: { parents: [], attrs: TESTPLAN_FIELDS },
-    condition: { parents: ["testplan"], key: "id", required: ["id", "quantity"], attrs: CONDITION_FIELDS },
-    fixture: { parents: ["testplan"], key: "id", required: ["id", "kind"], attrs: FIXTURE_FIELDS },
-    step: { parents: ["testplan"], key: "id", required: ["id"], attrs: STEP_FIELDS },
+    condition: { parents: ["testplan"], key: "id", required: ["id", "quantity"], attrs: TESTPLAN_CONDITION_FIELDS },
+    fixture: { parents: ["testplan"], key: "id", required: ["id", "kind"], attrs: TESTPLAN_FIXTURE_FIELDS },
+    step: { parents: ["testplan"], key: "id", required: ["id"], attrs: TESTPLAN_STEP_FIELDS },
   },
   fromTree(t) {
     const doc: TestPlanDoc = { ...t.attrs };
