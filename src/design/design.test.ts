@@ -404,7 +404,7 @@ test("how a part's pinout and pads are known, and its datasheet package, are fie
   const c = circuit("C", () => void component({ ref: "U5", footprint: footprints.sot23(), pinoutVerified: "measured 2026-10-15, continuity on the bench", mpn: "MMBT3904" })).ir;
   assert.deepEqual(partFields(Object.values(c.nodes).find((n) => n.inputs.ref === "U5")!.inputs), { mpn: "MMBT3904", pinoutVerified: "measured 2026-10-15, continuity on the bench" });
   for (const bad of ["checked", "datasheet p. 3, 2026-10-15", "datasheet https://x.test/a.pdf p. 3", "measured yesterday"])
-    assert.throws(() => circuit("C", () => void component({ ref: "U5", footprint: footprints.sot23(), pinoutVerified: bad })), /ref: "U5" }): pinoutVerified is text/);
+    assert.throws(() => circuit("C", () => void component({ ref: "U5", footprint: footprints.sot23(), pinoutVerified: bad })), /ref: "U5" \}\): pinoutVerified is text/);
   assert.throws(() => circuit("C", () => void component({ ref: "U5", footprint: footprints.sot23(), packageDimensions: "SOT-23" })), /packageDimensions is text \("6 pins, pitch 0.95 mm/);
   assert.throws(() => circuit("C", () => void component({ ref: "U5", footprint: footprints.sot23(), attrs: { "Pinout Verified": "memory" } })), /say it with pinoutVerified=/);
 });
