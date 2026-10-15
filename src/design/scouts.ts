@@ -40,16 +40,20 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 
 export const SCOUT_FIELDS = ["title", "budget", "repeats", "margin", "relativeMargin", "errorFloor", "minCalls", "minCases", "resamples", "alpha", "seed", "maxCases", "readme"] as const;
 export const CONFIGURATION_FIELDS = ["id", "model", "harness", "effort", "instructions", "maxTokens", "incumbent"] as const;
-export const WORKLOAD_FIELDS = ["id", "title", "needs", "sample", "context"] as const;
-export const CASE_FIELDS = ["id", "from", "prompt", "system", "check", "rubric", "source", "terms"] as const;
+export const WORKLOAD_FIELDS = ["id", "title", "needs", "sample", "context", "axis"] as const;
+export const CASE_FIELDS = ["id", "from", "prompt", "system", "check", "rubric", "tools", "turns", "source", "terms"] as const;
 export const JUDGE_FIELDS = ["model", "effort"] as const;
 
 /** Where a case's data came from (docs/scouts.md § the corpus). A customer's runs and third-party records are never cases. */
 export const CASE_ORIGINS = ["public", "synthetic", "own-run"] as const;
 /** What a workload needs of a model: a hard gate, never a score. */
 export const WORKLOAD_NEEDS = ["tools", "structured", "image"] as const;
-/** The checks a case may name, cheapest first (a judge's rubric only where no check exists). */
-export const CHECK_KINDS = ["exact", "oneOf", "number", "contains", "regex", "json"] as const;
+/**
+ * The checks a case may name, cheapest first (a judge's rubric only where no check exists): the answer's text equal to
+ * one (`exact`, `oneOf`), a number within `tolerance`, phrases it holds, a pattern, a JSON object it holds, a
+ * multiple-choice `letter`, a Python `literal` (spaces and quotes aside), or the first `tool` the model called.
+ */
+export const CHECK_KINDS = ["exact", "oneOf", "number", "contains", "regex", "json", "letter", "literal", "tool"] as const;
 
 export interface ScoutConfiguration {
   id: string;
@@ -72,6 +76,20 @@ export interface ScoutCheck {
   contains?: string[];
   regex?: string;
   json?: Record<string, unknown>;
+  letter?: string;
+  literal?: string;
+  tool?: string;
+}
+/**
+ * A tool a case offers the model. Its answers are the case's own: the first of `results` whose `when` holds of the
+ * call's arguments (each a text the argument contains, case ignored), else "unknown". No tool runs.
+ */
+export interface ScoutTool {
+  name: string;
+  description?: string;
+  /** The JSON Schema of its arguments. */
+  parameters: Record<string, unknown>;
+  results?: { when?: Record<string, string>; result: string }[];
 }
 export interface ScoutCase {
   id: string;
@@ -80,6 +98,9 @@ export interface ScoutCase {
   system?: string;
   check?: ScoutCheck;
   rubric?: string;
+  /** The tools offered: the case is a conversation of up to `turns` model turns (5 when absent). */
+  tools?: ScoutTool[];
+  turns?: number;
   /** Its lineage: the run and record it was drawn from, or the dataset and row. */
   source?: string;
   /** The terms of the data in it (docs/records.md § 5). */
@@ -93,6 +114,8 @@ export interface ScoutWorkload {
   sample?: number;
   /** The context, in tokens, a model must take. */
   context?: number;
+  /** The quality axis of the catalog it measures when a run publishes (`math`, `reasoning`, `coding`), or `agentic`. */
+  axis?: string;
   cases: ScoutCase[];
 }
 export interface ScoutJudge {
@@ -222,12 +245,34 @@ function checkOf(t: DocTree): void {
     }
   }
   if (x.json !== undefined && (!x.json || typeof x.json !== "object" || Array.isArray(x.json))) throw new Error(`${where(t)} check: json is the object the answer must hold`);
+  if (x.letter !== undefined && !(typeof x.letter === "string" && /^[A-Z]$/.test(x.letter))) throw new Error(`${where(t)} check: letter is one capital letter`);
+  for (const k of ["literal", "tool"] as const) if (x[k] !== undefined && !(typeof x[k] === "string" && x[k])) throw new Error(`${where(t)} check: ${k} is text`);
+  if (x.tool !== undefined && t.attrs.tools === undefined) throw new Error(`${where(t)} check: tool needs the case's tools`);
+}
+
+function toolsOf(t: DocTree): void {
+  const tools = t.attrs.tools;
+  if (tools === undefined) return;
+  if (!Array.isArray(tools) || !tools.length) throw new Error(`${where(t)} tools is a list of { name, parameters, results }`);
+  const names = new Set<string>();
+  for (const tool of tools as ScoutTool[]) {
+    if (!tool || typeof tool.name !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(tool.name)) throw new Error(`${where(t)} a tool's name is a word of letters, digits, _ and -`);
+    if (names.has(tool.name)) throw new Error(`${where(t)} has two tools named ${tool.name}`);
+    names.add(tool.name);
+    if (!tool.parameters || typeof tool.parameters !== "object" || Array.isArray(tool.parameters)) throw new Error(`${where(t)} tool ${tool.name}: parameters is a JSON Schema object`);
+    for (const r of tool.results ?? [])
+      if (!r || typeof r.result !== "string" || (r.when !== undefined && (typeof r.when !== "object" || Array.isArray(r.when) || !Object.values(r.when).every((v) => typeof v === "string"))))
+        throw new Error(`${where(t)} tool ${tool.name}: a result is { when?: { <argument>: <text it contains> }, result: <text> }`);
+  }
+  positive(t, "turns", { integer: true });
 }
 
 function caseOf(t: DocTree): ScoutCase {
   for (const k of ["id", "prompt", "system", "rubric", "source"]) text(t, k);
   oneOf(t, "from", CASE_ORIGINS);
   checkOf(t);
+  toolsOf(t);
+  if (t.attrs.turns !== undefined && t.attrs.tools === undefined) throw new Error(`${where(t)} turns goes with tools`);
   if ((t.attrs.check === undefined) === (t.attrs.rubric === undefined))
     throw new Error(`${where(t)} is scored by exactly one of check (a program) or rubric (a judge panel)`);
   const terms = t.attrs.terms;
@@ -255,6 +300,7 @@ function scoutOf(t: DocTree): ScoutDoc {
   const workloads = parts("workload").map((w) => {
     text(w, "id");
     text(w, "title");
+    text(w, "axis");
     positive(w, "sample", { integer: true });
     positive(w, "context", { integer: true });
     const needs = w.attrs.needs;

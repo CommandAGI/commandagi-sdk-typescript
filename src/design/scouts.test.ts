@@ -49,6 +49,30 @@ test("a comparison refuses what would make its verdict dishonest", () => {
   assert.throws(() => declare(el("scout", { budget: 5 }, el("case", { id: "x", from: "public", prompt: "p", check: { exact: "1" } }))), /<case> stands in <workload>/);
 });
 
+test("a tool case offers its tools and their answers; a workload names the catalog axis it measures", () => {
+  const tools = [
+    { name: "get_capital", parameters: { type: "object", properties: { country: { type: "string" } } }, results: [{ when: { country: "france" }, result: "Paris" }] },
+    { name: "send_email", description: "send an email", parameters: { type: "object" } },
+  ];
+  const doc = declare(el("scout", { budget: 1 },
+    el("configuration", { id: "a", model: "x/a" }),
+    el("workload", { id: "agentic", axis: "agentic" },
+      el("case", { id: "chain", from: "synthetic", prompt: "p", tools, turns: 4, check: { number: 4280000 } }),
+      el("case", { id: "first", from: "synthetic", prompt: "p", tools, check: { tool: "send_email" } }),
+      el("case", { id: "mc", from: "public", source: "TIGER-Lab/MMLU-Pro test 12", prompt: "p", check: { letter: "I" } }),
+      el("case", { id: "crux", from: "public", prompt: "p", check: { literal: "[1, 'a']" } }))));
+  const w = (doc.document as { workloads: { axis: string; cases: { tools?: unknown; turns?: number }[] }[] }).workloads[0]!;
+  assert.equal(w.axis, "agentic");
+  assert.deepEqual(w.cases[0]!.tools, tools);
+  assert.equal(w.cases[0]!.turns, 4);
+  const one = (props: Record<string, unknown>) => declare(el("scout", { budget: 1 }, el("workload", { id: "w" }, el("case", { id: "c", from: "synthetic", prompt: "p", ...props }))));
+  assert.throws(() => one({ check: { tool: "send_email" } }), /tool needs the case's tools/);
+  assert.throws(() => one({ check: { letter: "ab" } }), /letter is one capital letter/);
+  assert.throws(() => one({ check: { exact: "x" }, turns: 3 }), /turns goes with tools/);
+  assert.throws(() => one({ check: { exact: "x" }, tools: [{ name: "a b", parameters: {} }] }), /a tool's name is a word/);
+  assert.throws(() => one({ check: { exact: "x" }, tools: [{ name: "a", parameters: {}, results: [{ when: { x: 1 }, result: "r" }] }] }), /a result is/);
+});
+
 test("a replacement analysis declares its layers, capabilities with evidence, and its decision; and both ways", () => {
   const doc = declare(
     el("replacement", { product: "beehiiv", vendor: "beehiiv, Inc.", url: "https://www.beehiiv.com", asOf: "2026-10-14", by: "scout" },
