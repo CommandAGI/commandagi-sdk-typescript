@@ -19,6 +19,7 @@
  *       <load id="motors" part="M1 M2" rail="vbat" mode="drive" current={1.2} source="motor datasheet, rated load" />
  *       <bom ref="bom.csv" />
  *       <budget id="mass" quantity="mass" limit={500} unit="g" />
+ *       <budget id="cost-100" quantity="cost" per={100} currency="USD" limit={40} design="Rover.3d.tsx" />
  *       <budget id="drive-power" quantity="power" rail="vbat" mode="drive" limit={15} unit="W" margin={0.2} />
  *       <check id="link" kind="interface" of="Link.interface.tsx" />
  *     </system>
@@ -39,7 +40,9 @@
  * The rule of the ontology's files: a record is an element and its fields are the element's attributes, verbatim; a
  * list of records is the parent's children. A requirement is named by a ref, never an id alone: `Rover.req.tsx#mass`.
  * Every ref is a path relative to the file that holds it, with `#` and the id of one element of the file it names.
- * Nothing adds a default. The checks (a requirement's trace, a budget's roll-up, each side against its interface) are
+ * Nothing adds a default. A `<bom>` gives masses; a cost budget reads the logistics roll-up of the design it names
+ * (`design`: a 3D document, a schematic or a board with a cost check), the one source of cost, so no contribution is a
+ * cost. The checks (a requirement's trace, a budget's roll-up, each side against its interface) are
  * the host's: `commandagi check <file>`, `commandagi trace <folder>`.
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
@@ -58,8 +61,8 @@ export const MODE_FIELDS = ["id", "description"] as const;
 export const RAIL_FIELDS = ["id", "voltage", "description", "source"] as const;
 export const CONVERTER_FIELDS = ["id", "input", "output", "efficiency", "source"] as const;
 export const LOAD_FIELDS = ["id", "part", "rail", "mode", "current", "power", "voltage", "source"] as const;
-export const CONTRIBUTION_FIELDS = ["id", "quantity", "part", "value", "unit", "qty", "mode", "rail", "currency", "per", "source"] as const;
-export const BUDGET_FIELDS = ["id", "quantity", "limit", "unit", "mode", "rail", "per", "currency", "resistance", "margin", "source", "description"] as const;
+export const CONTRIBUTION_FIELDS = ["id", "quantity", "part", "value", "unit", "qty", "mode", "rail", "source"] as const;
+export const BUDGET_FIELDS = ["id", "quantity", "limit", "unit", "mode", "rail", "per", "currency", "design", "resistance", "margin", "source", "description"] as const;
 export const PIN_FIELDS = ["number", "signal", "dir", "voltage", "gpio", "at", "required", "description"] as const;
 export const HOLE_FIELDS = ["id", "at", "diameter", "description"] as const;
 export const MESSAGE_FIELDS = ["id", "text", "code", "define", "dir", "description"] as const;
@@ -154,6 +157,7 @@ export const systemVocabulary: Vocabulary<SystemDoc> = {
       }
       if (c.tag === "contribution") {
         check((BUDGET_QUANTITIES as readonly unknown[]).includes(a.quantity), `${at}: quantity must be one of ${BUDGET_QUANTITIES.join(", ")} (got ${JSON.stringify(a.quantity)})`);
+        check(a.quantity !== "cost", `${at}: a cost is stated in the design's logistics (a part's suppliers, a made part's rate), which a cost budget's design rolls up, not as a contribution`);
         check(isNum(a.value), `${at}: value is a number`);
         check(typeof a.source === "string" && a.source.trim(), `${at}: source says where the number was read (a datasheet, a measurement, "estimate: …")`);
       }
@@ -162,6 +166,7 @@ export const systemVocabulary: Vocabulary<SystemDoc> = {
         check(isNum(a.limit), `${at}: limit is a number`);
         check(a.margin === undefined || (isNum(a.margin) && (a.margin as number) >= 0 && (a.margin as number) < 1), `${at}: margin is a fraction of the limit kept free, in [0, 1)`);
         if (a.quantity === "power") check(typeof a.rail === "string" && typeof a.mode === "string", `${at}: a power budget names its rail and its mode`);
+        if (a.quantity === "cost") check(typeof a.design === "string" && a.design.trim(), `${at}: a cost budget names the design whose logistics roll-up it reads (design="cad/Assembly.3d.tsx")`);
         if (a.quantity === "thermal") check(typeof a.mode === "string" && isNum(a.resistance), `${at}: a thermal budget names its mode and the thermal resistance to the ambient (resistance, K/W)`);
       }
       if (c.tag === "check") check((SYSTEM_CHECK_KINDS as readonly unknown[]).includes(a.kind), `${at}: kind must be one of ${SYSTEM_CHECK_KINDS.join(", ")} (got ${JSON.stringify(a.kind)})`);

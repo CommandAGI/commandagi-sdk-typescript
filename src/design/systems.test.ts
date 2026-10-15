@@ -61,6 +61,9 @@ test("a system is its modes, rails, converters, loads, contributions, boms, budg
   assert.throws(bad({ id: "b", quantity: "power", limit: 1 }), /a power budget names its rail and its mode/);
   assert.throws(bad({ id: "b", quantity: "thermal", limit: 1, mode: "m" }), /thermal resistance to the ambient \(resistance, K\/W\)/);
   assert.throws(bad({ id: "b", quantity: "mass", limit: 1, margin: 1.5 }), /margin is a fraction/);
+  assert.throws(bad({ id: "b", quantity: "cost", per: 100, limit: 30 }), /a cost budget names the design whose logistics roll-up it reads/);
+  assert.equal(declare(el("system", {}, el("budget", { id: "b", quantity: "cost", per: 100, limit: 30, design: "Rover.3d.tsx" }))).format, "system");
+  assert.throws(bad({ id: "c", quantity: "cost", part: "P", value: 1, source: "a quote" }, "contribution"), /a cost is stated in the design's logistics/);
   assert.throws(bad({ id: "c", input: "a", output: "b", efficiency: 88 }, "converter"), /efficiency is a number in \(0, 1\]/);
   assert.throws(bad({ id: "l", part: "U1", rail: "r", mode: "m" }, "load"), /a load states its current \(A\) or its power \(W\)/);
   assert.throws(bad({ id: "c", quantity: "mass", part: "P", value: 1 }, "contribution"), /source says where the number was read/);
