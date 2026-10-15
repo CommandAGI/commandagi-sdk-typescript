@@ -28,6 +28,7 @@ import {
   net,
   node,
   part,
+  partFields,
   partTypeFor,
   replicadModule,
   schSymbolTypeFor,
@@ -325,4 +326,41 @@ test("a part names the pins it leaves open on purpose (noConnect), by pin number
   for (const bad of [[], "3", [3], ["3", "3"], [""]])
     assert.throws(sheet(jsx("part", { name: "K2", symbol: "a:B", library: "a.kicad_sym", noConnect: bad })), /noConnect is a list of pin numbers/);
   assert.throws(sheet(jsx("junction", { name: "J", schX: 0, schY: 0, noConnect: ["1"] })), /prop noConnect is not read/);
+});
+
+/** A part's field as the part carries it: KiCad's `property` form, as the board editor writes one. */
+const fieldForm = (name: string, value: string) => {
+  const sym = (v: string) => ({ kind: "atom", v, q: false });
+  const text = (v: string) => ({ kind: "atom", v, q: true });
+  const list = (...items: unknown[]) => ({ kind: "list", items });
+  return list(sym("property"), text(name), text(value), list(sym("at"), sym("0"), sym("0"), sym("0")), list(sym("effects"), list(sym("font"), list(sym("size"), sym("1.27"), sym("1.27"))), list(sym("hide"), sym("yes"))));
+};
+
+test("a part states its engineering data (partNumber, manufacturer, mpn, rating, attrs) as KiCad property forms, read back by partFields", () => {
+  const { graph: g } = declarationOf({
+    default: () =>
+      jsx("group", {
+        name: "Fields",
+        children: [
+          jsx("resistor", { name: "R1", resistance: "3k", schX: 0, schY: 0, partNumber: "MF-R-3K", manufacturer: "Yageo", mpn: "RC0805FR-073KL", rating: "0.125 W" }),
+          jsx("part", { name: "K2", symbol: "station:SSR", library: "station.kicad_sym", schX: 50.8, schY: 0, mpn: "G3NA-225B", attrs: { Tolerance: "1%", Datasheet: "https://example.com/g3na.pdf" } }),
+          jsx("part", { name: "J1", pins: ["1", "2"], partNumber: "MF-J-2" }),
+        ],
+      }),
+  });
+  assert.deepEqual(g.nodes.R1!.inputs.foreign, [fieldForm("CommandAGI IPN", "MF-R-3K"), fieldForm("Manufacturer", "Yageo"), fieldForm("MPN", "RC0805FR-073KL"), fieldForm("Rating", "0.125 W")]);
+  assert.deepEqual(g.nodes.K2!.inputs.foreign, [fieldForm("MPN", "G3NA-225B"), fieldForm("Tolerance", "1%"), fieldForm("Datasheet", "https://example.com/g3na.pdf")]);
+  assert.deepEqual(partFields(g.nodes.R1!.inputs), { partNumber: "MF-R-3K", manufacturer: "Yageo", mpn: "RC0805FR-073KL", rating: "0.125 W" });
+  assert.deepEqual(partFields(g.nodes.K2!.inputs), { mpn: "G3NA-225B", attrs: { Tolerance: "1%", Datasheet: "https://example.com/g3na.pdf" } });
+  assert.deepEqual(partFields(g.nodes.J1!.inputs), { partNumber: "MF-J-2" });
+  const sheet = (...children: unknown[]) => () => declarationOf({ default: jsx("group", { name: "S", children }) });
+  const k2 = (props: Record<string, unknown>) => jsx("part", { name: "K2", symbol: "a:B", library: "a.kicad_sym", ...props });
+  for (const bad of ["", 3, ["X"]]) assert.throws(sheet(k2({ mpn: bad })), /mpn is text \("RC0805FR-073KL"\)/);
+  assert.throws(sheet(k2({ attrs: { Tolerance: 1 } })), /attrs is an object of text \(\{ Tolerance: "1%" \}\)/);
+  assert.throws(sheet(k2({ attrs: ["x"] })), /attrs is an object of text/);
+  // One field, one way to say it: a field the part has an argument for, or its own name, value or footprint, is refused in attrs.
+  assert.throws(sheet(k2({ attrs: { MPN: "X" } })), /attrs names MPN: say it with mpn=/);
+  assert.throws(sheet(k2({ attrs: { "CommandAGI IPN": "X" } })), /attrs names CommandAGI IPN: say it with partNumber=/);
+  assert.throws(sheet(k2({ attrs: { Value: "X" } })), /attrs names Value, which is the part's own/);
+  assert.throws(sheet(jsx("junction", { name: "J", schX: 0, schY: 0, mpn: "X" })), /prop mpn is not read/);
 });

@@ -43,6 +43,11 @@
  *                                                                          not report them as pins on nothing
  *   … spice={[{ id, model, terminals }]}                                   on any part: the vendor SPICE packages it
  *                                                                          binds, each formal by pin NUMBER
+ *   … partNumber manufacturer mpn rating attrs={{ Tolerance: "1%" }}       on any part but a ground: its engineering
+ *                                                                          data, each a KiCad property of the part
+ *                                                                          (CommandAGI IPN, Manufacturer, MPN, Rating,
+ *                                                                          and attrs by their own names): the BOM and
+ *                                                                          the board's footprint carry them
  *   <attachment name role file mime>                                       a KiCad file the circuit carries for
  *                                                                          exchange (its drawing, `role="schematic"`;
  *                                                                          its project): the file, by its path
@@ -180,6 +185,66 @@ function noConnectOf(el: DesignElement): { noConnect?: string[] } {
   return { noConnect: [...(v as string[])] };
 }
 
+/**
+ * A PART'S FIELDS: the engineering data a part states, each one KiCad `property` form on the part (`foreign`, the
+ * form the board editor writes), so the BOM, the KiCad board and a 3D body's join read one thing. The named
+ * arguments, by the property each writes; `attrs` holds any other field by its KiCad name.
+ */
+export const PART_FIELDS: Readonly<Record<string, string>> = { partNumber: "CommandAGI IPN", manufacturer: "Manufacturer", mpn: "MPN", rating: "Rating" };
+const FIELD_EXAMPLES: Record<string, string> = { partNumber: "MF-R-3K", manufacturer: "Yageo", mpn: "RC0805FR-073KL", rating: "0.125 W" };
+/** Fields a part holds otherwise: its reference, its value, its footprint. */
+const OWN_FIELDS = new Set(["Reference", "Value", "Footprint"]);
+const FIELD_PROPS = [...Object.keys(PART_FIELDS), "attrs"];
+
+const atomOf = (v: string, q: boolean) => ({ kind: "atom", v, q });
+const listOf = (...items: unknown[]) => ({ kind: "list", items });
+/** One field as the part carries it: `(property "MPN" "…" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))`. */
+function fieldForm(name: string, value: string) {
+  const sym = (v: string) => atomOf(v, false);
+  return listOf(sym("property"), atomOf(name, true), atomOf(value, true), listOf(sym("at"), sym("0"), sym("0"), sym("0")),
+    listOf(sym("effects"), listOf(sym("font"), listOf(sym("size"), sym("1.27"), sym("1.27"))), listOf(sym("hide"), sym("yes"))));
+}
+
+/** The fields a part states (`partNumber`, `manufacturer`, `mpn`, `rating`, `attrs`), as its `property` forms. */
+function fieldsOf(el: DesignElement): { foreign?: unknown[] } {
+  const forms: unknown[] = [];
+  for (const [prop, name] of Object.entries(PART_FIELDS)) {
+    const v = el.props[prop];
+    if (v === undefined) continue;
+    if (typeof v !== "string" || !v.trim()) throw new Error(`${where(el)}: ${prop} is text ("${FIELD_EXAMPLES[prop]}")`);
+    forms.push(fieldForm(name, v));
+  }
+  const attrs = el.props.attrs;
+  if (attrs !== undefined) {
+    if (!attrs || typeof attrs !== "object" || Array.isArray(attrs) || !Object.values(attrs).every((v) => typeof v === "string" && v.trim()))
+      throw new Error(`${where(el)}: attrs is an object of text ({ Tolerance: "1%" })`);
+    for (const [name, v] of Object.entries(attrs as Record<string, string>)) {
+      const named = Object.entries(PART_FIELDS).find(([, n]) => n === name)?.[0];
+      if (named) throw new Error(`${where(el)}: attrs names ${name}: say it with ${named}=`);
+      if (OWN_FIELDS.has(name) || !name.trim()) throw new Error(`${where(el)}: attrs names ${name}, which is the part's own (its name, value or footprint)`);
+      forms.push(fieldForm(name, v));
+    }
+  }
+  return forms.length ? { foreign: forms } : {};
+}
+
+/**
+ * A part's fields, read back from its node's inputs (the `property` forms it carries): the named ones by their
+ * argument, any other in `attrs`. A part with none gives `{}`.
+ */
+export function partFields(inputs: Readonly<Record<string, unknown>>): { partNumber?: string; manufacturer?: string; mpn?: string; rating?: string; attrs?: Record<string, string> } {
+  const out: Record<string, unknown> = {};
+  const attrs: Record<string, string> = {};
+  for (const form of (Array.isArray(inputs.foreign) ? inputs.foreign : []) as { kind?: string; items?: { kind?: string; v?: string }[] }[]) {
+    const [head, name, value] = form?.items ?? [];
+    if (form?.kind !== "list" || head?.v !== "property" || typeof name?.v !== "string" || typeof value?.v !== "string" || OWN_FIELDS.has(name.v)) continue;
+    const named = Object.entries(PART_FIELDS).find(([, n]) => n === name.v)?.[0];
+    if (named) out[named] = value.v;
+    else attrs[name.v] = value.v;
+  }
+  return { ...out, ...(Object.keys(attrs).length ? { attrs } : {}) };
+}
+
 /** Add the placement of `unit` of `part` that `el` declares (its schX, schY, schRotation, schMirror). */
 function place(s: Scope, part: Placed, unit: number, el: DesignElement, pins: readonly string[]): void {
   const x = num(el, "schX"), y = num(el, "schY"), rot = num(el, "schRotation");
@@ -215,7 +280,7 @@ export function declareSheet(children: unknown): void {
   for (const el of childElements(children)) {
     const ideal = SHEET_PARTS[el.type];
     if (ideal) {
-      refuseUnknown(el, ["name", "spice", "noConnect", ...PLACE_PROPS, ...(ideal.value ? [ideal.value] : []), ...(ideal.excitation ? ["excitation"] : [])]);
+      refuseUnknown(el, ["name", "spice", "noConnect", ...PLACE_PROPS, ...(ideal.value ? [ideal.value] : []), ...(ideal.excitation ? ["excitation"] : []), ...(ideal.power ? [] : FIELD_PROPS)]);
       const ref = el.props.name;
       if (typeof ref !== "string" || !ref) throw new Error(`<${el.type}> needs a name`);
       // The netlist leaves power symbols out by their reference (KiCad's rule), so a ground's says it is one.
@@ -239,6 +304,7 @@ export function declareSheet(children: unknown): void {
           ...(excitation !== undefined ? { excitation } : {}),
           ...spiceOf(el),
           ...noConnectOf(el),
+          ...fieldsOf(el),
         },
         { id: ref, label: ref, meta: meta(el) },
       );
@@ -249,7 +315,7 @@ export function declareSheet(children: unknown): void {
     }
     switch (el.type) {
       case "part": {
-        refuseUnknown(el, ["name", "symbol", "library", "value", "pins", "spice", "noConnect", ...PLACE_PROPS]);
+        refuseUnknown(el, ["name", "symbol", "library", "value", "pins", "spice", "noConnect", ...FIELD_PROPS, ...PLACE_PROPS]);
         const ref = str(el, "name", "the part's reference (U1)");
         if (parts.has(ref)) throw new Error(`two parts are called ${ref}`);
         if (el.props.pins !== undefined) {
@@ -265,7 +331,7 @@ export function declareSheet(children: unknown): void {
         // The pins are the library's: the editor reads them (and the part's type) from the library file.
         const part = s.add(
           partTypeFor([]),
-          { ref, ...(raw !== undefined ? { value: String(raw) } : {}), symbol, library, pins: [], ...spiceOf(el), ...noConnectOf(el) },
+          { ref, ...(raw !== undefined ? { value: String(raw) } : {}), symbol, library, pins: [], ...spiceOf(el), ...noConnectOf(el), ...fieldsOf(el) },
           { id: ref, label: ref, meta: meta(el) },
         );
         const placed: Placed = { ref, id: part.id, units: new Map(), ideal: null, el };
@@ -433,7 +499,7 @@ function netlistPart(s: Scope, el: DesignElement, ref: string): Placed {
   if (raw2 !== undefined && typeof raw2 !== "string" && typeof raw2 !== "number") throw new Error(`${where(el)}: value is a value ("LM358", 1000), not ${JSON.stringify(raw2)}`);
   const part = s.add(
     partTypeFor(pins),
-    { ref, ...(raw2 !== undefined ? { value: String(raw2) } : {}), ...(symbol !== undefined ? { symbol } : {}), pins, ...spiceOf(el), ...noConnectOf(el) },
+    { ref, ...(raw2 !== undefined ? { value: String(raw2) } : {}), ...(symbol !== undefined ? { symbol } : {}), pins, ...spiceOf(el), ...noConnectOf(el), ...fieldsOf(el) },
     { id: ref, label: ref, meta: meta(el) },
   );
   return { ref, id: part.id, units: new Map(), ideal: null, pins, el };
