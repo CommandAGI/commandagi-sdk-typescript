@@ -24,17 +24,18 @@
  * cannot call its result a cloud result, and a page result is never anything but the page's (docs/integrity.md
  * § kernel results).
  */
-export const KERNEL_NAMES = Object.freeze(['3d', 'fea']);
+export const KERNEL_NAMES = Object.freeze(['3d', 'fea', 'slicer']);
 export const KERNEL_PLACES = Object.freeze(['page', 'local', 'cloud']);
-/** The page holds only the 3D kernel: the fea kernel's places begin on this computer. */
-const DEFAULT_PLACES = Object.freeze({ '3d': Object.freeze(['page', 'local', 'cloud']), fea: Object.freeze(['local', 'cloud']) });
+/** The page holds only the 3D kernel: the fea kernel's and the slicer's places begin on this computer. */
+const DEFAULT_PLACES = Object.freeze({ '3d': Object.freeze(['page', 'local', 'cloud']), fea: Object.freeze(['local', 'cloud']), slicer: Object.freeze(['local', 'cloud']) });
 
 /** Whether `v` is a valid value of `kernels.<name>.place`: a list of places, each at most once. */
 export const validPlaces = v => Array.isArray(v) && v.length > 0 && v.every(p => KERNEL_PLACES.includes(p)) && new Set(v).size === v.length;
 
 /**
  * The places to try, in order, from the setting's value (a list, or the same list as one text with commas: the form
- * an environment variable has). Undefined or null: the 3D kernel's page, then this computer, then the cloud (the fea kernel has no page).
+ * an environment variable has). Undefined or null: the 3D kernel's page, then this computer, then the cloud (the fea kernel
+ * and the slicer have no page).
  */
 export function kernelPlaces(name, value) {
     if (!KERNEL_NAMES.includes(name))
