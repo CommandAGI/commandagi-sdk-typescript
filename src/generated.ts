@@ -1308,6 +1308,33 @@ export const SDK_SCHEMA = {
             withThread: false,
           },
           {
+            name: "exportKicad",
+            tool: "pcb_export_kicad",
+            doc: "The board as a KiCad project beside it: <stem>.kicad_pcb (every technical layer declared, so KiCad plots mask and paste), a schematic KiCad's parity check compares with the board (no-connect flags on pins left open), <stem>.kicad_pro (the net classes) and fp-lib-table. `schematic: false` writes the board and project only.",
+            params: [
+              {
+                name: "fileId",
+                key: "fileId",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
             name: "layout",
             tool: "pcb_layout",
             doc: "Lay out the board by its constraints (<netclass>, <group>, <keepout> …): place the parts with no place, route every net with its class's rules, check, repair, score; again until clean or the budget (budgetMinutes) is spent. Writes the placements and copper into the board's code and says each attempt.",
@@ -2545,6 +2572,10 @@ export class Eda {
   model3d(fileId: string, opts: Args = {}): Promise<unknown> {
     return this.t.call("pcb_model3d", { ...prune({ fileId: fileId }), ...opts });
   }
+  /** The board as a KiCad project beside it: <stem>.kicad_pcb (every technical layer declared, so KiCad plots mask and paste), a schematic KiCad's parity check compares with the board (no-connect flags on pins left open), <stem>.kicad_pro (the net classes) and fp-lib-table. `schematic: false` writes the board and project only. */
+  exportKicad(fileId: string, opts: Args = {}): Promise<unknown> {
+    return this.t.call("pcb_export_kicad", { ...prune({ fileId: fileId }), ...opts });
+  }
   /** Lay out the board by its constraints (<netclass>, <group>, <keepout> …): place the parts with no place, route every net with its class's rules, check, repair, score; again until clean or the budget (budgetMinutes) is spent. Writes the placements and copper into the board's code and says each attempt. */
   layout(fileId: string, opts: Args = {}): Promise<unknown> {
     return this.t.call("pcb_layout", { ...prune({ fileId: fileId }), ...opts });
@@ -3256,6 +3287,14 @@ export const CLI_COMMANDS: readonly Command[] = [
     params: [{ name: "fileId" }],
     spread: true,
     doc: "The board as a 3D model (format: step or obj). The STEP is an assembly: the board with its holes, each part's own model where its footprint names one in the drive, else a bounding body that says so.",
+  },
+  {
+    group: "eda",
+    verb: "exportKicad",
+    tool: "pcb_export_kicad",
+    params: [{ name: "fileId" }],
+    spread: true,
+    doc: "The board as a KiCad project beside it: <stem>.kicad_pcb (every technical layer declared, so KiCad plots mask and paste), a schematic KiCad's parity check compares with the board (no-connect flags on pins left open), <stem>.kicad_pro (the net classes) and fp-lib-table. `schematic: false` writes the board and project only.",
   },
   {
     group: "eda",
