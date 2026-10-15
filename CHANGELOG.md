@@ -4,6 +4,21 @@ One entry for each release. A release is the tag `v<version>` in this repository
 Python and Rust SDKs carry the same version number. A version promises nothing about the next one (README
 § Versions): read this file before you change the version you pin.
 
+## Unreleased
+
+Added
+
+- The scouts' two documents (`commandagi/design` `scouts.ts`; docs/scouts.md in the CommandAGI repository):
+  - `<scout>` (`<name>.scout.tsx`): one comparison of configurations (`<configuration id model harness effort
+    instructions maxTokens incumbent>`) on the cases of each `<workload>` (`<case id from prompt check rubric source
+    terms>`), scored by a check or by a `<judge>` panel, with the verdict's rules (`budget`, `repeats`, `margin`,
+    `relativeMargin`, `errorFloor`, `minCalls`, `resamples`, `alpha`, `seed`). A case's `from` is `public`,
+    `synthetic` or `own-run`; nothing else may be a case.
+  - `<replacement>` (`<name>.replacement.tsx`): what replacing a product would cost, by `<layer kind title>`
+    (`visible`, `invisible`, `integrations`, `operations`, `economics`), each `<capability id title need have effort
+    run labour ref note>` with its `<evidence source claim>`, and the `<decision>`, `<differentiation>` and
+    `<economics>`.
+
 ## 0.5.1 (2026-10-15)
 
 No change in this SDK. The version moves with the Python SDK, which carries the same number (its 0.5.1 fixes its

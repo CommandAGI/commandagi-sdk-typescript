@@ -117,6 +117,7 @@ export * from "./tasks.js";
 export * from "./monitors.js";
 export * from "./agents.js";
 export * from "./skills.js";
+export * from "./scouts.js";
 export * from "./infra.js";
 export * from "./records.js";
 export * from "./fab.js";
