@@ -15,7 +15,6 @@
  *   <world name kind description? from? model?    world.tsx             <space origin_mm size_mm>, <unit uid …>,
  *          links?>                                                       <view …>, <scene …> (<body id …> children)
  *   <device name … firmware? revision?>           definition.tsx        <channel id dir medium format transport …>
- *   <firmware name hardware?>                     firmware.tsx          <channel id dir medium format transport …>
  *   <dashboard name …>                            <name>.dashboard.tsx   <param id type …>, one layout: <split axis
  *                                                                        ratio> of two <split>|<pane id kind …>, or
  *                                                                        one <pane>; <region side tab …>
@@ -122,39 +121,6 @@ export const deviceVocabulary: Vocabulary<DeviceDoc> = {
   },
   toTree(d) {
     return { tag: "device", attrs: omit(d, ["channels"]), children: (d.channels ?? []).map((c) => leaf("channel", { ...c })) };
-  },
-};
-
-// ── firmware.tsx ───────────────────────────────────────────────────────────────────────────────────────────────
-
-/**
- * What a firmware says it gives (`firmware.tsx` in its project folder): its channels, as a definition writes them, and
- * the hardware revisions it is built for (`hardware={["rev-a"]}`). A definition names its firmware (`firmware`: a ref
- * to that folder, or a release `sha256:<hex>`) and its own `revision`; `commandagi check <definition.tsx>` holds the two
- * to each other (packages/domain/world/firmware.js in the CommandAGI repository).
- */
-export interface FirmwareDoc {
-  name: string;
-  hardware?: string[];
-  channels?: Record<string, unknown>[];
-  [field: string]: unknown;
-}
-
-export const firmwareVocabulary: Vocabulary<FirmwareDoc> = {
-  format: "firmware",
-  noun: "a firmware's declaration",
-  root: "firmware",
-  tags: {
-    firmware: { parents: [], required: ["name"] },
-    channel: { parents: ["firmware"], key: "id", required: ["id"] },
-  },
-  fromTree(t) {
-    if ("channels" in t.attrs) throw new Error("<firmware>: write each channel as a <channel> element, not a channels attribute");
-    const channels = childrenOf(t, "channel");
-    return { ...(t.attrs as { name: string }), ...(channels.length ? { channels: channels.map((c) => ({ ...c.attrs })) } : {}) };
-  },
-  toTree(d) {
-    return { tag: "firmware", attrs: omit(d, ["channels"]), children: (d.channels ?? []).map((c) => leaf("channel", { ...c })) };
   },
 };
 
@@ -401,7 +367,7 @@ export function declareOpGraph(root: DesignElement): Declaration {
   return new Declaration("graph", opgraphVocabulary.fromTree(treeOfElement(root, opgraphVocabulary)));
 }
 
-for (const v of [worldVocabulary, deviceVocabulary, firmwareVocabulary, dashboardVocabulary, geoVocabulary, opgraphVocabulary]) registerVocabulary(v);
+for (const v of [worldVocabulary, deviceVocabulary, dashboardVocabulary, geoVocabulary, opgraphVocabulary]) registerVocabulary(v);
 
 /** The vocabularies of the ontology's files, by format. */
-export const ONTOLOGY = { world: worldVocabulary, device: deviceVocabulary, firmware: firmwareVocabulary, dashboard: dashboardVocabulary, geo: geoVocabulary, opgraph: opgraphVocabulary } as const;
+export const ONTOLOGY = { world: worldVocabulary, device: deviceVocabulary, dashboard: dashboardVocabulary, geo: geoVocabulary, opgraph: opgraphVocabulary } as const;

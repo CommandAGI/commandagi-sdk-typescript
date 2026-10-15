@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { declarationOf, jsx, ONTOLOGY } from "./index.js";
+import { declarationOf, FIRMWARE, jsx, ONTOLOGY } from "./index.js";
 
 const el = (tag: string, props: Record<string, unknown> = {}, ...children: unknown[]) => jsx(tag, { ...props, ...(children.length ? { children } : {}) });
 const documentOf = (mod: Record<string, unknown>) => {
@@ -61,12 +61,14 @@ test("a device definition's channels are <channel> elements; its bounds are attr
   assert.throws(() => declarationOf({ default: el("device", { name: "A", channels: [] }) }), /each channel as a <channel> element/);
 });
 
-test("a definition names its firmware and revision; a firmware declares its channels and hardware the same way", () => {
+test("a definition names its firmware and revision; a firmware declares its channels and the revisions it supports", () => {
   const def = documentOf({ default: el("device", { name: "Cam", firmware: "../../firmware/cam", revision: "rev-a" }, el("channel", { id: "cam", dir: "out", medium: "video", format: "video" })) }).document;
   assert.deepEqual(def, { name: "Cam", firmware: "../../firmware/cam", revision: "rev-a", channels: [{ id: "cam", dir: "out", medium: "video", format: "video" }] });
-  const fw = documentOf({ default: el("firmware", { name: "cam", hardware: ["rev-a"] }, el("channel", { id: "cam", dir: "out", medium: "video", format: "video" })) }).document;
-  assert.deepEqual(fw, { name: "cam", hardware: ["rev-a"], channels: [{ id: "cam", dir: "out", medium: "video", format: "video" }] });
-  assert.deepEqual(ONTOLOGY.firmware.fromTree(ONTOLOGY.firmware.toTree(fw as never)), fw, "both ways");
+  const fw = documentOf({ default: el("firmware", { name: "cam" }, el("supports", { revision: "rev-a" }), el("channel", { id: "cam", dir: "out", medium: "video", format: "video" })) }).document;
+  assert.deepEqual(fw, { name: "cam", supports: [{ revision: "rev-a" }], channels: [{ id: "cam", dir: "out", medium: "video", format: "video" }] });
+  assert.deepEqual(FIRMWARE.firmware.fromTree(FIRMWARE.firmware.toTree(fw as never)), fw, "both ways");
+  assert.throws(() => declarationOf({ default: el("firmware", {}) }), /states its name/);
+  assert.throws(() => declarationOf({ default: el("firmware", { name: "f", version: "1.0" }) }), /<firmware> needs image, sha256, sbom, device/);
   assert.throws(() => declarationOf({ default: el("firmware", { name: "f" }, el("unit", { uid: "a" })) }), /<unit> is not a tag of a firmware/);
 });
 

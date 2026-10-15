@@ -28,27 +28,46 @@
  *     </rollout>
  *   );
  *
+ * A firmware's project folder holds `firmware.tsx`, the same element without a built image: what the firmware gives,
+ * its channels as a definition writes them, and the revisions it supports. A definition names that folder (or a release
+ * by `sha256:<hex>`) as its `firmware`; `commandagi check <definition.tsx>` holds the two to each other.
+ *
+ *   // firmware/firmware.tsx
+ *   export default () => (
+ *     <firmware name="ESP32 camera">
+ *       <supports revision="A" />
+ *       <channel id="cam" dir="out" medium="video" format="video" transport="jpeg-push" />
+ *     </firmware>
+ *   );
+ *
  * `<target unit>`: the units it updates, in that world; none: every unit of the world whose definition is the
  * release's device. The rule of the ontology's files: a record is an element, its fields are its attributes, verbatim.
  *
  * The documents they declare (`fromTree`):
- *   firmware: { version, image, sha256, sbom, device, size?, securityVersion?, title?, note?, supports?: [{ revision }] }
+ *   firmware: { name?, version?, image?, sha256?, sbom?, device?, size?, securityVersion?, title?, note?,
+ *               supports?: [{ revision }], channels?: [{ id, … }] }: a release states all of version, image, sha256,
+ *               sbom and device; a project's declaration states its name
  *   rollout:  { firmware, world, channel, canary, waves, settleMs?, title?, note?, health?: [{ id, channel, read,
  *               command?, min?, max?, equals?, unit?, timeoutMs? }], targets?: [{ unit }] }
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
 
-export const FIRMWARE_FIELDS = ["version", "image", "sha256", "size", "sbom", "device", "securityVersion", "title", "note"] as const;
+export const FIRMWARE_FIELDS = ["name", "version", "image", "sha256", "size", "sbom", "device", "securityVersion", "title", "note"] as const;
 export const ROLLOUT_FIELDS = ["firmware", "world", "channel", "canary", "waves", "settleMs", "title", "note"] as const;
 export const HEALTH_FIELDS = ["id", "channel", "command", "read", "min", "max", "equals", "unit", "timeoutMs"] as const;
 
+/** The fields a release states, all of them (a firmware's declaration in its project states none of them). */
+export const FIRMWARE_RELEASE_FIELDS = ["version", "image", "sha256", "sbom", "device"] as const;
+
 export interface FirmwareDoc {
-  version: string;
-  image: string;
-  sha256: string;
-  sbom: string;
-  device: string;
+  name?: string;
+  version?: string;
+  image?: string;
+  sha256?: string;
+  sbom?: string;
+  device?: string;
   supports?: { revision: string }[];
+  channels?: Record<string, unknown>[];
   [field: string]: unknown;
 }
 export interface RolloutDoc {
@@ -73,22 +92,33 @@ const listOf = (t: DocTree, tag: string) => t.children.filter((c) => c.tag === t
 
 export const firmwareVocabulary: Vocabulary<FirmwareDoc> = {
   format: "firmware",
-  noun: "a firmware release",
+  noun: "a firmware",
   root: "firmware",
   tags: {
-    firmware: { parents: [], required: ["version", "image", "sha256", "sbom", "device"], attrs: FIRMWARE_FIELDS },
+    firmware: { parents: [], attrs: FIRMWARE_FIELDS },
     supports: { parents: ["firmware"], key: "revision", required: ["revision"], attrs: ["revision"] },
+    channel: { parents: ["firmware"], key: "id", required: ["id"] },
   },
   fromTree(t) {
     const doc = { ...t.attrs } as FirmwareDoc;
-    if (typeof doc.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(doc.sha256))
-      throw new Error(`<firmware> sha256 is the image's SHA-256 in 64 lowercase hex digits, not ${JSON.stringify(doc.sha256)}`);
-    const supports = listOf(t, "supports") as { revision: string }[];
+    const stated = FIRMWARE_RELEASE_FIELDS.filter((k) => !nothing(doc[k]));
+    if (stated.length) {
+      const missing = FIRMWARE_RELEASE_FIELDS.filter((k) => nothing(doc[k]));
+      if (missing.length) throw new Error(`<firmware> needs ${missing.join(", ")}: a release states all of ${FIRMWARE_RELEASE_FIELDS.join(", ")}`);
+      if (typeof doc.sha256 !== "string" || !/^[0-9a-f]{64}$/.test(doc.sha256))
+        throw new Error(`<firmware> sha256 is the image's SHA-256 in 64 lowercase hex digits, not ${JSON.stringify(doc.sha256)}`);
+    } else if (nothing(doc.name)) throw new Error("<firmware>: a firmware's declaration states its name; a release states version, image, sha256, sbom and device");
+    const supports = listOf(t, "supports") as { revision: string }[], channels = listOf(t, "channel");
     if (supports.length) doc.supports = supports;
+    if (channels.length) doc.channels = channels;
     return doc;
   },
   toTree(d) {
-    return { tag: "firmware", attrs: attrsOf(d, FIRMWARE_FIELDS), children: (d.supports ?? []).map((s) => leaf("supports", { revision: s.revision })) };
+    return {
+      tag: "firmware",
+      attrs: attrsOf(d, FIRMWARE_FIELDS),
+      children: [...(d.supports ?? []).map((s) => leaf("supports", { revision: s.revision })), ...(d.channels ?? []).map((c) => leaf("channel", { ...c }))],
+    };
   },
 };
 
@@ -119,5 +149,5 @@ export const rolloutVocabulary: Vocabulary<RolloutDoc> = {
 
 for (const v of [firmwareVocabulary, rolloutVocabulary]) registerVocabulary(v);
 
-/** The vocabularies of firmware releases and rollouts, by format. */
+/** The vocabularies of firmware (a declaration or a release) and rollouts, by format. */
 export const FIRMWARE = { firmware: firmwareVocabulary, rollout: rolloutVocabulary } as const;
