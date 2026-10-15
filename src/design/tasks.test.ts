@@ -76,6 +76,26 @@ test("a proposal in JSX: its sketch is one <sketch ref>, each ask one <asks> in 
   assert.throws(() => declarationOf({ default: el("task", { id: "a" }, el("sketch", {})) }), /<sketch> needs ref/);
 });
 
+test("a change proposal in JSX: each file it changes is one <change file base proposed>, in order, both ways", () => {
+  const BASE = "a".repeat(64);
+  const file = el(
+    "task",
+    { id: "thinner", title: "Thinner plate", status: "proposed", assignees: ["agent:claude"], __source: 0 },
+    el("change", { file: "../cad/Plate.3d.tsx", base: BASE, proposed: "Thinner plate/Plate.3d.tsx", __source: 1 }),
+    el("change", { file: "../ee/Divider.sch.tsx", base: "b".repeat(64), proposed: "Thinner plate/Divider.sch.tsx" }),
+  );
+  const { document } = declarationOf({ default: file });
+  assert.deepEqual(document!.sources, { "": 0, "change#../cad/Plate.3d.tsx": 1 });
+  const doc = document!.document as Record<string, unknown>;
+  assert.deepEqual(doc.changes, [
+    { file: "../cad/Plate.3d.tsx", base: BASE, proposed: "Thinner plate/Plate.3d.tsx" },
+    { file: "../ee/Divider.sch.tsx", base: "b".repeat(64), proposed: "Thinner plate/Divider.sch.tsx" },
+  ]);
+  assert.deepEqual(TASKS.task.fromTree(TASKS.task.toTree(doc as never)), doc, "both ways");
+  assert.throws(() => declarationOf({ default: el("task", { id: "a" }, el("change", { file: "x.3d.tsx", base: "HEAD", proposed: "y.3d.tsx" })) }), /base is the content id/);
+  assert.throws(() => declarationOf({ default: el("task", { id: "a" }, el("change", { file: "x.3d.tsx", base: BASE })) }), /<change file="x.3d.tsx"> needs proposed/);
+});
+
 test("times: a date, a UTC time or epoch ms in; a date or a UTC time out", () => {
   assert.equal(timeOf("2026-10-20", "t"), Date.UTC(2026, 9, 20));
   assert.equal(timeOf("2026-10-20T14:30:00Z", "t"), Date.UTC(2026, 9, 20, 14, 30));

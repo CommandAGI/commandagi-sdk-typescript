@@ -27,6 +27,18 @@
  * `note`. `expires` says until when it is offered. A person's approval writes `approvedBy`, `approvedAt` and `grants`
  * (the ids of the grants it made); a decline writes the status `declined`.
  *
+ * A change proposal (an engineering change) carries the files it changes: each `<change file base proposed>` names the
+ * design file it edits (`file`, a ref), the content id of the version the edit was made from (`base`, SHA-256 hex) and
+ * the edited copy (`proposed`, a ref). The review shows what the change does and its checks before and after; a
+ * person's approval writes each copy over its file, when the file is still `base`.
+ *
+ *   // proposals/Thinner plate.task.tsx
+ *   export default () => (
+ *     <task id="thinner-plate" title="Thinner plate" status="proposed" assignees={["agent:claude"]}>
+ *       <change file="../cad/Plate.3d.tsx" base="9f2c…" proposed="Thinner plate/Plate.3d.tsx" />
+ *     </task>
+ *   );
+ *
  *   // proposals/Cut the bracket.task.tsx
  *   export default () => (
  *     <task id="cut-the-bracket" title="Cut the bracket" status="proposed" assignees={["agent:claude"]} expires="2026-10-11T18:00:00Z">
@@ -42,7 +54,7 @@
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
 
-/** The fields of a task's body (packages/domain/core/src/task.ts `TaskDoc`), but its sketch, its asks and its subtasks. */
+/** The fields of a task's body (packages/domain/core/src/task.ts `TaskDoc`), but its sketch, its asks, its changes and its subtasks. */
 export const TASK_FIELDS = [
   "id",
   "title",
@@ -68,6 +80,8 @@ export const TASK_FIELDS = [
 ] as const;
 /** The fields of one `<asks>`: the shape of one standing grant (a world's units, a folder's files, a folder's venues). */
 export const ASK_FIELDS = ["world", "units", "channels", "verbs", "folder", "files", "venues", "symbols", "maxQty", "maxNotional", "perDay", "hours", "note"] as const;
+/** The fields of one `<change>` of a change proposal: the file it edits, the version it was made from, the edited copy. */
+export const CHANGE_FIELDS = ["file", "base", "proposed"] as const;
 /** The fields of a project's body (`ProjectDoc`), but its views. */
 export const PROJECT_FIELDS = ["id", "name", "glyph", "defaultViewId", "subprojects", "archived", "readme", "createdAt", "updatedAt"] as const;
 /** The fields of a project's view (`TaskView`). */
@@ -81,6 +95,8 @@ export interface TaskDoc {
   sketch?: string;
   /** What a proposal asks for: each the shape of one standing grant. */
   asks?: Record<string, unknown>[];
+  /** What a change proposal changes: each design file, the version the edit was made from, and the edited copy. */
+  changes?: { file: string; base: string; proposed: string }[];
   subtasks?: string[];
   [field: string]: unknown;
 }
@@ -141,6 +157,7 @@ export const taskVocabulary: Vocabulary<TaskDoc> = {
     task: { parents: [], required: ["id"], attrs: TASK_FIELDS },
     sketch: { parents: ["task"], single: true, required: ["ref"], attrs: ["ref"] },
     asks: { parents: ["task"], attrs: ASK_FIELDS },
+    change: { parents: ["task"], key: "file", required: ["file", "base", "proposed"], attrs: CHANGE_FIELDS },
     subtask: { parents: ["task"], key: "ref", required: ["ref"], attrs: ["ref"] },
   },
   fromTree(t) {
@@ -149,10 +166,16 @@ export const taskVocabulary: Vocabulary<TaskDoc> = {
     const sketch = t.children.find((c) => c.tag === "sketch")?.attrs.ref;
     if (sketch !== undefined && (typeof sketch !== "string" || !sketch)) throw new Error(`<sketch> ref is a path to the file that shows the work, not ${JSON.stringify(sketch)}`);
     const asks = t.children.filter((c) => c.tag === "asks").map((c) => ({ ...c.attrs }));
+    const changes = t.children.filter((c) => c.tag === "change").map((c) => ({ ...c.attrs }) as { file: string; base: string; proposed: string });
+    for (const c of changes) {
+      for (const k of ["file", "proposed"] as const) if (typeof c[k] !== "string" || !c[k]) throw new Error(`<change> ${k} is a path from this file, not ${JSON.stringify(c[k])}`);
+      if (typeof c.base !== "string" || !/^[0-9a-f]{64}$/.test(c.base)) throw new Error(`<change file="${c.file}"> base is the content id (SHA-256, hex) of the version the edit was made from, not ${JSON.stringify(c.base)}`);
+    }
     return {
       ...(fieldsOf(t.attrs, where(t)) as { id: string }),
       ...(sketch !== undefined ? { sketch: sketch as string } : {}),
       ...(asks.length ? { asks } : {}),
+      ...(changes.length ? { changes } : {}),
       ...(subtasks.length ? { subtasks: subtasks as string[] } : {}),
     };
   },
@@ -163,6 +186,7 @@ export const taskVocabulary: Vocabulary<TaskDoc> = {
       children: [
         ...(typeof d.sketch === "string" && d.sketch ? [{ tag: "sketch", attrs: { ref: d.sketch }, children: [] }] : []),
         ...(d.asks ?? []).map((a) => ({ tag: "asks", attrs: attrsOf(a, ASK_FIELDS), children: [] })),
+        ...(d.changes ?? []).map((c) => ({ tag: "change", attrs: attrsOf(c, CHANGE_FIELDS), children: [] })),
         ...(d.subtasks ?? []).map((ref) => ({ tag: "subtask", attrs: { ref }, children: [] })),
       ],
     };

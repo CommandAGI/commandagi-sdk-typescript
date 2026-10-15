@@ -70,4 +70,34 @@ test("a product instance in JSX is its body: the chain's events oldest first, ea
   assert.deepEqual(RECORDS.instance.fromTree(RECORDS.instance.toTree(doc as never)), doc, "both ways");
   assert.throws(() => declarationOf({ default: el("instance", { serial: "S", productId: "p" }, el("event", { seq: 1, kind: "service", at: 1, by: "x" })) }), /events are written oldest first/);
   assert.throws(() => declarationOf({ default: el("instance", { serial: "S", productId: "p" }, el("event", { seq: 0, kind: "service", at: 1, by: "x", note: "n" })) }), /note is not read/);
+  assert.equal(declarationOf({ default: el("instance", { serial: "S", productId: "p", release: "../releases/A/A.release.tsx" }) }).document!.document.release, "../releases/A/A.release.tsx", "an instance names the release it was built from");
+});
+
+test("a hardware release in JSX: its files, check verdicts and outputs in order, digests checked", () => {
+  const D = (c: string) => c.repeat(64);
+  const file = el(
+    "release",
+    { id: "plate-A", rev: "A", of: "../..", product: "Sensor plate", createdAt: 1792000000000, by: "person:local", note: "README.md", __source: 0 },
+    el("file", { path: "cad/Plate.3d.tsx", digest: D("a"), __source: 1 }),
+    el("check", { file: "cad/Plate.3d.tsx", id: "interference", kind: "interference", status: "passed" }),
+    el("check", { file: "ee/Divider.sch.tsx", id: "erc", kind: "erc", status: "accepted", accepted: 1 }),
+    el("output", { path: "outputs/Plate.step", digest: D("b"), from: "cad/Plate.3d.tsx", kind: "step" }),
+  );
+  const { document } = declarationOf({ default: file });
+  assert.equal(document!.format, "release");
+  assert.deepEqual(document!.sources, { "": 0, "file#cad/Plate.3d.tsx": 1 });
+  const doc = document!.document;
+  assert.deepEqual(doc, {
+    id: "plate-A", rev: "A", of: "../..", product: "Sensor plate", createdAt: 1792000000000, by: "person:local", note: "README.md",
+    files: [{ path: "cad/Plate.3d.tsx", digest: D("a") }],
+    checks: [
+      { file: "cad/Plate.3d.tsx", id: "interference", kind: "interference", status: "passed" },
+      { file: "ee/Divider.sch.tsx", id: "erc", kind: "erc", status: "accepted", accepted: 1 },
+    ],
+    outputs: [{ path: "outputs/Plate.step", digest: D("b"), from: "cad/Plate.3d.tsx", kind: "step" }],
+  });
+  assert.deepEqual(RECORDS.release.fromTree(RECORDS.release.toTree(doc as never)), doc, "both ways");
+  assert.throws(() => declarationOf({ default: el("release", { id: "r", rev: "A", of: "." }, el("file", { path: "a.3d.tsx", digest: "abc" })) }), /digest is its content's SHA-256/);
+  assert.throws(() => declarationOf({ default: el("release", { id: "r", rev: "A", of: "." }, el("check", { file: "a", id: "i", kind: "k", status: "ok" })) }), /status is passed, failed, skipped, accepted/);
+  assert.throws(() => declarationOf({ default: el("release", { id: "r", rev: "A" }) }), /<release> needs of/);
 });
