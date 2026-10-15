@@ -21,8 +21,8 @@
  * project's `views` are `<view>` children. A subtask is its own file, never inlined: a task holds no other task.
  *
  * A proposal is a task with status `proposed` (docs/suggestions.md § proposals, in the CommandAGI repository): an agent
- * asks for authority to act. Its `<sketch ref>` names the file that shows what it will do (a simulated run's run.json,
- * a draft). Each `<asks>` has the shape of one standing grant: a world with `units`, `channels` and `verbs`; or `files`
+ * asks for authority to act. Its `<sketch ref>` names the file that shows what it will do (the run.json of a simulated
+ * run of the world it asks for, or a draft). Each `<asks>` has the shape of one standing grant: a world with `units`, `channels` and `verbs`; or `files`
  * of a `folder`; or `venues` of a `folder` with `symbols`, `maxQty`, `maxNotional` and `perDay`; each with `hours` and
  * `note`. `expires` says until when it is offered. A person's approval writes `approvedBy`, `approvedAt` and `grants`
  * (the ids of the grants it made); a decline writes the status `declined`.
@@ -30,7 +30,7 @@
  *   // proposals/Cut the bracket.task.tsx
  *   export default () => (
  *     <task id="cut-the-bracket" title="Cut the bracket" status="proposed" assignees={["agent:claude"]} expires="2026-10-11T18:00:00Z">
- *       <sketch ref="../worlds/shop-sim/runs/cut-the-bracket/run.json" />
+ *       <sketch ref="../worlds/shop/runs/cut-the-bracket/run.json" />
  *       <asks world="../worlds/shop/world.tsx" units={["cnc-1"]} channels={["gcode"]} verbs={["open", "arm", "run"]} hours={4} />
  *     </task>
  *   );

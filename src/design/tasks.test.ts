@@ -47,7 +47,7 @@ test("a proposal in JSX: its sketch is one <sketch ref>, each ask one <asks> in 
   const file = el(
     "task",
     { id: "cut", title: "Cut the bracket", status: "proposed", assignees: ["agent:claude"], expires: "2026-10-11T18:00:00Z", __source: 0 },
-    el("sketch", { ref: "../worlds/shop-sim/runs/cut/run.json", __source: 1 }),
+    el("sketch", { ref: "../worlds/shop/runs/cut/run.json", __source: 1 }),
     el("asks", { world: "../worlds/shop/world.tsx", units: ["cnc-1"], channels: ["gcode"], verbs: ["open", "arm", "run"], hours: 4, __source: 2 }),
     el("asks", { folder: "..", files: ["out"], hours: 4, note: "the program" }),
   );
@@ -60,7 +60,7 @@ test("a proposal in JSX: its sketch is one <sketch ref>, each ask one <asks> in 
     status: "proposed",
     assignees: ["agent:claude"],
     expires: Date.UTC(2026, 9, 11, 18),
-    sketch: "../worlds/shop-sim/runs/cut/run.json",
+    sketch: "../worlds/shop/runs/cut/run.json",
     asks: [
       { world: "../worlds/shop/world.tsx", units: ["cnc-1"], channels: ["gcode"], verbs: ["open", "arm", "run"], hours: 4 },
       { folder: "..", files: ["out"], hours: 4, note: "the program" },
