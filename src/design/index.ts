@@ -120,6 +120,7 @@ export * from "./skills.js";
 export * from "./infra.js";
 export * from "./records.js";
 export * from "./fab.js";
+export * from "./study.js";
 export * from "./postal.js";
 export * from "./pdf.js";
 

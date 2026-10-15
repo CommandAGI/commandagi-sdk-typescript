@@ -19,7 +19,7 @@
  * `ran.place` is set here, from the place the request went to, never from the answer. So a service on this computer
  * cannot call its result a cloud result (docs/integrity.md § kernel results).
  */
-export const KERNEL_NAMES = Object.freeze(['3d']);
+export const KERNEL_NAMES = Object.freeze(['3d', 'fea']);
 export const KERNEL_PLACES = Object.freeze(['local', 'cloud']);
 const DEFAULT_PLACES = Object.freeze(['local', 'cloud']);
 
