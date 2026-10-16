@@ -4,7 +4,7 @@ One entry for each release. A release is the tag `v<version>` in this repository
 Python and Rust SDKs carry the same version number. A version promises nothing about the next one (README
 § Versions): read this file before you change the version you pin.
 
-## Unreleased
+## 0.6.1 (2026-10-15)
 
 Added
 
@@ -16,6 +16,27 @@ Added
   `toleranceLimits(nominal, tol)` and `fitOf(hole, shaft)` read the classes from the shipped tables
   (`TOLERANCE_TABLES`). `<check kind="fit" hole shaft intent>` and `<check kind="stackup" chain limit method samples
   seed>` are checks of a 3D document (`Kernel.check`); a drawing sheet's `title.standard` names the GD&T standard.
+- A hardware release and a change (`<release>`, `<change>`): the record of what a release of a design holds, a change
+  proposal's change, and the release a unit or an instance was built from (`release` on a unit).
+- Firmware: one `<firmware>` element for a project's declaration and a release (`<name>.firmware.tsx`, with
+  `<supports revision>`), and a rollout (`<name>.rollout.tsx`: `<rollout firmware world channel canary waves>` with
+  `<health>` and `<target>`). A definition names its firmware and revision; a world's unit states its `serial` and its
+  hardware `revision`. Test plans (`<name>.testplan.tsx`: `<testplan>` with `<condition>`, `<fixture>`, `<step>`).
+- Logistics: a schematic part's `suppliers`, `alternates`, `datasheet`, `lifecycle`, `compliance` and `shipping`, each
+  KiCad properties of the part (`part-fields.ts`); `<check options>`; a board's `<fab>`; a 3D document's `<item>` and
+  `<assemble>`, and the logistics fields of `<body engineering>` (it no longer takes `vendor` or `cost`). A body with
+  `process="reference"` stands for parts stated elsewhere (a fit proxy) and is out of the BOM and the logistics checks.
+- Systems (`systems.ts`): requirements (`<name>.req.tsx`), a system's budgets (`<name>.system.tsx`: modes, rails, loads,
+  `<budget>`; a cost budget names the design whose logistics roll-up it reads, `design=`) and an interface between two
+  parts (`<name>.interface.tsx`).
+- A flow study (`<study kind="flow">`: `fluid`, `inlet`, `outlet`, `flowMesh`; units m-kg-s).
+- `Kernel.dfm`: the manufacturability checks of a part, typed; `Kernel.check` takes devices. The slicer kernel
+  (places: local, then cloud).
+- `eda.exportKicad` (`pcb_export_kicad`): the board as a KiCad project.
+- Drawing sheets: section and detail views in the schema; a `<sheet>` with a section view and no section, or a bad
+  detail, is refused.
+- A part's pinout and pads are checked: `pinoutVerified`, `footprintVerified` and `packageDimensions` are part
+  fields. A material grade states its Poisson's ratio where its source states one.
 
 ## 0.6.0 (2026-10-15)
 

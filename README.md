@@ -297,7 +297,7 @@ methods). The platform sets all three when your code runs inside it.
 ## Versions
 
 - A release is the tag `v<version>` in this repository and the same version on npm. Pin an exact version:
-  `npm install --save-exact commandagi@0.6.0`. A range (`^`, `~=`, `>=`) takes the next release without asking you.
+  `npm install --save-exact commandagi@0.6.1`. A range (`^`, `~=`, `>=`) takes the next release without asking you.
 - The three SDKs (Python, TypeScript, Rust) carry one version number. A vocabulary at version X in one language is
   the vocabulary at version X in the others.
 - A version promises nothing about the next one. CommandAGI keeps no compatibility layers: a release may rename or
