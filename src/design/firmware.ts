@@ -36,7 +36,7 @@
  *   export default () => (
  *     <firmware name="ESP32 camera">
  *       <supports revision="A" />
- *       <channel id="cam" dir="out" medium="video" format="video" transport="jpeg-push" />
+ *       <channel id="cam" dir="out" medium="video" format="video" transport="host-wire" seals="device" />
  *     </firmware>
  *   );
  *
