@@ -3804,6 +3804,18 @@ export const THREED_SCHEMA: SchemaDocument = {
      "type": "number",
      "description": "Days from order to a made part.",
      "minimum": 0
+    },
+    "setups": {
+     "type": "array",
+     "items": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+     },
+     "description": "A machined part's setups: the spindle axis of each, in the part's frame, in the order they are cut ([0, 0, 1] cuts from above, [0, 0, -1] after a flip). The mill check judges each face from the first setup that reaches it."
     }
    },
    "additionalProperties": false,

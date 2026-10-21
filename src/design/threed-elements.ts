@@ -1864,6 +1864,10 @@ export type MakeSpec = {
    * @minimum 0
    */
   leadTimeDays?: number;
+  /**
+   * A machined part's setups: the spindle axis of each, in the part's frame, in the order they are cut ([0, 0, 1] cuts from above, [0, 0, -1] after a flip). The mill check judges each face from the first setup that reaches it.
+   */
+  setups?: [number, number, number][];
 };
 
 /** How a part is made. */
