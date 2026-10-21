@@ -14,8 +14,10 @@ test("a structural study in JSX is its question: fixtures, load cases with typed
     { kind: "structural", part: "Jaw.3d.tsx", units: "mm-N-MPa-t", __source: 0 },
     el("material", { grade: "PETG", poisson: 0.38 }),
     el("fixture", { id: "mount", type: "fixed", faces: face({ normal: [0, 0, -1] }) }),
+    el("fixture", { id: "hinge", type: "fixed", faces: face({ normal: [-1, 0, 0] }), region: { inBox: { min: [0, -5, 0], max: [0, 5, 0] } } }),
     el("loadCase", { id: "clamp", __source: 2 }, el("force", { id: "grip", faces: face({ farthest: [1, 0, 0] }), total: [-40, 0, 0], __source: 3 }), el("pressure", { id: "air", faces: face({ normal: [0, 1, 0] }), value: 0.1 })),
     el("mesh", { order: 2, size: 2, refine: [1, 0.7, 0.5] }),
+    el("solver", { kind: "calculix", analysis: "static", timeout: 1800 }),
     el("criterion", { id: "safety", quantity: "vonMises.max", limit: "yield / 2" }),
     el("revise", { parameter: "thickness", min: 3, max: 8 }),
   );
@@ -28,9 +30,10 @@ test("a structural study in JSX is its question: fixtures, load cases with typed
     part: "Jaw.3d.tsx",
     units: "mm-N-MPa-t",
     material: { grade: "PETG", poisson: 0.38 },
-    fixtures: [{ id: "mount", type: "fixed", faces: face({ normal: [0, 0, -1] }) }],
+    fixtures: [{ id: "mount", type: "fixed", faces: face({ normal: [0, 0, -1] }) }, { id: "hinge", type: "fixed", faces: face({ normal: [-1, 0, 0] }), region: { inBox: { min: [0, -5, 0], max: [0, 5, 0] } } }],
     loadCases: [{ id: "clamp", loads: [{ type: "force", id: "grip", faces: face({ farthest: [1, 0, 0] }), total: [-40, 0, 0] }, { type: "pressure", id: "air", faces: face({ normal: [0, 1, 0] }), value: 0.1 }] }],
     mesh: { order: 2, size: 2, refine: [1, 0.7, 0.5] },
+    solver: { kind: "calculix", analysis: "static", timeout: 1800 },
     criteria: [{ id: "safety", quantity: "vonMises.max", limit: "yield / 2" }],
     revise: [{ parameter: "thickness", min: 3, max: 8 }],
   });
