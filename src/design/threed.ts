@@ -342,7 +342,9 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
       if (typeof t !== "string" || !/^[A-Za-z_][\w.-]*$/.test(t)) throw new Error(`${where(el)} needs the feature's type`);
       if (FEATURES.has(t) || NOT_FEATURES.has(t)) throw new Error(`${where(el)}: a ${t} is written <${t}>`);
       declared.push(el);
-    } else throw new Error(`<${el.type}> is not read in a 3D document (see commandagi/design threed)`);
+    } else if (el.type === "part" || el.type === "assembly")
+      throw new Error(`<${el.type}> is a document of its own: place its file with <externalPart fileName="…" importer="3d" /> (its bodies keep their names under the placement)`);
+    else throw new Error(`<${el.type}> is not read in a 3D document (see commandagi/design threed)`);
   } catch (e) {
     refuse(e);
   }
