@@ -269,7 +269,10 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
   const bodySources: Record<string, unknown> = {};
   const declared: DesignElement[] = [];
   const lists: Record<string, { items: Record<string, unknown>[]; sources: Record<string, unknown> }> = {};
-  for (const el of childElements(root.props.children)) {
+  // Every element is read, and every one refused is named together: a file with ten mistakes needs one run, not ten.
+  const refused: string[] = [];
+  const refuse = (e: unknown) => refused.push(e instanceof Error ? e.message : String(e));
+  for (const el of childElements(root.props.children)) try {
     if (el.type === "parameter") {
       noChildren(el);
       const pname = el.props.name;
@@ -337,8 +340,10 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
       if (FEATURES.has(t) || NOT_FEATURES.has(t)) throw new Error(`${where(el)}: a ${t} is written <${t}>`);
       declared.push(el);
     } else throw new Error(`<${el.type}> is not read in a 3D document (see commandagi/design threed)`);
+  } catch (e) {
+    refuse(e);
   }
-  for (const el of declared) {
+  for (const el of declared) try {
     const id = idOf(el);
     claim(id, `feature "${id}"`);
     const generic = el.type === "feature";
@@ -386,7 +391,10 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
       ...(el.source !== undefined || sources ? { meta: { ...(el.source !== undefined ? { source: el.source } : {}), ...(sources && Object.keys(sources).length ? { sources } : {}) } } : {}),
     };
     order.push(id);
+  } catch (e) {
+    refuse(e);
   }
+  if (refused.length) throw new Error(refused.join("\n"));
   for (const [id, p] of Object.entries(BUILTIN_PLANES)) {
     if (owner.has(id) || !builtins.has(id)) continue;
     const { name: label, ...inputs } = p;
