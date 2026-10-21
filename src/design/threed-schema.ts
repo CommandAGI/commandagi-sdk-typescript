@@ -81,7 +81,12 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "region": {
      "$ref": "#/$defs/CheckRegion",
-     "description": "Where, in the body's own frame. Absent: the findings that have no place."
+     "description": "Where, in the body's own frame. Absent: the findings that have no place, or, with `other`, those between two bodies."
+    },
+    "other": {
+     "type": "string",
+     "description": "The other body of a pair, named as `body` is: the findings between the two, anywhere (no region).",
+     "pattern": "\\S"
     },
     "reason": {
      "type": "string",
@@ -96,7 +101,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "reason"
    ],
    "additionalProperties": false,
-   "description": "A FINDING ACCEPTED ON PURPOSE: `<accept check body region reason />`. It suppresses the findings of that check on that body whose location, in the body's own frame, lies in `region`. A region larger than 5 % of the body's box or than 100 000 mm³ is refused: it suppresses nothing and is itself an error. A suppressed finding stays in the report with the accept that suppressed it. An accept with no region covers only findings with no place (a logistics finding: `<accept check=\"sourcing\" body=\"Label\" rule=\"no-supplier\" reason=\"…\" />`)."
+   "description": "A FINDING ACCEPTED ON PURPOSE: `<accept check body region reason />`. It suppresses the findings of that check on that body whose location, in the body's own frame, lies in `region`. A region within 5 % of the body's box and 100 000 mm³ covers every finding in it; a larger one covers only a finding whose own extent (a clash's box, else its point), grown by 5 mm, holds the whole region, and one that covers none is refused: it is itself an error. With `other` and no region it covers the findings between two bodies (a part modelled as its envelope inside another: `<accept check=\"clash\" body=\"Spindle\" other=\"Clamp ring\" reason=\"…\" />`). With neither, it covers only findings with no place (a logistics finding: `<accept check=\"sourcing\" body=\"Label\" rule=\"no-supplier\" reason=\"…\" />`). A suppressed finding stays in the report with the accept that suppressed it and severity `suppressed`."
   },
   "Alternate": {
    "type": "object",
@@ -1485,7 +1490,14 @@ export const THREED_SCHEMA: SchemaDocument = {
      "items": {
       "type": "string"
      },
-     "description": "The bodies checked, by id, name or part number (`*` matches any text). Absent: every body."
+     "description": "The bodies checked, by the id the document gives them (a `<body id>`, the feature that made it: `<box id=\"b1\">`), the rebuild's id, the name or the part number (`*` matches any text). Absent: every body. An entry that names no body is a finding (`unknown-body`): a check of nothing never passes."
+    },
+    "against": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "interference, clearance: the bodies the ones of `bodies` are compared against, named as `bodies` are. With it, only a pair of one of `bodies` (every body when `bodies` is absent) and one of `against` is compared: \"the robot against the shelves\", not the robot's own parts against each other."
     },
     "severity": {
      "type": "string",
@@ -1564,6 +1576,15 @@ export const THREED_SCHEMA: SchemaDocument = {
       "interference"
      ],
      "description": "fit: the fit the design intends. The check fails when the two tolerances give another."
+    },
+    "pair": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "fit: the two bodies the fit joins, named as `bodies` are (`[\"Ball\", \"Plate\"]`). When the fit holds as an interference or a transition fit, the interference check's clash of these two is the fit, and is covered by this check's id.",
+     "minItems": 2,
+     "maxItems": 2
     },
     "chain": {
      "type": "array",
@@ -1674,7 +1695,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "class": {
      "type": "string",
-     "description": "A tolerance class by name, its deviations read from the shipped tables at the nominal size: an ISO 286 class (`H7`, `g6`, `JS7`, `k6`: capital for a hole, small for a shaft) or a radial bearing ring's ISO 492 Normal class (`ISO 492 bore`, `ISO 492 outside`, `ISO 492 width`).",
+     "description": "A tolerance class by name, its deviations at the nominal size: any ISO 286 class, computed from its fundamental deviation and grade over 0 up to 3150 mm (`H7`, `e8`, `E10`, `H13`, `JS7`, `zc11`: capitals for a hole, small letters for a shaft), a general tolerance of ISO 2768-1 (`ISO 2768-m`) or a radial bearing ring's ISO 492 Normal class (`ISO 492 bore`, `ISO 492 outside`, `ISO 492 width`).",
      "pattern": "\\S"
     },
     "basic": {
@@ -3190,6 +3211,11 @@ export const THREED_SCHEMA: SchemaDocument = {
     "tolerance": {
      "$ref": "#/$defs/DimensionTolerance",
      "description": "The diameter's tolerance: an ISO 286 class (`{ class: \"H7\" }`), deviations (`{ upper: 0.02, lower: 0 }`) or basic (`./tolerances.ts`). The drawing's hole callout writes it; a fit check names the hole by its id."
+    },
+    "spare": {
+     "type": "boolean",
+     "description": "Spare holes, left empty on purpose (a breadboard's grid, a bolt pattern for an option): the holes check does not ask what fills them. It reads them by `positions` and `diameter`.",
+     "default": false
     },
     "id": {
      "type": "string"
@@ -4885,6 +4911,12 @@ export const THREED_SCHEMA: SchemaDocument = {
      "$ref": "#/$defs/CheckRegion",
      "description": "Only findings in this box of the body's own frame."
     },
+    "diameter": {
+     "type": "number",
+     "description": "Only findings of a hole of this diameter (within 0.01 mm): a grid of Ø5 tapped holes left empty.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
     "reason": {
      "type": "string",
      "description": "Why the finding is right here.",
@@ -4898,7 +4930,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "reason"
    ],
    "additionalProperties": false,
-   "description": "A FINDING A PROCESS OR A PURPOSE PERMITS: `<permitted check body process edgeDir region reason />`. A square edge of a laser-cut sheet, a hole that is there for a cable. It permits the findings of that check on the bodies it names, made by that process, along that direction and in that region (each given test must hold). A permitted finding stays in the report with the entry that permitted it."
+   "description": "A FINDING A PROCESS OR A PURPOSE PERMITS: `<permitted check body process edgeDir region diameter reason />`. A square edge of a laser-cut sheet, a hole that is there for a cable. It permits the findings of that check on the bodies it names, made by that process, along that direction and in that region (each given test must hold). A permitted finding stays in the report with the entry that permitted it."
   },
   "Placement": {
    "type": "object",

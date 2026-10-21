@@ -5,7 +5,7 @@
 // default may be left out: the reader fills it.
 
 /**
- * A FINDING ACCEPTED ON PURPOSE: `<accept check body region reason />`. It suppresses the findings of that check on that body whose location, in the body's own frame, lies in `region`. A region larger than 5 % of the body's box or than 100 000 mm³ is refused: it suppresses nothing and is itself an error. A suppressed finding stays in the report with the accept that suppressed it. An accept with no region covers only findings with no place (a logistics finding: `<accept check="sourcing" body="Label" rule="no-supplier" reason="…" />`).
+ * A FINDING ACCEPTED ON PURPOSE: `<accept check body region reason />`. It suppresses the findings of that check on that body whose location, in the body's own frame, lies in `region`. A region within 5 % of the body's box and 100 000 mm³ covers every finding in it; a larger one covers only a finding whose own extent (a clash's box, else its point), grown by 5 mm, holds the whole region, and one that covers none is refused: it is itself an error. With `other` and no region it covers the findings between two bodies (a part modelled as its envelope inside another: `<accept check="clash" body="Spindle" other="Clamp ring" reason="…" />`). With neither, it covers only findings with no place (a logistics finding: `<accept check="sourcing" body="Label" rule="no-supplier" reason="…" />`). A suppressed finding stays in the report with the accept that suppressed it and severity `suppressed`.
  */
 export type AcceptedFinding = {
   id: string;
@@ -15,8 +15,12 @@ export type AcceptedFinding = {
   body: string;
   /** Only the findings of this rule. */
   rule?: string;
-  /** Where, in the body's own frame. Absent: the findings that have no place. */
+  /**
+   * Where, in the body's own frame. Absent: the findings that have no place, or, with `other`, those between two bodies.
+   */
   region?: CheckRegion;
+  /** The other body of a pair, named as `body` is: the findings between the two, anywhere (no region). */
+  other?: string;
   /** Why this finding is right on purpose. */
   reason: string;
 };
@@ -637,8 +641,14 @@ export type DesignCheck = {
    * What is checked: interference, clearance, holes, fasteners, edges, symmetry, tolerances, fit, stackup, or a registered kind.
    */
   kind: string;
-  /** The bodies checked, by id, name or part number (`*` matches any text). Absent: every body. */
+  /**
+   * The bodies checked, by the id the document gives them (a `<body id>`, the feature that made it: `<box id="b1">`), the rebuild's id, the name or the part number (`*` matches any text). Absent: every body. An entry that names no body is a finding (`unknown-body`): a check of nothing never passes.
+   */
   bodies?: string[];
+  /**
+   * interference, clearance: the bodies the ones of `bodies` are compared against, named as `bodies` are. With it, only a pair of one of `bodies` (every body when `bodies` is absent) and one of `against` is compared: "the robot against the shelves", not the robot's own parts against each other.
+   */
+  against?: string[];
   /**
    * An error of this check is reported as this severity: `warning` for a design still being built.
    * @default "error"
@@ -695,6 +705,12 @@ export type DesignCheck = {
   shaft?: string;
   /** fit: the fit the design intends. The check fails when the two tolerances give another. */
   intent?: "clearance" | "transition" | "interference";
+  /**
+   * fit: the two bodies the fit joins, named as `bodies` are (`["Ball", "Plate"]`). When the fit holds as an interference or a transition fit, the interference check's clash of these two is the fit, and is covered by this check's id.
+   * @minItems 2
+   * @maxItems 2
+   */
+  pair?: [string, string];
   /**
    * stackup: the chain of sizes whose sum is the closing dimension, each a term `+name`, `-name` or `-0.5*name` (a sensitivity times a dimension's id, a parameter's name or a hole's id). The check refuses a term of another form (`bad-term`); the schema holds no pattern for it, since the Rust SDK reads only its two.
    * @minItems 1
@@ -758,7 +774,7 @@ export type DimensionTolerance = {
    */
   lower?: number;
   /**
-   * A tolerance class by name, its deviations read from the shipped tables at the nominal size: an ISO 286 class (`H7`, `g6`, `JS7`, `k6`: capital for a hole, small for a shaft) or a radial bearing ring's ISO 492 Normal class (`ISO 492 bore`, `ISO 492 outside`, `ISO 492 width`).
+   * A tolerance class by name, its deviations at the nominal size: any ISO 286 class, computed from its fundamental deviation and grade over 0 up to 3150 mm (`H7`, `e8`, `E10`, `H13`, `JS7`, `zc11`: capitals for a hole, small letters for a shaft), a general tolerance of ISO 2768-1 (`ISO 2768-m`) or a radial bearing ring's ISO 492 Normal class (`ISO 492 bore`, `ISO 492 outside`, `ISO 492 width`).
    */
   class?: string;
   /**
@@ -1533,6 +1549,11 @@ export type HoleFeature = {
    * The diameter's tolerance: an ISO 286 class (`{ class: "H7" }`), deviations (`{ upper: 0.02, lower: 0 }`) or basic (`./tolerances.ts`). The drawing's hole callout writes it; a fit check names the hole by its id.
    */
   tolerance?: DimensionTolerance;
+  /**
+   * Spare holes, left empty on purpose (a breadboard's grid, a bolt pattern for an option): the holes check does not ask what fills them. It reads them by `positions` and `diameter`.
+   * @default false
+   */
+  spare?: boolean;
   id: string;
   name: string;
   suppressed?: boolean;
@@ -2284,7 +2305,7 @@ export type PcbTraceFeature = {
 };
 
 /**
- * A FINDING A PROCESS OR A PURPOSE PERMITS: `<permitted check body process edgeDir region reason />`. A square edge of a laser-cut sheet, a hole that is there for a cable. It permits the findings of that check on the bodies it names, made by that process, along that direction and in that region (each given test must hold). A permitted finding stays in the report with the entry that permitted it.
+ * A FINDING A PROCESS OR A PURPOSE PERMITS: `<permitted check body process edgeDir region diameter reason />`. A square edge of a laser-cut sheet, a hole that is there for a cable. It permits the findings of that check on the bodies it names, made by that process, along that direction and in that region (each given test must hold). A permitted finding stays in the report with the entry that permitted it.
  */
 export type PermittedFinding = {
   id: string;
@@ -2298,6 +2319,12 @@ export type PermittedFinding = {
   edgeDir?: Vec3;
   /** Only findings in this box of the body's own frame. */
   region?: CheckRegion;
+  /**
+   * Only findings of a hole of this diameter (within 0.01 mm): a grid of Ø5 tapped holes left empty.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  diameter?: number;
   /** Why the finding is right here. */
   reason: string;
 };
