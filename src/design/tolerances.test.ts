@@ -12,7 +12,10 @@ test("a class is read from the tables at its size; a class or a size they do not
   assert.deepEqual([toleranceLimits(10, { class: "H7" }).max, toleranceLimits(15, { class: "ISO 492 bore" }).min], [10.015, 14.992]);
   assert.ok(toleranceLimits(25, { class: "H7" }).source);
   assert.throws(() => toleranceLimits(25, { class: "H77" }), /no tolerance class "H77"/);
-  assert.throws(() => toleranceLimits(900, { class: "H7" }), /H7 is tabled over 0 up to 120 mm, not at 900 mm/);
+  assert.throws(() => toleranceLimits(3200, { class: "H7" }), /H7: ISO 286 gives sizes over 0 up to 3150 mm, not 3200 mm/);
+  // Any ISO 286 class at any size to 3150 mm, from the fundamental deviation and the grade (ISO 286-2 values).
+  const um = (cls: string, size: number) => [toleranceLimits(size, { class: cls }).upper, toleranceLimits(size, { class: cls }).lower].map((v) => Math.round(v * 1000));
+  assert.deepEqual([um("E10", 6), um("H9", 255), um("e8", 250), um("H13", 31.7), um("M6", 300), um("ISO 2768-m", 50)], [[68, 20], [130, 0], [-100, -172], [390, 0], [-9, -41], [300, -300]]);
   assert.deepEqual(toleranceLimits(12, { upper: 0.05, lower: -0.05 }), { nominal: 12, upper: 0.05, lower: -0.05, min: 11.95, max: 12.05 });
 });
 
