@@ -49,8 +49,10 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 
 /** The verification methods: test and demonstration need a physical run; analysis and inspection a check. */
 export const VERIFICATION_METHODS = ["test", "analysis", "inspection", "demonstration"] as const;
-/** What a budget sums. */
+/** What a budget sums from the design's own records; any other quantity is declared by its contributions, with a unit. */
 export const BUDGET_QUANTITIES = ["mass", "power", "cost", "thermal"] as const;
+/** A declared quantity's name ("exhaust-flow", "floor-area"). */
+export const DECLARED_QUANTITY = /^[a-z][a-z0-9-]*$/;
 /** What a system's `<check>` runs. */
 export const SYSTEM_CHECK_KINDS = ["interface", "trace"] as const;
 /** What a side of an interface is, when its file does not say. */
@@ -86,6 +88,17 @@ const pair = (v: unknown, n: number) => Array.isArray(v) && v.length === n && v.
 
 function check(cond: unknown, message: string): void {
   if (!cond) throw new Error(message);
+}
+
+/**
+ * A budget's or a contribution's quantity: one of {@link BUDGET_QUANTITIES}, which the host computes from the design's
+ * records, or the name of a declared quantity ("exhaust-flow", "floor-area"), which needs its unit: the unit names
+ * the family the host converts within (m3/h, m2, slm).
+ */
+function checkQuantity(a: Rec, at: string): void {
+  if ((BUDGET_QUANTITIES as readonly unknown[]).includes(a.quantity)) return;
+  check(typeof a.quantity === "string" && DECLARED_QUANTITY.test(a.quantity), `${at}: quantity must be one of ${BUDGET_QUANTITIES.join(", ")}, or a quantity's name in lower-case letters, digits and "-" ("exhaust-flow") (got ${JSON.stringify(a.quantity)})`);
+  check(typeof a.unit === "string" && a.unit.trim(), `${at}: a quantity of ${a.quantity} states its unit (unit="m3/h"): the unit names what it measures`);
 }
 
 /** Group a tree's children by tag into the document's lists, in the order written (a tag absent: its list absent). */
@@ -156,13 +169,13 @@ export const systemVocabulary: Vocabulary<SystemDoc> = {
         for (const k of ["current", "power", "voltage"]) check(a[k] === undefined || isNum(a[k]), `${at}: ${k} is a number`);
       }
       if (c.tag === "contribution") {
-        check((BUDGET_QUANTITIES as readonly unknown[]).includes(a.quantity), `${at}: quantity must be one of ${BUDGET_QUANTITIES.join(", ")} (got ${JSON.stringify(a.quantity)})`);
+        checkQuantity(a, at);
         check(a.quantity !== "cost", `${at}: a cost is stated in the design's logistics (a part's suppliers, a made part's rate), which a cost budget's design rolls up, not as a contribution`);
         check(isNum(a.value), `${at}: value is a number`);
         check(typeof a.source === "string" && a.source.trim(), `${at}: source says where the number was read (a datasheet, a measurement, "estimate: …")`);
       }
       if (c.tag === "budget") {
-        check((BUDGET_QUANTITIES as readonly unknown[]).includes(a.quantity), `${at}: quantity must be one of ${BUDGET_QUANTITIES.join(", ")} (got ${JSON.stringify(a.quantity)})`);
+        checkQuantity(a, at);
         check(isNum(a.limit), `${at}: limit is a number`);
         check(a.margin === undefined || (isNum(a.margin) && (a.margin as number) >= 0 && (a.margin as number) < 1), `${at}: margin is a fraction of the limit kept free, in [0, 1)`);
         if (a.quantity === "power") check(typeof a.rail === "string" && typeof a.mode === "string", `${at}: a power budget names its rail and its mode`);

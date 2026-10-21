@@ -57,7 +57,11 @@ test("a system is its modes, rails, converters, loads, contributions, boms, budg
   assert.deepEqual(doc.rails, [{ id: "+5V", voltage: 5, source: "USB" }, { id: "VBAT", voltage: 3.8 }]);
   assert.deepEqual(SYSTEMS.system.fromTree(SYSTEMS.system.toTree(doc as never)), doc, "both ways");
   const bad = (props: Record<string, unknown>, tag = "budget") => () => declare(el("system", {}, el(tag, props)));
-  assert.throws(bad({ id: "b", quantity: "volume", limit: 1 }), /<budget id="b">: quantity must be one of mass, power, cost, thermal \(got "volume"\)/);
+  // Any other quantity is declared by its contributions and names its family by its unit (LABS-09: an exhaust flow).
+  assert.throws(bad({ id: "b", quantity: "Exhaust flow", limit: 1, unit: "m3/h" }), /<budget id="b">: quantity must be one of mass, power, cost, thermal, or a quantity's name/);
+  assert.throws(bad({ id: "b", quantity: "exhaust-flow", limit: 600 }), /<budget id="b">: a quantity of exhaust-flow states its unit/);
+  assert.throws(bad({ id: "c", quantity: "exhaust-flow", part: "P", value: 35, source: "datasheet" }, "contribution"), /<contribution id="c">: a quantity of exhaust-flow states its unit/);
+  assert.equal(declare(el("system", {}, el("contribution", { id: "c", quantity: "exhaust-flow", part: "collar", value: 35, qty: 14, unit: "m3/h", source: "hood datasheet" }), el("budget", { id: "b", quantity: "exhaust-flow", limit: 600, unit: "m3/h" }))).format, "system");
   assert.throws(bad({ id: "b", quantity: "power", limit: 1 }), /a power budget names its rail and its mode/);
   assert.throws(bad({ id: "b", quantity: "thermal", limit: 1, mode: "m" }), /thermal resistance to the ambient \(resistance, K\/W\)/);
   assert.throws(bad({ id: "b", quantity: "mass", limit: 1, margin: 1.5 }), /margin is a fraction/);
