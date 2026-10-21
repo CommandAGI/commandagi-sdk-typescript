@@ -2459,7 +2459,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "at": {
      "$ref": "#/$defs/Vec3",
-     "description": "Where the stack bears on the first part it clamps: the centre of the washer's or the head's bearing face (in a counterbore, on its floor).",
+     "description": "Where the stack bears on the first part it clamps: the centre of the washer's or the head's bearing face. In a counterbore that is its floor, not the top face: the stack stands where `at` says (nothing finds the floor), and the fasteners check's `head-not-seated` gives the floor's point when the head stands over a counterbore.",
      "x-unit": "mm"
     },
     "axis": {
@@ -3481,6 +3481,13 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "engineering": {
      "$ref": "#/$defs/PartEngineering"
+    },
+    "sizes": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/LibrarySize"
+     },
+     "description": "The sizes it sells, one row each. With `sizes`, the library gives its data only to a piece of a size it lists."
     }
    },
    "required": [
@@ -3489,7 +3496,44 @@ export const THREED_SCHEMA: SchemaDocument = {
     "engineering"
    ],
    "additionalProperties": false,
-   "description": "THE DATA OF LIBRARY FASTENER PIECES, GIVEN ONCE: `<library id match engineering>`. Every screw, washer and nut of the document's `<fastener>` stacks whose designation (with its stack's grade, when the stack states one) matches `match` (`*` matches any text: \"ISO 4762 M5*\", \"ISO 7089 *\", \"ISO 4017 * A2-70\") takes this engineering data (a supplier and its price, compliance, shipping, lifecycle). A piece's own `<body id=\"f1\">` (or `f1.washer`, `f1.nut`) says more where it says it; the first `<library>` that matches is read."
+   "description": "THE DATA OF LIBRARY FASTENER PIECES, GIVEN ONCE: `<library id match engineering sizes>`. Every screw, washer and nut of the document's `<fastener>` stacks whose designation (with its stack's grade, when the stack states one) matches `match` (`*` matches any text: \"ISO 4762 M5*\", \"ISO 7089 *\", \"ISO 4017 * A2-70\") takes this engineering data (a supplier and its price, compliance, shipping, lifecycle). `sizes` is the table of what differs by size: each row's part number, sku, price and mass. A piece's own `<body id=\"f1\">` (or `f1.washer`, `f1.nut`) says more where it says it; the first `<library>` that matches is read."
+  },
+  "LibrarySize": {
+   "type": "object",
+   "properties": {
+    "size": {
+     "type": "string",
+     "description": "The size as the designation writes it after the standard: \"M4×25\" (a screw), \"M4\" (a washer, a nut).",
+     "pattern": "\\S"
+    },
+    "partNumber": {
+     "type": "string"
+    },
+    "mpn": {
+     "type": "string",
+     "description": "The maker's part number of this size."
+    },
+    "sku": {
+     "type": "string",
+     "description": "The first supplier's sku of this size."
+    },
+    "priceBreaks": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/PriceBreak"
+     },
+     "description": "The first supplier's price breaks of this size."
+    },
+    "mass": {
+     "$ref": "#/$defs/PartMass",
+     "description": "A weighed or datasheet mass of one, in place of its envelope's volume × its grade's density."
+    }
+   },
+   "required": [
+    "size"
+   ],
+   "additionalProperties": false,
+   "description": "ONE SIZE OF A `<library>`: what differs from size to size, over the library's `engineering`."
   },
   "Lifecycle": {
    "type": "object",
@@ -4566,6 +4610,43 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "The molecular-scale view layers. Composable — the renderer draws every enabled layer."
   },
+  "MountingHole": {
+   "type": "object",
+   "properties": {
+    "at": {
+     "$ref": "#/$defs/Vec3",
+     "description": "A point on the hole's axis where it opens, in the body's own frame (its part file's coordinates).",
+     "x-unit": "mm"
+    },
+    "axis": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The way the hole runs into the part from `at`.",
+     "default": [
+      0,
+      0,
+      -1
+     ]
+    },
+    "diameter": {
+     "type": "number",
+     "description": "A clearance hole's diameter, or a tapped hole's thread (5 for M5) or tap drill.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "depth": {
+     "type": "number",
+     "description": "How deep it runs from `at` along `axis`. Absent: through the whole envelope.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    }
+   },
+   "required": [
+    "at",
+    "diameter"
+   ],
+   "additionalProperties": false,
+   "description": "A HOLE OF A BOUGHT PART DRAWN AS ITS ENVELOPE: where the real part (a valve's flange, a lug's ring, a pump's foot) has a hole that a screw passes through or screws into. The fastener checks read it as they read a modelled round hole."
+  },
   "NurbsSpec": {
    "type": "object",
    "properties": {
@@ -4807,6 +4888,17 @@ export const THREED_SCHEMA: SchemaDocument = {
     "chemical": {
      "$ref": "#/$defs/ProcessChemical",
      "description": "A process chemical: its hazard, quantity, containment and exhaust."
+    },
+    "envelope": {
+     "type": "boolean",
+     "description": "The body is the bought part's envelope (a box round a valve, a pump), not its shape: the fastener checks do not read its material as solid. A screw that runs into it must run in one of its `mountingHoles`."
+    },
+    "mountingHoles": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/MountingHole"
+     },
+     "description": "The real part's mounting holes, in the body's own frame: read when the body is an `envelope`."
     }
    },
    "additionalProperties": false,

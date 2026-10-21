@@ -1194,7 +1194,7 @@ export type FastenerStack = {
    */
   length: number;
   /**
-   * Where the stack bears on the first part it clamps: the centre of the washer's or the head's bearing face (in a counterbore, on its floor).
+   * Where the stack bears on the first part it clamps: the centre of the washer's or the head's bearing face. In a counterbore that is its floor, not the top face: the stack stands where `at` says (nothing finds the floor), and the fasteners check's `head-not-seated` gives the floor's point when the head stands over a counterbore.
    * @unit mm
    */
   at: Vec3;
@@ -1686,7 +1686,7 @@ export type JointSweep = {
 };
 
 /**
- * THE DATA OF LIBRARY FASTENER PIECES, GIVEN ONCE: `<library id match engineering>`. Every screw, washer and nut of the document's `<fastener>` stacks whose designation (with its stack's grade, when the stack states one) matches `match` (`*` matches any text: "ISO 4762 M5*", "ISO 7089 *", "ISO 4017 * A2-70") takes this engineering data (a supplier and its price, compliance, shipping, lifecycle). A piece's own `<body id="f1">` (or `f1.washer`, `f1.nut`) says more where it says it; the first `<library>` that matches is read.
+ * THE DATA OF LIBRARY FASTENER PIECES, GIVEN ONCE: `<library id match engineering sizes>`. Every screw, washer and nut of the document's `<fastener>` stacks whose designation (with its stack's grade, when the stack states one) matches `match` (`*` matches any text: "ISO 4762 M5*", "ISO 7089 *", "ISO 4017 * A2-70") takes this engineering data (a supplier and its price, compliance, shipping, lifecycle). `sizes` is the table of what differs by size: each row's part number, sku, price and mass. A piece's own `<body id="f1">` (or `f1.washer`, `f1.nut`) says more where it says it; the first `<library>` that matches is read.
  */
 export type LibraryData = {
   id: string;
@@ -1695,6 +1695,27 @@ export type LibraryData = {
    */
   match: string;
   engineering: PartEngineering;
+  /**
+   * The sizes it sells, one row each. With `sizes`, the library gives its data only to a piece of a size it lists.
+   */
+  sizes?: LibrarySize[];
+};
+
+/** ONE SIZE OF A `<library>`: what differs from size to size, over the library's `engineering`. */
+export type LibrarySize = {
+  /**
+   * The size as the designation writes it after the standard: "M4×25" (a screw), "M4" (a washer, a nut).
+   */
+  size: string;
+  partNumber?: string;
+  /** The maker's part number of this size. */
+  mpn?: string;
+  /** The first supplier's sku of this size. */
+  sku?: string;
+  /** The first supplier's price breaks of this size. */
+  priceBreaks?: PriceBreak[];
+  /** A weighed or datasheet mass of one, in place of its envelope's volume × its grade's density. */
+  mass?: PartMass;
 };
 
 /** WHERE A BOUGHT PART IS IN ITS LIFE, AND HOW MANY ARE ON THE SHELF. */
@@ -2185,6 +2206,34 @@ export type MoleculeRepresentation = {
   nucleus?: "none" | "nuclei";
 };
 
+/**
+ * A HOLE OF A BOUGHT PART DRAWN AS ITS ENVELOPE: where the real part (a valve's flange, a lug's ring, a pump's foot) has a hole that a screw passes through or screws into. The fastener checks read it as they read a modelled round hole.
+ */
+export type MountingHole = {
+  /**
+   * A point on the hole's axis where it opens, in the body's own frame (its part file's coordinates).
+   * @unit mm
+   */
+  at: Vec3;
+  /**
+   * The way the hole runs into the part from `at`.
+   * @default [0,0,-1]
+   */
+  axis?: Vec3;
+  /**
+   * A clearance hole's diameter, or a tapped hole's thread (5 for M5) or tap drill.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  diameter: number;
+  /**
+   * How deep it runs from `at` along `axis`. Absent: through the whole envelope.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  depth?: number;
+};
+
 /** The NURBS half of a curve — degree, knots, weights. Stored verbatim as a sketch spline's `nurbs`. */
 export type NurbsSpec = {
   /** Curve degree. 3 is the usual authoring default; 2 with weights gives exact conics. */
@@ -2294,6 +2343,12 @@ export type PartEngineering = {
   lifecycle?: Lifecycle;
   /** A process chemical: its hazard, quantity, containment and exhaust. */
   chemical?: ProcessChemical;
+  /**
+   * The body is the bought part's envelope (a box round a valve, a pump), not its shape: the fastener checks do not read its material as solid. A screw that runs into it must run in one of its `mountingHoles`.
+   */
+  envelope?: boolean;
+  /** The real part's mounting holes, in the body's own frame: read when the body is an `envelope`. */
+  mountingHoles?: MountingHole[];
 };
 
 /** A mass that was weighed or read from a datasheet. It stands in place of volume × density. */
