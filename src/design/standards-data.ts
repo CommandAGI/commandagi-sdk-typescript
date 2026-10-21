@@ -6840,6 +6840,42 @@ export const STANDARD_TABLES: Readonly<Record<string, readonly StandardRow[]>> =
    "material": "A6N01SS-T5"
   },
   {
+   "id": "HFS5-2060",
+   "system": "MISUMI 5 Series aluminum extrusions (slot width 6)",
+   "width": 20,
+   "height": 60,
+   "slotWidth": 6,
+   "slotDepth": 6,
+   "tSlotInnerWidth": 12,
+   "lipThickness": 2,
+   "centerBoreDiameter": 4.2,
+   "cornerRadius": 1,
+   "slotCount": 8,
+   "massKgPerM": 1.26,
+   "areaMm2": 464,
+   "ixCm4": 1.97,
+   "iyCm4": 15.98,
+   "material": "A6N01SS-T5"
+  },
+  {
+   "id": "HFS5-2080",
+   "system": "MISUMI 5 Series aluminum extrusions (slot width 6)",
+   "width": 20,
+   "height": 80,
+   "slotWidth": 6,
+   "slotDepth": 6,
+   "tSlotInnerWidth": 12,
+   "lipThickness": 2,
+   "centerBoreDiameter": 4.2,
+   "cornerRadius": 1,
+   "slotCount": 10,
+   "massKgPerM": 1.64,
+   "areaMm2": 605,
+   "ixCm4": 2.56,
+   "iyCm4": 36,
+   "material": "A6N01SS-T5"
+  },
+  {
    "id": "HFS6-3030",
    "system": "MISUMI 6 Series aluminum extrusions (slot width 8)",
    "width": 30,
@@ -7104,6 +7140,11 @@ export const STANDARD_SOURCES: Readonly<Record<string, readonly { source: string
    "source": "MISUMI FA catalog (2014), page 2-530, 5 Series Aluminum Extrusions 20, 25, 40mm Square, 2 Slots",
    "sourceUrl": "https://stg0-my.misumi-ec.com/pdf/fa/2014/p2_529.pdf",
    "observedAt": "2026-10-13"
+  },
+  {
+   "source": "MISUMI FA catalog (2014), page 2-531, 5 Series Aluminum Extrusions 20, 25, 40mm Square, 3 or more Slots",
+   "sourceUrl": "https://stg0-my.misumi-ec.com/pdf/fa/2014/p2_531.pdf",
+   "observedAt": "2026-10-21"
   },
   {
    "source": "MISUMI FA catalog (2015), page 2-597, 6 Series Aluminum Extrusions 30, 60 mm, 1 Slot",
