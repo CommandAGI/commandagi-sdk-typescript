@@ -127,6 +127,11 @@ test("a board on the faces of a CAD part: its surface, each component's face and
   assert.throws(() => board({}, jsx("trace", { layer: "F.Cu", width: 0.3, points: [[4, 5], [9, 5]], surface: true }))(), /has no surface/);
 });
 
+test("a net class states the rules a four-layer board needs: least width, inner layers, edge and hole gaps, spokes", () => {
+  const g = board({ width: 60, height: 40 }, jsx("netclass", { name: "Default", nets: ["*"], width: 0.2, minWidth: 0.15, clearance: 0.2, edgeClearance: 0.3, holeClearance: 0.15, inner: { clearance: 0.15, width: 0.15 }, minSpokes: 1 }))();
+  assert.deepEqual(Object.values(g.nodes).find((n) => n.type === "eda.boardfact")!.inputs, { fact: "netclass", name: "Default", nets: ["*"], width: 0.2, minWidth: 0.15, clearance: 0.2, edgeClearance: 0.3, holeClearance: 0.15, inner: { clearance: 0.15, width: 0.15 }, minSpokes: 1 });
+});
+
 test("the layout's constraints are board facts: net classes, pairs, groups, keep-outs, heat and the objective", () => {
   const g = board(
     { width: 100, height: 60 },
@@ -150,6 +155,9 @@ test("the layout's constraints are board facts: net classes, pairs, groups, keep
   refused(jsx("netclass", { name: "a", nets: [], width: 0.2 }), /nets is a list of names/);
   refused(jsx("netclass", { name: "a", nets: ["X"], kind: "loud" }), /kind is signal, power/);
   refused(jsx("netclass", { name: "a", nets: ["X"], viaDiameter: 0.3, viaDrill: 0.4 }), /viaDiameter is more than viaDrill/);
+  refused(jsx("netclass", { name: "a", nets: ["X"], width: 0.2, minWidth: 0.3 }), /minWidth is at most width/);
+  refused(jsx("netclass", { name: "a", nets: ["X"], inner: { gap: 0.1 } }), /the rules on inner copper layers/);
+  refused(jsx("netclass", { name: "a", nets: ["X"], minSpokes: 1.5 }), /minSpokes is a whole number from 0 to 4/);
   refused(jsx("group", { name: "g", parts: ["R1"], region: [5, 5, 1, 1] }), /x0 < x1/);
   refused(jsx("group", { name: "g", parts: ["R1"], maxDistance: 3 }), /maxDistance needs near/);
   refused(jsx("keepout", { points: [[0, 0], [1, 0], [1, 1]], no: ["smoke"] }), /a list of track, via, component, pour/);

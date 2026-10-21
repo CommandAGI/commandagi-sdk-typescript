@@ -63,9 +63,14 @@
  *
  * The layout's constraints (the board's design intent, which the placer, the router, the layout score and the checks
  * read; each element is one fact, written back by the editor and the layout operations):
- *   <netclass name nets kind width clearance viaDiameter viaDrill current criticality maxLength maxVias impedance>
+ *   <netclass name nets kind width minWidth clearance edgeClearance holeClearance inner minSpokes viaDiameter viaDrill
+ *             current criticality maxLength maxVias impedance>
  *                                     the rules of the nets named (`nets`: names, "FIN*" matches by prefix): the
- *                                     track width and clearance (mm), the via, the current (A) the copper carries,
+ *                                     track width the router lays and the narrowest allowed (`minWidth`, a neck-down;
+ *                                     `width` when absent), the clearance, the least gap to the board edge and to a
+ *                                     hole (mm), the rules on inner copper layers (`inner`: { clearance, width,
+ *                                     minWidth }), the fewest thermal spokes a pad needs to a pour (`minSpokes`,
+ *                                     KiCad's `min_resolved_spokes`), the via, the current (A) the copper carries,
  *                                     the kind ("signal", "power", "ground", "noisy", "sensitive", "highspeed"),
  *                                     the criticality (0 to 1: routed first, kept short), the longest route (mm),
  *                                     the most vias, the impedance (ohm) of a trace over its reference plane.
@@ -233,14 +238,20 @@ function constraintFact(el: DesignElement): Record<string, unknown> {
   const put = (k: string, v: unknown) => { if (v !== undefined) out[k] = v; };
   switch (el.type) {
     case "netclass": {
-      refuseUnknown(el, ["name", "nets", "kind", "width", "clearance", "viaDiameter", "viaDrill", "current", "criticality", "maxLength", "maxVias", "impedance"]);
+      refuseUnknown(el, ["name", "nets", "kind", "width", "minWidth", "clearance", "edgeClearance", "holeClearance", "inner", "minSpokes", "viaDiameter", "viaDrill", "current", "criticality", "maxLength", "maxVias", "impedance"]);
       const kind = text(el, "kind");
       if (kind !== undefined && !NET_KINDS.includes(kind)) throw new Error(`${where(el)}: kind is ${NET_KINDS.join(", ")}`);
       const maxVias = num(el, "maxVias");
       if (maxVias !== undefined && !(Number.isInteger(maxVias) && maxVias >= 0)) throw new Error(`${where(el)}: maxVias is a whole number, 0 or more`);
       put("name", name()); put("nets", names("nets", true)); put("kind", kind);
-      for (const k of ["width", "clearance", "viaDiameter", "viaDrill", "current", "maxLength", "impedance"]) put(k, positive(el, k));
+      for (const k of ["width", "minWidth", "clearance", "edgeClearance", "holeClearance", "viaDiameter", "viaDrill", "current", "maxLength", "impedance"]) put(k, positive(el, k));
       put("criticality", unit("criticality")); put("maxVias", maxVias);
+      if (out.minWidth !== undefined && out.width !== undefined && (out.minWidth as number) > (out.width as number)) throw new Error(`${where(el)}: minWidth is at most width`);
+      const inner = plain(el, "inner", (v) => isObject(v) && Object.keys(v as object).length > 0 && Object.entries(v as object).every(([k, x]) => ["clearance", "width", "minWidth"].includes(k) && typeof x === "number" && Number.isFinite(x) && x > 0), "the rules on inner copper layers: { clearance, width, minWidth } (mm)");
+      put("inner", inner);
+      const spokes = num(el, "minSpokes");
+      if (spokes !== undefined && !(Number.isInteger(spokes) && spokes >= 0 && spokes <= 4)) throw new Error(`${where(el)}: minSpokes is a whole number from 0 to 4`);
+      put("minSpokes", spokes);
       const d = out.viaDiameter as number | undefined, h = out.viaDrill as number | undefined;
       if (d !== undefined && h !== undefined && d <= h) throw new Error(`${where(el)}: viaDiameter is more than viaDrill`);
       break;
