@@ -1105,6 +1105,14 @@ export type ExternalPartRef = {
   /** THE PADS THIS PLACEMENT PRODUCES, when it is a placed electronic component. */
   footprint?: ComponentFootprint;
   /**
+   * A placed 3D document: what of it is left out here, each by the id, the name or the part number its own file gives it (`*` matches any text): a body it makes, a file it places, a fastener stack. What its file says of a body left out (an `<accept>`, a `<permitted>`) goes with it. One frame in every station, each station with its own deck: `omit={["deck"]}`.
+   */
+  omit?: string[];
+  /**
+   * A placed 3D document: bodies it makes or files it places, each moved in its file's frame before the placement (a lid opened, a ram lowered), by the id, the name or the part number its own file gives it. What its file says of the body (an `<accept>` or `<permitted>` region, in the body's own frame) moves with it; its fastener stacks stay.
+   */
+  moves?: PlacedMove[];
+  /**
    * How the linked part's bodies combine with the bodies before it.
    * @default "new"
    */
@@ -2458,6 +2466,16 @@ export type PermittedFinding = {
   diameter?: number;
   /** Why the finding is right here. */
   reason: string;
+};
+
+/** One body of a placed 3D document moved in its file's frame (`<externalPart moves>`). */
+export type PlacedMove = {
+  /**
+   * The body or the placed file, by the id, the name or the part number its own file gives it (`*` matches any text).
+   */
+  body: string;
+  /** Its move, in the placed file's frame. */
+  placement: Placement;
 };
 
 /**

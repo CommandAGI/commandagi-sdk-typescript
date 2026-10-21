@@ -2279,6 +2279,20 @@ export const THREED_SCHEMA: SchemaDocument = {
      "$ref": "#/$defs/ComponentFootprint",
      "description": "THE PADS THIS PLACEMENT PRODUCES, when it is a placed electronic component."
     },
+    "omit": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "A placed 3D document: what of it is left out here, each by the id, the name or the part number its own file gives it (`*` matches any text): a body it makes, a file it places, a fastener stack. What its file says of a body left out (an `<accept>`, a `<permitted>`) goes with it. One frame in every station, each station with its own deck: `omit={[\"deck\"]}`."
+    },
+    "moves": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/PlacedMove"
+     },
+     "description": "A placed 3D document: bodies it makes or files it places, each moved in its file's frame before the placement (a lid opened, a ram lowered), by the id, the name or the part number its own file gives it. What its file says of the body (an `<accept>` or `<permitted>` region, in the body's own frame) moves with it; its fastener stacks stay."
+    },
     "operation": {
      "$ref": "#/$defs/BooleanMode",
      "description": "How the linked part's bodies combine with the bodies before it.",
@@ -5131,6 +5145,26 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A FINDING A PROCESS OR A PURPOSE PERMITS: `<permitted check body process edgeDir region diameter reason />`. A square edge of a laser-cut sheet, a hole that is there for a cable. It permits the findings of that check on the bodies it names, made by that process, along that direction and in that region (each given test must hold). A permitted finding stays in the report with the entry that permitted it."
+  },
+  "PlacedMove": {
+   "type": "object",
+   "properties": {
+    "body": {
+     "type": "string",
+     "description": "The body or the placed file, by the id, the name or the part number its own file gives it (`*` matches any text).",
+     "pattern": "\\S"
+    },
+    "placement": {
+     "$ref": "#/$defs/Placement",
+     "description": "Its move, in the placed file's frame."
+    }
+   },
+   "required": [
+    "body",
+    "placement"
+   ],
+   "additionalProperties": false,
+   "description": "One body of a placed 3D document moved in its file's frame (`<externalPart moves>`)."
   },
   "Placement": {
    "type": "object",
