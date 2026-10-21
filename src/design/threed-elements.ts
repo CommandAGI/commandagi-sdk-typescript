@@ -331,7 +331,7 @@ export type Compliance = {
   reach?: "compliant" | "non-compliant" | "unknown" | "svhc";
   /** "reported": the maker's conflict minerals report names the smelters. */
   conflictMinerals?: "none" | "unknown" | "reported";
-  /** The export control classification: "EAR99", "5A992.c". */
+  /** The export control classification: "EAR99", "5A992.c"; "unknown" as for `rohs`. */
   eccn?: string;
   /** Certifications it holds: "FCC ID 2AJYU-8BAE003", "CE", "UL 94 V-0". */
   certifications?: string[];
@@ -1914,10 +1914,15 @@ export type MakeSpec = {
    */
   cycleMinutes?: number;
   /**
-   * What an hour of the device or the shop costs.
+   * What an hour of the device or the shop costs; with `ratePerHourHigh`, the low end of an estimate.
    * @minimum 0
    */
   ratePerHour?: number;
+  /**
+   * The high end of an estimate of the rate (a lump built in house, not quoted yet): the roll-up's `totalHigh` and a cost budget judge it. Not under `ratePerHour`.
+   * @minimum 0
+   */
+  ratePerHourHigh?: number;
   /** ISO 4217 currency code of the rate. */
   currency?: string;
   /**
@@ -2273,7 +2278,9 @@ export type PartEngineering = {
   manufacturer?: string;
   /** The maker's part number. */
   mpn?: string;
-  /** The maker's datasheet: a URL or a path. */
+  /**
+   * The maker's datasheet: a URL or a path; "unknown" for a placeholder part number (a warning, never a pass).
+   */
   datasheet?: string;
   /** Who sells it, on what terms. */
   suppliers?: SupplierOffer[];
@@ -2780,11 +2787,15 @@ export type ShellFeature = {
 
 /** WHAT CUSTOMS AND A CARRIER NEED OF A PART. */
 export type Shipping = {
-  /** The Harmonized System code ("8517.62"). */
+  /**
+   * The Harmonized System code ("8517.62"). "unknown": a part not specified yet says so (a warning, never a pass), rather than leaving it out (an error) or inventing one; the same for `origin` and `hazmat`.
+   */
   hsCode?: string;
-  /** The country of origin, ISO 3166-1 alpha-2. */
+  /** The country of origin, ISO 3166-1 alpha-2, or "unknown". */
   origin?: string;
-  /** "none", or the UN number and class ("UN3481 class 9: lithium ion batteries packed with equipment"). */
+  /**
+   * "none", or the UN number and class ("UN3481 class 9: lithium ion batteries packed with equipment"), or "unknown".
+   */
   hazmat?: string;
   /** Its packed size and mass. */
   packaged?: PackagedSize;

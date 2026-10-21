@@ -11,13 +11,15 @@
  *       <step id="coat" order={1} tool="coater" by="in-house" minutes={6}>
  *         <param name="speed" value={3000} unit="rpm" />
  *         <measure id="resist" name="resist thickness" nominal={1.2} plus={0.1} minus={0.1} unit="um" method="reflectometer" />
+ *         <visit tool="oven" minutes={2} instruction="soft bake" />
  *       </step>
  *     </flow>
  *   );
  *
  * The rule of the ontology's files: a record is an element and its fields are the element's attributes, verbatim. A
  * tool is named by its `ref`: a device definition, or an item or body of a 3D document (`<file>#<id>`). A step names
- * its tool by the tool's id. Nothing adds a default. The check (each tool's ref read, each unit known, each step's
+ * its tool by the tool's id; a step that goes to more tools than its own names each in a `<visit tool minutes>`, so one
+ * recipe step stays one step and every tool still counts its visit. Nothing adds a default. The check (each tool's ref read, each unit known, each step's
  * time and who, the roll-up of minutes, labour and tool visits) is the host's: `commandagi check <file>.flow.tsx`.
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
@@ -30,6 +32,8 @@ export const FLOW_TOOL_FIELDS = ["id", "ref", "name", "ratePerHour", "currency",
 export const FLOW_STEP_FIELDS = ["id", "order", "kind", "tool", "fixture", "by", "minutes", "setupMinutes", "ratePerHour", "currency", "instruction", "note"] as const;
 export const FLOW_PARAM_FIELDS = ["name", "value", "unit", "description"] as const;
 export const FLOW_MEASURE_FIELDS = ["id", "name", "nominal", "min", "max", "plus", "minus", "unit", "method", "sampling", "acceptance"] as const;
+/** One more tool a step goes to: its time there, and its rate when it is not the tool's. */
+export const FLOW_VISIT_FIELDS = ["tool", "minutes", "setupMinutes", "ratePerHour", "currency", "instruction"] as const;
 
 type Rec = Record<string, unknown>;
 export interface FlowDoc { name?: string; description?: string; of?: string; tools?: Rec[]; steps?: Rec[] }
@@ -67,7 +71,7 @@ function checkStep(t: DocTree): void {
   for (const k of ["minutes", "setupMinutes"]) check(a[k] === undefined || (isNum(a[k]) && (a[k] as number) >= 0), `${at}: ${k} is a number of at least 0`);
   money(a, at);
   if (a.kind === "note")
-    check(a.tool === undefined && (a.minutes === undefined || a.minutes === 0) && !t.children.length, `${at}: a note step names no tool, takes no time (minutes 0 or absent) and holds no param or measure`);
+    check(a.tool === undefined && (a.minutes === undefined || a.minutes === 0) && !t.children.length, `${at}: a note step names no tool, takes no time (minutes 0 or absent) and holds no param, measure or visit`);
   const names = t.children.filter((c) => c.tag === "param").map((c) => c.attrs.name);
   const twice = names.find((n, i) => names.indexOf(n) !== i);
   check(twice === undefined, `${at}: two params are named ${JSON.stringify(twice)}`);
@@ -78,6 +82,11 @@ function checkStep(t: DocTree): void {
       check(typeof b.name === "string" && b.name.trim(), `${pat}: name says what the parameter is`);
       check(isNum(b.value) || typeof b.value === "string" || typeof b.value === "boolean", `${pat}: value is a number, a text or true/false`);
       check(b.unit === undefined || (typeof b.unit === "string" && b.unit.trim()), `${pat}: unit is a unit's symbol (rpm, sccm, mTorr, °C, s)`);
+    } else if (c.tag === "visit") {
+      const vat = `${at} ${where("visit", "tool", b)}`;
+      check(typeof b.tool === "string" && ID.test(b.tool), `${vat}: tool is the id of one of the flow's tools`);
+      for (const k of ["minutes", "setupMinutes"]) check(b[k] === undefined || (isNum(b[k]) && (b[k] as number) >= 0), `${vat}: ${k} is a number of at least 0`);
+      money(b, vat);
     } else {
       const mat = where("measure", "id", b);
       check(typeof b.id === "string" && ID.test(b.id), `${mat}: id is letters, digits, ".", "_" and "-"`);
@@ -92,7 +101,8 @@ function checkStep(t: DocTree): void {
 function stepRecord(t: DocTree): Rec {
   const params = t.children.filter((c) => c.tag === "param").map((c) => ({ ...c.attrs }));
   const measures = t.children.filter((c) => c.tag === "measure").map((c) => ({ ...c.attrs }));
-  return { ...t.attrs, ...(params.length ? { params } : {}), ...(measures.length ? { measures } : {}) };
+  const visits = t.children.filter((c) => c.tag === "visit").map((c) => ({ ...c.attrs }));
+  return { ...t.attrs, ...(params.length ? { params } : {}), ...(measures.length ? { measures } : {}), ...(visits.length ? { visits } : {}) };
 }
 
 export const flowVocabulary: Vocabulary<FlowDoc> = {
@@ -105,6 +115,7 @@ export const flowVocabulary: Vocabulary<FlowDoc> = {
     step: { parents: ["flow"], key: "id", required: ["id"], attrs: FLOW_STEP_FIELDS },
     param: { parents: ["step"], required: ["name", "value"], attrs: FLOW_PARAM_FIELDS },
     measure: { parents: ["step"], key: "id", required: ["id"], attrs: FLOW_MEASURE_FIELDS },
+    visit: { parents: ["step"], required: ["tool"], attrs: FLOW_VISIT_FIELDS },
   },
   fromTree(t) {
     check(t.attrs.of === undefined || typeof t.attrs.of === "string", `<flow>: of is a ref to what the flow makes (a 3D document, or <file>#<item or body>)`);
@@ -125,6 +136,7 @@ export const flowVocabulary: Vocabulary<FlowDoc> = {
       children: [
         ...((s.params as Rec[] | undefined) ?? []).map((p) => ({ tag: "param", attrs: own(p, FLOW_PARAM_FIELDS), children: [] })),
         ...((s.measures as Rec[] | undefined) ?? []).map((m) => ({ tag: "measure", attrs: own(m, FLOW_MEASURE_FIELDS), children: [] })),
+        ...((s.visits as Rec[] | undefined) ?? []).map((v) => ({ tag: "visit", attrs: own(v, FLOW_VISIT_FIELDS), children: [] })),
       ],
     }));
     return { tag: "flow", attrs: own(doc, FLOW_FIELDS), children: [...tools, ...steps] };

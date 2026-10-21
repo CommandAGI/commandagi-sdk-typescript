@@ -64,6 +64,8 @@ test("a wrong logistics field is refused by name, and attrs cannot say what an a
   assert.throws(sheet({ lifecycle: { status: "dead" } }), /lifecycle.status is one of active, nrnd, eol, obsolete/);
   assert.throws(sheet({ compliance: { rohs: "yes" } }), /compliance.rohs is one of compliant, exempt, non-compliant/);
   assert.throws(sheet({ shipping: { origin: "China" } }), /shipping.origin is an ISO 3166 alpha-2 code/);
+  // A part not specified yet says so (PCBC-16): the host's check warns of each "unknown".
+  assert.doesNotThrow(sheet({ shipping: { hsCode: "unknown", origin: "unknown", hazmat: "unknown" } }));
   assert.throws(sheet({ attrs: { "LCSC Part": "C1" } }), /attrs names LCSC Part: say it with suppliers=/);
   assert.throws(sheet({ attrs: { RoHS: "compliant" } }), /attrs names RoHS: say it with compliance=/);
   assert.throws(sheet({ attrs: { Datasheet: "x" } }), /attrs names Datasheet: say it with datasheet=/);

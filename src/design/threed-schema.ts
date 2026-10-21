@@ -815,7 +815,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "eccn": {
      "type": "string",
-     "description": "The export control classification: \"EAR99\", \"5A992.c\"."
+     "description": "The export control classification: \"EAR99\", \"5A992.c\"; \"unknown\" as for `rohs`."
     },
     "certifications": {
      "type": "array",
@@ -3872,7 +3872,12 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "ratePerHour": {
      "type": "number",
-     "description": "What an hour of the device or the shop costs.",
+     "description": "What an hour of the device or the shop costs; with `ratePerHourHigh`, the low end of an estimate.",
+     "minimum": 0
+    },
+    "ratePerHourHigh": {
+     "type": "number",
+     "description": "The high end of an estimate of the rate (a lump built in house, not quoted yet): the roll-up's `totalHigh` and a cost budget judge it. Not under `ratePerHour`.",
      "minimum": 0
     },
     "currency": {
@@ -4767,7 +4772,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "datasheet": {
      "type": "string",
-     "description": "The maker's datasheet: a URL or a path."
+     "description": "The maker's datasheet: a URL or a path; \"unknown\" for a placeholder part number (a warning, never a pass)."
     },
     "suppliers": {
      "type": "array",
@@ -5797,16 +5802,16 @@ export const THREED_SCHEMA: SchemaDocument = {
    "properties": {
     "hsCode": {
      "type": "string",
-     "description": "The Harmonized System code (\"8517.62\")."
+     "description": "The Harmonized System code (\"8517.62\"). \"unknown\": a part not specified yet says so (a warning, never a pass), rather than leaving it out (an error) or inventing one; the same for `origin` and `hazmat`."
     },
     "origin": {
      "type": "string",
-     "description": "The country of origin, ISO 3166-1 alpha-2.",
-     "pattern": "^[A-Z]{2}$"
+     "description": "The country of origin, ISO 3166-1 alpha-2, or \"unknown\".",
+     "pattern": "^(?:[A-Z]{2}|unknown)$"
     },
     "hazmat": {
      "type": "string",
-     "description": "\"none\", or the UN number and class (\"UN3481 class 9: lithium ion batteries packed with equipment\")."
+     "description": "\"none\", or the UN number and class (\"UN3481 class 9: lithium ion batteries packed with equipment\"), or \"unknown\"."
     },
     "packaged": {
      "$ref": "#/$defs/PackagedSize",

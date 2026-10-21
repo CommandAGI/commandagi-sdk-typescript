@@ -22,6 +22,7 @@ test("a flow is its tools and its steps, each step with its params and measures"
         { id: "coat", order: 1, tool: "coater", by: "in-house", minutes: 6, __source: 2 },
         el("param", { name: "speed", value: 3000, unit: "rpm", __source: 3 }),
         el("measure", { id: "resist", name: "resist thickness", nominal: 1.2, plus: 0.1, minus: 0.1, unit: "um" }),
+        el("visit", { tool: "oven", minutes: 2, instruction: "soft bake" }),
       ),
     ),
   );
@@ -33,7 +34,7 @@ test("a flow is its tools and its steps, each step with its params and measures"
     tools: [{ id: "coater", ref: "Kit.3d.tsx#coater", ratePerHour: 40, currency: "USD" }],
     steps: [
       { id: "why", kind: "note", instruction: "Marks first." },
-      { id: "coat", order: 1, tool: "coater", by: "in-house", minutes: 6, params: [{ name: "speed", value: 3000, unit: "rpm" }], measures: [{ id: "resist", name: "resist thickness", nominal: 1.2, plus: 0.1, minus: 0.1, unit: "um" }] },
+      { id: "coat", order: 1, tool: "coater", by: "in-house", minutes: 6, params: [{ name: "speed", value: 3000, unit: "rpm" }], measures: [{ id: "resist", name: "resist thickness", nominal: 1.2, plus: 0.1, minus: 0.1, unit: "um" }], visits: [{ tool: "oven", minutes: 2, instruction: "soft bake" }] },
     ],
   });
   assert.deepEqual(FLOWS.flow.fromTree(FLOWS.flow.toTree(d.document as never)), d.document, "both ways");
@@ -52,6 +53,8 @@ test("a wrong field of a flow is refused by name", () => {
     [flow(el("step", { id: "a" }, el("measure", { id: "m", plus: 0.1 }))), /<measure id="m">: plus and minus are tolerances of the nominal: give nominal/],
     [flow(el("step", { id: "a" }, el("measure", { id: "m", min: 2, max: 1 }))), /<measure id="m">: min is at most max/],
     [flow(el("param", { name: "x", value: 1 })), /<param> stands in <step>, not in <flow>/],
+    [flow(el("step", { id: "a" }, el("visit", { tool: "oven", minutes: -1 }))), /<step id="a"> <visit tool="oven">: minutes is a number of at least 0/],
+    [flow(el("step", { id: "a", kind: "note" }, el("visit", { tool: "oven" }))), /<step id="a">: a note step names no tool, takes no time .* no param, measure or visit/],
     [flow(el("step", { id: "a" }, el("measure", { id: "m", max: 1 })), el("step", { id: "b" }, el("measure", { id: "m", max: 2 }))), /<measure id="m">: two measures have this id/],
     [flow(el("step", { id: "a" }, el("param", { name: "t", value: 1 }), el("param", { name: "t", value: 2 }))), /<step id="a">: two params are named "t"/],
   ];

@@ -128,6 +128,56 @@ export function helpText(host = ""): string {
   ].join("\n");
 }
 
+/** The edit distance of two words (for the near matches of an unknown command). */
+function distance(a: string, b: string): number {
+  const row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0]!;
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cur = row[j]!;
+      row[j] = Math.min(row[j]! + 1, row[j - 1]! + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = cur;
+    }
+  }
+  return row[b.length]!;
+}
+
+/** The words nearest to `word` (a prefix, or two edits or fewer), at most five. */
+function near(word: string, words: readonly string[]): string[] {
+  const w = word.toLowerCase();
+  return [...new Set(words)]
+    .map((x) => ({ x, d: x.startsWith(w) || w.startsWith(x) ? 0 : distance(w, x) }))
+    .filter(({ d }) => d <= 2)
+    .sort((p, q) => p.d - q.d || p.x.localeCompare(q.x))
+    .slice(0, 5)
+    .map(({ x }) => x);
+}
+
+/** What an argv that matches no command is: an unknown group, or a group without that verb, with the near matches. */
+export function unknownCommand(positionals: string[], hostCommands: readonly string[] = []): string {
+  const [a = "", b] = positionals;
+  const verbs = CLI_COMMANDS.filter((c) => c.group === a).map((c) => c.verb);
+  if (verbs.length)
+    return `unknown command: ${a}${b ? ` ${b}` : ""}: ${a} has ${verbs.join(", ")} (commandagi ${a} --help)`;
+  const first = [
+    ...CLI_COMMANDS.map((c) => c.group || c.verb),
+    ...hostCommands.filter((c) => !c.startsWith("-")),
+    "call",
+  ];
+  const close = near(a, first);
+  return `unknown command: ${a}${close.length ? `; did you mean ${close.join(", ")}?` : ""} (commandagi help lists every command)`;
+}
+
+/** One group's usage lines, or what an unknown group is. */
+export function groupHelp(group: string, hostCommands: readonly string[] = []): string {
+  const rows = CLI_COMMANDS.filter((c) => c.group === group || (c.group === "" && c.verb === group));
+  if (!rows.length) return unknownCommand([group], hostCommands) + "\n";
+  const lines = rows.map((c) => ({ left: usage(c), doc: c.doc }));
+  const width = Math.max(...lines.map((r) => r.left.length));
+  return [...lines.map((r) => "  " + r.left.padEnd(width) + "   " + r.doc), ""].join("\n");
+}
+
 /** Locate the command an argv addresses, and the positionals left over for its params. */
 function match(
   positionals: string[],
@@ -249,7 +299,7 @@ export async function runCli(argv: string[], cagi: CommandAGI): Promise<unknown>
   }
 
   const found = match(positionals);
-  if (!found) fail(`unknown command: ${positionals.join(" ")} (try: commandagi help)`);
+  if (!found) fail(unknownCommand(positionals));
   const { cmd, factoryValues, rest } = found;
 
   const cursor: Cursor = { i: 0 };
@@ -323,10 +373,20 @@ export async function main(argv: string[], host: HostCommands): Promise<void> {
     await host.run(argv);
     return;
   }
-  if (!first || first === "help" || argv.includes("--help")) {
-    process.stdout.write(helpText(host.help));
+  // `help <group>` and `<group> --help` are that group's lines; a host command's are its own.
+  const asked = first === "help" ? argv[1] : argv.includes("--help") ? first : undefined;
+  if (asked && host.commands.includes(asked)) {
+    await host.run([asked, "--help"]);
     return;
   }
+  if (!first || first === "help" || argv.includes("--help")) {
+    process.stdout.write(asked ? groupHelp(asked, host.commands) : helpText(host.help));
+    return;
+  }
+  // A command that is in no table is said before the key is asked for: it would not run with one either.
+  const { positionals } = parseArgs(argv);
+  if (positionals[0] !== "call" && !match(positionals))
+    fail(unknownCommand(positionals, host.commands));
   if (!process.env[ENV.apiKey])
     fail(`set ${ENV.apiKey} (a cagi_ API key from Settings → API keys)`);
   await runCli(argv, new CommandAGI());

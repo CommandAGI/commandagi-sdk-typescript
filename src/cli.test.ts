@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CommandAGI } from "./client.js";
 import { CLI_COMMANDS, SDK_SCHEMA } from "./generated.js";
-import { helpText, runCli } from "./cli.js";
+import { helpText, main, runCli } from "./cli.js";
 
 /**
  * The CLI table is GENERATED from the schema, so it cannot drift from the SDK by construction. What still
@@ -163,4 +163,28 @@ test("a flag with nowhere to go is an error, and nothing is dispatched", async (
     /unknown flag/,
   );
   assert.equal(calls.length, 0);
+});
+
+test("an unknown command is said before the key is asked for, with the near matches; a group's --help is its own", async () => {
+  const ran: string[][] = [];
+  const host = { commands: ["daemon", "task", "diff"], help: "", run: async (a: string[]) => void ran.push(a), probeHost: async () => null };
+  const key = process.env.COMMANDAGI_API_KEY;
+  delete process.env.COMMANDAGI_API_KEY;
+  const written: string[] = [];
+  const write = process.stdout.write.bind(process.stdout);
+  process.stdout.write = ((s: string) => (written.push(String(s)), true)) as typeof process.stdout.write;
+  try {
+    await assert.rejects(main(["tasks", "propose"], host), /unknown command: tasks; did you mean task\b.*commandagi help/);
+    await assert.rejects(main(["threads", "propose"], host), /unknown command: threads propose: threads has .*list/);
+    await main(["threads", "--help"], host);
+    await main(["help", "task"], host);
+    await main(["task", "propose", "--help"], host);
+  } finally {
+    process.stdout.write = write;
+    if (key !== undefined) process.env.COMMANDAGI_API_KEY = key;
+  }
+  const help = written.join("");
+  assert.match(help, /commandagi threads list/);
+  assert.doesNotMatch(help, /commandagi eda /, "a group's help is that group's lines");
+  assert.deepEqual(ran, [["task", "--help"], ["task", "propose", "--help"]], "a host command's help is the host's");
 });

@@ -231,7 +231,7 @@ export function checkFacet(where: string, arg: keyof typeof FACET_FIELDS, v: unk
       if (!isText(x)) throw new Error(`${where}: ${key} is text`);
       if (CHOICES[key] && !CHOICES[key]!.includes(x)) throw new Error(`${where}: ${key} is one of ${CHOICES[key]!.join(", ")} (got "${x}")`);
       if (DATES.has(key) && !/^\d{4}-\d{2}-\d{2}$/.test(x)) throw new Error(`${where}: ${key} is YYYY-MM-DD`);
-      if (key === "shipping.origin" && !/^[A-Z]{2}$/.test(x)) throw new Error(`${where}: ${key} is an ISO 3166 alpha-2 code ("CN")`);
+      if (key === "shipping.origin" && !/^(?:[A-Z]{2}|unknown)$/.test(x)) throw new Error(`${where}: ${key} is an ISO 3166 alpha-2 code ("CN"), or "unknown"`);
     }
   }
   return JSON.parse(JSON.stringify(v));
