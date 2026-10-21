@@ -898,7 +898,9 @@ export type DrawingSheet = {
    * @minItems 1
    */
   views: DrawingViewSpec[];
-  /** Draw only these bodies (a body's id, or the id of a feature that made it). Absent: every body. */
+  /**
+   * Draw only these bodies, named as a check names them (a body's id, name or part number; `*` matches any text), or by the id of a feature that made one. The sheet then draws only the annotations that lie on them. Absent: every body.
+   */
   bodies?: string[];
   /**
    * Draw the edges behind the model's faces, dashed.
@@ -906,7 +908,7 @@ export type DrawingSheet = {
    */
   hiddenLines?: boolean;
   /**
-   * A callout for each hole: its count, diameter and depth, and its standard size when a hole feature names one.
+   * A hole table: each hole tagged in the view that looks along it, located from that view's lower left corner, and called out from its hole feature (count, diameter, tolerance, depth or THRU, head, FAR SIDE, standard size).
    * @default true
    */
   holeCallouts?: boolean;
