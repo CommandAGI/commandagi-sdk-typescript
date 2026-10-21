@@ -25,6 +25,9 @@
  *     </slice>
  *   );
  *
+ * A slicing setup that runs on no unit names its printer by its device definition: `<slice profile device>` (a ref to
+ * a `definition.tsx` that declares `process.print`). With a `<machine>` too, the unit's device is that definition.
+ *
  * The rule of the ontology's files: a record is an element and its fields are its attributes, verbatim (millimetres,
  * the names the native file uses). A setup's single records (`source`, `design`, `stock`, `part`, `machine`,
  * `runsOn`, `spool`) are one element each, absent when the native field is null. A CAM operation is an
@@ -44,6 +47,8 @@ export const CAM_OPERATION_FIELDS = ["id", "op", "profile", "enabled", "params",
 /** A unit's channel a job runs on (`runsOn` of a machining setup, `machine` of a slicing setup). */
 export const TARGET_FIELDS = ["unit", "channel", "name"] as const;
 export const SPOOL_FIELDS = ["materialId", "diameterMm"] as const;
+/** A slicing setup's own fields: its profile, its overrides, and the printer's definition (`device`). */
+export const SLICE_FIELDS = ["profile", "params", "device"] as const;
 
 export interface CamDocument {
   operations: Record<string, unknown>[];
@@ -124,7 +129,7 @@ export const sliceVocabulary: Vocabulary<SliceDocument> = {
   noun: "a slicing setup",
   root: "slice",
   tags: {
-    slice: { parents: [], required: ["profile"], attrs: ["profile", "params"] },
+    slice: { parents: [], required: ["profile"], attrs: SLICE_FIELDS },
     source: { parents: ["slice"], single: true, ...ref },
     design: { parents: ["slice"], single: true, ...ref },
     spool: { parents: ["slice"], single: true, attrs: SPOOL_FIELDS },
@@ -141,7 +146,7 @@ export const sliceVocabulary: Vocabulary<SliceDocument> = {
   toTree(d) {
     return {
       tag: "slice",
-      attrs: attrsOf(d, ["profile", "params"]),
+      attrs: attrsOf(d, SLICE_FIELDS),
       children: [...one("source", d.source, CAM_REF_FIELDS), ...one("design", d.design, CAM_REF_FIELDS), ...one("spool", d.spool, SPOOL_FIELDS), ...one("machine", d.machine, TARGET_FIELDS)],
     };
   },

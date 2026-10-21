@@ -70,6 +70,10 @@ test("a slicing setup in JSX is its setup: the profile and its overrides on the 
   });
   assert.deepEqual(FAB.slice.fromTree(FAB.slice.toTree(doc as never)), doc, "both ways");
   assert.deepEqual(FAB.slice.toTree({ profile: "p", params: {}, source: null, design: null, spool: { materialId: "pla", diameterMm: 1.75 }, machine: null }).attrs, { profile: "p" }, "empty overrides are not written");
+  // A setup that runs on no unit names its printer by its definition.
+  const saturn = { profile: "sla_resin_0.05", device: "cloud://global/devices/elegoo-saturn-4-ultra/definition.tsx", source: { fileId: "node.stl", name: "node.stl" } };
+  assert.deepEqual(declarationOf({ default: el("slice", { profile: saturn.profile, device: saturn.device }, el("source", saturn.source)) }).document!.document, saturn);
+  assert.deepEqual(FAB.slice.fromTree(FAB.slice.toTree(saturn as never)), saturn);
   assert.throws(() => declarationOf({ default: el("slice", {}) }), /<slice> needs profile/);
   assert.throws(() => declarationOf({ default: el("slice", { profile: "p" }, el("machine", { unit: "x" })) }), /<machine> needs channel/);
 });
