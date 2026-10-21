@@ -1,6 +1,6 @@
 {
   "name": "commandagi",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "description": "The CommandAGI SDK: one typed client over the platform API, for developers and agents alike (API-key scope is the only difference), and the primitives that declare documents in code.",
   "license": "MIT",
   "repository": {
