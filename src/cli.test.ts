@@ -178,6 +178,7 @@ test("an unknown command is said before the key is asked for, with the near matc
     written.length = 0;
     await main(["--help"], host);
     assert.match(written.join(""), /commandagi threads create/);
+    written.length = 0;
     await assert.rejects(main(["tasks", "propose"], host), /unknown command: tasks; did you mean task\b.*commandagi help/);
     await assert.rejects(main(["threads", "propose"], host), /unknown command: threads propose: threads has .*list/);
     await main(["threads", "--help"], host);
