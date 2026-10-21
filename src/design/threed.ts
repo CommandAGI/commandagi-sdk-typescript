@@ -37,10 +37,12 @@
  *                                             ones a query chooses when the part is built, { kind, select: { … } }:
  *                                             normal, parallel, perpendicular, axis (directions), geometry, length,
  *                                             radius, area (ranges { min, max }), ofFace (the edges of the faces a
- *                                             face query chooses), createdBy (what a feature made), inBox, farthest
+ *                                             face query chooses), createdBy (what a feature made), at (a point on
+ *                                             the face), inBox, farthest
  *                                             (a direction: "the top"), any, not. Every test present must hold
  *   <hole face positions | sketch …>          where the holes are: `positions` (points in model coordinates) or
- *                                             `sketch` (a sketch of points); with neither, the face's centre
+ *                                             `sketch` (a sketch of points); with neither, the face's centre. A
+ *                                             face that chooses several drills each place in the one it lies on
  *   <feature type id name …fields>            a feature of a type the kernel does not know (a document may hold any
  *                                             type; its rebuild names it). A known type is written as its own tag
  *   <sketch id name plane> with children      a sketch: <point id x y>, a segment by its type (<line id a b>,

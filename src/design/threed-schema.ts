@@ -911,7 +911,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "center": {
      "$ref": "#/$defs/Vec3",
-     "description": "The centre of its base.",
+     "description": "The centre of its base, not of the solid (a box's `center` is its middle): it runs `height` from here along `axis`.",
      "x-unit": "mm",
      "default": [
       0,
@@ -1266,7 +1266,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "center": {
      "$ref": "#/$defs/Vec3",
-     "description": "The centre of its base.",
+     "description": "The centre of its base, not of the solid (a box's `center` is its middle): it runs `height` from here along `axis`.",
      "x-unit": "mm",
      "default": [
       0,
@@ -2431,7 +2431,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "part": {
      "type": "string",
-     "description": "The screw, by its library part id: iso-4762 (socket head cap), iso-4017 and iso-4014 (hexagon head), iso-7380-1 (button head), iso-10642 (countersunk), then the thread (`iso-4762-m6`, `iso-7380-1-m2-5`).",
+     "description": "The screw, by its library part id: iso-4762 (socket head cap), iso-4017 and iso-4014 (hexagon head), iso-7380-1 (button head), iso-10642 (countersunk), then the thread (`iso-4762-m6`; a decimal one `iso-7380-1-m2.5` or `iso-7380-1-m2-5`).",
      "pattern": "\\S"
     },
     "length": {
@@ -2442,7 +2442,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "at": {
      "$ref": "#/$defs/Vec3",
-     "description": "Where the stack bears on the first part it clamps: the centre of the washer's or the head's bearing face.",
+     "description": "Where the stack bears on the first part it clamps: the centre of the washer's or the head's bearing face (in a counterbore, on its floor).",
      "x-unit": "mm"
     },
     "axis": {
@@ -7305,6 +7305,11 @@ export const THREED_SCHEMA: SchemaDocument = {
      "type": "string",
      "description": "Made by this feature: a face that lies on the bodies after the feature ran and not on the bodies before it, and an edge that bounds such a face. A hole's wall and its rim are made by the hole; the face it was drilled in is not."
     },
+    "at": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Faces: the face passes through this point (within 0.1 % of the diagonal of the bodies it is chosen from): \"the face that contains (x, y, z)\". A point on the face, anywhere on it, not its centre.",
+     "x-unit": "mm"
+    },
     "inBox": {
      "$ref": "#/$defs/TopoBox",
      "description": "Its centre (a face's centroid, an edge's midpoint) lies in this box, in model coordinates.",
@@ -7405,11 +7410,11 @@ export const THREED_SCHEMA: SchemaDocument = {
    "properties": {
     "point": {
      "$ref": "#/$defs/Vec3",
-     "description": "Face center, edge midpoint, or vertex position."
+     "description": "Faces: a point on the face (anywhere on it) or its centre; the face nearest to it wins. Edges: the midpoint. Vertices: the position."
     },
     "normal": {
      "$ref": "#/$defs/Vec3",
-     "description": "Face normal (faces only)."
+     "description": "Face normal (faces only): its outward sense, which tells two touching faces apart."
     },
     "area": {
      "type": "number",

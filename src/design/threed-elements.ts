@@ -360,7 +360,7 @@ export type ConductorPathRef = {
 export type ConeFeature = {
   type: "cone";
   /**
-   * The centre of its base.
+   * The centre of its base, not of the solid (a box's `center` is its middle): it runs `height` from here along `axis`.
    * @unit mm
    * @default [0,0,0]
    */
@@ -530,7 +530,7 @@ export type CriticalDimension = {
 export type CylinderFeature = {
   type: "cylinder";
   /**
-   * The centre of its base.
+   * The centre of its base, not of the solid (a box's `center` is its middle): it runs `height` from here along `axis`.
    * @unit mm
    * @default [0,0,0]
    */
@@ -1165,7 +1165,7 @@ export type FastenerStack = {
   /** The screw's body id (its washer is `<id>.washer`, its nut `<id>.nut`). */
   id: string;
   /**
-   * The screw, by its library part id: iso-4762 (socket head cap), iso-4017 and iso-4014 (hexagon head), iso-7380-1 (button head), iso-10642 (countersunk), then the thread (`iso-4762-m6`, `iso-7380-1-m2-5`).
+   * The screw, by its library part id: iso-4762 (socket head cap), iso-4017 and iso-4014 (hexagon head), iso-7380-1 (button head), iso-10642 (countersunk), then the thread (`iso-4762-m6`; a decimal one `iso-7380-1-m2.5` or `iso-7380-1-m2-5`).
    */
   part: string;
   /**
@@ -1175,7 +1175,7 @@ export type FastenerStack = {
    */
   length: number;
   /**
-   * Where the stack bears on the first part it clamps: the centre of the washer's or the head's bearing face.
+   * Where the stack bears on the first part it clamps: the centre of the washer's or the head's bearing face (in a counterbore, on its floor).
    * @unit mm
    */
   at: Vec3;
@@ -3322,6 +3322,11 @@ export type TopoQuery = {
    */
   createdBy?: string;
   /**
+   * Faces: the face passes through this point (within 0.1 % of the diagonal of the bodies it is chosen from): "the face that contains (x, y, z)". A point on the face, anywhere on it, not its centre.
+   * @unit mm
+   */
+  at?: Vec3;
+  /**
    * Its centre (a face's centroid, an edge's midpoint) lies in this box, in model coordinates.
    * @unit mm
    */
@@ -3368,9 +3373,11 @@ export type TopoSelector = {
 };
 
 export type TopoSignature = {
-  /** Face center, edge midpoint, or vertex position. */
+  /**
+   * Faces: a point on the face (anywhere on it) or its centre; the face nearest to it wins. Edges: the midpoint. Vertices: the position.
+   */
   point: Vec3;
-  /** Face normal (faces only). */
+  /** Face normal (faces only): its outward sense, which tells two touching faces apart. */
   normal?: Vec3;
   /** Face area (faces only). */
   area?: number;

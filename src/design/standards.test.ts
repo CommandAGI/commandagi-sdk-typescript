@@ -53,6 +53,9 @@ test("a hole by name is the clearance hole of ISO 273 or the tap drill of ISO 23
   assert.deepEqual(sizedHole({ size: "M4 tap", style: "simple" }), { size: "M4 tap", style: "simple", diameter: 3.3 });
   // The size gives the head too: a head that differs is refused (clear the size to give your own).
   assert.throws(() => sizedHole({ size: "M4 close fit", style: "counterbore", headDiameter: 9 }), { message: 'headDiameter: "M4 close fit" is 8 mm (got 9); leave headDiameter out, or clear size' });
+  // A counterbore deeper than the size's sinks the head: the designer's choice. A shallower one leaves it proud.
+  assert.equal(sizedHole({ size: "M4 normal fit", style: "counterbore", headDepth: 5.4 }).headDepth, 5.4);
+  assert.throws(() => sizedHole({ size: "M4 normal fit", style: "counterbore", headDepth: 3 }), { message: `headDepth: "M4 normal fit" is 4.4 mm (got 3); leave headDepth out, or clear size (a counterbore may be deeper than the size's, not shallower)` });
 });
 
 test("a material is a row with its density and its source; a mass is volume × density", () => {

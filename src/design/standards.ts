@@ -79,7 +79,8 @@ export function holeSize(name: string): NamedHole {
  * tables give for that thread (a counterbore for a hexagon socket head cap screw, DIN 974-1; a countersink for a
  * countersunk screw, DIN 74 form F, its depth from its diameter and angle). The size wins: a `diameter`,
  * `headDiameter` or `headDepth` that differs from the size's is refused. Leave it out, or clear `size` to give your
- * own.
+ * own. One choice stays yours: a counterbore deeper than the size's (`headDepth` more than the table's) sinks the head
+ * below the face.
  */
 export function sizedHole(hole: Record<string, unknown>): Record<string, unknown> {
   if (typeof hole.size !== "string") return hole;
@@ -93,10 +94,14 @@ export function sizedHole(hole: Record<string, unknown>): Record<string, unknown
     says.headDiameter = countersink.diameter;
     says.headDepth = Math.floor(((countersink.diameter - named.diameter) / 2 / Math.tan((countersink.angleDeg * Math.PI) / 360)) * 1e4 + 0.5) / 1e4;
   }
+  if (hole.style === "counterbore" && says.headDepth !== undefined && typeof hole.headDepth === "number" && hole.headDepth > says.headDepth) says.headDepth = hole.headDepth;
   for (const [field, value] of Object.entries(says)) {
     const written = hole[field];
     if (typeof written === "number" && Math.abs(written - value) > 1e-9)
-      throw new Error(`${field}: "${hole.size}" is ${value} mm (got ${written}); leave ${field} out, or clear size`);
+      throw new Error(
+        `${field}: "${hole.size}" is ${value} mm (got ${written}); leave ${field} out, or clear size` +
+          (field === "headDepth" && hole.style === "counterbore" ? " (a counterbore may be deeper than the size's, not shallower)" : ""),
+      );
   }
   return { ...hole, ...says };
 }
