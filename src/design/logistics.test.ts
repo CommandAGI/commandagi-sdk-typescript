@@ -13,7 +13,7 @@ const prop = (form: unknown) => {
 };
 const props = (inputs: Record<string, unknown>) => (inputs.foreign as unknown[]).map(prop);
 
-const LCSC = { name: "LCSC", sku: "C21264512", currency: "USD", priceBreaks: [{ quantity: 1, unitPrice: 9.4 }, { quantity: 10, unitPrice: 9.15 }], stock: 1, leadTimeDays: 3, source: "lcsc.com", date: "2026-10-15" };
+const LCSC = { name: "LCSC", sku: "C21264512", currency: "USD", priceBreaks: [{ quantity: 1, unitPrice: 9.4 }, { quantity: 10, unitPrice: 9.15, unitPriceHigh: 9.6 }], stock: 1, leadTimeDays: 3, source: "lcsc.com", date: "2026-10-15" };
 const LOGISTICS = {
   suppliers: [LCSC, { name: "DigiKey", sku: "A7670G-ND" }],
   alternates: [{ manufacturer: "SIMCom", mpn: "A7670E-LASE" }],
@@ -25,7 +25,7 @@ const LOGISTICS = {
 const FORMS = [
   ["MPN", "A7670G-LLSE"],
   ["LCSC Part", "C21264512"],
-  ["LCSC Terms", '{"currency":"USD","priceBreaks":[[1,9.4],[10,9.15]],"leadTimeDays":3,"stock":1,"source":"lcsc.com","date":"2026-10-15"}'],
+  ["LCSC Terms", '{"currency":"USD","priceBreaks":[[1,9.4],[10,9.15,9.6]],"leadTimeDays":3,"stock":1,"source":"lcsc.com","date":"2026-10-15"}'],
   ["DigiKey Part", "A7670G-ND"],
   ["Alternates", '[{"manufacturer":"SIMCom","mpn":"A7670E-LASE"}]'],
   ["Datasheet", "https://www.simcom.com/product/A7670X.html"],
@@ -58,7 +58,7 @@ test("a circuit's component() takes the same fields, as the same forms", () => {
 test("a wrong logistics field is refused by name, and attrs cannot say what an argument says", () => {
   const sheet = (p: Record<string, unknown>) => () => declarationOf({ default: () => jsx("group", { name: "L", children: [jsx("part", { name: "U4", pins: ["1"], ...p })] }) });
   assert.throws(sheet({ suppliers: [{ name: "LCSC", price: 3 }] }), /suppliers\[0\]: price is not a term of an offer/);
-  assert.throws(sheet({ suppliers: [{ name: "LCSC", priceBreaks: [{ quantity: 0, unitPrice: 1 }] }] }), /priceBreaks is a list of \{ quantity, unitPrice \}/);
+  assert.throws(sheet({ suppliers: [{ name: "LCSC", priceBreaks: [{ quantity: 0, unitPrice: 1 }] }] }), /priceBreaks is a list of \{ quantity, unitPrice, unitPriceHigh\? \}/);
   assert.throws(sheet({ suppliers: [{ name: "LCSC", currency: "usd" }] }), /currency is an ISO 4217 code/);
   assert.throws(sheet({ lifecycle: { onHand: 3 } }), /lifecycle needs its status/);
   assert.throws(sheet({ lifecycle: { status: "dead" } }), /lifecycle.status is one of active, nrnd, eol, obsolete/);

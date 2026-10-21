@@ -166,8 +166,9 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "minutes": {
      "type": "number",
+     "description": "How long it takes. 0: a step that takes no time (a note on why, a context step), which needs no `by`.",
      "x-unit": "min",
-     "exclusiveMinimum": 0
+     "minimum": 0
     },
     "ratePerHour": {
      "type": "number",
@@ -779,8 +780,10 @@ export const THREED_SCHEMA: SchemaDocument = {
      "enum": [
       "compliant",
       "exempt",
-      "non-compliant"
-     ]
+      "non-compliant",
+      "unknown"
+     ],
+     "description": "\"unknown\": not known yet, and stated so (a warning, never a pass), rather than left out (an error) or invented."
     },
     "rohsExemption": {
      "type": "string",
@@ -791,15 +794,17 @@ export const THREED_SCHEMA: SchemaDocument = {
      "enum": [
       "compliant",
       "non-compliant",
+      "unknown",
       "svhc"
-     ]
+     ],
+     "description": "\"unknown\" as for `rohs`."
     },
     "conflictMinerals": {
      "type": "string",
      "enum": [
       "none",
-      "reported",
-      "unknown"
+      "unknown",
+      "reported"
      ],
      "description": "\"reported\": the maker's conflict minerals report names the smelters."
     },
@@ -1239,8 +1244,11 @@ export const THREED_SCHEMA: SchemaDocument = {
      "type": "string",
      "enum": [
       "mm",
+      "um",
+      "nm",
       "deg"
      ],
+     "description": "The unit of nominal, plus and minus: a length in mm, µm (`um`) or nm (a film's thickness), or an angle.",
      "default": "mm"
     },
     "method": {
@@ -2496,6 +2504,14 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "The tightening torque.",
      "x-unit": "N·m",
      "exclusiveMinimum": 0
+    },
+    "material": {
+     "type": "string",
+     "description": "The grade of every piece of the stack (\"A2-70\", \"8.8 zinc plated\"): each piece's engineering material, and part of its part number (\"ISO 7380-1 M5×12 A2-70\"), so one standard in two grades is two parts."
+    },
+    "partNumber": {
+     "type": "string",
+     "description": "The screw's part number in the owner's numbering, in place of its designation."
     }
    },
    "required": [
@@ -3415,6 +3431,30 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "The geometry of a body that a joint binds: a face, an edge or a vertex, named by where it is."
   },
+  "LibraryData": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "match": {
+     "type": "string",
+     "description": "A piece's designation and grade, `*` matching any text (\"ISO 4762 M5×*\", \"ISO 4032 *\", \"ISO 4017 * A2-70\").",
+     "pattern": "\\S"
+    },
+    "engineering": {
+     "$ref": "#/$defs/PartEngineering"
+    }
+   },
+   "required": [
+    "id",
+    "match",
+    "engineering"
+   ],
+   "additionalProperties": false,
+   "description": "THE DATA OF LIBRARY FASTENER PIECES, GIVEN ONCE: `<library id match engineering>`. Every screw, washer and nut of the document's `<fastener>` stacks whose designation (with its stack's grade, when the stack states one) matches `match` (`*` matches any text: \"ISO 4762 M5*\", \"ISO 7089 *\", \"ISO 4017 * A2-70\") takes this engineering data (a supplier and its price, compliance, shipping, lifecycle). A piece's own `<body id=\"f1\">` (or `f1.washer`, `f1.nut`) says more where it says it; the first `<library>` that matches is read."
+  },
   "Lifecycle": {
    "type": "object",
    "properties": {
@@ -3760,6 +3800,10 @@ export const THREED_SCHEMA: SchemaDocument = {
      "type": "string",
      "description": "The shop that makes it, when it is not one of the fleet's devices."
     },
+    "flow": {
+     "type": "string",
+     "description": "The process flow that makes it (`stage1.flow.tsx`, by its path from this document): its steps, tools and minutes are the part's process and its cost, counted once, so the part states no cycle time of its own."
+    },
     "parameters": {
      "type": "object",
      "properties": {},
@@ -3824,6 +3868,7 @@ export const THREED_SCHEMA: SchemaDocument = {
   "ManufacturingProcess": {
    "type": "string",
    "enum": [
+    "other",
     "cnc-milling",
     "cnc-turning",
     "laser-cutting",
@@ -3837,6 +3882,8 @@ export const THREED_SCHEMA: SchemaDocument = {
     "sls-printing",
     "welding",
     "grinding",
+    "glass-working",
+    "saw-cutting",
     "manual",
     "purchased",
     "reference"
@@ -4662,6 +4709,10 @@ export const THREED_SCHEMA: SchemaDocument = {
      "$ref": "#/$defs/ManufacturingProcess",
      "description": "How the part is made; \"purchased\" when it is bought."
     },
+    "processName": {
+     "type": "string",
+     "description": "The process in words, when `process` is \"other\" (\"diamond-wire cutting\")."
+    },
     "finish": {
      "type": "string",
      "description": "The finish, as a drawing note says it (\"anodize clear, 10 µm\")."
@@ -4711,6 +4762,10 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "lifecycle": {
      "$ref": "#/$defs/Lifecycle"
+    },
+    "chemical": {
+     "$ref": "#/$defs/ProcessChemical",
+     "description": "A process chemical: its hazard, quantity, containment and exhaust."
     }
    },
    "additionalProperties": false,
@@ -5234,7 +5289,12 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "unitPrice": {
      "type": "number",
-     "description": "The price of one unit.",
+     "description": "The price of one unit; with `unitPriceHigh`, the low end of an estimate.",
+     "minimum": 0
+    },
+    "unitPriceHigh": {
+     "type": "number",
+     "description": "The high end of an estimate range (\"74–189 k\"): the roll-up gives both ends, and a target is judged on this one.",
      "minimum": 0
     }
    },
@@ -5244,6 +5304,63 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "The unit price from a quantity up (`@commandagi/core` quantity-terms' PriceBreak)."
+  },
+  "ProcessChemical": {
+   "type": "object",
+   "properties": {
+    "substance": {
+     "type": "string",
+     "description": "The substance as its safety data sheet names it (\"hydrofluoric acid 49 %\", \"sulfur hexafluoride\").",
+     "pattern": "\\S"
+    },
+    "cas": {
+     "type": "string",
+     "description": "Its CAS number (\"7664-39-3\")."
+    },
+    "hazard": {
+     "type": "string",
+     "description": "\"none\", or its UN number and hazard class as transport names it (\"UN1790 class 8 (6.1)\", \"UN1080 class 2.2\")."
+    },
+    "litres": {
+     "type": "number",
+     "description": "The liquid on hand at the station.",
+     "x-unit": "L",
+     "exclusiveMinimum": 0
+    },
+    "kilograms": {
+     "type": "number",
+     "description": "The mass on hand (a gas cylinder's fill, a solid).",
+     "x-unit": "kg",
+     "exclusiveMinimum": 0
+    },
+    "containmentLitres": {
+     "type": "number",
+     "description": "What holds a spill: the volume of the bund or tray under the liquid.",
+     "x-unit": "L",
+     "minimum": 0
+    },
+    "exhaust": {
+     "type": "string",
+     "description": "The exhaust it needs, by class: \"general\", \"acid\", \"solvent\", \"toxic gas\", \"pyrophoric\" …",
+     "pattern": "\\S"
+    },
+    "interlocks": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "The interlocks that guard it (\"gas detector closes the cylinder valve\", \"exhaust flow switch\")."
+    },
+    "sds": {
+     "type": "string",
+     "description": "Its safety data sheet: a URL or a path."
+    }
+   },
+   "required": [
+    "substance"
+   ],
+   "additionalProperties": false,
+   "description": "A PROCESS CHEMICAL a station holds (an etchant, a process gas, a solvent): what it is, its hazard, how much is on hand and what contains, exhausts and guards it. The `chemicals` check reads it (docs/formats.md § logistics)."
   },
   "ProductItem": {
    "type": "object",

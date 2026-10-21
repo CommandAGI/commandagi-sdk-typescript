@@ -24,7 +24,7 @@
  * `datasheet` (docs/formats.md § logistics).
  *
  * A supplier is two properties: `<name> Part` (its sku; `LCSC Part` is what JLCPCB's assembly BOM reads) and
- * `<name> Terms` (the rest as compact JSON, a price break as [quantity, unitPrice]). `Alternates` is JSON; a facet's
+ * `<name> Terms` (the rest as compact JSON, a price break as [quantity, unitPrice], or [quantity, unitPrice, unitPriceHigh]). `Alternates` is JSON; a facet's
  * fields are one property each (`Lifecycle`, `RoHS`, `HS Code` …). The repository's decoder is
  * `packages/domain/world/logistics.js`; the Python and Rust SDKs write and read the same forms.
  */
@@ -80,7 +80,8 @@ export interface SupplierOffer {
   sku?: string;
   url?: string;
   currency?: string;
-  priceBreaks?: { quantity: number; unitPrice: number }[];
+  /** The unit price from each quantity up; `unitPriceHigh` makes it an estimate range (unitPrice its low end). */
+  priceBreaks?: { quantity: number; unitPrice: number; unitPriceHigh?: number }[];
   moq?: number;
   orderMultiple?: number;
   leadTimeDays?: number;
@@ -148,8 +149,9 @@ export function checkOffers(where: string, v: unknown): SupplierOffer[] {
     if (s.stock !== undefined && !whole(s.stock, 0)) throw new Error(`${at}: stock is a whole number`);
     if (s.leadTimeDays !== undefined && !(typeof s.leadTimeDays === "number" && s.leadTimeDays >= 0)) throw new Error(`${at}: leadTimeDays is a number of days`);
     if (s.priceBreaks !== undefined) {
-      const ok = Array.isArray(s.priceBreaks) && s.priceBreaks.every((b) => isObject(b) && whole(b.quantity, 1) && typeof b.unitPrice === "number" && b.unitPrice >= 0 && Object.keys(b).length === 2);
-      if (!ok) throw new Error(`${at}: priceBreaks is a list of { quantity, unitPrice } (quantity a whole number from 1, unitPrice 0 or more)`);
+      const high = (b: Record<string, unknown>) => b.unitPriceHigh === undefined || (typeof b.unitPriceHigh === "number" && b.unitPriceHigh >= (b.unitPrice as number));
+      const ok = Array.isArray(s.priceBreaks) && s.priceBreaks.every((b) => isObject(b) && whole(b.quantity, 1) && typeof b.unitPrice === "number" && b.unitPrice >= 0 && high(b) && Object.keys(b).every((k) => ["quantity", "unitPrice", "unitPriceHigh"].includes(k)));
+      if (!ok) throw new Error(`${at}: priceBreaks is a list of { quantity, unitPrice, unitPriceHigh? } (quantity a whole number from 1, unitPrice 0 or more, unitPriceHigh not under it)`);
     }
     return JSON.parse(JSON.stringify(s)) as SupplierOffer;
   });
@@ -158,7 +160,7 @@ export function checkOffers(where: string, v: unknown): SupplierOffer[] {
 function offerForms(where: string, v: unknown): ReturnType<typeof fieldForm>[] {
   return checkOffers(where, v).flatMap((s) => {
     const terms: Record<string, unknown> = {};
-    for (const k of OFFER_TERMS) if (s[k] !== undefined) terms[k] = k === "priceBreaks" ? (s[k] as { quantity: number; unitPrice: number }[]).map((b) => [b.quantity, b.unitPrice]) : s[k];
+    for (const k of OFFER_TERMS) if (s[k] !== undefined) terms[k] = k === "priceBreaks" ? (s[k] as { quantity: number; unitPrice: number; unitPriceHigh?: number }[]).map((b) => (b.unitPriceHigh === undefined ? [b.quantity, b.unitPrice] : [b.quantity, b.unitPrice, b.unitPriceHigh])) : s[k];
     return [
       ...(s.sku !== undefined ? [fieldForm(`${s.name} Part`, s.sku as string)] : []),
       ...(Object.keys(terms).length || s.sku === undefined ? [fieldForm(`${s.name} Terms`, JSON.stringify(terms))] : []),
@@ -254,7 +256,7 @@ export function partFields(inputs: Readonly<Record<string, unknown>>): PartField
     else if (arg === "suppliers") {
       const terms = JSON.parse(value) as Record<string, unknown>;
       const s = supplier(name.slice(0, -6)) as unknown as Record<string, unknown>;
-      for (const k of OFFER_TERMS) if (terms[k] !== undefined) s[k] = k === "priceBreaks" ? (terms[k] as [number, number][]).map(([quantity, unitPrice]) => ({ quantity, unitPrice })) : terms[k];
+      for (const k of OFFER_TERMS) if (terms[k] !== undefined) s[k] = k === "priceBreaks" ? (terms[k] as [number, number, number?][]).map(([quantity, unitPrice, unitPriceHigh]) => (unitPriceHigh === undefined ? { quantity, unitPrice } : { quantity, unitPrice, unitPriceHigh })) : terms[k];
     } else if (arg === "alternates") out.alternates = JSON.parse(value);
     else if (arg === "datasheet") out.datasheet = value;
     else if (arg) {

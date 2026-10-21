@@ -49,8 +49,9 @@ export type AssemblyStep = {
   /** Who does it: "in-house", a contract house, or a device definition's ref. */
   by?: string;
   /**
+   * How long it takes. 0: a step that takes no time (a note on why, a context step), which needs no `by`.
    * @unit min
-   * @exclusiveMinimum 0
+   * @minimum 0
    */
   minutes?: number;
   /** @minimum 0 */
@@ -315,12 +316,16 @@ export type CombineFeature = {
 
 /** WHAT A PART COMPLIES WITH. */
 export type Compliance = {
-  rohs?: "compliant" | "exempt" | "non-compliant";
+  /**
+   * "unknown": not known yet, and stated so (a warning, never a pass), rather than left out (an error) or invented.
+   */
+  rohs?: "compliant" | "exempt" | "non-compliant" | "unknown";
   /** The RoHS annex III exemption it relies on ("7(c)-I"). */
   rohsExemption?: string;
-  reach?: "compliant" | "non-compliant" | "svhc";
+  /** "unknown" as for `rohs`. */
+  reach?: "compliant" | "non-compliant" | "unknown" | "svhc";
   /** "reported": the maker's conflict minerals report names the smelters. */
-  conflictMinerals?: "none" | "reported" | "unknown";
+  conflictMinerals?: "none" | "unknown" | "reported";
   /** The export control classification: "EAR99", "5A992.c". */
   eccn?: string;
   /** Certifications it holds: "FCC ID 2AJYU-8BAE003", "CE", "UL 94 V-0". */
@@ -521,8 +526,11 @@ export type CriticalDimension = {
    * @minimum 0
    */
   minus: number;
-  /** @default "mm" */
-  unit?: "mm" | "deg";
+  /**
+   * The unit of nominal, plus and minus: a length in mm, µm (`um`) or nm (a film's thickness), or an angle.
+   * @default "mm"
+   */
+  unit?: "mm" | "um" | "nm" | "deg";
   /** How it is measured: "caliper", "CMM", "go/no-go gauge". */
   method?: string;
 };
@@ -1220,6 +1228,12 @@ export type FastenerStack = {
    * @exclusiveMinimum 0
    */
   torque?: number;
+  /**
+   * The grade of every piece of the stack ("A2-70", "8.8 zinc plated"): each piece's engineering material, and part of its part number ("ISO 7380-1 M5×12 A2-70"), so one standard in two grades is two parts.
+   */
+  material?: string;
+  /** The screw's part number in the owner's numbering, in place of its designation. */
+  partNumber?: string;
 };
 
 export type FilletFeature = {
@@ -1640,6 +1654,18 @@ export type JointReference = {
   label?: string;
 };
 
+/**
+ * THE DATA OF LIBRARY FASTENER PIECES, GIVEN ONCE: `<library id match engineering>`. Every screw, washer and nut of the document's `<fastener>` stacks whose designation (with its stack's grade, when the stack states one) matches `match` (`*` matches any text: "ISO 4762 M5*", "ISO 7089 *", "ISO 4017 * A2-70") takes this engineering data (a supplier and its price, compliance, shipping, lifecycle). A piece's own `<body id="f1">` (or `f1.washer`, `f1.nut`) says more where it says it; the first `<library>` that matches is read.
+ */
+export type LibraryData = {
+  id: string;
+  /**
+   * A piece's designation and grade, `*` matching any text ("ISO 4762 M5×*", "ISO 4032 *", "ISO 4017 * A2-70").
+   */
+  match: string;
+  engineering: PartEngineering;
+};
+
 /** WHERE A BOUGHT PART IS IN ITS LIFE, AND HOW MANY ARE ON THE SHELF. */
 export type Lifecycle = {
   status: "active" | "nrnd" | "eol" | "obsolete";
@@ -1838,6 +1864,10 @@ export type MakeSpec = {
   device?: string;
   /** The shop that makes it, when it is not one of the fleet's devices. */
   shop?: string;
+  /**
+   * The process flow that makes it (`stage1.flow.tsx`, by its path from this document): its steps, tools and minutes are the part's process and its cost, counted once, so the part states no cycle time of its own.
+   */
+  flow?: string;
   /** The process parameters (layer height, walls, infill, feed, stepdown …), by name. */
   parameters?: { [key: string]: boolean | string | number };
   /**
@@ -1871,7 +1901,7 @@ export type MakeSpec = {
 };
 
 /** How a part is made. */
-export type ManufacturingProcess = "cnc-milling" | "cnc-turning" | "laser-cutting" | "waterjet-cutting" | "sheet-metal-bending" | "extrusion" | "casting" | "injection-moulding" | "fdm-printing" | "sla-printing" | "sls-printing" | "welding" | "grinding" | "manual" | "purchased" | "reference";
+export type ManufacturingProcess = "other" | "cnc-milling" | "cnc-turning" | "laser-cutting" | "waterjet-cutting" | "sheet-metal-bending" | "extrusion" | "casting" | "injection-moulding" | "fdm-printing" | "sla-printing" | "sls-printing" | "welding" | "grinding" | "glass-working" | "saw-cutting" | "manual" | "purchased" | "reference";
 
 /**
  * A constraint between two placed components. References a component by its `ExternalPartRef` feature id and a local axis on that component. The assembly solver relaxes both components' placements (position AND orientation) toward simultaneous satisfaction of every mate with least motion; unsatisfiable mates (missing components) are reported, never silently dropped.
@@ -2202,6 +2232,8 @@ export type PartEngineering = {
   material?: string;
   /** How the part is made; "purchased" when it is bought. */
   process?: ManufacturingProcess;
+  /** The process in words, when `process` is "other" ("diamond-wire cutting"). */
+  processName?: string;
   /** The finish, as a drawing note says it ("anodize clear, 10 µm"). */
   finish?: string;
   /** A weighed or datasheet mass. Absent: the mass is volume × the material's density. */
@@ -2222,6 +2254,8 @@ export type PartEngineering = {
   compliance?: Compliance;
   shipping?: Shipping;
   lifecycle?: Lifecycle;
+  /** A process chemical: its hazard, quantity, containment and exhaust. */
+  chemical?: ProcessChemical;
 };
 
 /** A mass that was weighed or read from a datasheet. It stands in place of volume × density. */
@@ -2453,10 +2487,53 @@ export type PriceBreak = {
    */
   quantity: number;
   /**
-   * The price of one unit.
+   * The price of one unit; with `unitPriceHigh`, the low end of an estimate.
    * @minimum 0
    */
   unitPrice: number;
+  /**
+   * The high end of an estimate range ("74–189 k"): the roll-up gives both ends, and a target is judged on this one.
+   * @minimum 0
+   */
+  unitPriceHigh?: number;
+};
+
+/**
+ * A PROCESS CHEMICAL a station holds (an etchant, a process gas, a solvent): what it is, its hazard, how much is on hand and what contains, exhausts and guards it. The `chemicals` check reads it (docs/formats.md § logistics).
+ */
+export type ProcessChemical = {
+  /** The substance as its safety data sheet names it ("hydrofluoric acid 49 %", "sulfur hexafluoride"). */
+  substance: string;
+  /** Its CAS number ("7664-39-3"). */
+  cas?: string;
+  /**
+   * "none", or its UN number and hazard class as transport names it ("UN1790 class 8 (6.1)", "UN1080 class 2.2").
+   */
+  hazard?: string;
+  /**
+   * The liquid on hand at the station.
+   * @unit L
+   * @exclusiveMinimum 0
+   */
+  litres?: number;
+  /**
+   * The mass on hand (a gas cylinder's fill, a solid).
+   * @unit kg
+   * @exclusiveMinimum 0
+   */
+  kilograms?: number;
+  /**
+   * What holds a spill: the volume of the bund or tray under the liquid.
+   * @unit L
+   * @minimum 0
+   */
+  containmentLitres?: number;
+  /** The exhaust it needs, by class: "general", "acid", "solvent", "toxic gas", "pyrophoric" … */
+  exhaust?: string;
+  /** The interlocks that guard it ("gas detector closes the cylinder valve", "exhaust flow switch"). */
+  interlocks?: string[];
+  /** Its safety data sheet: a URL or a path. */
+  sds?: string;
 };
 
 /**

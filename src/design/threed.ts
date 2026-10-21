@@ -59,6 +59,8 @@
  *                                             box, or another design by `ref` (a board's .pcb.tsx)
  *   <assemble id order parts fasteners tools fixture by minutes ratePerHour currency instruction>
  *                                             one assembly step (`assemblySteps`)
+ *   <library id match engineering>            the data of every library fastener piece whose designation matches
+ *                                             (`library`): its supplier and price, compliance, shipping, given once
  *   <joint id kind a b anchor axis limits …>  a joint between two bodies (`dynamics.joints`): fixed, revolute,
  *                                             prismatic, cylindrical, planar, screw, spherical or universal, its
  *                                             axis, its limits and the geometry it binds (`refA`, `refB`)
@@ -107,7 +109,7 @@ import { toleranceProblem, type DimensionTolerance } from "./tolerances.js";
 export const THREED_FEATURES: readonly string[] = Object.keys(THREED_SCHEMA.roots);
 const FEATURES = new Set(THREED_FEATURES);
 /** Tags with a meaning of their own: never a `<feature type>`. */
-const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "joint", "mate", "sheet", "check", "accept", "permitted", "fastener", "item", "assemble", "point", "constraint", "projection", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input"]);
+const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "joint", "mate", "sheet", "check", "accept", "permitted", "fastener", "item", "assemble", "library", "point", "constraint", "projection", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input"]);
 /** A sketch's segment kinds, by tag. */
 export const SKETCH_SEGMENTS: readonly string[] = ["line", "circle", "arc", "spline", "ellipse", "ellipseArc"];
 const SEGMENTS = new Set(SKETCH_SEGMENTS);
@@ -121,7 +123,7 @@ export const BUILTIN_PLANES = {
 const VIEW_ATTRS = new Set(["semanticVisibility"]);
 const PARAM_FIELDS = ["value", "unit", "comment", "min", "max", "step", "tolerance"];
 /** Document fields a <slot> may not hold: they have elements of their own, or are the graph itself. */
-const NOT_SLOTS = new Set(["id", "name", "units", "planes", "features", "parameters", "presentation", "isAssembly", "bodyMeta", "semanticVisibility", "drawings", "checks", "accepted", "permitted", "fasteners", "items", "assemblySteps"]);
+const NOT_SLOTS = new Set(["id", "name", "units", "planes", "features", "parameters", "presentation", "isAssembly", "bodyMeta", "semanticVisibility", "drawings", "checks", "accepted", "permitted", "fasteners", "items", "assemblySteps", "library"]);
 /**
  * Elements that are the items of a list the document holds: the tag, the document field (its node), the port of that
  * node that holds the list, and the definition each item is checked against (`THREED_SCHEMA.$defs`).
@@ -136,6 +138,7 @@ export const THREED_LISTS: Readonly<Record<string, { node: string; port: string;
   fastener: { node: "fasteners", port: "value", def: "FastenerStack" },
   item: { node: "items", port: "value", def: "ProductItem" },
   assemble: { node: "assemblySteps", port: "value", def: "AssemblyStep" },
+  library: { node: "library", port: "value", def: "LibraryData" },
 };
 
 interface Node {
