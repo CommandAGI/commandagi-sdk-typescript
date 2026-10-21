@@ -99,7 +99,7 @@ test("a feature element whose fields do not fit its type is refused with the op 
   const engineering = (process: string, more = {}) => ({ partNumber: "X", material: "6061-T6", process, ...more });
   assert.throws(read(jsx("body", { id: "b4", engineering: engineering("sheet-metal") }), jsx("body", { id: "b6", engineering: engineering("cnc-milling", { notes: "x" }) }), jsx("extrude", { id: "e1", profile, distance: -1, operation: "new" })), {
     message: [
-      '<body id="b4">: engineering/process: must be one of cnc-milling, cnc-turning, laser-cutting, waterjet-cutting, sheet-metal-bending, extrusion, casting, injection-moulding, fdm-printing, sla-printing, sls-printing, welding, grinding, manual, purchased, reference (got "sheet-metal")',
+      '<body id="b4">: engineering/process: must be one of other, cnc-milling, cnc-turning, laser-cutting, waterjet-cutting, sheet-metal-bending, extrusion, casting, injection-moulding, fdm-printing, sla-printing, sls-printing, welding, grinding, glass-working, saw-cutting, manual, purchased, reference (got "sheet-metal")',
       '<body id="b6">: engineering/notes: is not one of its fields',
       '<extrude id="e1">: distance: must be greater than 0 (got -1)',
     ].join("\n"),
