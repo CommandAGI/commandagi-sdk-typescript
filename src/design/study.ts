@@ -26,7 +26,7 @@
  * what is missing.
  *
  * The document a study declares (`fromTree`):
- *   { kind, part, units, material?, fixtures?: [{ id, type, faces, region? }], loadCases?: [{ id, loads: [{ type: "force" |
+ *   { kind, part, units, material?, fixtures?: [{ id, type, faces, region?, stiffness?, axis? }], loadCases?: [{ id, loads: [{ type: "force" |
  *     "pressure", id, faces, total | value }] }], mesh?, solver?, criteria?: [{ id, quantity, limit, region?,
  *     loadCase? }], revise?: [{ parameter, min, max }] }
  */
@@ -80,7 +80,7 @@ for (const [tag, t] of Object.entries(tags)) vocabularyTags[tag] = t.rule;
 
 registerStudyKind("structural", {
   material: { rule: { parents: ["study"], single: true, required: ["grade"], attrs: ["grade", "body", "poisson"] }, field: "material" },
-  fixture: { rule: { parents: ["study"], key: "id", required: ["id", "type", FACES], attrs: ["id", "type", FACES, "region"] }, field: "fixtures", list: true },
+  fixture: { rule: { parents: ["study"], key: "id", required: ["id", "type", FACES], attrs: ["id", "type", FACES, "region", "stiffness", "axis"] }, field: "fixtures", list: true },
   loadCase: { rule: { parents: ["study"], key: "id", required: ["id"], attrs: ["id"] }, field: "loadCases", list: true },
   force: { rule: { parents: ["loadCase"], key: "id", required: ["id", FACES, "total"], attrs: ["id", FACES, "total"] }, field: "loads", list: true, typed: true },
   pressure: { rule: { parents: ["loadCase"], key: "id", required: ["id", FACES, "value"], attrs: ["id", FACES, "value"] }, field: "loads", list: true, typed: true },
