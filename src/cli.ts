@@ -374,7 +374,7 @@ export async function main(argv: string[], host: HostCommands): Promise<void> {
     return;
   }
   // `help <group>` and `<group> --help` are that group's lines; a host command's are its own.
-  const asked = first === "help" ? argv[1] : argv.includes("--help") ? first : undefined;
+  const asked = first === "help" ? argv[1] : argv.includes("--help") && !first?.startsWith("-") ? first : undefined;
   if (asked && host.commands.includes(asked)) {
     await host.run([asked, "--help"]);
     return;
