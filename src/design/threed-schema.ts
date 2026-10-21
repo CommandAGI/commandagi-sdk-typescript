@@ -88,6 +88,11 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "The other body of a pair, named as `body` is: the findings between the two, anywhere (no region).",
      "pattern": "\\S"
     },
+    "maxVolume": {
+     "type": "number",
+     "description": "The largest shared volume it covers (mm³): a clash that shares more (outside threads) is not covered, so a body that moves deeper into its neighbour than the design draws (a pose, a swept joint) is a finding again.",
+     "minimum": 0
+    },
     "reason": {
      "type": "string",
      "description": "Why this finding is right on purpose.",
@@ -101,7 +106,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "reason"
    ],
    "additionalProperties": false,
-   "description": "A FINDING ACCEPTED ON PURPOSE: `<accept check body region reason />`. It suppresses the findings of that check on that body whose location, in the body's own frame, lies in `region`. A region within 5 % of the body's box and 100 000 mm³ covers every finding in it; a larger one covers only a finding whose own extent (a clash's box, else its point), grown by 5 mm, holds the whole region, and one that covers none is refused: it is itself an error. With `other` and no region it covers the findings between two bodies (a part modelled as its envelope inside another: `<accept check=\"clash\" body=\"Spindle\" other=\"Clamp ring\" reason=\"…\" />`). With neither, it covers only findings with no place (a logistics finding: `<accept check=\"sourcing\" body=\"Label\" rule=\"no-supplier\" reason=\"…\" />`). A suppressed finding stays in the report with the accept that suppressed it and severity `suppressed`."
+   "description": "A FINDING ACCEPTED ON PURPOSE: `<accept check body region reason />`. It suppresses the findings of that check on that body whose location, in the body's own frame, lies in `region`. A region within 5 % of the body's box and 100 000 mm³ covers every finding in it; a larger one covers only a finding whose own extent (a clash's box, else its point), grown by 5 mm, holds the whole region, and one that covers none is refused: it is itself an error. With `other` and no region it covers the findings between two bodies (a part modelled as its envelope inside another: `<accept check=\"clash\" body=\"Spindle\" other=\"Clamp ring\" reason=\"…\" />`); `maxVolume` bounds what it covers, so a body that moves deeper in is a finding again. With neither, it covers only findings with no place (a logistics finding: `<accept check=\"sourcing\" body=\"Label\" rule=\"no-supplier\" reason=\"…\" />`). A suppressed finding stays in the report with the accept that suppressed it and severity `suppressed`."
   },
   "Alternate": {
    "type": "object",
@@ -1638,6 +1643,10 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "stackup, monte-carlo: the generator's seed, so a run gives the same answer each time.",
      "default": 1
     },
+    "sweep": {
+     "$ref": "#/$defs/JointSweep",
+     "description": "interference, clearance: judge the pairs a joint's motion changes over the joint's limits, not only as drawn. The joint moves its `a` and every body a joint carries on it (a `fixed` joint whose `b` moves, and so on down a chain); a finding of such a pair names the joint value it is worst at and the values it holds over."
+    },
     "options": {
      "type": "object",
      "properties": {},
@@ -2094,11 +2103,11 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "a": {
      "type": "string",
-     "description": "The first body: the id of the feature that makes it."
+     "description": "The body that moves: by the id the document gives it (its `<body id>`, else the feature that makes it), its name or its part number, as a check names a body. A swept check moves it, and every body jointed to it, relative to `b`."
     },
     "b": {
      "type": "string",
-     "description": "The second body. Absent: the first body is jointed to the world."
+     "description": "The body `a` moves relative to, named as `a` is. Absent: the first body is jointed to the world."
     },
     "anchor": {
      "$ref": "#/$defs/Vec32",
@@ -3430,6 +3439,33 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "The geometry of a body that a joint binds: a face, an edge or a vertex, named by where it is."
+  },
+  "JointSweep": {
+   "type": "object",
+   "properties": {
+    "joint": {
+     "type": "string",
+     "description": "The joint (its id): a prismatic or a revolute joint with `limits`.",
+     "pattern": "\\S"
+    },
+    "samples": {
+     "type": "integer",
+     "description": "How many values are judged, both limits included.",
+     "minimum": 2,
+     "maximum": 1000,
+     "default": 11
+    },
+    "step": {
+     "type": "number",
+     "description": "The largest distance between two values judged, in the joint's unit (mm, or rad), in place of `samples`.",
+     "exclusiveMinimum": 0
+    }
+   },
+   "required": [
+    "joint"
+   ],
+   "additionalProperties": false,
+   "description": "HOW A CHECK MOVES A JOINT: `sweep={{ joint: \"ramJ\", step: 10 }}`. The values are spread evenly over the joint's `limits`, both ends included; where a pair starts or stops clashing (or being too near) between two values, the value is found to 0.1 mm or 0.1°. A value is the joint's displacement from the pose the document draws: millimetres along a prismatic joint's axis, radians about a revolute joint's axis through its anchor."
   },
   "LibraryData": {
    "type": "object",
