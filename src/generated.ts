@@ -1525,6 +1525,614 @@ export const SDK_SCHEMA = {
           },
         ],
       },
+      {
+        name: "git",
+        doc: "Git on a folder of a cloud home, whose files are the working tree (docs/namespace.md § git): the git tab's operations. On a folder of your computer the local host answers the same operations (`commandagi git`).",
+        factory: null,
+        methods: [
+          {
+            name: "status",
+            tool: "git_status",
+            doc: "The repository the folder is in: its branch, the commit checked out, each changed file; { repo: false } when it is in none.",
+            params: [
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "log",
+            tool: "git_log",
+            doc: "The commits of a branch, newest first: hash, author, date (the committer's, ISO in UTC), subject.",
+            params: [
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                  branch: {
+                    type: "string",
+                    enum: null,
+                    doc: "A branch (default: the one checked out).",
+                  },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "diff",
+            tool: "git_diff",
+            doc: "A unified diff as text: every change against the last commit, one path's, or one commit's.",
+            params: [
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                  path: { type: "string", enum: null, doc: "One path of the repository." },
+                  commit: { type: "string", enum: null, doc: "One commit's changes (its id)." },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "commit",
+            tool: "git_commit",
+            doc: "Commit the folder's changes with a message: the paths named, or every change.",
+            params: [
+              {
+                name: "message",
+                key: "message",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "join",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                  paths: {
+                    type: "array",
+                    enum: null,
+                    doc: "The paths to commit (default: every change).",
+                  },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "checkpoint",
+            tool: "git_checkpoint",
+            doc: "Every change in one commit, its message made when none is given.",
+            params: [
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                  message: {
+                    type: "string",
+                    enum: null,
+                    doc: "A message (default: checkpoint · N files).",
+                  },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "branch",
+            tool: "git_create_branch",
+            doc: "A branch at the commit checked out, switched to; the files stay as they are.",
+            params: [
+              {
+                name: "name",
+                key: "name",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "switch",
+            tool: "git_switch",
+            doc: "Switch to a branch: the files become its. Refused (409, the paths named) while a tracked file has changed.",
+            params: [
+              {
+                name: "name",
+                key: "name",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "checkout",
+            tool: "git_checkout",
+            doc: "Check out a branch, or a commit as a detached HEAD: the files become that commit's.",
+            params: [
+              {
+                name: "rev",
+                key: "rev",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "merge",
+            tool: "git_merge",
+            doc: "Merge a branch into the one checked out; a conflict changes nothing and names its paths.",
+            params: [
+              {
+                name: "branch",
+                key: "from",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "remotes",
+            tool: "git_remotes",
+            doc: "The repository's remotes: name, URL, the account each acts as.",
+            params: [
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "remote",
+            tool: "git_remote_add",
+            doc: "Name a remote (a URL with no password in it).",
+            params: [
+              {
+                name: "name",
+                key: "name",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "url",
+                key: "url",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                  account: {
+                    type: "string",
+                    enum: null,
+                    doc: "The connected account to fetch and push as (list_integrations).",
+                  },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "unremote",
+            tool: "git_remote_remove",
+            doc: "Remove a remote by name.",
+            params: [
+              {
+                name: "name",
+                key: "name",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "fetch",
+            tool: "git_fetch",
+            doc: "Fetch a remote's branches into refs/remotes/<remote>/*; no branch of the folder moves.",
+            params: [
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                  remote: { type: "string", enum: null, doc: "The remote (default origin)." },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "pull",
+            tool: "git_pull",
+            doc: "Fetch, then merge the remote's branch into the one checked out; a conflict changes nothing and names its paths.",
+            params: [
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                  remote: { type: "string", enum: null, doc: "The remote (default origin)." },
+                  branch: {
+                    type: "string",
+                    enum: null,
+                    doc: "The remote's branch (default: the one named as the branch checked out).",
+                  },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "push",
+            tool: "git_push",
+            doc: "Push a branch to the same name on a remote; refused (409) when it is not a fast-forward, unless force.",
+            params: [
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                  remote: { type: "string", enum: null, doc: "The remote (default origin)." },
+                  branch: {
+                    type: "string",
+                    enum: null,
+                    doc: "The branch (default: the one checked out).",
+                  },
+                  force: {
+                    type: "boolean",
+                    enum: null,
+                    doc: "Replace the remote's branch even when it has commits this one lacks.",
+                  },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+          {
+            name: "fork",
+            tool: "git_fork",
+            doc: "Fork the folder's repository into another folder of the home: a new repository whose remote origin is this one.",
+            params: [
+              {
+                name: "to",
+                key: "to",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in.',
+                  },
+                  home: {
+                    type: "string",
+                    enum: null,
+                    doc: 'Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage.',
+                  },
+                },
+              },
+            ],
+            bound: {},
+            withThread: false,
+          },
+        ],
+      },
     ],
   },
   session: {
@@ -2606,6 +3214,227 @@ export class Eda {
   }
 }
 
+/** The options of `git.status`. */
+export interface GitStatusOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+}
+
+/** The options of `git.log`. */
+export interface GitLogOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+  /** A branch (default: the one checked out). */
+  branch?: string;
+}
+
+/** The options of `git.diff`. */
+export interface GitDiffOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+  /** One path of the repository. */
+  path?: string;
+  /** One commit's changes (its id). */
+  commit?: string;
+}
+
+/** The options of `git.commit`. */
+export interface GitCommitOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+  /** The paths to commit (default: every change). */
+  paths?: unknown[];
+}
+
+/** The options of `git.checkpoint`. */
+export interface GitCheckpointOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+  /** A message (default: checkpoint · N files). */
+  message?: string;
+}
+
+/** The options of `git.branch`. */
+export interface GitBranchOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+}
+
+/** The options of `git.switch`. */
+export interface GitSwitchOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+}
+
+/** The options of `git.checkout`. */
+export interface GitCheckoutOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+}
+
+/** The options of `git.merge`. */
+export interface GitMergeOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+}
+
+/** The options of `git.remotes`. */
+export interface GitRemotesOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+}
+
+/** The options of `git.remote`. */
+export interface GitRemoteOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+  /** The connected account to fetch and push as (list_integrations). */
+  account?: string;
+}
+
+/** The options of `git.unremote`. */
+export interface GitUnremoteOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+}
+
+/** The options of `git.fetch`. */
+export interface GitFetchOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+  /** The remote (default origin). */
+  remote?: string;
+}
+
+/** The options of `git.pull`. */
+export interface GitPullOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+  /** The remote (default origin). */
+  remote?: string;
+  /** The remote's branch (default: the one named as the branch checked out). */
+  branch?: string;
+}
+
+/** The options of `git.push`. */
+export interface GitPushOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+  /** The remote (default origin). */
+  remote?: string;
+  /** The branch (default: the one checked out). */
+  branch?: string;
+  /** Replace the remote's branch even when it has commits this one lacks. */
+  force?: boolean;
+}
+
+/** The options of `git.fork`. */
+export interface GitForkOptions {
+  /** A folder of the home ("projects/bracket"; omitted: the home itself). The repository is the one it is in. */
+  folder?: string;
+  /** Whose home: "me" (default) or an account id (acct:user:<id>, acct:org:<id>) you manage. */
+  home?: string;
+}
+
+/** Git on a folder of a cloud home, whose files are the working tree (docs/namespace.md § git): the git tab's operations. On a folder of your computer the local host answers the same operations (`commandagi git`). */
+export class Git {
+  constructor(private readonly t: Transport) {}
+  /** The repository the folder is in: its branch, the commit checked out, each changed file; { repo: false } when it is in none. */
+  status(opts: GitStatusOptions = {}): Promise<unknown> {
+    return this.t.call("git_status", { ...opts });
+  }
+  /** The commits of a branch, newest first: hash, author, date (the committer's, ISO in UTC), subject. */
+  log(opts: GitLogOptions = {}): Promise<unknown> {
+    return this.t.call("git_log", { ...opts });
+  }
+  /** A unified diff as text: every change against the last commit, one path's, or one commit's. */
+  diff(opts: GitDiffOptions = {}): Promise<unknown> {
+    return this.t.call("git_diff", { ...opts });
+  }
+  /** Commit the folder's changes with a message: the paths named, or every change. */
+  commit(message: string, opts: GitCommitOptions = {}): Promise<unknown> {
+    return this.t.call("git_commit", { ...prune({ message: message }), ...opts });
+  }
+  /** Every change in one commit, its message made when none is given. */
+  checkpoint(opts: GitCheckpointOptions = {}): Promise<unknown> {
+    return this.t.call("git_checkpoint", { ...opts });
+  }
+  /** A branch at the commit checked out, switched to; the files stay as they are. */
+  branch(name: string, opts: GitBranchOptions = {}): Promise<unknown> {
+    return this.t.call("git_create_branch", { ...prune({ name: name }), ...opts });
+  }
+  /** Switch to a branch: the files become its. Refused (409, the paths named) while a tracked file has changed. */
+  switch(name: string, opts: GitSwitchOptions = {}): Promise<unknown> {
+    return this.t.call("git_switch", { ...prune({ name: name }), ...opts });
+  }
+  /** Check out a branch, or a commit as a detached HEAD: the files become that commit's. */
+  checkout(rev: string, opts: GitCheckoutOptions = {}): Promise<unknown> {
+    return this.t.call("git_checkout", { ...prune({ rev: rev }), ...opts });
+  }
+  /** Merge a branch into the one checked out; a conflict changes nothing and names its paths. */
+  merge(branch: string, opts: GitMergeOptions = {}): Promise<unknown> {
+    return this.t.call("git_merge", { ...prune({ from: branch }), ...opts });
+  }
+  /** The repository's remotes: name, URL, the account each acts as. */
+  remotes(opts: GitRemotesOptions = {}): Promise<unknown> {
+    return this.t.call("git_remotes", { ...opts });
+  }
+  /** Name a remote (a URL with no password in it). */
+  remote(name: string, url: string, opts: GitRemoteOptions = {}): Promise<unknown> {
+    return this.t.call("git_remote_add", { ...prune({ name: name, url: url }), ...opts });
+  }
+  /** Remove a remote by name. */
+  unremote(name: string, opts: GitUnremoteOptions = {}): Promise<unknown> {
+    return this.t.call("git_remote_remove", { ...prune({ name: name }), ...opts });
+  }
+  /** Fetch a remote's branches into refs/remotes/<remote>/*; no branch of the folder moves. */
+  fetch(opts: GitFetchOptions = {}): Promise<unknown> {
+    return this.t.call("git_fetch", { ...opts });
+  }
+  /** Fetch, then merge the remote's branch into the one checked out; a conflict changes nothing and names its paths. */
+  pull(opts: GitPullOptions = {}): Promise<unknown> {
+    return this.t.call("git_pull", { ...opts });
+  }
+  /** Push a branch to the same name on a remote; refused (409) when it is not a fast-forward, unless force. */
+  push(opts: GitPushOptions = {}): Promise<unknown> {
+    return this.t.call("git_push", { ...opts });
+  }
+  /** Fork the folder's repository into another folder of the home: a new repository whose remote origin is this one. */
+  fork(to: string, opts: GitForkOptions = {}): Promise<unknown> {
+    return this.t.call("git_fork", { ...prune({ to: to }), ...opts });
+  }
+}
+
 /**
  * Everything above the transport. The hand-written client (./client.ts) implements `call` over
  * /mcp and `withThread`; every method here is sugar over those two.
@@ -2635,6 +3464,8 @@ export abstract class GeneratedClient implements Transport {
   readonly vpn = new Vpn(this);
   /** A circuit in code (docs/eda-authoring.md): check it, route it and make its files with no editor open. fileId is the Drive id of its schematic (.sch.tsx, .sch.py, .sch.rs) or of its board (.pcb.tsx, .pcb.py, .pcb.rs). */
   readonly eda = new Eda(this);
+  /** Git on a folder of a cloud home, whose files are the working tree (docs/namespace.md § git): the git tab's operations. On a folder of your computer the local host answers the same operations (`commandagi git`). */
+  readonly git = new Git(this);
   /** A single connected social account, bound: cagi.social('tiktok', '@brand').post(fileId). */
   social(platform: string, account?: string): Social {
     return new Social(this, platform, account);
@@ -3351,5 +4182,125 @@ export const CLI_COMMANDS: readonly Command[] = [
     params: [{ name: "fileId" }],
     spread: true,
     doc: "Remove the tracks and vias of the nets named ({ nets }).",
+  },
+  {
+    group: "git",
+    verb: "status",
+    tool: "git_status",
+    spread: true,
+    doc: "The repository the folder is in: its branch, the commit checked out, each changed file; { repo: false } when it is in none.",
+  },
+  {
+    group: "git",
+    verb: "log",
+    tool: "git_log",
+    spread: true,
+    doc: "The commits of a branch, newest first: hash, author, date (the committer's, ISO in UTC), subject.",
+  },
+  {
+    group: "git",
+    verb: "diff",
+    tool: "git_diff",
+    spread: true,
+    doc: "A unified diff as text: every change against the last commit, one path's, or one commit's.",
+  },
+  {
+    group: "git",
+    verb: "commit",
+    tool: "git_commit",
+    params: [{ name: "message", from: "join" }],
+    spread: true,
+    doc: "Commit the folder's changes with a message: the paths named, or every change.",
+  },
+  {
+    group: "git",
+    verb: "checkpoint",
+    tool: "git_checkpoint",
+    spread: true,
+    doc: "Every change in one commit, its message made when none is given.",
+  },
+  {
+    group: "git",
+    verb: "branch",
+    tool: "git_create_branch",
+    params: [{ name: "name" }],
+    spread: true,
+    doc: "A branch at the commit checked out, switched to; the files stay as they are.",
+  },
+  {
+    group: "git",
+    verb: "switch",
+    tool: "git_switch",
+    params: [{ name: "name" }],
+    spread: true,
+    doc: "Switch to a branch: the files become its. Refused (409, the paths named) while a tracked file has changed.",
+  },
+  {
+    group: "git",
+    verb: "checkout",
+    tool: "git_checkout",
+    params: [{ name: "rev" }],
+    spread: true,
+    doc: "Check out a branch, or a commit as a detached HEAD: the files become that commit's.",
+  },
+  {
+    group: "git",
+    verb: "merge",
+    tool: "git_merge",
+    params: [{ name: "branch" }],
+    spread: true,
+    doc: "Merge a branch into the one checked out; a conflict changes nothing and names its paths.",
+  },
+  {
+    group: "git",
+    verb: "remotes",
+    tool: "git_remotes",
+    spread: true,
+    doc: "The repository's remotes: name, URL, the account each acts as.",
+  },
+  {
+    group: "git",
+    verb: "remote",
+    tool: "git_remote_add",
+    params: [{ name: "name" }, { name: "url" }],
+    spread: true,
+    doc: "Name a remote (a URL with no password in it).",
+  },
+  {
+    group: "git",
+    verb: "unremote",
+    tool: "git_remote_remove",
+    params: [{ name: "name" }],
+    spread: true,
+    doc: "Remove a remote by name.",
+  },
+  {
+    group: "git",
+    verb: "fetch",
+    tool: "git_fetch",
+    spread: true,
+    doc: "Fetch a remote's branches into refs/remotes/<remote>/*; no branch of the folder moves.",
+  },
+  {
+    group: "git",
+    verb: "pull",
+    tool: "git_pull",
+    spread: true,
+    doc: "Fetch, then merge the remote's branch into the one checked out; a conflict changes nothing and names its paths.",
+  },
+  {
+    group: "git",
+    verb: "push",
+    tool: "git_push",
+    spread: true,
+    doc: "Push a branch to the same name on a remote; refused (409) when it is not a fast-forward, unless force.",
+  },
+  {
+    group: "git",
+    verb: "fork",
+    tool: "git_fork",
+    params: [{ name: "to" }],
+    spread: true,
+    doc: "Fork the folder's repository into another folder of the home: a new repository whose remote origin is this one.",
   },
 ];
