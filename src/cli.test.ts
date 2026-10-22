@@ -179,7 +179,9 @@ test("an unknown command is said before the key is asked for, with the near matc
     await main(["--help"], host);
     assert.match(written.join(""), /commandagi threads create/);
     written.length = 0;
-    await assert.rejects(main(["tasks", "propose"], host), /unknown command: tasks; did you mean task\b.*commandagi help/);
+    await assert.rejects(main(["taks", "propose"], host), /unknown command: taks; did you mean .*\btask\b.*commandagi help/);
+    // `tasks` (a thread's mounts) is one letter from the host's `task` (proposals): its error names its own verbs.
+    await assert.rejects(main(["tasks", "propose"], host), /unknown command: tasks propose: tasks has mount, unmount, mounts/);
     await assert.rejects(main(["threads", "propose"], host), /unknown command: threads propose: threads has .*list/);
     await main(["threads", "--help"], host);
     await main(["help", "task"], host);

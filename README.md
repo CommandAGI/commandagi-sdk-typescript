@@ -77,12 +77,16 @@ can reach, grouped by where it lives (personal, each org, shared with you), filt
 This package, the Python SDK (`pip install commandagi`) and the CLI all come from **one schema**,
 `commandagi-sdk.schema.json`, which is included in this package:
 
-- **Tools**: `cagi.threads`, `cagi.embodiments`, `cagi.memory`, `cagi.integrations`,
+- **Tools**: `cagi.threads`, `cagi.embodiments`, `cagi.memory`, `cagi.tasks`, `cagi.integrations`,
   `cagi.social(platform, account)`, `whoami`, `search`, `run` and `post`. Each one is a typed wrapper
   over `call(tool, args)`. Where the schema names a method's options, they are a typed interface:
   `cagi.postal.send("Letters/Ada.letter.tsx", { provider: "click2mail" })` (`PostalSendOptions`; the
   provider is `"lob"`, the default, or `"click2mail"`, US only; omitted, the account's
   `postal.providers` order picks it).
+- **Task mounts**: `cagi.tasks.mount({ folder: "projects/bracket" })` mounts a task list to the thread
+  the code runs in, and the agent is prompted with its open tasks until they are done. Mount one task
+  (`{ task }`), a project (`{ project }`) or a query (`{ assignee: "me", status: ["todo"] }`);
+  `cagi.tasks.mounts()` lists them and `cagi.tasks.unmount(label)` removes one.
 - **Control vocabularies** on a live `Session`: `session.desktop` for computers, `session.robot` for
   physical robots, and `session.sim` for simulated worlds. Each method sends one action. The platform
   checks it against what the embodiment currently declares, which `session.controls()` lists; for

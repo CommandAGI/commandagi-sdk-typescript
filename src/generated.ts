@@ -546,6 +546,110 @@ export const SDK_SCHEMA = {
         ],
       },
       {
+        name: "tasks",
+        doc: "Open work mounted to a thread: the thread's agent is prompted with it until it is done (runs/thread-<id>/mounts.tsx).",
+        factory: null,
+        methods: [
+          {
+            name: "mount",
+            tool: "mount_tasks",
+            doc: "Mount a task, a task list (a folder or a query) or a project to this thread: the agent is prompted with its open work until it is done.",
+            params: [
+              {
+                name: "opts",
+                key: null,
+                type: "object",
+                required: false,
+                spread: true,
+                prefix: null,
+                cli: "spread",
+                options: {
+                  task: {
+                    type: "string",
+                    enum: null,
+                    doc: "A task id, or the address or path of a .task.tsx.",
+                  },
+                  folder: {
+                    type: "string",
+                    enum: null,
+                    doc: "A folder (a path in your Drive, or an absolute address cloud://home/<uuid>/…): the tasks at or under it.",
+                  },
+                  project: {
+                    type: "string",
+                    enum: null,
+                    doc: "A project id, or the address or path of a .project.tsx.",
+                  },
+                  assignee: {
+                    type: "string",
+                    enum: null,
+                    doc: 'A query: whose tasks ("me", "user:<id>" or "agent:<id>").',
+                  },
+                  labels: { type: "array", enum: null, doc: "A query: tasks with these labels." },
+                  status: { type: "array", enum: null, doc: "A query: tasks with these statuses." },
+                  label: {
+                    type: "string",
+                    enum: null,
+                    doc: "The mount's name in the thread. Omitted: made from what it mounts.",
+                  },
+                  threadId: {
+                    type: "string",
+                    enum: null,
+                    doc: "The thread to mount it to. Omitted: the thread this code runs in.",
+                  },
+                },
+              },
+            ],
+            bound: {},
+            withThread: true,
+          },
+          {
+            name: "unmount",
+            tool: "unmount_tasks",
+            doc: "Remove a mount from this thread by its label.",
+            params: [
+              {
+                name: "label",
+                key: "label",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
+              },
+              {
+                name: "threadId",
+                key: "threadId",
+                type: "string",
+                required: false,
+                spread: false,
+                prefix: null,
+                cli: "flag",
+              },
+            ],
+            bound: {},
+            withThread: true,
+          },
+          {
+            name: "mounts",
+            tool: "list_mounts",
+            doc: "This thread's mounts, the open tasks they hold and whether the loop still prompts the agent.",
+            params: [
+              {
+                name: "threadId",
+                key: "threadId",
+                type: "string",
+                required: false,
+                spread: false,
+                prefix: null,
+                cli: "flag",
+              },
+            ],
+            bound: {},
+            withThread: true,
+          },
+        ],
+      },
+      {
         name: "integrations",
         doc: "Connected third-party accounts.",
         factory: null,
@@ -3040,6 +3144,46 @@ export class Memory {
   }
 }
 
+/** The options of `tasks.mount`. */
+export interface TasksMountOptions {
+  /** A task id, or the address or path of a .task.tsx. */
+  task?: string;
+  /** A folder (a path in your Drive, or an absolute address cloud://home/<uuid>/…): the tasks at or under it. */
+  folder?: string;
+  /** A project id, or the address or path of a .project.tsx. */
+  project?: string;
+  /** A query: whose tasks ("me", "user:<id>" or "agent:<id>"). */
+  assignee?: string;
+  /** A query: tasks with these labels. */
+  labels?: unknown[];
+  /** A query: tasks with these statuses. */
+  status?: unknown[];
+  /** The mount's name in the thread. Omitted: made from what it mounts. */
+  label?: string;
+  /** The thread to mount it to. Omitted: the thread this code runs in. */
+  threadId?: string;
+}
+
+/** Open work mounted to a thread: the thread's agent is prompted with it until it is done (runs/thread-<id>/mounts.tsx). */
+export class Tasks {
+  constructor(private readonly t: Transport) {}
+  /** Mount a task, a task list (a folder or a query) or a project to this thread: the agent is prompted with its open work until it is done. */
+  mount(opts: TasksMountOptions = {}): Promise<unknown> {
+    return this.t.call("mount_tasks", this.t.withThread({ ...opts }));
+  }
+  /** Remove a mount from this thread by its label. */
+  unmount(label: string, threadId?: string): Promise<unknown> {
+    return this.t.call(
+      "unmount_tasks",
+      this.t.withThread(prune({ label: label, threadId: threadId })),
+    );
+  }
+  /** This thread's mounts, the open tasks they hold and whether the loop still prompts the agent. */
+  mounts(threadId?: string): Promise<unknown> {
+    return this.t.call("list_mounts", this.t.withThread(prune({ threadId: threadId })));
+  }
+}
+
 /** Connected third-party accounts. */
 export class Integrations {
   constructor(private readonly t: Transport) {}
@@ -3493,6 +3637,8 @@ export abstract class GeneratedClient implements Transport {
   readonly billing = new Billing(this);
   /** The agent's durable memory: markdown files under memories/ in the thread's drive. */
   readonly memory = new Memory(this);
+  /** Open work mounted to a thread: the thread's agent is prompted with it until it is done (runs/thread-<id>/mounts.tsx). */
+  readonly tasks = new Tasks(this);
   /** Connected third-party accounts. */
   readonly integrations = new Integrations(this);
   /** Web search through many providers, one shape (docs/search.md): each result names who returned it; each call says what it cost. */
@@ -3956,6 +4102,27 @@ export const CLI_COMMANDS: readonly Command[] = [
     tool: "memory_forget",
     params: [{ name: "path" }],
     doc: "Delete a memory file by its path.",
+  },
+  {
+    group: "tasks",
+    verb: "mount",
+    tool: "mount_tasks",
+    spread: true,
+    doc: "Mount a task, a task list (a folder or a query) or a project to this thread: the agent is prompted with its open work until it is done.",
+  },
+  {
+    group: "tasks",
+    verb: "unmount",
+    tool: "unmount_tasks",
+    params: [{ name: "label" }, { name: "threadId", from: "flag" }],
+    doc: "Remove a mount from this thread by its label.",
+  },
+  {
+    group: "tasks",
+    verb: "mounts",
+    tool: "list_mounts",
+    params: [{ name: "threadId", from: "flag" }],
+    doc: "This thread's mounts, the open tasks they hold and whether the loop still prompts the agent.",
   },
   { group: "integrations", verb: "list", tool: "list_integrations", doc: "What's connected." },
   {
