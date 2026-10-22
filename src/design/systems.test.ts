@@ -88,19 +88,22 @@ test("an interface is its frame, pins, holes, messages, params and sides; a side
       el("param", { id: "baud", value: 115200, unit: "Bd" }),
       el("side", { id: "base", ref: "ee/base.circuit.ts", parts: ["J1", "J2"], origin: [0, 1.4] }),
       el("side", { id: "firmware", ref: "fw/config.h", defines: { BOARD: 1 }, pins: { RX_PIN: 4 }, params: { BAUD: "baud" } }),
+      el("side", { id: "host", ref: "devices/cam/definition.tsx", channel: "modem", params: { baud: "baud" } }),
     ),
   );
   assert.equal(d.format, "interface");
   const doc = d.document as Record<string, unknown>;
   assert.deepEqual(doc.frame, { description: "the base board's top, pin 1 at the origin", unit: "mm" });
   assert.deepEqual((doc.sides as unknown[])[1], { id: "firmware", ref: "fw/config.h", defines: { BOARD: 1 }, pins: { RX_PIN: 4 }, params: { BAUD: "baud" } });
+  assert.deepEqual((doc.sides as unknown[])[2], { id: "host", ref: "devices/cam/definition.tsx", channel: "modem", params: { baud: "baud" } });
   assert.deepEqual(SYSTEMS.interface.fromTree(SYSTEMS.interface.toTree(doc as never)), doc, "both ways");
   const bad = (tag: string, props: Record<string, unknown>) => () => declare(el("interface", {}, el(tag, props)));
   assert.throws(bad("pin", { number: 0, signal: "x" }), /number is the pin's number, 1, 2, 3/);
   assert.throws(bad("pin", { number: 1, signal: "x", at: [1] }), /at is \[x, y\] mm/);
   assert.throws(bad("hole", { id: "h", at: [0, 0, 0] }), /<hole id="h">: at is \[x, y\] mm/);
   assert.throws(bad("message", { id: "m" }), /a message has its text, its code, or both/);
-  assert.throws(bad("side", { id: "s", ref: "x", kind: "mechanical" }), /kind must be one of circuit, 3d, firmware/);
+  assert.throws(bad("side", { id: "s", ref: "x", kind: "mechanical" }), /kind must be one of circuit, 3d, firmware, definition/);
+  assert.throws(bad("side", { id: "s", ref: "x", channel: 3 }), /channel is the id of a channel of the device definition/);
   assert.throws(bad("frame", { unit: "in" }), /positions are in mm/);
   assert.throws(() => declare(el("interface", {}, el("frame", {}), el("frame", {}))), /<interface> has one <frame>/);
 });

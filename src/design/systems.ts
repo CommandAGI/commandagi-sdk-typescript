@@ -56,7 +56,7 @@ export const DECLARED_QUANTITY = /^[a-z][a-z0-9-]*$/;
 /** What a system's `<check>` runs. */
 export const SYSTEM_CHECK_KINDS = ["interface", "trace"] as const;
 /** What a side of an interface is, when its file does not say. */
-export const SIDE_KINDS = ["circuit", "3d", "firmware"] as const;
+export const SIDE_KINDS = ["circuit", "3d", "firmware", "definition"] as const;
 
 export const REQUIREMENT_FIELDS = ["id", "text", "rationale", "method", "verifiedBy", "design", "parent"] as const;
 export const MODE_FIELDS = ["id", "description"] as const;
@@ -69,7 +69,7 @@ export const PIN_FIELDS = ["number", "signal", "dir", "voltage", "gpio", "at", "
 export const HOLE_FIELDS = ["id", "at", "diameter", "description"] as const;
 export const MESSAGE_FIELDS = ["id", "text", "code", "define", "dir", "description"] as const;
 export const PARAM_FIELDS = ["id", "value", "unit", "description"] as const;
-export const SIDE_FIELDS = ["id", "ref", "kind", "part", "parts", "origin", "defines", "pins", "params", "files", "description"] as const;
+export const SIDE_FIELDS = ["id", "ref", "kind", "part", "parts", "channel", "origin", "defines", "pins", "params", "files", "description"] as const;
 
 type Rec = Record<string, unknown>;
 export interface RequirementsDoc { name?: string; description?: string; requirements?: Rec[] }
@@ -227,6 +227,7 @@ export const interfaceVocabulary: Vocabulary<InterfaceDoc> = {
         check(a.kind === undefined || (SIDE_KINDS as readonly unknown[]).includes(a.kind), `${at}: kind must be one of ${SIDE_KINDS.join(", ")} (got ${JSON.stringify(a.kind)})`);
         check(a.origin === undefined || pair(a.origin, 2) || pair(a.origin, 3), `${at}: origin is where the interface's frame sits in this side's frame, [x, y] or [x, y, z] mm`);
         check(a.parts === undefined || (Array.isArray(a.parts) && a.parts.every((p) => typeof p === "string")), `${at}: parts is a list of part references, whose pins are the interface's in turn`);
+        check(a.channel === undefined || typeof a.channel === "string", `${at}: channel is the id of a channel of the device definition`);
       }
     }
     const frame = t.children.find((c) => c.tag === "frame");
