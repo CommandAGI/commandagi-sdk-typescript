@@ -1337,7 +1337,7 @@ export const SDK_SCHEMA = {
           {
             name: "layout",
             tool: "pcb_layout",
-            doc: "Lay out the board by its constraints (<netclass>, <group>, <keepout> …): place the parts with no place, route every net with its class's rules, check, repair, score; again until clean or the budget (budgetMinutes) is spent. Writes the placements and copper into the board's code and says each attempt.",
+            doc: "Lay out the board by its constraints (<netclass>, <group>, <keepout> …): place the parts with no place, route every net with its class's rules, check, repair, score; again until clean or the budget (budgetMinutes) is spent. Writes the placements and copper into the board's code and says each attempt. A board or a budget too large to lay out in place runs as a job, which this follows to its end (pcb_layout_status).",
             params: [
               {
                 name: "fileId",
@@ -1356,6 +1356,25 @@ export const SDK_SCHEMA = {
                 spread: true,
                 prefix: null,
                 cli: "spread",
+              },
+            ],
+            bound: {},
+            withThread: false,
+            follow: "pcb_layout_status",
+          },
+          {
+            name: "layoutStatus",
+            tool: "pcb_layout_status",
+            doc: "A layout job: its state while it runs; when it is done, what layout answers, with the board files written (or why not).",
+            params: [
+              {
+                name: "job",
+                key: "job",
+                type: "string",
+                required: true,
+                spread: false,
+                prefix: null,
+                cli: "positional",
               },
             ],
             bound: {},
@@ -2884,6 +2903,20 @@ export interface Actor {
   act(action: string, payload: Args): Promise<unknown>;
 }
 
+/**
+ * Follow a job to its end: while the answer is `{ job, state: "queued" | "running" }`, ask `tool` again with
+ * `{ job }` after the `pollSeconds` it says. The answer it ends with is the method's.
+ */
+async function followJob(t: Transport, first: Promise<unknown>, tool: string): Promise<unknown> {
+  let a = (await first) as { job?: unknown; state?: unknown; pollSeconds?: unknown } | null;
+  while (a && typeof a.job === "string" && (a.state === "queued" || a.state === "running")) {
+    const wait = typeof a.pollSeconds === "number" ? a.pollSeconds : 5;
+    await new Promise((resolve) => setTimeout(resolve, wait * 1000));
+    a = await t.call(tool, { job: a.job });
+  }
+  return a;
+}
+
 /** Drop absent values: a tool distinguishes an omitted key from an explicit null. */
 function prune(a: Args): Args {
   const out: Args = {};
@@ -3184,9 +3217,17 @@ export class Eda {
   exportKicad(fileId: string, opts: Args = {}): Promise<unknown> {
     return this.t.call("pcb_export_kicad", { ...prune({ fileId: fileId }), ...opts });
   }
-  /** Lay out the board by its constraints (<netclass>, <group>, <keepout> …): place the parts with no place, route every net with its class's rules, check, repair, score; again until clean or the budget (budgetMinutes) is spent. Writes the placements and copper into the board's code and says each attempt. */
+  /** Lay out the board by its constraints (<netclass>, <group>, <keepout> …): place the parts with no place, route every net with its class's rules, check, repair, score; again until clean or the budget (budgetMinutes) is spent. Writes the placements and copper into the board's code and says each attempt. A board or a budget too large to lay out in place runs as a job, which this follows to its end (pcb_layout_status). */
   layout(fileId: string, opts: Args = {}): Promise<unknown> {
-    return this.t.call("pcb_layout", { ...prune({ fileId: fileId }), ...opts });
+    return followJob(
+      this.t,
+      this.t.call("pcb_layout", { ...prune({ fileId: fileId }), ...opts }),
+      "pcb_layout_status",
+    );
+  }
+  /** A layout job: its state while it runs; when it is done, what layout answers, with the board files written (or why not). */
+  layoutStatus(job: string): Promise<unknown> {
+    return this.t.call("pcb_layout_status", prune({ job: job }));
   }
   /** Every term of the board's layout objective (unrouted, DRC errors, overlaps, keep-outs, regions, wire length, vias …) with its weight, the weighted total, and each layout check's verdict. */
   layoutScore(fileId: string, opts: Args = {}): Promise<unknown> {
@@ -4133,7 +4174,14 @@ export const CLI_COMMANDS: readonly Command[] = [
     tool: "pcb_layout",
     params: [{ name: "fileId" }],
     spread: true,
-    doc: "Lay out the board by its constraints (<netclass>, <group>, <keepout> …): place the parts with no place, route every net with its class's rules, check, repair, score; again until clean or the budget (budgetMinutes) is spent. Writes the placements and copper into the board's code and says each attempt.",
+    doc: "Lay out the board by its constraints (<netclass>, <group>, <keepout> …): place the parts with no place, route every net with its class's rules, check, repair, score; again until clean or the budget (budgetMinutes) is spent. Writes the placements and copper into the board's code and says each attempt. A board or a budget too large to lay out in place runs as a job, which this follows to its end (pcb_layout_status).",
+  },
+  {
+    group: "eda",
+    verb: "layoutStatus",
+    tool: "pcb_layout_status",
+    params: [{ name: "job" }],
+    doc: "A layout job: its state while it runs; when it is done, what layout answers, with the board files written (or why not).",
   },
   {
     group: "eda",

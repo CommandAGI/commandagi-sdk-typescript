@@ -65,6 +65,27 @@ test("social(platform, account).post maps to the post tool with the account boun
   );
 });
 
+test("eda.layout follows a layout job to its end (pcb_layout_status)", async () => {
+  const answers: Record<string, unknown[]> = {
+    pcb_layout: [{ job: "lj_1", state: "queued", pollSeconds: 0 }],
+    pcb_layout_status: [{ job: "lj_1", state: "running", pollSeconds: 0 }, { job: "lj_1", state: "done", complete: true }],
+  };
+  const calls: { name: string; arguments: unknown }[] = [];
+  const f = (async (_url: string, init: RequestInit) => {
+    const { name, arguments: args } = JSON.parse(String(init.body)).params;
+    calls.push({ name, arguments: args });
+    const text = JSON.stringify(answers[name]!.shift());
+    return { async json() { return { jsonrpc: "2.0", id: 1, result: { content: [{ type: "text", text }] } }; } } as unknown as Response;
+  }) as unknown as typeof fetch;
+  const cagi = createClient({ apiKey: "cagi_test", fetchImpl: f });
+  assert.deepEqual(await cagi.eda.layout("file_1", { budgetMinutes: 10 }), { job: "lj_1", state: "done", complete: true });
+  assert.deepEqual(calls, [
+    { name: "pcb_layout", arguments: { fileId: "file_1", budgetMinutes: 10 } },
+    { name: "pcb_layout_status", arguments: { job: "lj_1" } },
+    { name: "pcb_layout_status", arguments: { job: "lj_1" } },
+  ]);
+});
+
 test("postal.send takes a typed provider: Lob is the default (omitted), Click2Mail when named", async () => {
   const { f, calls } = fakeFetch({ ok: true });
   const cagi = createClient({ apiKey: "cagi_test", fetchImpl: f });
