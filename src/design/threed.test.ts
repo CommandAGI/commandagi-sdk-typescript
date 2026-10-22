@@ -263,3 +263,36 @@ test("<check>, <accept>, <permitted> and <fastener> are the document's lists, ea
   assert.throws(() => doc(jsx("accept", { id: "a", check: "clash", body: "A", region: { min: [0, 0, 0], max: [1, 1, 1] } })), /reason/);
   assert.throws(() => doc(jsx("slot", { name: "checks", value: [] })), /checks is not a slot/);
 });
+
+// sdk/python tests/test_threed.py reads the same elements to the same inputs.
+test("a curve in space is a sweep's path and, under its own id, the plane its profile is drawn on", () => {
+  const g = declarationOf({
+    default: jsx("part", {
+      name: "Hose",
+      children: [
+        jsx("curve", { id: "lead", points: [[0, 0, 0], [20, 5, 10], [40, 0, 30]], startTangent: [1, 0, 0], endTangent: [0, 0, 1], xAxis: [0, 0, 1] }),
+        jsx("sketch", {
+          id: "section",
+          plane: { type: "datum", plane: "lead" },
+          children: [jsx("point", { id: "o", x: 0, y: 0 }), jsx("circle", { id: "wall", center: "o", radius: 2 }), jsx("circle", { id: "bore", center: "o", radius: 1.5 })],
+        }),
+        jsx("sweep", { id: "hose", profile: { sketch: "section" }, path: { curve: "lead" }, frame: "frenet", operation: "new" }),
+        jsx("curve", { id: "coil", kind: "helix", radius: 10, pitch: 4, turns: 2 }),
+      ],
+    }),
+  }).graph;
+  const n = g.nodes;
+  assert.equal(n.lead!.type, "curve");
+  // `kind` declares a default, so a spline may leave it out; it reads as "spline".
+  assert.deepEqual(n.lead!.inputs, { kind: "spline", points: [[0, 0, 0], [20, 5, 10], [40, 0, 30]], startTangent: [1, 0, 0], endTangent: [0, 0, 1], xAxis: [0, 0, 1] });
+  assert.deepEqual(n.hose!.inputs.path, { curve: "lead" });
+  assert.equal(n.hose!.inputs.frame, "frenet");
+  assert.deepEqual(n.coil!.inputs, { kind: "helix", radius: 10, pitch: 4, turns: 2 });
+  assert.deepEqual((g.meta!.presentation as { order: string[] }).order, ["lead", "section", "hose", "coil"]);
+
+  const read = (el: unknown) => () => declarationOf({ default: jsx("part", { name: "P", children: [el] }) });
+  assert.throws(read(jsx("curve", { id: "c", kind: "spiral", points: [[0, 0, 0], [1, 0, 0]] })), /kind: must be one of spline, polyline, helix/);
+  assert.throws(read(jsx("curve", { id: "c", points: [[0, 0, 0]] })), /points: needs at least 2 items/);
+  assert.throws(read(jsx("curve", { id: "c", kind: "polyline", points: [[0, 0, 0], [1, 0, 0]], bendRadius: 0 })), /bendRadius: must be greater than 0/);
+  assert.throws(read(jsx("sweep", { id: "s", profile: { sketch: "a" }, path: { curve: "c" }, frame: "twisted" })), /frame: must be one of minimal, frenet, up, guide/);
+});

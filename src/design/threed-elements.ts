@@ -540,6 +540,100 @@ export type CriticalDimension = {
   method?: string;
 };
 
+/**
+ * A CURVE IN SPACE: a path that is not drawn on one plane (a hose, a wire lead, a tendon housing, a braid yarn), what a sweep follows (`path={{ curve: <id> }}`) or points its profile at (`guide`). It makes no body. It is also a plane, under its own id: the plane normal to the curve at its start (origin: the start; normal: the curve's direction there; x-axis: `xAxis`), so a profile sketch drawn on it (`plane={{ type: "datum", plane: <id> }}`) starts the sweep where the curve starts.
+ */
+export type CurveFeature = {
+  type: "curve";
+  /**
+   * What the curve is. "spline": a smooth cubic through `points` (C2, interpolated); "polyline": straight lines through `points`, each corner rounded to `bendRadius` (sharp without it); "helix": `turns` turns of `radius` and `pitch` about `axis`.
+   * @default "spline"
+   */
+  kind?: "spline" | "polyline" | "helix";
+  /**
+   * The points it passes through, in order.
+   * @unit mm
+   * @minItems 2
+   */
+  points?: Vec3[];
+  /** The direction it leaves the first point (only the direction counts). */
+  startTangent?: Vec3;
+  /** The direction it arrives at the last point (only the direction counts). */
+  endTangent?: Vec3;
+  /** Back to the first point: a periodic spline, a closed polyline. */
+  closed?: boolean;
+  /**
+   * The radius each corner of the polyline is rounded to.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  bendRadius?: number;
+  /**
+   * Where the helix's axis starts: the helix starts at this height.
+   * @unit mm
+   * @default [0,0,0]
+   */
+  origin?: Vec3;
+  /**
+   * The helix's axis: it rises along it.
+   * @default [0,0,1]
+   */
+  axis?: Vec3;
+  /**
+   * The helix's radius (from the axis to the curve).
+   * @unit mm
+   * @exclusiveMinimum 0
+   * @default 10
+   */
+  radius?: number;
+  /**
+   * How far the helix rises in one turn.
+   * @unit mm
+   * @exclusiveMinimum 0
+   * @default 5
+   */
+  pitch?: number;
+  /**
+   * How many turns.
+   * @exclusiveMinimum 0
+   * @default 3
+   */
+  turns?: number;
+  /**
+   * Right-handed (the default) or left-handed.
+   * @default true
+   */
+  rightHanded?: boolean;
+  /**
+   * The direction from the axis to where the helix starts.
+   * @default [1,0,0]
+   */
+  start?: Vec3;
+  /**
+   * The x-axis of the curve's start plane (projected onto it): which way a profile drawn there faces. Absent: world z projected onto the plane, or world x where the curve starts along z.
+   */
+  xAxis?: Vec3;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
+/** A sweep's path given by a `curve` feature: a curve in space. */
+export type CurveRef = {
+  /** The `curve` feature, by id. */
+  curve: string;
+};
+
 export type CylinderFeature = {
   type: "cylinder";
   /**
@@ -3365,10 +3459,29 @@ export type SupplierOffer = {
 
 export type SweepFeature = {
   type: "sweep";
-  /** The cross-section that is swept. */
+  /** The cross-section that is swept. A region with holes sweeps a hollow solid (a hose, a tube). */
   profile: ProfileRef;
-  /** Path comes from another sketch's open/closed chain. */
-  path: ProfileRef;
+  /**
+   * What the profile follows: a sketch's open or closed chain on its plane (`{ sketch }`), or a curve in space (`{ curve }`, the id of a `curve` feature). The profile stays where it is drawn and turns with the path: draw it on the curve's own plane (`plane={{ type: "datum", plane: <the curve's id> }}`) to start where the curve starts.
+   */
+  path: SweepPath;
+  /**
+   * How the profile turns along the path. "minimal": only as much as the path turns, with no roll about it (a rotation-minimizing frame); "frenet": it keeps its place against the path's principal normal (a flat yarn stays flat on a helix's cylinder; not defined where the path is straight); "up": its frame keeps `up` as the binormal (a level path stays level); "guide": its frame points at the `guide` curve.
+   * @default "minimal"
+   */
+  frame?: "minimal" | "frenet" | "up" | "guide";
+  /**
+   * The direction the profile's frame keeps as its binormal.
+   * @default [0,0,1]
+   */
+  up?: Vec3;
+  /** The `curve` feature the profile's frame points at, by id. */
+  guide?: string;
+  /**
+   * How far the profile turns about the path from its start to its end, evenly along its length (a twisted bar, a cable's lay). For a path that is an open curve, with frame "minimal".
+   * @unit rad
+   */
+  twist?: number;
   /**
    * How the solid combines with the bodies before it.
    * @default "new"
@@ -3388,6 +3501,9 @@ export type SweepFeature = {
    */
   declaredBy?: CodeFeature;
 };
+
+/** What a sweep follows: a sketch's open or closed chain on its plane, or a curve in space. */
+export type SweepPath = ProfileRef | CurveRef;
 
 /** A BINDING: this conductor is electrically joined to that pad. L3, and L2. */
 export type TerminalBinding = {
@@ -3869,6 +3985,9 @@ export type RevolveProps = Omit<RevolveFeature, "type" | "error" | "declaredBy" 
 /** `<sweep>`: the SweepFeature fields, by the same names. */
 export type SweepProps = Omit<SweepFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
 
+/** `<curve>`: the CurveFeature fields, by the same names. */
+export type CurveProps = Omit<CurveFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
 /** `<loft>`: the LoftFeature fields, by the same names. */
 export type LoftProps = Omit<LoftFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
 
@@ -4020,6 +4139,7 @@ export interface ThreeDFeatureElements {
   extrude: ExtrudeProps;
   revolve: RevolveProps;
   sweep: SweepProps;
+  curve: CurveProps;
   loft: LoftProps;
   fillet: FilletProps;
   chamfer: ChamferProps;

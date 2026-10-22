@@ -8,6 +8,7 @@ export const THREED_SCHEMA: SchemaDocument = {
   "extrude": "ExtrudeFeature",
   "revolve": "RevolveFeature",
   "sweep": "SweepFeature",
+  "curve": "CurveFeature",
   "loft": "LoftFeature",
   "fillet": "FilletFeature",
   "chamfer": "ChamferFeature",
@@ -1269,6 +1270,197 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A dimension to inspect, with its tolerance."
+  },
+  "CurveFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "curve"
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "spline",
+      "polyline",
+      "helix"
+     ],
+     "description": "What the curve is. \"spline\": a smooth cubic through `points` (C2, interpolated); \"polyline\": straight lines through `points`, each corner rounded to `bendRadius` (sharp without it); \"helix\": `turns` turns of `radius` and `pitch` about `axis`.",
+     "default": "spline"
+    },
+    "points": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/Vec3"
+     },
+     "description": "The points it passes through, in order.",
+     "x-unit": "mm",
+     "minItems": 2,
+     "x-showIf": {
+      "kind": [
+       "spline",
+       "polyline"
+      ]
+     }
+    },
+    "startTangent": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The direction it leaves the first point (only the direction counts).",
+     "x-showIf": {
+      "kind": "spline"
+     }
+    },
+    "endTangent": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The direction it arrives at the last point (only the direction counts).",
+     "x-showIf": {
+      "kind": "spline"
+     }
+    },
+    "closed": {
+     "type": "boolean",
+     "description": "Back to the first point: a periodic spline, a closed polyline.",
+     "x-showIf": {
+      "kind": [
+       "spline",
+       "polyline"
+      ]
+     }
+    },
+    "bendRadius": {
+     "type": "number",
+     "description": "The radius each corner of the polyline is rounded to.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0,
+     "x-showIf": {
+      "kind": "polyline"
+     }
+    },
+    "origin": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Where the helix's axis starts: the helix starts at this height.",
+     "x-unit": "mm",
+     "default": [
+      0,
+      0,
+      0
+     ],
+     "x-showIf": {
+      "kind": "helix"
+     }
+    },
+    "axis": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The helix's axis: it rises along it.",
+     "default": [
+      0,
+      0,
+      1
+     ],
+     "x-showIf": {
+      "kind": "helix"
+     }
+    },
+    "radius": {
+     "type": "number",
+     "description": "The helix's radius (from the axis to the curve).",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0,
+     "default": 10,
+     "x-showIf": {
+      "kind": "helix"
+     }
+    },
+    "pitch": {
+     "type": "number",
+     "description": "How far the helix rises in one turn.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0,
+     "default": 5,
+     "x-showIf": {
+      "kind": "helix"
+     }
+    },
+    "turns": {
+     "type": "number",
+     "description": "How many turns.",
+     "exclusiveMinimum": 0,
+     "default": 3,
+     "x-showIf": {
+      "kind": "helix"
+     }
+    },
+    "rightHanded": {
+     "type": "boolean",
+     "description": "Right-handed (the default) or left-handed.",
+     "default": true,
+     "x-showIf": {
+      "kind": "helix"
+     }
+    },
+    "start": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The direction from the axis to where the helix starts.",
+     "default": [
+      1,
+      0,
+      0
+     ],
+     "x-showIf": {
+      "kind": "helix"
+     }
+    },
+    "xAxis": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The x-axis of the curve's start plane (projected onto it): which way a profile drawn there faces. Absent: world z projected onto the plane, or world x where the curve starts along z."
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "kind",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "A CURVE IN SPACE: a path that is not drawn on one plane (a hose, a wire lead, a tendon housing, a braid yarn), what a sweep follows (`path={{ curve: <id> }}`) or points its profile at (`guide`). It makes no body. It is also a plane, under its own id: the plane normal to the curve at its start (origin: the start; normal: the curve's direction there; x-axis: `xAxis`), so a profile sketch drawn on it (`plane={{ type: \"datum\", plane: <id> }}`) starts the sweep where the curve starts."
+  },
+  "CurveRef": {
+   "type": "object",
+   "properties": {
+    "curve": {
+     "type": "string",
+     "description": "The `curve` feature, by id."
+    }
+   },
+   "required": [
+    "curve"
+   ],
+   "additionalProperties": false,
+   "description": "A sweep's path given by a `curve` feature: a curve in space."
   },
   "CylinderFeature": {
    "type": "object",
@@ -7331,13 +7523,49 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "profile": {
      "$ref": "#/$defs/ProfileRef",
-     "description": "The cross-section that is swept.",
+     "description": "The cross-section that is swept. A region with holes sweeps a hollow solid (a hose, a tube).",
      "x-pick": "profile"
     },
     "path": {
-     "$ref": "#/$defs/ProfileRef",
-     "description": "Path comes from another sketch's open/closed chain.",
-     "x-pick": "path"
+     "$ref": "#/$defs/SweepPath",
+     "description": "What the profile follows: a sketch's open or closed chain on its plane (`{ sketch }`), or a curve in space (`{ curve }`, the id of a `curve` feature). The profile stays where it is drawn and turns with the path: draw it on the curve's own plane (`plane={{ type: \"datum\", plane: <the curve's id> }}`) to start where the curve starts.",
+     "x-pick": "sweepPath"
+    },
+    "frame": {
+     "type": "string",
+     "enum": [
+      "minimal",
+      "frenet",
+      "up",
+      "guide"
+     ],
+     "description": "How the profile turns along the path. \"minimal\": only as much as the path turns, with no roll about it (a rotation-minimizing frame); \"frenet\": it keeps its place against the path's principal normal (a flat yarn stays flat on a helix's cylinder; not defined where the path is straight); \"up\": its frame keeps `up` as the binormal (a level path stays level); \"guide\": its frame points at the `guide` curve.",
+     "default": "minimal"
+    },
+    "up": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The direction the profile's frame keeps as its binormal.",
+     "default": [
+      0,
+      0,
+      1
+     ],
+     "x-showIf": {
+      "frame": "up"
+     }
+    },
+    "guide": {
+     "type": "string",
+     "description": "The `curve` feature the profile's frame points at, by id.",
+     "x-pick": "curve",
+     "x-showIf": {
+      "frame": "guide"
+     }
+    },
+    "twist": {
+     "type": "number",
+     "description": "How far the profile turns about the path from its start to its end, evenly along its length (a twisted bar, a cable's lay). For a path that is an open curve, with frame \"minimal\".",
+     "x-unit": "rad"
     },
     "operation": {
      "$ref": "#/$defs/BooleanMode",
@@ -7378,6 +7606,17 @@ export const THREED_SCHEMA: SchemaDocument = {
     "name"
    ],
    "additionalProperties": false
+  },
+  "SweepPath": {
+   "anyOf": [
+    {
+     "$ref": "#/$defs/ProfileRef"
+    },
+    {
+     "$ref": "#/$defs/CurveRef"
+    }
+   ],
+   "description": "What a sweep follows: a sketch's open or closed chain on its plane, or a curve in space."
   },
   "TerminalBinding": {
    "type": "object",
