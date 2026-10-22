@@ -297,9 +297,9 @@ methods). The platform sets all three when your code runs inside it.
 ## Versions
 
 - A release is the tag `v<version>` in this repository and the same version on npm. Pin an exact version:
-  `npm install --save-exact commandagi@0.6.5`. A range (`^`, `~=`, `>=`) takes the next release without asking you.
+  `npm install --save-exact commandagi@0.6.6`. A range (`^`, `~=`, `>=`) takes the next release without asking you.
 - After an upgrade, check what runs: `npm ls commandagi`, and `commandagi --version` for the host that runs the local
-  3D kernel (`npm install -g @commandagi/host@0.6.5`). The two are upgraded apart, and a kernel of another version may
+  3D kernel (`npm install -g @commandagi/host@0.6.6`). The two are upgraded apart, and a kernel of another version may
   read a document differently.
 - The three SDKs (Python, TypeScript, Rust) carry one version number. A vocabulary at version X in one language is
   the vocabulary at version X in the others.
