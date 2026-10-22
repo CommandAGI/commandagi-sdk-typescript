@@ -1202,7 +1202,7 @@ export type FastenerStack = {
    */
   length: number;
   /**
-   * Where the stack bears on the first part it clamps: the centre of the washer's or the head's bearing face. In a counterbore that is its floor, not the top face: the stack stands where `at` says (nothing finds the floor), and the fasteners check's `head-not-seated` gives the floor's point when the head stands over a counterbore.
+   * A point on the screw's axis, on or above the first part it clamps: the top face over a counterbore does. The rebuild seats the stack: it moves it along `axis` from `at` to the first face of that part its washer (else its head) bears on, a counterbore's floor or the face round a clearance hole, and builds every piece there. A countersunk head rests where its cone meets the countersink (proud of the face when the countersink is narrower than the head); `at` is then its top. A stack that finds no such face stays at `at`, and the fasteners check's `head-not-seated` says why.
    * @unit mm
    */
   at: Vec3;
@@ -1225,7 +1225,7 @@ export type FastenerStack = {
   /** A nut on the far side, by its library part id (`iso-4032-m6`, `iso-4035-m6`). */
   nut?: string;
   /**
-   * With a nut: how far along the axis from `at` the nut bears (the thickness of the clamped parts).
+   * With a nut: how far along the axis from the seat the nut bears (the thickness of the clamped parts under it).
    * @unit mm
    * @exclusiveMinimum 0
    */
