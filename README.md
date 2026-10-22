@@ -87,6 +87,8 @@ This package, the Python SDK (`pip install commandagi`) and the CLI all come fro
   the code runs in, and the agent is prompted with its open tasks until they are done. Mount one task
   (`{ task }`), a project (`{ project }`) or a query (`{ assignee: "me", status: ["todo"] }`);
   `cagi.tasks.mounts()` lists them and `cagi.tasks.unmount(label)` removes one.
+  A thread's mounts are also a file: `mounts.tsx` in its run folder, `<mounts><mount label=… /></mounts>`
+  (`commandagi/design` `mountsVocabulary`; `mounts.py` and `mounts.rs` in the Python and Rust SDKs).
 - **Control vocabularies** on a live `Session`: `session.desktop` for computers, `session.robot` for
   physical robots, and `session.sim` for simulated worlds. Each method sends one action. The platform
   checks it against what the embodiment currently declares, which `session.controls()` lists; for

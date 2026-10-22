@@ -116,6 +116,7 @@ export { readWorkbook, readPage, readDeck, readOffice, isOfficeRoot, inlineHtml,
 export * from "./documents.js";
 export * from "./ontology.js";
 export * from "./tasks.js";
+export * from "./mounts.js";
 export * from "./monitors.js";
 export * from "./agents.js";
 export * from "./skills.js";
