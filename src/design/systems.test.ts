@@ -44,10 +44,11 @@ test("a system is its modes, rails, converters, loads, contributions, boms, budg
       el("rail", { id: "+5V", voltage: 5, source: "USB" }),
       el("rail", { id: "VBAT", voltage: 3.8 }),
       el("converter", { id: "U3", input: "+5V", output: "VBAT", efficiency: 0.88, source: "estimate" }),
-      el("load", { id: "modem", part: "U4", rail: "VBAT", mode: "lte", current: 0.67, source: "datasheet table 35" }),
+      el("load", { id: "modem", part: "U4", rail: "VBAT", mode: "lte", current: 0.67, peakCurrent: 0.9, source: "datasheet table 35" }),
       el("contribution", { id: "shell", quantity: "mass", part: "P1", value: 15.2, unit: "g", source: "check-fit.mjs" }),
       el("bom", { ref: "bom.csv" }),
       el("budget", { id: "power", quantity: "power", rail: "+5V", mode: "lte", limit: 10, unit: "W", margin: 0.2 }),
+      el("budget", { id: "peak", quantity: "power", rail: "+5V", mode: "lte", peak: true, limit: 10, unit: "W" }),
       el("check", { id: "link", kind: "interface", of: "Link.interface.tsx" }),
     ),
   );
@@ -63,6 +64,9 @@ test("a system is its modes, rails, converters, loads, contributions, boms, budg
   assert.throws(bad({ id: "c", quantity: "exhaust-flow", part: "P", value: 35, source: "datasheet" }, "contribution"), /<contribution id="c">: a quantity of exhaust-flow states its unit/);
   assert.equal(declare(el("system", {}, el("contribution", { id: "c", quantity: "exhaust-flow", part: "collar", value: 35, qty: 14, unit: "m3/h", source: "hood datasheet" }), el("budget", { id: "b", quantity: "exhaust-flow", limit: 600, unit: "m3/h" }))).format, "system");
   assert.throws(bad({ id: "b", quantity: "power", limit: 1 }), /a power budget names its rail and its mode/);
+  assert.deepEqual((doc.loads as Record<string, unknown>[])[0]!.peakCurrent, 0.9);
+  assert.throws(bad({ id: "b", quantity: "mass", limit: 1, peak: true }), /peak is true or false, on a power budget/);
+  assert.throws(bad({ id: "l", part: "U1", rail: "r", mode: "m", current: 1, peakCurrent: "2 A" }, "load"), /peakCurrent is a number/);
   assert.throws(bad({ id: "b", quantity: "thermal", limit: 1, mode: "m" }), /thermal resistance to the ambient \(resistance, K\/W\)/);
   assert.throws(bad({ id: "b", quantity: "mass", limit: 1, margin: 1.5 }), /margin is a fraction/);
   assert.throws(bad({ id: "b", quantity: "cost", per: 100, limit: 30 }), /a cost budget names the design whose logistics roll-up it reads/);

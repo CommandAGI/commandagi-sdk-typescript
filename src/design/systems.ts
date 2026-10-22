@@ -62,9 +62,9 @@ export const REQUIREMENT_FIELDS = ["id", "text", "rationale", "method", "verifie
 export const MODE_FIELDS = ["id", "description"] as const;
 export const RAIL_FIELDS = ["id", "voltage", "description", "source"] as const;
 export const CONVERTER_FIELDS = ["id", "input", "output", "efficiency", "source"] as const;
-export const LOAD_FIELDS = ["id", "part", "rail", "mode", "current", "power", "voltage", "source"] as const;
+export const LOAD_FIELDS = ["id", "part", "rail", "mode", "current", "power", "voltage", "peakCurrent", "peakPower", "source"] as const;
 export const CONTRIBUTION_FIELDS = ["id", "quantity", "part", "value", "unit", "qty", "mode", "rail", "source"] as const;
-export const BUDGET_FIELDS = ["id", "quantity", "limit", "unit", "mode", "rail", "per", "currency", "design", "resistance", "margin", "source", "description"] as const;
+export const BUDGET_FIELDS = ["id", "quantity", "limit", "unit", "mode", "rail", "peak", "per", "currency", "design", "resistance", "margin", "source", "description"] as const;
 export const PIN_FIELDS = ["number", "signal", "dir", "voltage", "gpio", "at", "required", "description"] as const;
 export const HOLE_FIELDS = ["id", "at", "diameter", "description"] as const;
 export const MESSAGE_FIELDS = ["id", "text", "code", "define", "dir", "description"] as const;
@@ -166,7 +166,7 @@ export const systemVocabulary: Vocabulary<SystemDoc> = {
       if (c.tag === "converter") check(isNum(a.efficiency) && (a.efficiency as number) > 0 && (a.efficiency as number) <= 1, `${at}: efficiency is a number in (0, 1] (0.88 for 88 %)`);
       if (c.tag === "load") {
         check(a.current !== undefined || a.power !== undefined, `${at}: a load states its current (A) or its power (W)`);
-        for (const k of ["current", "power", "voltage"]) check(a[k] === undefined || isNum(a[k]), `${at}: ${k} is a number`);
+        for (const k of ["current", "power", "voltage", "peakCurrent", "peakPower"]) check(a[k] === undefined || isNum(a[k]), `${at}: ${k} is a number`);
       }
       if (c.tag === "contribution") {
         checkQuantity(a, at);
@@ -179,6 +179,7 @@ export const systemVocabulary: Vocabulary<SystemDoc> = {
         check(isNum(a.limit), `${at}: limit is a number`);
         check(a.margin === undefined || (isNum(a.margin) && (a.margin as number) >= 0 && (a.margin as number) < 1), `${at}: margin is a fraction of the limit kept free, in [0, 1)`);
         if (a.quantity === "power") check(typeof a.rail === "string" && typeof a.mode === "string", `${at}: a power budget names its rail and its mode`);
+        check(a.peak === undefined || (typeof a.peak === "boolean" && a.quantity === "power"), `${at}: peak is true or false, on a power budget (each load at its peakCurrent or peakPower)`);
         if (a.quantity === "cost") check(typeof a.design === "string" && a.design.trim(), `${at}: a cost budget names the design whose logistics roll-up it reads (design="cad/Assembly.3d.tsx")`);
         if (a.quantity === "thermal") check(typeof a.mode === "string" && isNum(a.resistance), `${at}: a thermal budget names its mode and the thermal resistance to the ambient (resistance, K/W)`);
       }
