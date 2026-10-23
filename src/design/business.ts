@@ -61,7 +61,7 @@ interface TagSpec {
 /** The vocabulary: each tag's attributes and children (what the document's fields are). */
 export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   Company: {
-    props: { name: "text", about: "text", files: "texts", dashboard: "text" },
+    props: { name: "text", about: "text", postalAddress: "text", files: "texts", dashboard: "text" },
     required: ["name"],
     one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters" },
     many: { registrations: "Registration" },
@@ -209,6 +209,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     format: "commandagi-company",
     name: p.name,
     about: p.about ?? "",
+    ...(p.postalAddress !== undefined ? { postalAddress: p.postalAddress } : {}),
     files: p.files ?? [],
     dashboard: p.dashboard ?? null,
     entity,
