@@ -13,7 +13,7 @@ test("a <board> that names its schematic declares the board half: outline, stack
   const g = board(
     { width: 40, height: 30, core: 1.5, copper: 0.035, __source: 0 },
     jsx("component", { name: "R1", footprint: "smd-0805", pcbX: 10, pcbY: 10, __source: 1 }),
-    jsx("component", { name: "R2", footprint: "axial-7.62", pcbX: 25, pcbY: 10, pcbRotation: 90, layer: "bottom" }),
+    jsx("component", { name: "R2", footprint: "axial-7.62", pcbX: 25, pcbY: 10, pcbRotation: 90, layer: "bottom", refAt: [0, -2.5] }),
     jsx("component", { name: "V1", footprint: "smd-0805" }),
     jsx("trace", { layer: "F.Cu", width: 0.2, points: [[11, 10], [18, 14], [24, 10]], from: ".R1 > .pin2", to: ".R2 > .1", __source: 4 }),
     jsx("trace", { layer: "B.Cu", width: 0.25, points: [[18, 14], [18, 20]], from: ".VIA1" }),
@@ -32,6 +32,7 @@ test("a <board> that names its schematic declares the board half: outline, stack
   assert.deepEqual(g.nodes.board!.meta, { source: 0 });
   assert.deepEqual(g.nodes.fp_R1!, { id: "fp_R1", type: "eda.footprint", label: "R1", inputs: { ref: "R1", footprint: "Authored:smd-0805", placement: { x: 10, y: 10, rot: 0, side: "top" } }, meta: { source: 1 } });
   assert.deepEqual(g.nodes.fp_R2!.inputs.placement, { x: 25, y: 10, rot: 90, side: "bottom" });
+  assert.deepEqual(g.nodes.fp_R2!.inputs.refAt, [0, -2.5]);
   assert.equal(g.nodes.fp_V1!.inputs.placement, undefined, "a footprint with no pcbX and pcbY is not placed");
   assert.deepEqual(g.nodes.cu_1!.inputs, {
     kind: "run",
@@ -138,8 +139,10 @@ test("the layout's constraints are board facts: net classes, pairs, groups, keep
     jsx("netclass", { name: "supply", nets: ["P24", "FIN*"], kind: "power", width: 0.5, clearance: 0.25, current: 0.5, criticality: 0.8, maxVias: 2 }),
     jsx("diffpair", { name: "usb", positive: "D+", negative: "D-", gap: 0.15, maxSkew: 0.5 }),
     jsx("group", { name: "in1", parts: ["R1", "U1"], region: [10, 30, 30, 50], near: ".J1 > .pin5", maxDistance: 4, conviction: 0.5 }),
+    jsx("group", { name: "io", parts: ["J1"], side: "any", edge: "left", mating: "top" }),
     jsx("keepout", { name: "label", points: [[80, 20], [96, 20], [96, 28]], no: ["track", "via"] }),
     jsx("thermal", { name: "fets", parts: ["Q1", "Q2"], watts: 0.3, spacing: 4, awayFrom: ["U1"], distance: 6 }),
+    jsx("bus", { name: "data", nets: ["D*"], pitch: 0.6 }),
     jsx("objective", { weights: { wirelength: 1, vias: 3 } }),
   )();
   const facts = Object.values(g.nodes).filter((n) => n.type === "eda.boardfact").map((n) => n.inputs);
@@ -147,8 +150,10 @@ test("the layout's constraints are board facts: net classes, pairs, groups, keep
     { fact: "netclass", name: "supply", nets: ["P24", "FIN*"], kind: "power", width: 0.5, clearance: 0.25, current: 0.5, criticality: 0.8, maxVias: 2 },
     { fact: "diffpair", name: "usb", positive: "D+", negative: "D-", gap: 0.15, maxSkew: 0.5 },
     { fact: "group", name: "in1", parts: ["R1", "U1"], region: [10, 30, 30, 50], near: ".J1 > .pin5", maxDistance: 4, conviction: 0.5 },
+    { fact: "group", name: "io", parts: ["J1"], side: "any", edge: "left", mating: "top" },
     { fact: "keepout", name: "label", points: [[80, 20], [96, 20], [96, 28]], no: ["track", "via"] },
     { fact: "thermal", name: "fets", parts: ["Q1", "Q2"], watts: 0.3, spacing: 4, awayFrom: ["U1"], distance: 6 },
+    { fact: "bus", name: "data", nets: ["D*"], pitch: 0.6 },
     { fact: "objective", weights: { wirelength: 1, vias: 3 } },
   ]);
   const refused = (el: unknown, re: RegExp) => assert.throws(() => board({ width: 10, height: 10 }, el)(), re);
@@ -160,8 +165,12 @@ test("the layout's constraints are board facts: net classes, pairs, groups, keep
   refused(jsx("netclass", { name: "a", nets: ["X"], minSpokes: 1.5 }), /minSpokes is a whole number from 0 to 4/);
   refused(jsx("group", { name: "g", parts: ["R1"], region: [5, 5, 1, 1] }), /x0 < x1/);
   refused(jsx("group", { name: "g", parts: ["R1"], maxDistance: 3 }), /maxDistance needs near/);
+  refused(jsx("group", { name: "g", parts: ["J1"], edge: "front" }), /edge is "left", "right", "top", "bottom"/);
+  refused(jsx("group", { name: "g", parts: ["J1"], mating: "top" }), /mating needs edge/);
   refused(jsx("keepout", { points: [[0, 0], [1, 0], [1, 1]], no: ["smoke"] }), /a list of track, via, component, pour/);
   refused(jsx("thermal", { name: "t", parts: ["Q1"], watts: 1, awayFrom: ["U1"] }), /give awayFrom and distance together/);
+  refused(jsx("bus", { name: "b", nets: ["D0"], pitch: -1 }), /pitch/);
+  refused(jsx("bus", { name: "b", nets: ["D0"], width: 0.2 }), /width/);
   assert.throws(() => board({}, jsx("objective", { weights: { vias: 1 } }), jsx("objective", { weights: { vias: 2 } }))(), /one <objective>/);
   assert.throws(() => board({}, jsx("group", { name: "g", parts: ["R1"] }), jsx("group", { name: "g", parts: ["R2"] }))(), /two <group> elements are called g/);
 });

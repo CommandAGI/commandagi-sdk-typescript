@@ -38,7 +38,7 @@
  *   <check id kind severity>, <accept id check rule refs net region reason>
  *                                     the checks the board must pass (erc, drc) and the findings it accepts on
  *                                     purpose (`./circuit-checks.ts`)
- *   <component name footprint library pcbX pcbY pcbRotation layer chart uuid kicad>
+ *   <component name footprint library pcbX pcbY pcbRotation layer refAt chart uuid kicad>
  *                                     the schematic's part `name` on this board: its footprint (one of the editor's
  *                                     own land patterns, BOARD_FOOTPRINTS, or a library footprint by its ref,
  *                                     "Package_SO:SOIC-8", in the `.pretty` folder `library` names: its
@@ -77,15 +77,20 @@
  *   <diffpair name positive negative gap width impedance maxSkew>
  *                                     two nets routed as a pair: the gap between the tracks, the most length
  *                                     difference (mm).
- *   <group name parts region near maxDistance conviction side>
+ *   <group name parts region near maxDistance conviction side edge mating>
  *                                     parts placed together: `region` [x0, y0, x1, y1] the box they stay in; `near`
  *                                     a part or a pin (".J1 > .pin5") they stay within `maxDistance` of; conviction
- *                                     0 (free) to 1 (fixed where they are).
+ *                                     0 (free) to 1 (fixed where they are); `side` "top", "bottom" or "any" (the
+ *                                     placer turns a part over where that costs less); `edge` the board edge they sit
+ *                                     against ("left", "right", "top", "bottom"), their `mating` side (in the
+ *                                     footprint's own frame) facing out.
  *   <keepout name points layers no>  a region where `no` ("track", "via", "component", "pour") may be, on `layers`
  *                                     (all copper layers when absent).
  *   <thermal name parts watts spacing awayFrom distance>
  *                                     the heat each part dissipates (W), the least spacing between them, and the
  *                                     parts (`awayFrom`) they keep `distance` from.
+ *   <bus name nets pitch>             nets that run together ("D*" matches by prefix): where their tracks run side by
+ *                                     side they are parallel, `pitch` (mm) apart centre to centre.
  *   <objective weights>               the weight of each term of the layout score ({ wirelength: 1, vias: 2, … }).
  *
  * How the board is made (docs/formats.md § logistics):
@@ -217,11 +222,12 @@ export function isBoardFile(root: unknown): boolean {
 }
 
 const CONDUCTORS = new Set(["trace", "arc", "via", "pour"]);
-const FACTS = new Set(["graphic", "text", "dimension", "kicad", "net", "netclass", "diffpair", "group", "keepout", "thermal", "objective", "fab"]);
+const FACTS = new Set(["graphic", "text", "dimension", "kicad", "net", "netclass", "diffpair", "group", "keepout", "thermal", "bus", "objective", "fab"]);
 
 /** The layout's constraints, each a board fact (`fact` is its tag): what each takes, and its check. */
 const NET_KINDS = ["signal", "power", "ground", "noisy", "sensitive", "highspeed"];
 const KEEPOUT_KINDS = ["track", "via", "component", "pour"];
+const EDGES = ["left", "right", "top", "bottom"];
 const isNames = (v: unknown) => Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string" && x.length > 0);
 const isBox = (v: unknown) => Array.isArray(v) && v.length === 4 && v.every((x) => typeof x === "number" && Number.isFinite(x)) && (v[0] as number) < (v[2] as number) && (v[1] as number) < (v[3] as number);
 const isWeights = (v: unknown) => isObject(v) && Object.values(v as object).every((x) => typeof x === "number" && Number.isFinite(x) && x >= 0);
@@ -263,7 +269,7 @@ function constraintFact(el: DesignElement): Record<string, unknown> {
       for (const k of ["gap", "width", "impedance", "maxSkew"]) put(k, positive(el, k));
       break;
     case "group": {
-      refuseUnknown(el, ["name", "parts", "region", "near", "maxDistance", "conviction", "side"]);
+      refuseUnknown(el, ["name", "parts", "region", "near", "maxDistance", "conviction", "side", "edge", "mating"]);
       put("name", name()); put("parts", names("parts", true));
       put("region", plain(el, "region", isBox, "[x0, y0, x1, y1] in mm, x0 < x1 and y0 < y1"));
       const near = text(el, "near");
@@ -271,8 +277,14 @@ function constraintFact(el: DesignElement): Record<string, unknown> {
       put("near", near); put("maxDistance", positive(el, "maxDistance")); put("conviction", unit("conviction"));
       if (out.maxDistance !== undefined && near === undefined) throw new Error(`${where(el)}: maxDistance needs near`);
       const side = el.props.side;
-      if (side !== undefined && side !== "top" && side !== "bottom") throw new Error(`${where(el)}: side is "top" or "bottom"`);
+      if (side !== undefined && side !== "top" && side !== "bottom" && side !== "any") throw new Error(`${where(el)}: side is "top", "bottom" or "any"`);
       put("side", side);
+      for (const k of ["edge", "mating"]) {
+        const v = el.props[k];
+        if (v !== undefined && !EDGES.includes(v as string)) throw new Error(`${where(el)}: ${k} is ${EDGES.map((e) => `"${e}"`).join(", ")}`);
+        put(k, v);
+      }
+      if (out.mating !== undefined && out.edge === undefined) throw new Error(`${where(el)}: mating needs edge`);
       break;
     }
     case "keepout": {
@@ -289,6 +301,10 @@ function constraintFact(el: DesignElement): Record<string, unknown> {
       put("spacing", positive(el, "spacing")); put("awayFrom", names("awayFrom", false)); put("distance", positive(el, "distance"));
       if ((out.awayFrom === undefined) !== (out.distance === undefined)) throw new Error(`${where(el)}: give awayFrom and distance together`);
       break;
+    case "bus":
+      refuseUnknown(el, ["name", "nets", "pitch"]);
+      put("name", name()); put("nets", names("nets", true)); put("pitch", positive(el, "pitch"));
+      break;
     case "objective":
       refuseUnknown(el, ["weights"]);
       put("weights", plain(el, "weights", isWeights, "an object of term → weight (0 or more)") ?? (() => { throw new Error(`${where(el)} needs weights`); })());
@@ -296,7 +312,7 @@ function constraintFact(el: DesignElement): Record<string, unknown> {
   }
   return out;
 }
-const CONSTRAINTS = new Set(["netclass", "diffpair", "group", "keepout", "thermal", "objective"]);
+const CONSTRAINTS = new Set(["netclass", "diffpair", "group", "keepout", "thermal", "bus", "objective"]);
 
 const FAB_CAPABILITIES = ["minTrack", "minSpace", "minDrill", "minAnnularRing"];
 const SIDES = ["top", "bottom"];
@@ -522,7 +538,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
         case "stack":
           break;
         case "component": {
-          refuseUnknown(el, ["name", "footprint", "library", "pcbX", "pcbY", "pcbRotation", "layer", "chart", "uuid", "kicad"]);
+          refuseUnknown(el, ["name", "footprint", "library", "pcbX", "pcbY", "pcbRotation", "layer", "refAt", "chart", "uuid", "kicad"]);
           const ref = el.props.name as string;
           const fp = el.props.footprint;
           const library = el.props.library;
@@ -540,6 +556,12 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
           if (side !== undefined && side !== "top" && side !== "bottom") throw new Error(`${where(el)}: layer is "top" or "bottom"`);
           if ((x === undefined) !== (y === undefined)) throw new Error(`${where(el)}: give pcbX and pcbY together`);
           if (x === undefined && (rot !== undefined || side !== undefined)) throw new Error(`${where(el)}: pcbRotation and layer need pcbX and pcbY`);
+          // Where the reference text sits, in the footprint's own frame (its library's, on the top): the placer moves it
+          // off copper and off other references.
+          const refAt = el.props.refAt;
+          if (refAt !== undefined && !(Array.isArray(refAt) && refAt.length === 2 && refAt.every((v) => typeof v === "number" && Number.isFinite(v))))
+            throw new Error(`${where(el)}: refAt is [x, y] in mm, in the footprint's own frame`);
+          if (refAt !== undefined && x === undefined) throw new Error(`${where(el)}: refAt needs pcbX and pcbY`);
           const chart = text(el, "chart");
           if (chart !== undefined && !surface) throw new Error(`${where(el)}: chart names a face of the board's surface, and the <board> has no surface`);
           if (chart !== undefined && x === undefined) throw new Error(`${where(el)}: chart needs pcbX and pcbY`);
@@ -549,6 +571,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
               ref,
               ...(library !== undefined ? { footprint: fp, library: (library as string).replace(/\/$/, "") } : named ? { footprint: fp } : { footprint: `Authored:${fp}` }),
               ...(x !== undefined ? { placement: { x, y, rot: rot ?? 0, side: side ?? "top" } } : {}),
+              ...(refAt !== undefined ? { refAt: [...(refAt as number[])] } : {}),
               ...(chart !== undefined ? { surfaceMount: { chart } } : {}),
               ...uuidOf(el),
               ...kicad(el),
