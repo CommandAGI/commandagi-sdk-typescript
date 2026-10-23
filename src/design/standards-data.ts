@@ -390,6 +390,20 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "observedAt": "2026-10-22"
  },
  {
+  "id": "8.8 d>16",
+  "name": "Carbon steel bolt, ISO 898-1 property class 8.8 (d > 16 mm)",
+  "family": "steel",
+  "designationEn": "ISO 898-1 8.8",
+  "densityGCm3": 7.8,
+  "youngsModulusGPa": 210,
+  "yieldStrengthMPa": 660,
+  "tensileStrengthMPa": 830,
+  "poissonsRatio": 0.3,
+  "source": "TR Fastenings knowledge base, Mechanical properties - Steel Screws and Bolts ISO 898-1 EN 20898-1; density, modulus and Poisson's ratio from Ovako Steel Navigator, C45",
+  "sourceUrl": "https://www.trfastenings.com/knowledge-base/metric-screws/screws-and-bolts-mechanical-properties ; https://steelnavigator.ovako.com/steel-grades/c45/",
+  "observedAt": "2026-10-23"
+ },
+ {
   "id": "12.9",
   "name": "Alloy steel bolt, ISO 898-1 property class 12.9",
   "family": "steel",
