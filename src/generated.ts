@@ -212,7 +212,7 @@ export const SDK_SCHEMA = {
           {
             name: "create",
             tool: "create_thread",
-            doc: "Spawn a thread: {intent, snapshotId?, …}, or {agentless: true, snapshotId} for a world you drive.",
+            doc: "Spawn a thread: {intent, about?, snapshotId?, …} (about: the address of the file the ask is about; the thread's run is of it), or {agentless: true, snapshotId} for a world you drive.",
             params: [
               {
                 name: "opts",
@@ -3052,7 +3052,7 @@ export class Threads {
   get(threadId: string): Promise<unknown> {
     return this.t.call("get_thread", prune({ threadId: threadId }));
   }
-  /** Spawn a thread: {intent, snapshotId?, …}, or {agentless: true, snapshotId} for a world you drive. */
+  /** Spawn a thread: {intent, about?, snapshotId?, …} (about: the address of the file the ask is about; the thread's run is of it), or {agentless: true, snapshotId} for a world you drive. */
   create(opts: Args = {}): Promise<unknown> {
     return this.t.call("create_thread", { ...opts });
   }
@@ -3998,7 +3998,7 @@ export const CLI_COMMANDS: readonly Command[] = [
     verb: "create",
     tool: "create_thread",
     spread: true,
-    doc: "Spawn a thread: {intent, snapshotId?, …}, or {agentless: true, snapshotId} for a world you drive.",
+    doc: "Spawn a thread: {intent, about?, snapshotId?, …} (about: the address of the file the ask is about; the thread's run is of it), or {agentless: true, snapshotId} for a world you drive.",
   },
   {
     group: "threads",
