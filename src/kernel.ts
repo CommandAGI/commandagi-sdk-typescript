@@ -110,7 +110,9 @@ export interface CheckFinding {
   check: string;
   kind: string;
   rule: string;
-  severity: "error" | "warning" | "info";
+  /** `suppressed` when an `<accept>` or a `<permitted>` covers it; its own severity is then `coveredSeverity`. */
+  severity: "error" | "warning" | "info" | "suppressed";
+  coveredSeverity?: "error" | "warning" | "info";
   message: string;
   body?: { id: string; name: string; partNumber?: string };
   other?: { id: string; name: string; partNumber?: string };
