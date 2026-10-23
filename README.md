@@ -142,7 +142,7 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   photo and nesting editors open and edit): a `<drawing>` of `<layer>`s holding `<rect>`, `<ellipse>`, `<path d>`,
   `<text>`, `<group>` and modifiers (`<blur>`, `<transform>` … wrap what they change); a `<painting>` whose `<layer>`s
   hold `<stroke points>` (`[x, y, pressure, t]` each); a `<photo>` of `<raster src>` layers (their filters inside
-  them) and adjustment tags (`<exposure ev>`, `<hsl>` …); a `<nest>` of `<sheet>`, `<stock>`, `<options>` and `<part>`.
+  them) and adjustment tags (`<exposure ev>`, `<hsl>` …); a `<nest>` of `<sheet>`, `<stock>`, `<options>`, `<part>` and `<engrave>` (an image burned on the sheet).
   An element is one node of the editor's own document and its attributes are that node's inputs. A pixel layer
   names its image file (`src`); pixels are never code. The editor writes each edit back into the file.
 - **Office documents in JSX** (a `<name>.sheet.tsx`, `.page.tsx` or `.deck.tsx` the sheets, docs and decks editors

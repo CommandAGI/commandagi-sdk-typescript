@@ -8,6 +8,9 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- `commandagi/design` `twod`: a nest's `<engrave id src xMm yMm widthMm heightMm dpi dither>`, an image burned on the
+  first sheet (`dither`: `none`, `ordered` or `floyd-steinberg`; `powerPct`, `minPowerPct`, `feedMmMin` and `passes`
+  when not the stock's). The same in the Python SDK (`twod.engrave(...)`) and the Rust SDK (`engrave()`).
 - `commandagi/design` 3D: `<curve tangents={[{ at, direction }]}>`, a spline's direction at an inner point (the
   spline is C1 there), and `tangentScale`, how hard every given tangent holds (build123d's tangent scalars; 1 is the
   natural spline). `<pathPattern path={{ curve }}>` places its copies along a curve in space, and `alignToPath` turns

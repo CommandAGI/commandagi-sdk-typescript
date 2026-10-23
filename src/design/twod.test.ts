@@ -166,6 +166,21 @@ test("a nest declares its sheet, stock, options and parts", () => {
   assert.deepEqual(g.nodes.tab, { id: "tab", type: "nest.part", label: "Tab", inputs: { quantity: 2, outline: [[0, 0], [10, 0], [10, 5]] } });
 });
 
+test("a nest's <engrave> is a nest.engrave node on the engraves channel; it has an id", () => {
+  const g = run(
+    h("nest", { safeZMm: 5 },
+      h("sheet", { widthMm: 300, heightMm: 200, marginMm: 5 }),
+      h("stock", { materialId: "plywood", thicknessMm: 3, machine: { powerW: 40 } }),
+      h("options", { resolutionMm: 1 }),
+      h("engrave", { id: "logo", src: "logo.png", xMm: 20, yMm: 20, widthMm: 60, heightMm: 30, dpi: 254, dither: "ordered" }),
+    ),
+  );
+  assert.deepEqual(g.nodes.nest!.inputs["engraves.1"], wire("logo"));
+  assert.deepEqual(g.nodes.logo!.type, "nest.engrave");
+  assert.deepEqual(g.nodes.logo!.inputs, { src: "logo.png", xMm: 20, yMm: 20, widthMm: 60, heightMm: 30, dpi: 254, dither: "ordered" });
+  assert.throws(() => run(h("nest", {}, h("sheet", {}), h("stock", {}), h("options", {}), h("engrave", { src: "a.png" }))), /an engrave has an id/);
+});
+
 test("refused by name: pixels in code, a tag the vocabulary lacks, a stroke outside a layer, relative d", () => {
   const paint = (child: unknown) => () => run(h("painting", {}, child));
   assert.throws(paint(h("layer", { src: "data:image/png;base64,AAAA" })), /src names an image file by relative path/);
