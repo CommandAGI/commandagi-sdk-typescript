@@ -1,7 +1,7 @@
 // An eval and a metric in JSX declare the documents the platform's eval reader parses. Pinned here: each is its record
-// both ways; a case names its task file or says its instruction (one of the two); `metrics` and `acceptanceMetric` are
-// refs; `frozen` is a digest, never a flag; what does not read is refused with why. The Python SDK's
-// tests/test_evals.py and the Rust SDK's tests/evals.rs declare the same example.
+// both ways; a case names its task file or says its instruction (one of the two); `metrics`, `acceptanceMetric`, the
+// objective's metrics and the scoring's weights are refs; `frozen` is a digest, never a flag; what does not read is
+// refused with why. The Python SDK's tests/test_evals.py and the Rust SDK's tests/evals.rs declare the same example.
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -14,7 +14,9 @@ const EVAL = {
   slug: "yard-shakedown",
   domain: "robot",
   version: "3",
-  metrics: ["Fleet availability.metric.tsx"],
+  metrics: ["Fleet availability.metric.tsx", "Lap time.metric.tsx"],
+  scoring: { kind: "weighted", weights: { "Fleet availability.metric.tsx": 2, "Lap time.metric.tsx": 1 } },
+  objective: { kind: "linear", terms: [{ metric: "Fleet availability.metric.tsx", weight: 2 }, { metric: "Lap time.metric.tsx", weight: -0.01 }], bias: 0 },
   repeats: 3,
   frozen: DIGEST,
   cases: [
@@ -34,10 +36,10 @@ const EVAL = {
 const METRIC = { slug: "fleet-availability", probe: { kind: "event", eventKind: "telemetry" }, aggregation: "rate", target: 0.96 };
 
 test("an eval in JSX: <eval> holds one <case> per case, each __source by its slug; a metric is one <metric>", () => {
-  const { slug, domain, version, metrics, repeats, frozen, cases } = EVAL;
+  const { slug, domain, version, metrics, scoring, objective, repeats, frozen, cases } = EVAL;
   const file = el(
     "eval",
-    { slug, domain, version, metrics, repeats, frozen, __source: 0 },
+    { slug, domain, version, metrics, scoring, objective, repeats, frozen, __source: 0 },
     el("case", { ...cases[0], __source: 1 }),
     el("case", cases[1]!),
   );
@@ -66,6 +68,13 @@ test("an eval or a metric that does not read is refused with why", () => {
   assert.throws(() => declarationOf({ default: el("eval", { slug: "e", frozen: true }) }), /frozen is the digest the eval is frozen at/);
   assert.throws(() => declarationOf({ default: el("eval", { slug: "e", metricIds: ["m1"] }) }), /metricIds is not read/);
   assert.throws(() => declarationOf({ default: el("eval", { slug: "e", metrics: "m.metric.tsx" }) }), /metrics is a list of texts/);
+  const objective = (o: unknown) => () => declarationOf({ default: el("eval", { slug: "e", objective: o }) });
+  assert.throws(objective({ kind: "metric", metricId: "m1" }), /objective names its metric file by ref \(metric\), not by node id/);
+  assert.throws(objective({ kind: "linear", terms: [{ metric: "a.metric.tsx" }, { metricId: "m1", weight: 1 }] }), /objective.terms\[1\] names its metric file by ref/);
+  assert.throws(objective({ kind: "linear", terms: [] }), /objective.terms is a list/);
+  assert.throws(objective({ kind: "metric" }), /objective.metric is a metric file's ref/);
+  assert.throws(() => declarationOf({ default: el("eval", { slug: "e", scoring: { kind: "weighted", weights: { "a.metric.tsx": "2" } } }) }), /scoring.weights is/);
+  assert.deepEqual(declarationOf({ default: el("eval", { slug: "e", objective: { kind: "function", source: "return 1" } }) }).document!.document, { slug: "e", objective: { kind: "function", source: "return 1" }, cases: [] });
   assert.throws(() => declarationOf({ default: el("metric", { slug: "m", probe: {}, aggregation: "rate" }) }), /probe is what to measure/);
   assert.throws(() => declarationOf({ default: el("metric", { slug: "m", aggregation: "rate" }) }), /<metric> needs probe/);
 });

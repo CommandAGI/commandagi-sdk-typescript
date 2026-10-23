@@ -18,7 +18,9 @@
  * `metrics` names the metric files the eval reads; a case's `task` names the `.task.tsx` whose title and text the agent
  * is handed, read when the case runs. A case with no task file says its `instruction` itself; a case says one of the
  * two. `acceptance`, `acceptanceMetric` (a ref to a metric file), `hints`, `maxSteps` and `timeLimitMs` judge and bound
- * the case either way.
+ * the case either way. `objective` and `scoring.weights` name metric files by ref as well: an objective is
+ * `{ kind: "metric", metric: "<ref>" }`, `{ kind: "linear", terms: [{ metric: "<ref>", weight }], bias }` or a
+ * `function`; the weights are keyed by ref (`{ "Fleet availability.metric.tsx": 2 }`).
  *
  * `frozen` is the digest an eval is frozen at (`sha256:<hex>`, written by the platform when it publishes the eval): the
  * reader computes the digest of what the eval grades by (its declaration and the tasks and metrics it names) and
@@ -42,8 +44,10 @@ export interface DeclaredEval {
   description?: string;
   /** The metric files the eval reads, by ref. */
   metrics?: string[];
+  /** How the cases combine; `weights` are keyed by metric file ref. */
   scoring?: Record<string, unknown>;
-  objective?: Record<string, unknown>;
+  /** The headline score; it names its metric files by ref. */
+  objective?: DeclaredObjective;
   axes?: string[];
   repeats?: number;
   published?: boolean;
@@ -54,6 +58,11 @@ export interface DeclaredEval {
   provenance?: Record<string, unknown>;
   cases: DeclaredEvalCase[];
 }
+/** An eval's objective as its file declares it: each metric file by ref. */
+export type DeclaredObjective =
+  | { kind: "metric"; metric: string }
+  | { kind: "linear"; terms: { metric: string; weight?: number }[]; bias?: number }
+  | { kind: "function"; runtime?: string; lang?: string; source?: string; scriptToolId?: string };
 export interface DeclaredEvalCase {
   slug: string;
   name: string;
@@ -129,9 +138,38 @@ export function evalCaseOf(t: DocTree): DeclaredEvalCase {
   return said(t.attrs, EVAL_CASE_FIELDS) as unknown as DeclaredEvalCase;
 }
 
+/** A metric named in `objective`: a ref (`metric`), never a node id (`metricId`). */
+function metricNamed(t: DocTree, at: string, v: unknown): void {
+  if (!plainObject(v)) throw new Error(`${where(t)} ${at} is an object, not ${JSON.stringify(v)}`);
+  if ("metricId" in v) throw new Error(`${where(t)} ${at} names its metric file by ref (metric), not by node id (metricId)`);
+  if (!(typeof v.metric === "string" && v.metric.trim())) throw new Error(`${where(t)} ${at}.metric is a metric file's ref, not ${JSON.stringify(v.metric)}`);
+}
+function objectiveOf(t: DocTree): void {
+  const o = t.attrs.objective;
+  if (o === undefined) return;
+  if (!plainObject(o) || typeof o.kind !== "string") throw new Error(`${where(t)} objective is { kind: "metric" | "linear" | "function", … }, not ${JSON.stringify(o)}`);
+  if (o.kind === "metric") metricNamed(t, "objective", o);
+  if (o.kind === "linear") {
+    if (!Array.isArray(o.terms) || !o.terms.length) throw new Error(`${where(t)} objective.terms is a list of { metric, weight }`);
+    o.terms.forEach((term, i) => {
+      metricNamed(t, `objective.terms[${i}]`, term);
+      const w = (term as Record<string, unknown>).weight;
+      if (w !== undefined && !(typeof w === "number" && Number.isFinite(w))) throw new Error(`${where(t)} objective.terms[${i}].weight is a number, not ${JSON.stringify(w)}`);
+    });
+  }
+}
+function weightsOf(t: DocTree): void {
+  const s = t.attrs.scoring;
+  if (!plainObject(s) || s.weights === undefined) return;
+  if (!plainObject(s.weights) || !Object.values(s.weights).every((w) => typeof w === "number" && Number.isFinite(w)))
+    throw new Error(`${where(t)} scoring.weights is { "<metric file ref>": <number> }, not ${JSON.stringify(s.weights)}`);
+}
+
 function evalOf(t: DocTree): DeclaredEval {
   for (const k of ["slug", "domain", "version", "description", "rung"]) text(t, k);
   for (const k of ["scoring", "objective", "provenance"]) object(t, k);
+  objectiveOf(t);
+  weightsOf(t);
   texts(t, "metrics");
   texts(t, "axes");
   number(t, "repeats", true);
