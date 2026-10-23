@@ -346,6 +346,62 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "source": "Ensinger product page, TECAFINE PE300 natural",
   "sourceUrl": "https://www.ensingerplastics.com/en-sg/shapes/polyethylene-tecafine-pe-300-natural",
   "observedAt": "2026-10-13"
+ },
+ {
+  "id": "A2-70",
+  "name": "Stainless steel bolt, ISO 3506-1 A2, property class 70",
+  "family": "stainless-steel",
+  "designationEn": "ISO 3506-1 A2-70",
+  "designationUns": "UNS S30400",
+  "densityGCm3": 8,
+  "youngsModulusGPa": 193,
+  "yieldStrengthMPa": 450,
+  "tensileStrengthMPa": 700,
+  "source": "TorqBolt, A2 70 Stainless Steel Bolts ISO 3506-1 (strength, designation); density and modulus from Aalco Metals datasheet, Stainless Steel 1.4301 (304) Bar and Section",
+  "sourceUrl": "https://torqbolt.com/a2-70-stainless-steel-bolts-iso-3506-1-uns-s30400 ; https://www.aalco.co.uk/datasheets/Stainless-Steel-14301-304-Bar-and-Section_34.ashx",
+  "observedAt": "2026-10-22"
+ },
+ {
+  "id": "A4-70",
+  "name": "Stainless steel bolt, ISO 3506-1 A4, property class 70",
+  "family": "stainless-steel",
+  "designationEn": "ISO 3506-1 A4-70",
+  "designationUns": "UNS S31600",
+  "densityGCm3": 8,
+  "youngsModulusGPa": 193,
+  "yieldStrengthMPa": 450,
+  "tensileStrengthMPa": 700,
+  "source": "Total Materia, EN A4-70 Stainless steels (strength); density and modulus from Aalco Metals datasheet, Stainless Steel 1.4401 (316) Bar and Section",
+  "sourceUrl": "https://www.totalmateria.com/en-us/material/1454955 ; https://www.aalco.co.uk/datasheets/Stainless-Steel-14401-316-Bar-and-Section_37.ashx",
+  "observedAt": "2026-10-22"
+ },
+ {
+  "id": "8.8",
+  "name": "Carbon steel bolt, ISO 898-1 property class 8.8 (d <= 16 mm)",
+  "family": "steel",
+  "designationEn": "ISO 898-1 8.8",
+  "densityGCm3": 7.8,
+  "youngsModulusGPa": 210,
+  "yieldStrengthMPa": 640,
+  "tensileStrengthMPa": 800,
+  "poissonsRatio": 0.3,
+  "source": "TR Fastenings knowledge base, Mechanical properties - Steel Screws and Bolts ISO 898-1 EN 20898-1 (cross-checked with Optimas, Mechanical and physical properties of steel fasteners); density, modulus and Poisson's ratio from Ovako Steel Navigator, C45",
+  "sourceUrl": "https://www.trfastenings.com/knowledge-base/metric-screws/screws-and-bolts-mechanical-properties ; https://optimas.com/technical-resources/mechanical-physical-properties-steel-fasteners/ ; https://steelnavigator.ovako.com/steel-grades/c45/",
+  "observedAt": "2026-10-22"
+ },
+ {
+  "id": "12.9",
+  "name": "Alloy steel bolt, ISO 898-1 property class 12.9",
+  "family": "steel",
+  "designationEn": "ISO 898-1 12.9",
+  "densityGCm3": 7.8,
+  "youngsModulusGPa": 210,
+  "yieldStrengthMPa": 1100,
+  "tensileStrengthMPa": 1220,
+  "poissonsRatio": 0.3,
+  "source": "TR Fastenings knowledge base, Mechanical properties - Steel Screws and Bolts ISO 898-1 EN 20898-1 (cross-checked with Optimas, Mechanical and physical properties of steel fasteners); density, modulus and Poisson's ratio from Ovako Steel Navigator, 42CrMo4",
+  "sourceUrl": "https://www.trfastenings.com/knowledge-base/metric-screws/screws-and-bolts-mechanical-properties ; https://optimas.com/technical-resources/mechanical-physical-properties-steel-fasteners/ ; https://steelnavigator.ovako.com/steel-grades/42crmo4/",
+  "observedAt": "2026-10-22"
  }
 ];
 

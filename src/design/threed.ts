@@ -74,7 +74,7 @@
  *   <accept id check body region reason>      a finding accepted on purpose, in a bounded region of one body
  *                                             (`accepted`)
  *   <permitted id check body process edgeDir region reason>   findings a process or a purpose permits (`permitted`)
- *   <fastener id part length at axis clamped receiver washer nut grip fit minEngagement>
+ *   <fastener id part length at axis corner clamped receiver washer nut grip fit minEngagement>
  *                                             a fastener stack (`fasteners`): a library screw, its washer and nut,
  *                                             and the parts it clamps into its receiver
  *   <slot name value>                         any other field of the document, whole (environment, animation,
