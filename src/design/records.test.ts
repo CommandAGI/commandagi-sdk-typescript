@@ -77,7 +77,7 @@ test("a hardware release in JSX: its files, check verdicts and outputs in order,
   const D = (c: string) => c.repeat(64);
   const file = el(
     "release",
-    { id: "plate-A", rev: "A", of: "../..", product: "Sensor plate", createdAt: 1792000000000, by: "person:local", note: "README.md", __source: 0 },
+    { id: "plate-A", rev: "A", of: "../..", frozen: "files", product: "Sensor plate", createdAt: 1792000000000, by: "person:local", note: "README.md", __source: 0 },
     el("file", { path: "cad/Plate.3d.tsx", digest: D("a"), __source: 1 }),
     el("check", { file: "cad/Plate.3d.tsx", id: "interference", kind: "interference", status: "passed" }),
     el("check", { file: "ee/Divider.sch.tsx", id: "erc", kind: "erc", status: "accepted", accepted: 1 }),
@@ -88,7 +88,7 @@ test("a hardware release in JSX: its files, check verdicts and outputs in order,
   assert.deepEqual(document!.sources, { "": 0, "file#cad/Plate.3d.tsx": 1 });
   const doc = document!.document;
   assert.deepEqual(doc, {
-    id: "plate-A", rev: "A", of: "../..", product: "Sensor plate", createdAt: 1792000000000, by: "person:local", note: "README.md",
+    id: "plate-A", rev: "A", of: "../..", frozen: "files", product: "Sensor plate", createdAt: 1792000000000, by: "person:local", note: "README.md",
     files: [{ path: "cad/Plate.3d.tsx", digest: D("a") }],
     checks: [
       { file: "cad/Plate.3d.tsx", id: "interference", kind: "interference", status: "passed" },
@@ -97,7 +97,10 @@ test("a hardware release in JSX: its files, check verdicts and outputs in order,
     outputs: [{ path: "outputs/Plate.step", digest: D("b"), from: "cad/Plate.3d.tsx", kind: "step" }],
   });
   assert.deepEqual(RECORDS.release.fromTree(RECORDS.release.toTree(doc as never)), doc, "both ways");
-  assert.throws(() => declarationOf({ default: el("release", { id: "r", rev: "A", of: "." }, el("file", { path: "a.3d.tsx", digest: "abc" })) }), /digest is its content's SHA-256/);
-  assert.throws(() => declarationOf({ default: el("release", { id: "r", rev: "A", of: "." }, el("check", { file: "a", id: "i", kind: "k", status: "ok" })) }), /status is passed, failed, skipped, accepted/);
-  assert.throws(() => declarationOf({ default: el("release", { id: "r", rev: "A" }) }), /<release> needs of/);
+  assert.throws(() => declarationOf({ default: el("release", { id: "r", rev: "A", of: ".", frozen: "files" }, el("file", { path: "a.3d.tsx", digest: "abc" })) }), /digest is its content's SHA-256/);
+  assert.throws(() => declarationOf({ default: el("release", { id: "r", rev: "A", of: ".", frozen: "files" }, el("check", { file: "a", id: "i", kind: "k", status: "ok" })) }), /status is passed, failed, skipped, accepted/);
+  assert.throws(() => declarationOf({ default: el("release", { id: "r", rev: "A", frozen: "files" }) }), /<release> needs of/);
+  // A release's designs read a file outside its folder: the frozen copy stands one level down, and never above the record.
+  assert.equal(declarationOf({ default: el("release", { id: "r", rev: "A", of: "../..", frozen: "files/product" }) }).document!.document.frozen, "files/product");
+  assert.throws(() => declarationOf({ default: el("release", { id: "r", rev: "A", of: ".", frozen: "../files" }) }), /frozen is a folder beside the record/);
 });

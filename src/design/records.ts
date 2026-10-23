@@ -95,8 +95,12 @@ export const instanceVocabulary: Vocabulary<InstanceRecord> = {
   },
 };
 
-/** The fields of a hardware release (`commandagi release`, docs/formats.md § a hardware release), but its lists. */
-export const RELEASE_FIELDS = ["id", "rev", "of", "product", "createdAt", "by", "note", "previous"] as const;
+/**
+ * The fields of a hardware release (`commandagi release`, docs/formats.md § a hardware release), but its lists. `frozen`:
+ * the folder beside the record that stands for the released folder, where each file's frozen copy is at `<frozen>/<path>`
+ * (`files`; `files/<the folder's own names>` when its designs read files outside it, by `../` paths).
+ */
+export const RELEASE_FIELDS = ["id", "rev", "of", "frozen", "product", "createdAt", "by", "note", "previous"] as const;
 /** The fields of one frozen file of a release: its path in the released folder and its content id (SHA-256, hex). */
 export const RELEASE_FILE_FIELDS = ["path", "digest"] as const;
 /** The fields of one check verdict of a release, at the frozen file's digest. */
@@ -110,6 +114,7 @@ export interface ReleaseRecord {
   id: string;
   rev: string;
   of: string;
+  frozen: string;
   product?: string;
   createdAt?: number;
   by?: string;
@@ -126,7 +131,7 @@ const DIGEST = /^[0-9a-f]{64}$/;
  * A HARDWARE RELEASE (`<rev>.release.tsx`): the design files of a folder frozen by digest, each declared check's verdict
  * at that digest, and the outputs made from them. `commandagi release` writes it from the empty file; nothing edits it.
  *
- *   <release id="cam-001-A" rev="A" of="../.." product="CommandAGI-Cam-001" createdAt={1792…} by="person:…" note="README.md">
+ *   <release id="cam-001-A" rev="A" of="../.." frozen="files" product="CommandAGI-Cam-001" createdAt={1792…} by="person:…" note="README.md">
  *     <file path="cad/Assembly.3d.tsx" digest="<sha256>" />
  *     <check file="cad/Assembly.3d.tsx" id="interference" kind="interference" status="passed" />
  *     <output path="outputs/Assembly.step" digest="<sha256>" from="cad/Assembly.3d.tsx" kind="step" />
@@ -137,7 +142,7 @@ export const releaseVocabulary: Vocabulary<ReleaseRecord> = {
   noun: "a hardware release",
   root: "release",
   tags: {
-    release: { parents: [], required: ["id", "rev", "of"], attrs: RELEASE_FIELDS },
+    release: { parents: [], required: ["id", "rev", "of", "frozen"], attrs: RELEASE_FIELDS },
     file: { parents: ["release"], key: "path", required: ["path", "digest"], attrs: RELEASE_FILE_FIELDS },
     check: { parents: ["release"], required: ["file", "id", "kind", "status"], attrs: RELEASE_CHECK_FIELDS },
     output: { parents: ["release"], key: "path", required: ["path", "digest"], attrs: RELEASE_OUTPUT_FIELDS },
@@ -152,9 +157,12 @@ export const releaseVocabulary: Vocabulary<ReleaseRecord> = {
     const checks = list("check") as ReleaseRecord["checks"];
     for (const c of checks)
       if (!(RELEASE_CHECK_STATUSES as readonly string[]).includes(c.status)) throw new Error(`${at}: check ${c.id} of ${c.file}: status is ${RELEASE_CHECK_STATUSES.join(", ")}, not ${JSON.stringify(c.status)}`);
+    const frozen = t.attrs.frozen;
+    if (typeof frozen !== "string" || !frozen || frozen.startsWith("/") || frozen.split("/").some((p) => !p || p === "." || p === ".."))
+      throw new Error(`${at}: frozen is a folder beside the record (files, files/<the folder's names>), not ${JSON.stringify(frozen)}`);
     const createdAt = t.attrs.createdAt;
     if (createdAt !== undefined && (typeof createdAt !== "number" || !Number.isInteger(createdAt))) throw new Error(`${at}: createdAt is epoch milliseconds, not ${JSON.stringify(createdAt)}`);
-    return { ...(own(t.attrs, RELEASE_FIELDS) as { id: string; rev: string; of: string }), files, checks, outputs: list("output") as ReleaseRecord["outputs"] };
+    return { ...(own(t.attrs, RELEASE_FIELDS) as { id: string; rev: string; of: string; frozen: string }), files, checks, outputs: list("output") as ReleaseRecord["outputs"] };
   },
   toTree(d) {
     const leaf = (tag: string, o: Record<string, unknown>, keys: readonly string[]) => ({ tag, attrs: own(o, keys), children: [] });
