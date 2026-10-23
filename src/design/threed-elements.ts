@@ -981,7 +981,7 @@ export type DrawingDetail = {
 };
 
 /**
- * A section's cutting plane. The viewer stands on the +normal side; the material on that side is removed. The view shows the cut face, hatched, and the material behind it. Up is +Y; when the normal is within 25° of ±Y, up is as in the top view (for +Y) or the bottom view (for −Y).
+ * A section's cutting plane. The viewer stands on the +normal side; the material on that side is removed. The view shows the cut face, hatched, and the material behind it. Up is +Z; when the normal is within 25° of ±Z, up is as in the top view (for +Z) or the bottom view (for −Z).
  */
 export type DrawingSection = {
   /**
