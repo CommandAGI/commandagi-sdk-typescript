@@ -47,7 +47,9 @@
  *             `<hsl>`, `<levels>`, `<develop exposure={0.3} contrast={12} />`, …) are the stack; a raster's children are its filters (`<gaussianBlur radius={3} />`).
  *             In a painting or a photo, a `<mask>` child of a layer (or of a stroke or a filter) holds the one layer
  *             that masks it (`<mask><gradient /></mask>`).
- *   nest      `<sheet>`, `<stock>`, `<options>` and one `<part>` per part.
+ *   nest      `<sheet>`, `<stock>`, `<options>`, one `<part>` per part and one `<engrave>` per image burned on the first
+ *             sheet (`<engrave id="logo" src="logo.png" xMm={20} yMm={20} widthMm={60} heightMm={30} dpi={254}
+ *             dither="ordered" />`; `powerPct`, `minPowerPct`, `feedMmMin` and `passes` when not the stock's).
  *
  * PIXELS ARE NOT CODE: a raster layer, a placed image or a pixel layer names its image file by relative path
  * (`src="scan.png"`, the file beside the document). Nothing here holds encoded pixels. `label`, `disabled` and `id` set the
@@ -516,6 +518,7 @@ function nestDocument(root: DesignElement, name: string): Declaration {
   withScope(s, () => {
     const one: Record<string, NodeRef> = {};
     const parts: NodeRef[] = [];
+    const engraves: NodeRef[] = [];
     for (const el of kids(root)) {
       if ((NEST_ONE as readonly string[]).includes(el.type)) {
         if (one[el.type]) throw new Error(`a nest has one <${el.type}>`);
@@ -523,10 +526,13 @@ function nestDocument(root: DesignElement, name: string): Declaration {
       } else if (el.type === "part") {
         if (typeof el.props.id !== "string") throw new Error(`${where(el)}: a part has an id (the name its placements and overrides use)`);
         parts.push(add(s, el, "nest.part", attrs(el)));
-      } else throw new Error(`<${el.type}> is not read in a nest (it has <sheet>, <stock>, <options>, <part>)`);
+      } else if (el.type === "engrave") {
+        if (typeof el.props.id !== "string") throw new Error(`${where(el)}: an engrave has an id (the name the nest's code uses)`);
+        engraves.push(add(s, el, "nest.engrave", attrs(el)));
+      } else throw new Error(`<${el.type}> is not read in a nest (it has <sheet>, <stock>, <options>, <part>, <engrave>)`);
     }
     for (const k of NEST_ONE) if (!one[k]) throw new Error(`a nest needs its <${k}>`);
-    const doc = s.add("nest.doc", { ...a, ...one, ...channels("parts", parts) }, { id: "nest", meta: meta(root) });
+    const doc = s.add("nest.doc", { ...a, ...one, ...channels("parts", parts), ...channels("engraves", engraves) }, { id: "nest", meta: meta(root) });
     s.output(doc);
   });
   return new Declaration("nest", s.build());
