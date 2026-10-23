@@ -4,6 +4,16 @@ One entry for each release. A release is the tag `v<version>` in this repository
 Python and Rust SDKs carry the same version number. A version promises nothing about the next one (README
 § Versions): read this file before you change the version you pin.
 
+## Unreleased
+
+Added
+
+- `commandagi/design` `evals` (`evalVocabulary`, `metricVocabulary`, `evalCaseOf`, `EVAL_DIGEST`, `EVALS`): an eval
+  and a metric in code, `<eval>` with `<case>` children and `<metric>` (`<name>.eval.tsx`, `<name>.metric.tsx`), the
+  same documents as the Python SDK's `commandagi.design.evals` and the Rust SDK's `commandagi::design::evals`. A case
+  names its task file (`task`, a ref) or says its `instruction`; `metrics` and `acceptanceMetric` are refs; `frozen`
+  is the digest the eval is frozen at.
+
 ## 0.6.7 (2026-10-23)
 
 Added

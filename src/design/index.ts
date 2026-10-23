@@ -121,6 +121,7 @@ export * from "./monitors.js";
 export * from "./agents.js";
 export * from "./skills.js";
 export * from "./scouts.js";
+export * from "./evals.js";
 export * from "./infra.js";
 export * from "./records.js";
 export * from "./systems.js";
