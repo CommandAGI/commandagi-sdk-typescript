@@ -46,13 +46,14 @@ test("a structural study in JSX is its question: fixtures, load cases with typed
   assert.throws(() => declarationOf({ default: el("study", { kind: "structural", part: "a.3d.tsx" }, el("mesh", { colour: "red" })) }), /colour is not read/);
 });
 
-test("a flow study in JSX: the fluid, the inlet and the outlet as face picks, the mesh levels; structural tags refused in it", () => {
+test("a flow study in JSX: the fluid, its inlets and outlets as face picks by id, the mesh levels; structural tags refused in it", () => {
   const file = el(
     "study",
     { kind: "flow", part: "Channel.3d.tsx", units: "m-kg-s" },
     el("fluid", { nu: 1e-6 }),
-    el("inlet", { faces: face({ normal: [-1, 0, 0] }), velocity: 0.5 }),
-    el("outlet", { faces: face({ normal: [1, 0, 0] }) }),
+    el("inlet", { id: "inlet", faces: face({ normal: [-1, 0, 0] }), velocity: 0.5 }),
+    el("inlet", { id: "side", faces: face({ normal: [0, 1, 0] }), velocity: 0.2 }),
+    el("outlet", { id: "outlet", faces: face({ normal: [1, 0, 0] }) }),
     el("flowMesh", { cells: [20, 3, 3], levels: [1, 2, 4] }),
     el("criterion", { id: "drop", quantity: "pressureDrop", limit: 2 }),
   );
@@ -62,14 +63,17 @@ test("a flow study in JSX: the fluid, the inlet and the outlet as face picks, th
     part: "Channel.3d.tsx",
     units: "m-kg-s",
     fluid: { nu: 1e-6 },
-    inlet: { faces: face({ normal: [-1, 0, 0] }), velocity: 0.5 },
-    outlet: { faces: face({ normal: [1, 0, 0] }) },
+    inlets: [
+      { id: "inlet", faces: face({ normal: [-1, 0, 0] }), velocity: 0.5 },
+      { id: "side", faces: face({ normal: [0, 1, 0] }), velocity: 0.2 },
+    ],
+    outlets: [{ id: "outlet", faces: face({ normal: [1, 0, 0] }) }],
     flowMesh: { cells: [20, 3, 3], levels: [1, 2, 4] },
     criteria: [{ id: "drop", quantity: "pressureDrop", limit: 2 }],
   });
   assert.deepEqual(STUDY.study.fromTree(STUDY.study.toTree(doc as never)), doc, "both ways");
   assert.throws(() => declarationOf({ default: el("study", { kind: "flow", part: "a.3d.tsx" }, el("mesh", { size: 2 })) }), /<mesh> belongs to a structural study, not to a flow one/);
-  assert.throws(() => declarationOf({ default: el("study", { kind: "flow", part: "a.3d.tsx" }, el("inlet", { faces: face({ normal: [1, 0, 0] }) })) }), /<inlet> needs velocity/);
+  assert.throws(() => declarationOf({ default: el("study", { kind: "flow", part: "a.3d.tsx" }, el("inlet", { id: "a", faces: face({ normal: [1, 0, 0] }) })) }), /<inlet id="a"> needs velocity/);
 });
 
 test("a kind registered later reads its own tags and refuses them in a study of another kind", () => {

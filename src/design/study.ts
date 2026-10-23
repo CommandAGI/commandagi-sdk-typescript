@@ -90,14 +90,16 @@ registerStudyKind("structural", {
 
 /**
  * A flow study (`kind="flow"`, `units="m-kg-s"`): incompressible steady flow through one body of the part, the fluid's
- * volume. The inlet and the outlet are face picks on that body (in the part's millimetres); every other face is a
- * wall. The flow kernel meshes the three patches (the 3D kernel's `surfaces` op writes them as STL, in metres), runs
- * `levels` refinements of the background block's `cells`, and reads the pressure drop, inlet to outlet.
+ * volume. Each inlet and each outlet is a face pick on that body (in the part's millimetres), named by its `id`; a
+ * study has one or more of each, and every other face is a wall. The flow kernel meshes the patches (the 3D kernel's
+ * `surfaces` op writes each as STL, in metres, named by its id; the walls are `walls`), runs `levels` refinements of
+ * the background block's `cells`, and reads the pressure drop, inlet to outlet (the inlets' area-weighted mean
+ * pressure; every outlet is at pressure 0).
  *
  *   <study kind="flow" part="Channel.3d.tsx" units="m-kg-s">
  *     <fluid nu={1e-6} />
- *     <inlet faces={{ kind: "face", select: { normal: [-1, 0, 0] } }} velocity={0.5} />
- *     <outlet faces={{ kind: "face", select: { normal: [1, 0, 0] } }} />
+ *     <inlet id="inlet" faces={{ kind: "face", select: { normal: [-1, 0, 0] } }} velocity={0.5} />
+ *     <outlet id="outlet" faces={{ kind: "face", select: { normal: [1, 0, 0] } }} />
  *     <flowMesh cells={[20, 3, 3]} levels={[1, 2, 4]} />
  *     <criterion id="drop" quantity="pressureDrop" limit={2} />
  *   </study>
@@ -105,8 +107,8 @@ registerStudyKind("structural", {
 export const FLOW_UNITS = "m-kg-s";
 registerStudyKind("flow", {
   fluid: { rule: { parents: ["study"], single: true, required: ["nu"], attrs: ["nu", "body"] }, field: "fluid" },
-  inlet: { rule: { parents: ["study"], single: true, required: [FACES, "velocity"], attrs: [FACES, "velocity"] }, field: "inlet" },
-  outlet: { rule: { parents: ["study"], single: true, required: [FACES], attrs: [FACES] }, field: "outlet" },
+  inlet: { rule: { parents: ["study"], key: "id", required: ["id", FACES, "velocity"], attrs: ["id", FACES, "velocity"] }, field: "inlets", list: true },
+  outlet: { rule: { parents: ["study"], key: "id", required: ["id", FACES], attrs: ["id", FACES] }, field: "outlets", list: true },
   flowMesh: { rule: { parents: ["study"], single: true, required: ["cells"], attrs: ["cells", "levels", "iterations", "wallModel"] }, field: "flowMesh" },
 });
 
