@@ -296,3 +296,22 @@ test("a curve in space is a sweep's path and, under its own id, the plane its pr
   assert.throws(read(jsx("curve", { id: "c", kind: "polyline", points: [[0, 0, 0], [1, 0, 0]], bendRadius: 0 })), /bendRadius: must be greater than 0/);
   assert.throws(read(jsx("sweep", { id: "s", profile: { sketch: "a" }, path: { curve: "c" }, frame: "twisted" })), /frame: must be one of minimal, frenet, up, guide/);
 });
+
+// sdk/python tests/test_threed.py and sdk/rust tests/threed.rs read the same elements to the same inputs.
+test("a spline's inner tangents and how hard its tangents hold; a path pattern along a curve", () => {
+  const n = declarationOf({
+    default: jsx("part", {
+      name: "Lead",
+      children: [
+        jsx("curve", { id: "lead", points: [[0, 0, 0], [20, 5, 10], [40, 0, 30]], tangents: [{ at: 1, direction: [1, 0, 1] }], tangentScale: 1.5 }),
+        jsx("sphere", { id: "bead", center: [0, 0, 0], radius: 1, operation: "new" }),
+        jsx("pathPattern", { id: "beads", seedFeature: "bead", path: { curve: "lead" }, count: 6, alignToPath: true }),
+      ],
+    }),
+  }).graph.nodes;
+  assert.deepEqual(n.lead!.inputs, { kind: "spline", points: [[0, 0, 0], [20, 5, 10], [40, 0, 30]], tangents: [{ at: 1, direction: [1, 0, 1] }], tangentScale: 1.5 });
+  assert.deepEqual(n.beads!.inputs, { seedFeature: "bead", path: { curve: "lead" }, count: 6, alignToPath: true });
+  const read = (el: unknown) => () => declarationOf({ default: jsx("part", { name: "P", children: [el] }) });
+  assert.throws(read(jsx("curve", { id: "c", points: [[0, 0, 0], [1, 0, 0]], tangentScale: 0 })), /tangentScale: must be greater than 0/);
+  assert.throws(read(jsx("curve", { id: "c", points: [[0, 0, 0], [1, 0, 0]], tangents: [{ at: 0.5, direction: [1, 0, 0] }] })), /tangents\/0\/at: must be a whole number/);
+});

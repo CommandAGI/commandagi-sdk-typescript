@@ -1317,6 +1317,25 @@ export const THREED_SCHEMA: SchemaDocument = {
       "kind": "spline"
      }
     },
+    "tangents": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/SplineTangent"
+     },
+     "description": "The directions it passes inner points in (only the direction counts): the spline is cut there into C2 pieces that meet in that direction at one speed (C1). Not for a closed spline.",
+     "x-showIf": {
+      "kind": "spline"
+     }
+    },
+    "tangentScale": {
+     "type": "number",
+     "description": "How hard every given tangent holds (build123d's tangent scalars): its speed, in lengths of the chord-length parameter. 1 is the natural spline; more holds the direction longer (a looser end), less lets the curve turn sooner (a tighter one).",
+     "exclusiveMinimum": 0,
+     "default": 1,
+     "x-showIf": {
+      "kind": "spline"
+     }
+    },
     "closed": {
      "type": "boolean",
      "description": "Back to the first point: a periodic spline, a closed polyline.",
@@ -5147,9 +5166,9 @@ export const THREED_SCHEMA: SchemaDocument = {
      "x-pick": "feature"
     },
     "path": {
-     "$ref": "#/$defs/ProfileRef",
-     "description": "Sketch whose path (open or closed) defines the instance stations.",
-     "x-pick": "path"
+     "$ref": "#/$defs/SweepPath",
+     "description": "What the copies are placed along, evenly by length from its start: a sketch's open or closed chain (`{ sketch }`), or a curve in space (`{ curve }`, the id of a `curve` feature).",
+     "x-pick": "sweepPath"
     },
     "count": {
      "type": "integer",
@@ -5159,7 +5178,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "alignToPath": {
      "type": "boolean",
-     "description": "Rotate each copy to follow the path tangent."
+     "description": "Turn each copy as the path turns from its start: on a sketch, about the sketch's normal; on a curve in space, by the curve's rotation-minimizing frame (no roll about the path)."
     },
     "id": {
      "type": "string"
@@ -7341,6 +7360,26 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "A sphere: `S(u,v) = origin + R(cos v·cos u·x + cos v·sin u·y + sin v·axis)`. K = 1/R²."
   },
+  "SplineTangent": {
+   "type": "object",
+   "properties": {
+    "at": {
+     "type": "integer",
+     "description": "Which point, by its index in `points` (not the first or the last: those are `startTangent` and `endTangent`).",
+     "minimum": 1
+    },
+    "direction": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The direction there (only the direction counts)."
+    }
+   },
+   "required": [
+    "at",
+    "direction"
+   ],
+   "additionalProperties": false,
+   "description": "A spline's direction at one of its inner points."
+  },
   "SplitFeature": {
    "type": "object",
    "properties": {
@@ -7568,7 +7607,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "twist": {
      "type": "number",
-     "description": "How far the profile turns about the path from its start to its end, evenly along its length (a twisted bar, a cable's lay). For a path that is an open curve, with frame \"minimal\".",
+     "description": "How far the profile turns about the path from its start to its end, evenly along its length (a twisted bar, a cable's lay), on top of the frame: \"minimal\", \"frenet\" or \"up\". For a path that is an open, smooth curve.",
      "x-unit": "rad"
     },
     "operation": {

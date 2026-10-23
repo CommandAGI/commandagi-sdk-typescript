@@ -8,6 +8,11 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- `commandagi/design` 3D: `<curve tangents={[{ at, direction }]}>`, a spline's direction at an inner point (the
+  spline is C1 there), and `tangentScale`, how hard every given tangent holds (build123d's tangent scalars; 1 is the
+  natural spline). `<pathPattern path={{ curve }}>` places its copies along a curve in space, and `alignToPath` turns
+  each by the curve's rotation-minimizing frame. A sweep's `twist` now turns the profile on top of the Frenet and up
+  frames too.
 - `commandagi/design` `evals` (`evalVocabulary`, `metricVocabulary`, `evalCaseOf`, `EVAL_DIGEST`, `EVALS`): an eval
   and a metric in code, `<eval>` with `<case>` children and `<metric>` (`<name>.eval.tsx`, `<name>.metric.tsx`), the
   same documents as the Python SDK's `commandagi.design.evals` and the Rust SDK's `commandagi::design::evals`. A case

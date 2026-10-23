@@ -560,6 +560,16 @@ export type CurveFeature = {
   startTangent?: Vec3;
   /** The direction it arrives at the last point (only the direction counts). */
   endTangent?: Vec3;
+  /**
+   * The directions it passes inner points in (only the direction counts): the spline is cut there into C2 pieces that meet in that direction at one speed (C1). Not for a closed spline.
+   */
+  tangents?: SplineTangent[];
+  /**
+   * How hard every given tangent holds (build123d's tangent scalars): its speed, in lengths of the chord-length parameter. 1 is the natural spline; more holds the direction longer (a looser end), less lets the curve turn sooner (a tighter one).
+   * @exclusiveMinimum 0
+   * @default 1
+   */
+  tangentScale?: number;
   /** Back to the first point: a periodic spline, a closed polyline. */
   closed?: boolean;
   /**
@@ -2472,15 +2482,19 @@ export type PathPatternFeature = {
   type: "pathPattern";
   /** The feature whose bodies are patterned. */
   seedFeature: string;
-  /** Sketch whose path (open or closed) defines the instance stations. */
-  path: ProfileRef;
+  /**
+   * What the copies are placed along, evenly by length from its start: a sketch's open or closed chain (`{ sketch }`), or a curve in space (`{ curve }`, the id of a `curve` feature).
+   */
+  path: SweepPath;
   /**
    * How many copies along the path.
    * @minimum 1
    * @default 5
    */
   count?: number;
-  /** Rotate each copy to follow the path tangent. */
+  /**
+   * Turn each copy as the path turns from its start: on a sketch, about the sketch's normal; on a curve in space, by the curve's rotation-minimizing frame (no roll about the path).
+   */
   alignToPath?: boolean;
   id: string;
   name: string;
@@ -3374,6 +3388,17 @@ export type SphericalSurface = {
   axis: Vec3;
 };
 
+/** A spline's direction at one of its inner points. */
+export type SplineTangent = {
+  /**
+   * Which point, by its index in `points` (not the first or the last: those are `startTangent` and `endTangent`).
+   * @minimum 1
+   */
+  at: number;
+  /** The direction there (only the direction counts). */
+  direction: Vec3;
+};
+
 export type SplitFeature = {
   type: "split";
   /** Plane that cuts bodies into separate pieces. */
@@ -3482,7 +3507,7 @@ export type SweepFeature = {
   /** The `curve` feature the profile's frame points at, by id. */
   guide?: string;
   /**
-   * How far the profile turns about the path from its start to its end, evenly along its length (a twisted bar, a cable's lay). For a path that is an open curve, with frame "minimal".
+   * How far the profile turns about the path from its start to its end, evenly along its length (a twisted bar, a cable's lay), on top of the frame: "minimal", "frenet" or "up". For a path that is an open, smooth curve.
    * @unit rad
    */
   twist?: number;
