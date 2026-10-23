@@ -106,3 +106,23 @@ test("a 3D document's <item> and <assemble> are lists of the document; <body eng
   assert.throws(bad(jsx("item", { id: "t", name: "T", qty: 0 })), /qty/);
   assert.throws(bad(jsx("body", { id: "b", engineering: { lifecycle: { status: "dead" } } })), /status/);
 });
+
+test("a 3D document's <product> is a list of the document; a made part's stock and a gas's shutoff are engineering fields", () => {
+  const product = { id: "kit", name: "Sensor kit", compliance: { eccn: "EAR99", certifications: ["CE"] }, shipping: { hsCode: "9026.80", packaged: { size: [120, 90, 60], grams: 240 }, packaging: "carton" } };
+  const stock = { name: "PETG, 1 kg spool", perPart: 0.05, suppliers: [{ name: "S", currency: "USD", priceBreaks: [{ quantity: 1, unitPrice: 20 }] }] };
+  const { graph: g } = declarationOf({
+    default: () =>
+      jsx("part", {
+        name: "P",
+        children: [
+          jsx("product", product),
+          jsx("item", { id: "base", name: "Base", engineering: { process: "fdm-printing", make: { shop: "S", stock } } }),
+          jsx("item", { id: "sih4", name: "Silane", engineering: { process: "purchased", chemical: { substance: "silane", shutoff: "a detector closes the valve" } } }),
+        ],
+      }),
+  });
+  assert.deepEqual(g.nodes.products!.inputs.value, [product]);
+  const bad = (el: unknown) => () => declarationOf({ default: () => jsx("part", { name: "P", children: [el] }) });
+  assert.throws(bad(jsx("product", { id: "kit" })), /name/);
+  assert.throws(bad(jsx("item", { id: "b", name: "B", engineering: { make: { stock: { name: "S", perPart: 0 } } } })), /perPart/);
+});

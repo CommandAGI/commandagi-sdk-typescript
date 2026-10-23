@@ -13,6 +13,11 @@ Added
   natural spline). `<pathPattern path={{ curve }}>` places its copies along a curve in space, and `alignToPath` turns
   each by the curve's rotation-minimizing frame. A sweep's `twist` now turns the profile on top of the Frenet and up
   frames too.
+- `commandagi/design` `threed`: `<product id name partNumber compliance shipping>`, the product as it is sold (its
+  certifications, tariff heading, packed size and mass; the document's `products`); `make.stock` (`StockMaterial`:
+  the stock a made part uses, bought by its own offers); a process chemical's `shutoff`. The same in the Python SDK
+  (`threed.product(...)`) and the Rust SDK (`product()`, with `library()`, `.part_number()`, `.compliance()`,
+  `.shipping()`).
 - `commandagi/design` `evals` (`evalVocabulary`, `metricVocabulary`, `evalCaseOf`, `EVAL_DIGEST`, `EVALS`): an eval
   and a metric in code, `<eval>` with `<case>` children and `<metric>` (`<name>.eval.tsx`, `<name>.metric.tsx`), the
   same documents as the Python SDK's `commandagi.design.evals` and the Rust SDK's `commandagi::design::evals`. A case

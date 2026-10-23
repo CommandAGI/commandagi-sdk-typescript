@@ -4174,6 +4174,10 @@ export const THREED_SCHEMA: SchemaDocument = {
       "maxItems": 3
      },
      "description": "A machined part's setups: the spindle axis of each, in the part's frame, in the order they are cut ([0, 0, 1] cuts from above, [0, 0, -1] after a flip). The mill check judges each face from the first setup that reaches it."
+    },
+    "stock": {
+     "$ref": "#/$defs/StockMaterial",
+     "description": "The stock it is made from, bought by its own offer (a filament spool, a plate of 6061): a line of the roll-up of its own. Without it, the material is in the rate."
     }
    },
    "additionalProperties": false,
@@ -5736,6 +5740,10 @@ export const THREED_SCHEMA: SchemaDocument = {
     "sds": {
      "type": "string",
      "description": "Its safety data sheet: a URL or a path."
+    },
+    "shutoff": {
+     "type": "string",
+     "description": "What closes the cylinder when the gas leaks: the detector and the valve it closes (\"SiH4 detector at the cabinet, 50 % LEL, closes the pneumatic cylinder valve\"). A toxic gas (class 2.3) or a pyrophoric one needs it."
     }
    },
    "required": [
@@ -5743,6 +5751,37 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A PROCESS CHEMICAL a station holds (an etchant, a process gas, a solvent): what it is, its hazard, how much is on hand and what contains, exhausts and guards it. The `chemicals` check reads it (docs/formats.md § logistics)."
+  },
+  "ProductFacts": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "name": {
+     "type": "string",
+     "pattern": "\\S"
+    },
+    "partNumber": {
+     "type": "string",
+     "description": "Its number in the owner's catalog."
+    },
+    "compliance": {
+     "$ref": "#/$defs/Compliance",
+     "description": "RoHS, REACH and ECCN of the product as sold; `certifications`: what it holds (an empty list: none yet)."
+    },
+    "shipping": {
+     "$ref": "#/$defs/Shipping",
+     "description": "Its HS code, origin, hazmat, its packed size and mass (`packaged`) and how it is packed (`packaging`)."
+    }
+   },
+   "required": [
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "THE PRODUCT AS IT IS SOLD: `<product>`. What no part of it says: the product's own certifications (FCC, CE), its export class, its tariff heading, its packed size and mass and how it is packed. The compliance and shipping checks read it as they read a bought part, and also require its certifications and its package."
   },
   "ProductItem": {
    "type": "object",
@@ -7424,6 +7463,38 @@ export const THREED_SCHEMA: SchemaDocument = {
     "name"
    ],
    "additionalProperties": false
+  },
+  "StockMaterial": {
+   "type": "object",
+   "properties": {
+    "name": {
+     "type": "string",
+     "description": "What is bought (\"PETG filament, 1 kg spool\", \"6061-T6 plate 300 x 300 x 10\").",
+     "pattern": "\\S"
+    },
+    "partNumber": {
+     "type": "string",
+     "description": "Its number in the owner's numbering: parts that use one stock share its line."
+    },
+    "perPart": {
+     "type": "number",
+     "description": "How much of one unit as sold one part uses (0.03: 30 g of a 1 kg spool). An order rounds up to whole units.",
+     "exclusiveMinimum": 0
+    },
+    "suppliers": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/SupplierOffer"
+     },
+     "description": "Who sells it, on what terms."
+    }
+   },
+   "required": [
+    "name",
+    "perPart"
+   ],
+   "additionalProperties": false,
+   "description": "THE STOCK A MADE PART USES, AS ITS SUPPLIER SELLS IT: `make.stock`."
   },
   "SubdivBodyFeature": {
    "type": "object",

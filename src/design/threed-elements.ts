@@ -2071,6 +2071,10 @@ export type MakeSpec = {
    * A machined part's setups: the spindle axis of each, in the part's frame, in the order they are cut ([0, 0, 1] cuts from above, [0, 0, -1] after a flip). The mill check judges each face from the first setup that reaches it.
    */
   setups?: [number, number, number][];
+  /**
+   * The stock it is made from, bought by its own offer (a filament spool, a plate of 6061): a line of the roll-up of its own. Without it, the material is in the rate.
+   */
+  stock?: StockMaterial;
 };
 
 /** How a part is made. */
@@ -2757,6 +2761,28 @@ export type ProcessChemical = {
   interlocks?: string[];
   /** Its safety data sheet: a URL or a path. */
   sds?: string;
+  /**
+   * What closes the cylinder when the gas leaks: the detector and the valve it closes ("SiH4 detector at the cabinet, 50 % LEL, closes the pneumatic cylinder valve"). A toxic gas (class 2.3) or a pyrophoric one needs it.
+   */
+  shutoff?: string;
+};
+
+/**
+ * THE PRODUCT AS IT IS SOLD: `<product>`. What no part of it says: the product's own certifications (FCC, CE), its export class, its tariff heading, its packed size and mass and how it is packed. The compliance and shipping checks read it as they read a bought part, and also require its certifications and its package.
+ */
+export type ProductFacts = {
+  id: string;
+  name: string;
+  /** Its number in the owner's catalog. */
+  partNumber?: string;
+  /**
+   * RoHS, REACH and ECCN of the product as sold; `certifications`: what it holds (an empty list: none yet).
+   */
+  compliance?: Compliance;
+  /**
+   * Its HS code, origin, hazmat, its packed size and mass (`packaged`) and how it is packed (`packaging`).
+   */
+  shipping?: Shipping;
 };
 
 /**
@@ -3416,6 +3442,21 @@ export type SplitFeature = {
    * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
    */
   declaredBy?: CodeFeature;
+};
+
+/** THE STOCK A MADE PART USES, AS ITS SUPPLIER SELLS IT: `make.stock`. */
+export type StockMaterial = {
+  /** What is bought ("PETG filament, 1 kg spool", "6061-T6 plate 300 x 300 x 10"). */
+  name: string;
+  /** Its number in the owner's numbering: parts that use one stock share its line. */
+  partNumber?: string;
+  /**
+   * How much of one unit as sold one part uses (0.03: 30 g of a 1 kg spool). An order rounds up to whole units.
+   * @exclusiveMinimum 0
+   */
+  perPart: number;
+  /** Who sells it, on what terms. */
+  suppliers?: SupplierOffer[];
 };
 
 /**
