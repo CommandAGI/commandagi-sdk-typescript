@@ -565,11 +565,10 @@ export type CurveFeature = {
    */
   tangents?: SplineTangent[];
   /**
-   * How hard every given tangent holds (build123d's tangent scalars): its speed, in lengths of the chord-length parameter. 1 is the natural spline; more holds the direction longer (a looser end), less lets the curve turn sooner (a tighter one).
-   * @exclusiveMinimum 0
+   * How hard a given tangent holds (build123d's tangent scalars): its speed, in lengths of the chord-length parameter. 1 is the natural spline; more holds the direction longer (a looser end), less lets the curve turn sooner (a tighter one). One number for every given tangent, or one per given tangent in order along the spline: the start's, the inner ones' (by point), the end's.
    * @default 1
    */
-  tangentScale?: number;
+  tangentScale?: number | number[];
   /** Back to the first point: a periodic spline, a closed polyline. */
   closed?: boolean;
   /**

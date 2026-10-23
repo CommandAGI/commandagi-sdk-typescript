@@ -183,6 +183,12 @@ export function validate(schema: JsonSchema, value: unknown, defs: Defs = schema
       });
       if (holds.length === 1) return results[holds[0]!]!;
     }
+    // A union of kinds (`number | number[]`): when one option only is of the value's kind, it says what is wrong.
+    const ofKind = options.flatMap((o, i) => {
+      const t = resolve(o, defs).type;
+      return (Array.isArray(t) ? t : t === undefined ? [] : [t]).some((x) => typeMatches(x as string, value)) ? [i] : [];
+    });
+    if (ofKind.length === 1) return results[ofKind[0]!]!;
     return [{ path, code: "anyOf", actual: kindOf(value) }];
   }
   const types = s.type === undefined ? [] : Array.isArray(s.type) ? s.type : [s.type];

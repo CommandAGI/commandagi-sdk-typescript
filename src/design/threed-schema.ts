@@ -1328,9 +1328,20 @@ export const THREED_SCHEMA: SchemaDocument = {
      }
     },
     "tangentScale": {
-     "type": "number",
-     "description": "How hard every given tangent holds (build123d's tangent scalars): its speed, in lengths of the chord-length parameter. 1 is the natural spline; more holds the direction longer (a looser end), less lets the curve turn sooner (a tighter one).",
-     "exclusiveMinimum": 0,
+     "anyOf": [
+      {
+       "type": "number",
+       "exclusiveMinimum": 0
+      },
+      {
+       "type": "array",
+       "items": {
+        "type": "number",
+        "exclusiveMinimum": 0
+       }
+      }
+     ],
+     "description": "How hard a given tangent holds (build123d's tangent scalars): its speed, in lengths of the chord-length parameter. 1 is the natural spline; more holds the direction longer (a looser end), less lets the curve turn sooner (a tighter one). One number for every given tangent, or one per given tangent in order along the spline: the start's, the inner ones' (by point), the end's.",
      "default": 1,
      "x-showIf": {
       "kind": "spline"

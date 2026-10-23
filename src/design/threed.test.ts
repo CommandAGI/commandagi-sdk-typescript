@@ -313,5 +313,9 @@ test("a spline's inner tangents and how hard its tangents hold; a path pattern a
   assert.deepEqual(n.beads!.inputs, { seedFeature: "bead", path: { curve: "lead" }, count: 6, alignToPath: true });
   const read = (el: unknown) => () => declarationOf({ default: jsx("part", { name: "P", children: [el] }) });
   assert.throws(read(jsx("curve", { id: "c", points: [[0, 0, 0], [1, 0, 0]], tangentScale: 0 })), /tangentScale: must be greater than 0/);
+  // One scale per given tangent, in order along the spline: the start's, the inner one's, the end's.
+  const each = { id: "c", points: [[0, 0, 0], [20, 5, 10], [40, 0, 30]], startTangent: [1, 0, 0], endTangent: [0, 0, 1], tangents: [{ at: 1, direction: [1, 0, 1] }], tangentScale: [2, 1, 0.5] };
+  assert.deepEqual(read(jsx("curve", each))().graph.nodes.c!.inputs.tangentScale, [2, 1, 0.5]);
+  assert.throws(read(jsx("curve", { ...each, tangentScale: [2, 0, 0.5] })), /tangentScale\/1: must be greater than 0/);
   assert.throws(read(jsx("curve", { id: "c", points: [[0, 0, 0], [1, 0, 0]], tangents: [{ at: 0.5, direction: [1, 0, 0] }] })), /tangents\/0\/at: must be a whole number/);
 });
