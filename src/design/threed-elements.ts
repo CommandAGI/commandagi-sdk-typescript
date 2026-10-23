@@ -1203,7 +1203,7 @@ export type ExternalPartRef = {
    */
   omit?: string[];
   /**
-   * A placed 3D document: bodies it makes or files it places, each moved in its file's frame before the placement (a lid opened, a ram lowered), by the id, the name or the part number its own file gives it. What its file says of the body (an `<accept>` or `<permitted>` region, in the body's own frame) moves with it, and so do its spare holes and the fastener stacks that hold only what one move moves.
+   * A placed 3D document: bodies it makes or files it places, each moved in its file's frame before the placement (a lid opened, a ram lowered), by the id, the name or the part number its own file gives it. What its file says of the body (an `<accept>` or `<permitted>` region, in the body's own frame) moves with it; its fastener stacks stay.
    */
   moves?: PlacedMove[];
   /**
@@ -1305,10 +1305,6 @@ export type FastenerStack = {
    * @default [0,0,-1]
    */
   axis?: Vec3;
-  /**
-   * The direction from the axis to a corner of each hexagon of the stack (a hexagon head, a nut), made square to `axis`. Absent: the model's X ([1, 0, 0]), or its Y when the axis is within 26° of X. An assembly that places this file turns it with the placement.
-   */
-  corner?: Vec3;
   /**
    * The parts the screw clamps, from the head down, by id, name or part number.
    * @minItems 1
