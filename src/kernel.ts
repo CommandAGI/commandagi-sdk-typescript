@@ -166,6 +166,8 @@ export interface DfmReport {
   part: string | null;
   findings: DfmFinding[];
   verdict: "pass" | "fail" | "unknown";
+  /** What this answer does not catch, so a `pass` is a bounded claim. */
+  limits: string[];
 }
 
 export interface KernelConfig {
@@ -512,8 +514,9 @@ export class Kernel {
    * closed surface, overhangs, bridges, walls, vertical holes. `mill` (3-axis from +Z, `setup.tools` the tool
    * diameters): travel, a closed surface, reach, inside corners, depth, walls. Each finding is `pass`, `fail` or
    * `unknown` (a limit not declared, no tool: never `pass`) with its value, its limit and where: the body, the B-rep
-   * faces and a point. `verdict` is `fail` when any fails, else `unknown` when any is unknown, else `pass`. The part is
-   * checked as it stands in the model: Z is the build or spindle axis.
+   * faces and a point. `verdict` is `fail` when any fails, else `unknown` when any is unknown, else `pass`, and
+   * `limits` says what the answer does not catch. The part is checked as it stands in the model: Z is the build or
+   * spindle axis.
    */
   dfm(doc: Doc, opts: { process: "print" | "mill"; limits: Record<string, unknown>; setup?: MillSetup; part?: string; bodies?: string[]; parts?: LinkedParts }): Promise<DfmReport> {
     return this.result<DfmReport>("dfm", doc, opts);
