@@ -119,6 +119,7 @@ export * from "./tasks.js";
 export * from "./mounts.js";
 export * from "./monitors.js";
 export * from "./agents.js";
+export * from "./routing.js";
 export * from "./skills.js";
 export * from "./scouts.js";
 export * from "./evals.js";
