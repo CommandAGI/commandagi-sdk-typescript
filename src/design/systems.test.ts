@@ -67,6 +67,7 @@ test("a system is its modes, rails, converters, loads, contributions, boms, budg
   assert.deepEqual((doc.loads as Record<string, unknown>[])[0]!.peakCurrent, 0.9);
   assert.throws(bad({ id: "b", quantity: "mass", limit: 1, peak: true }), /peak is true or false, on a power budget/);
   assert.throws(bad({ id: "l", part: "U1", rail: "r", mode: "m", current: 1, peakCurrent: "2 A" }, "load"), /peakCurrent is a number/);
+  assert.throws(bad({ id: "l", part: "U1", rail: "r", mode: "m", power: 1, duty: 1.5 }, "load"), /duty is the share of time the load draws, a number in \(0, 1\]/);
   assert.throws(bad({ id: "b", quantity: "thermal", limit: 1, mode: "m" }), /thermal resistance to the ambient \(resistance, K\/W\)/);
   assert.throws(bad({ id: "b", quantity: "mass", limit: 1, margin: 1.5 }), /margin is a fraction/);
   assert.throws(bad({ id: "b", quantity: "cost", per: 100, limit: 30 }), /a cost budget names the design whose logistics roll-up it reads/);
