@@ -49,3 +49,10 @@ test("a postcard in JSX: <to>, <from>, one <front image> and the message's <para
   assert.throws(() => declarationOf({ default: el("postcard", {}, el("front", {})) }), /image/);
   assert.throws(() => declarationOf({ default: el("postcard", { color: true }) }), /color/);
 });
+
+test("a postcard's size is one Lob prints, and it is written back into the code", () => {
+  const sized = declarationOf({ default: el("postcard", { size: "6x9" }, el("front", { image: "Austin.jpg" })) }).document!;
+  assert.equal((sized.document as { size?: string }).size, "6x9");
+  assert.deepEqual(POSTAL.postcard.toTree(sized.document as never), { tag: "postcard", attrs: { size: "6x9" }, children: [{ tag: "front", attrs: { image: "Austin.jpg" }, children: [] }] });
+  assert.throws(() => declarationOf({ default: el("postcard", { size: "5x7" }) }), /size is "4x6", "6x9", "6x11"/);
+});
