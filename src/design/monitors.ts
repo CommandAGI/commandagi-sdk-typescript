@@ -33,7 +33,7 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 export const MONITOR_FIELDS = ["title", "class", "about", "readme", "sameAs"] as const;
 /** A subject: `<scheme>:<id>` (`cik:0001045810`, `ticker:NVDA`, `fomc:`). */
 export const SUBJECT = /^[a-z][a-z0-9-]*:\S*$/;
-export const SOURCE_FIELDS = ["id", "adapter", "params", "every", "via", "exit", "host", "mode", "retain", "since", "session", "snapshot", "profile", "keep", "maxCostPerDay", "unit", "vantage"] as const;
+export const SOURCE_FIELDS = ["id", "adapter", "params", "every", "via", "exit", "host", "mode", "retain", "since", "session", "snapshot", "profile", "keep", "maxCostPerDay", "unit", "vantage", "connection"] as const;
 export const FOLLOW_FIELDS = ["monitor", "match", "where"] as const;
 export const DISCOVER_FIELDS = ["into", "of", "when", "slug", "class", "props", "name", "max"] as const;
 /** The most new folders a discover writes a tick. */
@@ -93,6 +93,11 @@ export interface MonitorSource {
   unit?: string;
   /** The observer it reads as: a vantage folder, relative to this monitor's folder (`../../infra/vantages/fsn-1`). */
   vantage?: string;
+  /**
+   * The connected account it reads as (docs/monitors.md § a connected account): the integration's id and, after
+   * `@`, the account's name (`gmail@jacobfv123@gmail.com`); the api worker (via="worker") reads it.
+   */
+  connection?: string;
 }
 export interface MonitorFollow {
   /** The followed monitor's folder, as a ref relative to this monitor's folder (`../../central-banks/fed`). */
@@ -208,7 +213,7 @@ function attrsOf(o: object, keys: readonly string[]): Record<string, unknown> {
 export const UNIT_REF = /^[^#\s]+\/world\.tsx#[a-z0-9][a-z0-9-]{0,47}$/;
 
 function sourceOf(t: DocTree): MonitorSource {
-  for (const k of ["id", "adapter", "exit", "host", "retain", "since", "session", "snapshot", "profile", "keep", "unit", "vantage"]) text(t, k);
+  for (const k of ["id", "adapter", "exit", "host", "retain", "since", "session", "snapshot", "profile", "keep", "unit", "vantage", "connection"]) text(t, k);
   const p = t.attrs.params;
   if (p !== undefined && (!p || typeof p !== "object" || Array.isArray(p))) throw new Error(`${where(t)} params is an object ({ series: "CPIAUCSL" }), not ${JSON.stringify(p)}`);
   const s = durationSeconds(t.attrs.every);
@@ -243,6 +248,7 @@ function sourceOf(t: DocTree): MonitorSource {
   if (t.attrs.retain !== undefined && !RETAIN.test(t.attrs.retain as string)) throw new Error(`${where(t)} retain is "all", "derived" or "sample:<duration>", not ${JSON.stringify(t.attrs.retain)}`);
   if (t.attrs.since !== undefined && !SINCE.test(t.attrs.since as string)) throw new Error(`${where(t)} since is a day ("2024-01-01"), not ${JSON.stringify(t.attrs.since)}`);
   if (t.attrs.since !== undefined && t.attrs.mode === "stream") throw new Error(`${where(t)} since is for a polled source; a stream starts when it connects`);
+  if (t.attrs.connection !== undefined && (t.attrs.via ?? "worker") !== "worker") throw new Error(`${where(t)} connection names a connected account, which the api worker reads (via="worker")`);
   return said(t.attrs, SOURCE_FIELDS) as unknown as MonitorSource;
 }
 
@@ -378,7 +384,7 @@ export function monitorWithDefaults(m: MonitorDoc) {
     about: m.about ?? null,
     readme: m.readme ?? null,
     sameAs: m.sameAs ?? [],
-    sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null, host: s.host ?? null, mode: s.mode ?? "poll", retain: s.mode === "stream" ? (s.retain ?? "derived") : null, since: s.since ?? null, session: s.session ?? null, snapshot: s.snapshot ?? null, profile: s.profile ?? null, keep: s.keep ?? null, maxCostPerDay: s.maxCostPerDay ?? null, unit: s.unit ?? null, vantage: s.vantage ?? null })),
+    sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null, host: s.host ?? null, mode: s.mode ?? "poll", retain: s.mode === "stream" ? (s.retain ?? "derived") : null, since: s.since ?? null, session: s.session ?? null, snapshot: s.snapshot ?? null, profile: s.profile ?? null, keep: s.keep ?? null, maxCostPerDay: s.maxCostPerDay ?? null, unit: s.unit ?? null, vantage: s.vantage ?? null, connection: s.connection ?? null })),
     follows: m.follows.map((f) => ({ monitor: f.monitor, match: f.match ?? null, where: f.where ?? null })),
     derives: (m.derives ?? []).map((d) => ({ id: d.id, op: d.op, inputs: d.inputs, params: d.params ?? {}, since: d.since ?? null })),
     wakes: m.wakes.map((w) => ({ match: w.match ?? null, prompt: w.prompt })),
