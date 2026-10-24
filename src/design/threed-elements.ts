@@ -1784,7 +1784,9 @@ export type JointReference = {
  * HOW A CHECK MOVES A JOINT: `sweep={{ joint: "ramJ", step: 10 }}`. The values are spread evenly over the joint's `limits`, both ends included; where a pair starts or stops clashing (or being too near) between two values, the value is found to 0.1 mm or 0.1°. A value is the joint's displacement from the pose the document draws: millimetres along a prismatic joint's axis, radians about a revolute joint's axis through its anchor.
  */
 export type JointSweep = {
-  /** The joint (its id): a prismatic or a revolute joint with `limits`. */
+  /**
+   * The joint (its id; a placed file's joint is `<placement id>/<its id>`, `dock_a/palletLift`, at any depth): a prismatic or a revolute joint with `limits`.
+   */
   joint: string;
   /**
    * How many values are judged, both limits included.

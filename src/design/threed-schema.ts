@@ -3685,7 +3685,7 @@ export const THREED_SCHEMA: SchemaDocument = {
    "properties": {
     "joint": {
      "type": "string",
-     "description": "The joint (its id): a prismatic or a revolute joint with `limits`.",
+     "description": "The joint (its id; a placed file's joint is `<placement id>/<its id>`, `dock_a/palletLift`, at any depth): a prismatic or a revolute joint with `limits`.",
      "pattern": "\\S"
     },
     "samples": {
