@@ -73,6 +73,19 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "observedAt": "2026-10-13"
  },
  {
+  "id": "A6N01SS-T5",
+  "name": "Aluminium alloy 6N01 T5 (extrusions, JIS H 4100)",
+  "family": "aluminium",
+  "densityGCm3": 2.7,
+  "youngsModulusGPa": 69.97,
+  "yieldStrengthMPa": 205,
+  "tensileStrengthMPa": 245,
+  "poissonsRatio": 0.33,
+  "source": "MISUMI FA catalog (2014), page 2-514, Mechanical Properties of Aluminum Extrusions (HFS series, JIS Standard (Reference)); density and Poisson's ratio: mfgrobots.com, JIS Grade A6N01 Aluminium",
+  "sourceUrl": "https://in.misumi-ec.com/pdf/fa/2014/p2_513_519_521_523_525.pdf ; https://www.mfgrobots.com/Article/material/metal/34456.html",
+  "observedAt": "2026-10-24"
+ },
+ {
   "id": "7075-T6",
   "name": "Aluminium alloy 7075 T6",
   "family": "aluminium",
