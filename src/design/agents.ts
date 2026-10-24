@@ -59,7 +59,7 @@ export const REALTIME_OUT = ["audio", "text", "tools"] as const;
 /** G.711 μ-law (a telephone call) and 16-bit little-endian PCM, mono, at a rate. */
 export const AUDIO_FORMATS = ["g711-ulaw@8000", "pcm16@8000", "pcm16@16000", "pcm16@24000"] as const;
 export const HARNESS_FIELDS = ["kind", "label", "provider", "cli", "runs", "tasks", "realtime", "family", "experimental", "homepage", "about"] as const;
-export const AGENT_FIELDS = ["harness", "parent", "name", "model", "effort", "instructions", "voice", "voiceMode", "tools", "persona", "color", "icon", "gender"] as const;
+export const AGENT_FIELDS = ["harness", "parent", "name", "model", "effort", "supervisor", "instructions", "voice", "voiceMode", "tools", "persona", "color", "icon", "gender"] as const;
 export const VOICE_MODES = ["off", "push-to-talk", "open-mic"] as const;
 
 /** A harness's file and an agent's file, each in its own folder. */
@@ -121,6 +121,11 @@ export interface AgentDoc {
    * `model_reasoning_effort`); a host refuses an agent whose CLI does not take that effort. A fork keeps its parent's.
    */
   effort?: string;
+  /**
+   * Who answers the questions it gives on to `role:supervisor` (`agent:<id>` or `person:<id>`): a thread's membership
+   * takes it at join, and a person's supervise of that member overrides it.
+   */
+  supervisor?: string;
   /** Its system prompt. */
   instructions?: string;
   voice?: string;
@@ -202,8 +207,9 @@ function harnessOf(t: DocTree): HarnessDoc {
 }
 
 function agentOf(t: DocTree): AgentDoc {
-  for (const k of ["harness", "parent", "name", "model", "effort", "instructions", "voice", "color", "icon", "gender"]) word(t, k);
+  for (const k of ["harness", "parent", "name", "model", "effort", "supervisor", "instructions", "voice", "color", "icon", "gender"]) word(t, k);
   oneOf(t, "voiceMode", VOICE_MODES);
+  if (t.attrs.supervisor !== undefined && !/^(agent|person):\S+$/.test(t.attrs.supervisor as string)) throw new Error(`<agent> supervisor is an agent or a person ("agent:lead", "person:me"), not ${JSON.stringify(t.attrs.supervisor)}`);
   const base = t.attrs.harness !== undefined, fork = t.attrs.parent !== undefined;
   if (base === fork)
     throw new Error(base ? `<agent> names a harness (a base instance) or a parent (a fork), not both: a fork keeps its parent's harness` : `<agent> names its harness (a base instance: harness="claude-code") or its parent (a fork: parent="cloud://global/agents/claude-code")`);
