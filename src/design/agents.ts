@@ -31,6 +31,9 @@
  *   // agents/secretary/agent.tsx in an account's Drive — a fork
  *   export default () => <agent parent="cloud://global/agents/claude-code" name="Joe's secretary" instructions="Keep Joe's calendar." />;
  *
+ *   // agents/a2/agent.tsx — a fork on another model, at a reasoning effort its CLI takes
+ *   export default () => <agent parent="cloud://global/agents/claude-code" name="A2" model="anthropic/claude-sonnet-5-5" effort="medium" />;
+ *
  * A file never names itself: a harness's id is its folder's name, an agent's id is its folder's name. `parent` is a
  * ref to the parent's folder: relative to this agent's folder (`../researcher`), or an address
  * (`cloud://global/agents/claude-code`). `harness` is a harness's id (its folder under `cloud://global/agents/harnesses/`).
@@ -112,6 +115,11 @@ export interface AgentDoc {
   name?: string;
   /** The model it runs, from the model catalog (`anthropic/claude-opus-5-5`); a program harness has none. */
   model?: string;
+  /**
+   * The reasoning effort it runs at, in its harness's words (`low`, `medium`, `high`, `xhigh`, `max`; a model of the
+   * catalog offers its own ladder). A CLI harness takes it as the CLI does (Claude Code `--effort`, Codex
+   * `model_reasoning_effort`); a host refuses an agent whose CLI does not take that effort. A fork keeps its parent's.
+   */
   effort?: string;
   /** Its system prompt. */
   instructions?: string;

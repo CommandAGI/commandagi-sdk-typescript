@@ -21,8 +21,9 @@ test("a harness of each kind, and both ways", () => {
 });
 
 test("a base names its harness; a fork names its parent", () => {
-  const base = declare(el("agent", { harness: "anthropic", model: "anthropic/claude-opus-5-5", name: "Claude Opus 5.5" }));
-  assert.deepEqual(base.document, { harness: "anthropic", model: "anthropic/claude-opus-5-5", name: "Claude Opus 5.5" });
+  const base = declare(el("agent", { harness: "anthropic", model: "anthropic/claude-opus-5-5", effort: "medium", name: "Claude Opus 5.5" }));
+  assert.deepEqual(base.document, { harness: "anthropic", model: "anthropic/claude-opus-5-5", effort: "medium", name: "Claude Opus 5.5" });
+  assert.throws(() => declare(el("agent", { harness: "anthropic", effort: "" })), /effort is a word/);
   const fork = declare(el("agent", { parent: "cloud://global/agents/claude-code", name: "Joe's secretary", instructions: "Keep Joe's calendar.\nAsk before booking.", tools: ["calendar_save_event"] }));
   assert.deepEqual(fork.document, { parent: "cloud://global/agents/claude-code", name: "Joe's secretary", instructions: "Keep Joe's calendar.\nAsk before booking.", tools: ["calendar_save_event"] });
   assert.deepEqual(AGENTS.agent.fromTree(AGENTS.agent.toTree(fork.document as never)), fork.document);
