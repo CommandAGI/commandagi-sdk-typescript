@@ -51,9 +51,10 @@ export const WORKLOAD_NEEDS = ["tools", "structured", "image"] as const;
 /**
  * The checks a case may name, cheapest first (a judge's rubric only where no check exists): the answer's text equal to
  * one (`exact`, `oneOf`), a number within `tolerance`, phrases it holds, a pattern, a JSON object it holds, a
- * multiple-choice `letter`, a Python `literal` (spaces and quotes aside), or the first `tool` the model called.
+ * multiple-choice `letter`, a Python `literal` (spaces and quotes aside), the first `tool` the model called, or a
+ * `program` (an arithmetic expression in `x` that maps each input to its output).
  */
-export const CHECK_KINDS = ["exact", "oneOf", "number", "contains", "regex", "json", "letter", "literal", "tool"] as const;
+export const CHECK_KINDS = ["exact", "oneOf", "number", "contains", "regex", "json", "letter", "literal", "tool", "program"] as const;
 
 export interface ScoutConfiguration {
   id: string;
@@ -79,6 +80,8 @@ export interface ScoutCheck {
   letter?: string;
   literal?: string;
   tool?: string;
+  /** An arithmetic expression in `x` that maps each input to its output (within `tolerance`). */
+  program?: { data: [number, number][]; tolerance?: number };
 }
 /**
  * A tool a case offers the model. Its answers are the case's own: the first of `results` whose `when` holds of the
@@ -246,6 +249,12 @@ function checkOf(t: DocTree): void {
   if (x.letter !== undefined && !(typeof x.letter === "string" && /^[A-Z]$/.test(x.letter))) throw new Error(`${where(t)} check: letter is one capital letter`);
   for (const k of ["literal", "tool"] as const) if (x[k] !== undefined && !(typeof x[k] === "string" && x[k])) throw new Error(`${where(t)} check: ${k} is text`);
   if (x.tool !== undefined && t.attrs.tools === undefined) throw new Error(`${where(t)} check: tool needs the case's tools`);
+  if (x.program !== undefined) {
+    const p = x.program;
+    if (!p || typeof p !== "object" || !Array.isArray(p.data) || !p.data.length || !p.data.every((d) => Array.isArray(d) && d.length === 2 && d.every((n) => typeof n === "number" && Number.isFinite(n))))
+      throw new Error(`${where(t)} check: program is { data: [[x, y], …] }`);
+    if (p.tolerance !== undefined && !(typeof p.tolerance === "number" && p.tolerance >= 0)) throw new Error(`${where(t)} check: program tolerance is a number of 0 or more`);
+  }
 }
 
 function toolsOf(t: DocTree): void {

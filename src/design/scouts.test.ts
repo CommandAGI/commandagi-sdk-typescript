@@ -70,6 +70,12 @@ test("a tool case offers its tools and their answers", () => {
   assert.throws(() => one({ check: { exact: "x" }, turns: 3 }), /turns goes with tools/);
   assert.throws(() => one({ check: { exact: "x" }, tools: [{ name: "a b", parameters: {} }] }), /a tool's name is a word/);
   assert.throws(() => one({ check: { exact: "x" }, tools: [{ name: "a", parameters: {}, results: [{ when: { x: 1 }, result: "r" }] }] }), /a result is/);
+  // A `program` check evaluates an expression in x against its data; its shape is checked.
+  const prog = declare(el("scout", { budget: 1 }, el("workload", { id: "w" }, el("case", { id: "c", from: "synthetic", prompt: "p", check: { program: { data: [[1, 4], [2, 7], [5, 16]] } } }))));
+  assert.deepEqual((prog.document as { workloads: { cases: { check: unknown }[] }[] }).workloads[0]!.cases[0]!.check, { program: { data: [[1, 4], [2, 7], [5, 16]] } });
+  assert.throws(() => one({ check: { program: { data: [] } } }), /program is { data: \[\[x, y\], …\] }/);
+  assert.throws(() => one({ check: { program: { data: [[1, 4], [2]] } } }), /program is { data: \[\[x, y\], …\] }/);
+  assert.throws(() => one({ check: { program: { data: [[1, 4]], tolerance: -1 } } }), /program tolerance is a number of 0 or more/);
 });
 
 test("a replacement analysis declares its layers, capabilities with evidence, and its decision; and both ways", () => {
