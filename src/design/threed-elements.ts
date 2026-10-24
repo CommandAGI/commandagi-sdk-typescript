@@ -9,7 +9,7 @@
  */
 export type AcceptedFinding = {
   id: string;
-  /** The check (its id) whose findings this accepts. */
+  /** The check (its id) whose findings this accepts; one that is no check of the document is an error. */
   check: string;
   /** The body, by id, name or part number (`*` matches any text); or an `<item>` by its id. */
   body: string;
@@ -1208,11 +1208,11 @@ export type ExternalPartRef = {
   /** THE PADS THIS PLACEMENT PRODUCES, when it is a placed electronic component. */
   footprint?: ComponentFootprint;
   /**
-   * A placed 3D document: what of it is left out here, each by the id, the name or the part number its own file gives it (`*` matches any text): a body it makes, a file it places, a fastener stack. What its file says of a body left out (an `<accept>`, a `<permitted>`) goes with it. One frame in every station, each station with its own deck: `omit={["deck"]}`.
+   * A placed 3D document: what of it is left out here, each by the id, the name or the part number its own file gives it (`*` matches any text): a body it makes, a file it places (its id names everything placed under it), a fastener stack, an `<item>`. What its file says of a body left out (an `<accept>`, a `<permitted>`, the stacks that hold it) goes with it. An entry that names nothing of the file is an error. One frame in every station, each station with its own deck: `omit={["deck"]}`.
    */
   omit?: string[];
   /**
-   * A placed 3D document: bodies it makes or files it places, each moved in its file's frame before the placement (a lid opened, a ram lowered), by the id, the name or the part number its own file gives it. What its file says of the body (an `<accept>` or `<permitted>` region, in the body's own frame) moves with it, and so do its spare holes and the fastener stacks that hold only what one move moves.
+   * A placed 3D document: bodies it makes or files it places, each moved in its file's frame before the placement (a lid opened, a ram lowered), by the id, the name or the part number its own file gives it (a placed file's id moves everything placed under it). What its file says of the body (an `<accept>` or `<permitted>` region, in the body's own frame) moves with it, and so do its spare holes and the fastener stacks that hold only what one move moves. An entry that names nothing of the file is an error.
    */
   moves?: PlacedMove[];
   /**
@@ -2565,9 +2565,9 @@ export type PcbTraceFeature = {
  */
 export type PermittedFinding = {
   id: string;
-  /** The check (its id) whose findings this permits. */
+  /** The check (its id) whose findings this permits; one that is no check of the document is an error. */
   check: string;
-  /** The bodies, by id, name or part number (`*` matches any text). */
+  /** The bodies, by id, name or part number (`*` matches any text); one that names no body is an error. */
   body: string;
   /** Only bodies made by this process (`engineering.process`). */
   process?: string;
@@ -2606,7 +2606,7 @@ export type Placement = {
    */
   position?: Vec3;
   /**
-   * Orientation as a quaternion [x, y, z, w].
+   * Orientation as a unit quaternion [x, y, z, w]: it turns the part and never scales it. One within 1e-5 of unit length (written to 6 decimals) is read as the rotation it rounds; one further off is refused.
    * @minItems 4
    * @maxItems 4
    * @default [0,0,0,1]
