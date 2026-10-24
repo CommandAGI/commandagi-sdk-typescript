@@ -777,7 +777,7 @@ export type DesignCheck = {
    */
   min?: number;
   /**
-   * interference: a shared volume (in mm³) below this is not reported.
+   * interference: a shared volume (in mm³) below this is not reported; fasteners: a screw's shank or head in less material than this is not in material (two faces that coincide).
    * @minimum 0
    * @default 0.01
    */
@@ -1215,6 +1215,10 @@ export type ExternalPartRef = {
    * A placed 3D document: bodies it makes or files it places, each moved in its file's frame before the placement (a lid opened, a ram lowered), by the id, the name or the part number its own file gives it (a placed file's id moves everything placed under it). What its file says of the body (an `<accept>` or `<permitted>` region, in the body's own frame) moves with it, and so do its spare holes and the fastener stacks that hold only what one move moves. An entry that names nothing of the file is an error.
    */
   moves?: PlacedMove[];
+  /**
+   * A placed 3D document at other values of its `<parameter>`s, each by its name: a library profile at its cut length (`inputs={{ length: 2830 }}`), a screw at its length. The file is built at those values for this placement alone; a name the file does not declare is an error of the placement.
+   */
+  inputs?: { [key: string]: number };
   /**
    * How the linked part's bodies combine with the bodies before it.
    * @default "new"

@@ -15,6 +15,13 @@ Fixed
   whose `a` or `b` the placement leaves out (`omit`) goes with it; a `moves` entry that moves only its `a` along the
   joint (a latch closed, a lid opened) shifts its `limits` by that value, so the sweep still stops where the file
   says. Needs a host of this version (`commandagi check` links the placed files).
+- 3D: `<externalPart inputs={{ length: 2830 }} />` places a 3D document at other values of its `<parameter>`s, by
+  name: one file serves each length, one document per set of values, and a standard part's designation follows its
+  length. A name the file does not declare is an error of the placement (ROUTER-03, ROUTER-01).
+- 3D: a full-radius slot is a hole of its width along its centreline for `fasteners`, not two holes off its axis
+  (CORE-57, ROUTER-07). A shank in less than `minVolume` (0.01 mm³) of material is not in material (IC2-21).
+- 3D: printability judges a placed part as it lies in its own file, as `mill` does (ROUTER-09). `slicer slice` and
+  `check` of a `.slice.tsx` read the design's imports in the run's folder (ROUTER-11). Needs a host of this version.
 
 ## 0.6.8 (2026-10-23)
 
