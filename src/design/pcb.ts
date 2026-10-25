@@ -25,6 +25,10 @@
  *   <stack name label domain units process layers overallThickness>
  *                                     the cross-section, layer by layer (top first), when it is more than core and
  *                                     copper: each { name, role, thickness, material, copperWeightOz, ply, … }.
+ *   <masks name label libName unitUmPerDb polygons>
+ *                                     an IC mask layout, flattened: each polygon { layer, datatype, points } with
+ *                                     points in micrometres, the stream's units (micrometres per database unit) and
+ *                                     the library the stream names.
  *   <graphic kind layer points width filled id kicad>
  *                                     a board drawing (`line`, `arc`, `circle`, `rect`, `poly`) on a layer: the
  *                                     outline is graphics on Edge.Cuts when it is not the width × height rectangle.
@@ -38,12 +42,14 @@
  *   <check id kind severity>, <accept id check rule refs net region reason>
  *                                     the checks the board must pass (erc, drc) and the findings it accepts on
  *                                     purpose (`./circuit-checks.ts`)
- *   <component name footprint library pcbX pcbY pcbRotation layer refAt chart uuid kicad>
+ *   <component name footprint library pcbX pcbY pcbRotation layer refAt refRot chart uuid kicad>
  *                                     the schematic's part `name` on this board: its footprint (one of the editor's
  *                                     own land patterns, BOARD_FOOTPRINTS, or a library footprint by its ref,
  *                                     "Package_SO:SOIC-8", in the `.pretty` folder `library` names: its
  *                                     `SOIC-8.kicad_mod`), where it sits, its rotation (degrees), its side ("top" or
- *                                     "bottom"), its KiCad uuid, the KiCad forms that say which instance it is
+ *                                     "bottom"), where its reference text sits (`refAt`, [x, y] mm in the footprint's
+ *                                     frame) and how far it is turned there (`refRot`, degrees), its KiCad uuid,
+ *                                     the KiCad forms that say which instance it is
  *                                     (its schematic path). With no pcbX and pcbY it is not placed. The editor
  *                                     reads a library footprint's pads, artwork and attributes from its file. A
  *                                     footprint ref with no library is named only: no pads yet, not placed. On a
@@ -209,6 +215,25 @@ function plain(el: DesignElement, prop: string, check: (v: unknown) => boolean, 
   return JSON.parse(JSON.stringify(v));
 }
 const isObject = (v: unknown) => !!v && typeof v === "object" && !Array.isArray(v);
+
+/** A flattened mask layout's polygons: each `{ layer, datatype, points }`, its points `[x, y]` in micrometres. */
+function isMaskPolygons(v: unknown): boolean {
+  const polygon = (p: unknown): boolean => {
+    if (!isObject(p)) return false;
+    const { layer, datatype, points } = p as { layer?: unknown; datatype?: unknown; points?: unknown };
+    return (
+      Number.isInteger(layer) &&
+      (layer as number) >= 0 &&
+      Number.isInteger(datatype) &&
+      (datatype as number) >= 0 &&
+      Array.isArray(points) &&
+      points.length >= 3 &&
+      points.every((q) => Array.isArray(q) && q.length === 2 && q.every((c) => typeof c === "number" && Number.isFinite(c))) &&
+      Object.keys(p as object).every((k) => ["layer", "datatype", "points"].includes(k))
+    );
+  };
+  return Array.isArray(v) && v.length > 0 && v.every(polygon);
+}
 
 /** A trace point's id: the editor's own (`start`, `end`, and `p<i>` between them). */
 export function tracePointId(index: number, count: number): string {
@@ -393,6 +418,8 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
     if ((core === undefined) !== (copper === undefined)) throw new Error("<board>: give core and copper together");
     const stacks = children.filter((el) => el.type === "stack");
     if (stacks.length > 1) throw new Error("a board has one <stack>");
+    const maskLayouts = children.filter((el) => el.type === "masks");
+    if (maskLayouts.length > 1) throw new Error("a board has one <masks>");
     if (stacks.length && core !== undefined) throw new Error("<board>: core and copper are a two-layer <stack>; give one or the other");
     if (thickness !== undefined && core !== undefined) throw new Error("<board>: core and copper say the thickness");
     if (core !== undefined && w === undefined) throw new Error("<board>: core and copper need the outline (width and height)");
@@ -490,7 +517,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
         const key = el.type === "objective" ? "objective" : typeof nm === "string" ? `${el.type}:${nm}` : null;
         if (key && constraintNames.has(key)) throw new Error(el.type === "objective" ? "a board has one <objective>" : `two <${el.type}> elements are called ${nm}`);
         if (key) constraintNames.add(key);
-      } else if (el.type !== "stack" && !FACTS.has(el.type)) throw new Error(`<${el.type}> is not read on a board (see commandagi/design pcb)`);
+      } else if (el.type !== "stack" && el.type !== "masks" && !FACTS.has(el.type)) throw new Error(`<${el.type}> is not read on a board (see commandagi/design pcb)`);
     }
     const idOf = new Map<DesignElement, string>([...conductors.values()].map((c) => [c.el, c.id]));
     for (const el of children) if (CONDUCTORS.has(el.type) && !idOf.has(el)) idOf.set(el, freeId());
@@ -537,8 +564,20 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
       switch (el.type) {
         case "stack":
           break;
+        case "masks": {
+          refuseUnknown(el, ["name", "label", "libName", "unitUmPerDb", "polygons"]);
+          const maskPolygons = plain(el, "polygons", isMaskPolygons, "the mask layout's polygons: [{ layer, datatype, points: [[x, y], …] }, …], points in micrometres");
+          if (maskPolygons === undefined) throw new Error("<masks> needs polygons");
+          const libName = text(el, "libName");
+          s.add(
+            "eda.masks",
+            { polygons: maskPolygons, unitUmPerDb: positive(el, "unitUmPerDb", true), ...(libName !== undefined ? { libName } : {}) },
+            { id: text(el, "name") ?? "masks", label: text(el, "label") ?? libName ?? "Masks", meta: meta(el) },
+          );
+          break;
+        }
         case "component": {
-          refuseUnknown(el, ["name", "footprint", "library", "pcbX", "pcbY", "pcbRotation", "layer", "refAt", "chart", "uuid", "kicad"]);
+          refuseUnknown(el, ["name", "footprint", "library", "pcbX", "pcbY", "pcbRotation", "layer", "refAt", "refRot", "chart", "uuid", "kicad"]);
           const ref = el.props.name as string;
           const fp = el.props.footprint;
           const library = el.props.library;
@@ -562,6 +601,9 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
           if (refAt !== undefined && !(Array.isArray(refAt) && refAt.length === 2 && refAt.every((v) => typeof v === "number" && Number.isFinite(v))))
             throw new Error(`${where(el)}: refAt is [x, y] in mm, in the footprint's own frame`);
           if (refAt !== undefined && x === undefined) throw new Error(`${where(el)}: refAt needs pcbX and pcbY`);
+          // How far the reference text is turned where it sits: the placer turns a text it has no upright place for.
+          const refRot = num(el, "refRot");
+          if (refRot !== undefined && x === undefined) throw new Error(`${where(el)}: refRot needs pcbX and pcbY`);
           const chart = text(el, "chart");
           if (chart !== undefined && !surface) throw new Error(`${where(el)}: chart names a face of the board's surface, and the <board> has no surface`);
           if (chart !== undefined && x === undefined) throw new Error(`${where(el)}: chart needs pcbX and pcbY`);
@@ -572,6 +614,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
               ...(library !== undefined ? { footprint: fp, library: (library as string).replace(/\/$/, "") } : named ? { footprint: fp } : { footprint: `Authored:${fp}` }),
               ...(x !== undefined ? { placement: { x, y, rot: rot ?? 0, side: side ?? "top" } } : {}),
               ...(refAt !== undefined ? { refAt: [...(refAt as number[])] } : {}),
+              ...(refRot !== undefined ? { refRot } : {}),
               ...(chart !== undefined ? { surfaceMount: { chart } } : {}),
               ...uuidOf(el),
               ...kicad(el),
