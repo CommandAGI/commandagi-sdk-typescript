@@ -172,7 +172,8 @@ export const systemVocabulary: Vocabulary<SystemDoc> = {
       if (c.tag === "rail") check(isNum(a.voltage), `${at}: voltage is a number of volts`);
       if (c.tag === "converter") check(isNum(a.efficiency) && (a.efficiency as number) > 0 && (a.efficiency as number) <= 1, `${at}: efficiency is a number in (0, 1] (0.88 for 88 %)`);
       if (c.tag === "load") {
-        check(a.current !== undefined || a.power !== undefined, `${at}: a load states its current (A) or its power (W)`);
+        check(a.current !== undefined || a.power !== undefined || (typeof a.part === "string" && a.part.includes("#")),
+          `${at}: a load states its current (A) or its power (W), or names a circuit part whose draw it reads (part="board.sch.tsx#U1")`);
         for (const k of ["current", "power", "voltage", "peakCurrent", "peakPower", "inrushCurrent"]) check(a[k] === undefined || isNum(a[k]), `${at}: ${k} is a number`);
         check(a.duty === undefined || (isNum(a.duty) && (a.duty as number) > 0 && (a.duty as number) <= 1), `${at}: duty is the share of time the load draws, a number in (0, 1] (0.25 for 25 %)`);
       }

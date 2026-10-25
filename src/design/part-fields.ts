@@ -3,8 +3,9 @@
  * the board editor writes), so the BOM, the KiCad board, a 3D body's join and the checks read one thing. A schematic's
  * part (`./sheet.ts`) and a circuit's part (`./eda.ts`, `component(…)`) take the same arguments.
  *
- *   partNumber manufacturer mpn rating attrs={{ Tolerance: "1%" }}           its engineering data (CommandAGI IPN,
- *                                                                           Manufacturer, MPN, Rating, attrs by name)
+ *   partNumber manufacturer mpn rating draw attrs={{ Tolerance: "1%" }}     its engineering data (CommandAGI IPN,
+ *                                                                           Manufacturer, MPN, Rating, its steady draw
+ *                                                                           "120 mA" or "1.2 W", attrs by name)
  *   pinoutVerified footprintVerified                                        how its symbol's pin numbers and names,
  *                                                                           and its footprint's pads, are known:
  *                                                                           "memory", "datasheet <url> p. <page>,
@@ -35,6 +36,7 @@ export const PART_FIELDS: Readonly<Record<string, string>> = {
   manufacturer: "Manufacturer",
   mpn: "MPN",
   rating: "Rating",
+  draw: "Draw",
   pinoutVerified: "Pinout Verified",
   footprintVerified: "Footprint Verified",
   packageDimensions: "Package Dimensions",
@@ -44,6 +46,7 @@ const FIELD_EXAMPLES: Record<string, string> = {
   manufacturer: "Yageo",
   mpn: "RC0805FR-073KL",
   rating: "0.125 W",
+  draw: "120 mA",
   pinoutVerified: "datasheet https://www.ti.com/lit/ds/symlink/sn74lvc1t45.pdf p. 3, 2026-10-15",
   footprintVerified: "measured 2026-10-15, calipers on the reel's part",
   packageDimensions: "6 pins, pitch 0.95 mm, body 2.9 x 1.6 mm",
@@ -52,7 +55,9 @@ const FIELD_EXAMPLES: Record<string, string> = {
 export const VERIFIED = /^(?:memory|datasheet https?:\/\/\S+ p\. \d+, \d{4}-\d{2}-\d{2}|measured \d{4}-\d{2}-\d{2}(?:, .+)?)$/;
 /** A datasheet's package numbers (`packageDimensions`). */
 export const PACKAGE = /^\d+ pins, pitch \d+(?:\.\d+)? mm, body \d+(?:\.\d+)? x \d+(?:\.\d+)? mm$/;
-const GRAMMAR: Record<string, RegExp> = { pinoutVerified: VERIFIED, footprintVerified: VERIFIED, packageDimensions: PACKAGE };
+/** A part's steady draw (`draw`): a number with the unit it measures, a current or a power (`120 mA`, `1.2 W`). */
+export const DRAW = /^\d+(?:\.\d+)? [muµ]?[AW]$/;
+const GRAMMAR: Record<string, RegExp> = { draw: DRAW, pinoutVerified: VERIFIED, footprintVerified: VERIFIED, packageDimensions: PACKAGE };
 
 /** The logistics facets that are objects of fields: field → KiCad property. */
 export const FACET_FIELDS: Readonly<Record<"lifecycle" | "compliance" | "shipping", Readonly<Record<string, string>>>> = {
@@ -94,6 +99,8 @@ export interface PartFields {
   manufacturer?: string;
   mpn?: string;
   rating?: string;
+  /** Its steady draw: "120 mA" or "1.2 W", the number with the unit it measures. */
+  draw?: string;
   pinoutVerified?: string;
   footprintVerified?: string;
   packageDimensions?: string;
