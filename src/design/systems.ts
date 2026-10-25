@@ -31,9 +31,10 @@
  *       <pin number={1} signal="+5V" required at={[0, 0]} />
  *       <pin number={2} signal="GND" required at={[2.54, 0]} />
  *       <param id="baud" value={115200} unit="Bd" />
+ *       <param id="framing" value="8N1" />
  *       <message id="hello" text="AT" />
- *       <side id="main" ref="ee/main.circuit.ts" part="J1" />
- *       <side id="firmware" ref="firmware/config.h" defines={{ BOARD_MAIN: 1 }} params={{ LINK_BAUD: "baud" }} />
+ *       <side id="main" ref="ee/main.circuit.ts" part="J1" origin={[30, 10]} rotation={90} face="top" />
+ *       <side id="firmware" ref="firmware/config.h" defines={{ BOARD_MAIN: 1 }} params={{ LINK_BAUD: "baud", FRAMING: "framing" }} />
  *     </interface>
  *   );
  *
@@ -42,8 +43,10 @@
  * Every ref is a path relative to the file that holds it, with `#` and the id of one element of the file it names.
  * Nothing adds a default. A `<bom>` gives masses; a cost budget reads the logistics roll-up of the design it names
  * (`design`: a 3D document, a schematic or a board with a cost check), the one source of cost, so no contribution is a
- * cost. The checks (a requirement's trace, a budget's roll-up, each side against its interface) are
- * the host's: `commandagi check <file>`, `commandagi trace <folder>`.
+ * cost. A `<param>` states a number with its unit, or a text a channel states (`"8N1"` for a framing) with no unit.
+ * A side's `origin`, `rotation` (degrees counter-clockwise) and `face` (`top`, or `bottom` for the side seen from the
+ * mating board, whose frame is mirrored) put the interface's frame in the side's. The checks (a requirement's trace, a
+ * budget's roll-up, each side against its interface) are the host's: `commandagi check <file>`, `commandagi trace <folder>`.
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
 
@@ -57,6 +60,8 @@ export const DECLARED_QUANTITY = /^[a-z][a-z0-9-]*$/;
 export const SYSTEM_CHECK_KINDS = ["interface", "trace"] as const;
 /** What a side of an interface is, when its file does not say. */
 export const SIDE_KINDS = ["circuit", "3d", "firmware", "definition"] as const;
+/** Which face of a side the interface's frame is on: `top` as the side's own frame has it, `bottom` seen from the mating board. */
+export const SIDE_FACES = ["top", "bottom"] as const;
 
 export const REQUIREMENT_FIELDS = ["id", "text", "rationale", "method", "verifiedBy", "design", "parent"] as const;
 export const MODE_FIELDS = ["id", "description"] as const;
@@ -69,7 +74,7 @@ export const PIN_FIELDS = ["number", "signal", "dir", "voltage", "gpio", "at", "
 export const HOLE_FIELDS = ["id", "at", "diameter", "description"] as const;
 export const MESSAGE_FIELDS = ["id", "text", "code", "define", "dir", "description"] as const;
 export const PARAM_FIELDS = ["id", "value", "unit", "description"] as const;
-export const SIDE_FIELDS = ["id", "ref", "kind", "part", "parts", "channel", "origin", "defines", "pins", "params", "files", "description"] as const;
+export const SIDE_FIELDS = ["id", "ref", "kind", "part", "parts", "channel", "origin", "rotation", "face", "defines", "pins", "params", "files", "description"] as const;
 
 type Rec = Record<string, unknown>;
 export interface RequirementsDoc { name?: string; description?: string; requirements?: Rec[] }
@@ -224,10 +229,15 @@ export const interfaceVocabulary: Vocabulary<InterfaceDoc> = {
         check(a.diameter === undefined || isNum(a.diameter), `${at}: diameter is mm`);
       }
       if (c.tag === "message") check(a.text !== undefined || a.code !== undefined, `${at}: a message has its text, its code, or both`);
-      if (c.tag === "param") check(isNum(a.value), `${at}: value is a number (its unit in unit)`);
+      if (c.tag === "param") {
+        check(isNum(a.value) || (typeof a.value === "string" && !!a.value.trim()), `${at}: value is a number with its unit in unit (115200), or a text a channel states (a format, a dialect, a transport: "8N1")`);
+        check(a.unit === undefined || isNum(a.value), `${at}: a parameter stated as a text has no unit (unit is for a number)`);
+      }
       if (c.tag === "side") {
         check(a.kind === undefined || (SIDE_KINDS as readonly unknown[]).includes(a.kind), `${at}: kind must be one of ${SIDE_KINDS.join(", ")} (got ${JSON.stringify(a.kind)})`);
         check(a.origin === undefined || pair(a.origin, 2) || pair(a.origin, 3), `${at}: origin is where the interface's frame sits in this side's frame, [x, y] or [x, y, z] mm`);
+        check(a.rotation === undefined || isNum(a.rotation), `${at}: rotation is the angle the interface's frame is turned on this side, in degrees counter-clockwise`);
+        check(a.face === undefined || (SIDE_FACES as readonly unknown[]).includes(a.face), `${at}: face must be one of ${SIDE_FACES.join(", ")} (got ${JSON.stringify(a.face)})`);
         check(a.parts === undefined || (Array.isArray(a.parts) && a.parts.every((p) => typeof p === "string")), `${at}: parts is a list of part references, whose pins are the interface's in turn`);
         check(a.channel === undefined || typeof a.channel === "string", `${at}: channel is the id of a channel of the device definition`);
       }
