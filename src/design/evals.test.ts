@@ -77,4 +77,14 @@ test("an eval or a metric that does not read is refused with why", () => {
   assert.deepEqual(declarationOf({ default: el("eval", { slug: "e", objective: { kind: "function", source: "return 1" } }) }).document!.document, { slug: "e", objective: { kind: "function", source: "return 1" }, cases: [] });
   assert.throws(() => declarationOf({ default: el("metric", { slug: "m", probe: {}, aggregation: "rate" }) }), /probe is what to measure/);
   assert.throws(() => declarationOf({ default: el("metric", { slug: "m", aggregation: "rate" }) }), /<metric> needs probe/);
+  // A probe names a task or another metric by ref from the metric file, never by node id (as the reader refuses it).
+  const probe = (p: unknown) => () => declarationOf({ default: el("metric", { slug: "m", probe: p, aggregation: "rate" }) });
+  assert.throws(probe({ kind: "task", taskId: "m1" }), /probe names its task file by ref \(task\), not by node id \(taskId\)/);
+  assert.throws(probe({ kind: "alignment", reference: { taskId: "m1" } }), /probe names its task file by ref \(reference\.task\), not by node id \(taskId\)/);
+  assert.throws(probe({ kind: "composite", inputs: [{ metricId: "m1", weight: 2 }] }), /probe names each input's metric file by ref \(metric\), not by node id \(metricId\)/);
+  assert.deepEqual(
+    declarationOf({ default: el("metric", { slug: "m", probe: { kind: "alignment", reference: { task: "../Tasks/Dock.task.tsx" } }, aggregation: "rate" }) }).document!.document,
+    { slug: "m", probe: { kind: "alignment", reference: { task: "../Tasks/Dock.task.tsx" } }, aggregation: "rate" },
+    "the refs read",
+  );
 });

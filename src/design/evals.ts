@@ -20,7 +20,10 @@
  * two. `acceptance`, `acceptanceMetric` (a ref to a metric file), `hints`, `maxSteps` and `timeLimitMs` judge and bound
  * the case either way. `objective` and `scoring.weights` name metric files by ref as well: an objective is
  * `{ kind: "metric", metric: "<ref>" }`, `{ kind: "linear", terms: [{ metric: "<ref>", weight }], bias }` or a
- * `function`; the weights are keyed by ref (`{ "Fleet availability.metric.tsx": 2 }`).
+ * `function`; the weights are keyed by ref (`{ "Fleet availability.metric.tsx": 2 }`). A metric's `probe` names a task
+ * file (`{ kind: "task", task: "<ref>" }`, an `alignment`'s `reference.task`) or another metric file (a `composite`
+ * input's `metric`) by ref too; a probe that names one by node id (`taskId`, `metricId`) is refused, as the platform's
+ * routes and reader refuse it.
  *
  * `frozen` is the digest an eval is frozen at (`sha256:<hex>`, written by the platform when it publishes the eval): the
  * reader computes the digest of what the eval grades by (its declaration and the tasks and metrics it names) and
@@ -180,10 +183,22 @@ function evalOf(t: DocTree): DeclaredEval {
   return { ...(said(t.attrs, EVAL_FIELDS) as Omit<DeclaredEval, "cases">), cases };
 }
 
+/** A probe names a task or another metric by ref from the metric file (`task`, `reference.task`, an input's `metric`), never by node id. */
+function probeRefs(t: DocTree): void {
+  const p = t.attrs.probe;
+  if (!plainObject(p)) return;
+  if ("taskId" in p) throw new Error(`${where(t)} probe names its task file by ref (task), not by node id (taskId)`);
+  if (plainObject(p.reference) && "taskId" in p.reference)
+    throw new Error(`${where(t)} probe names its task file by ref (reference.task), not by node id (taskId)`);
+  if (Array.isArray(p.inputs) && p.inputs.some((i) => plainObject(i) && "metricId" in i))
+    throw new Error(`${where(t)} probe names each input's metric file by ref (metric), not by node id (metricId)`);
+}
+
 function metricOf(t: DocTree): DeclaredMetric {
   for (const k of ["slug", "description", "aggregation", "role", "direction", "unit", "threadId"]) text(t, k);
   for (const k of ["probe", "pass"]) object(t, k);
   if (!plainObject(t.attrs.probe) || typeof t.attrs.probe.kind !== "string") throw new Error(`${where(t)} probe is what to measure ({ kind: "event", eventKind: "telemetry" }), not ${JSON.stringify(t.attrs.probe)}`);
+  probeRefs(t);
   number(t, "target");
   return said(t.attrs, METRIC_FIELDS) as unknown as DeclaredMetric;
 }
