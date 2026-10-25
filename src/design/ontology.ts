@@ -45,7 +45,13 @@ const leaf = (tag: string, attrs: Record<string, unknown>): DocTree => ({ tag, a
 
 /** The fields of a unit in a world's file (packages/domain/world/worlds.js). */
 /** `serial`: the serial number of the one physical thing a unit is; `revision`: its hardware revision (a firmware release says which it supports). */
-export const UNIT_FIELDS = ["uid", "name", "device", "serial", "revision", "domain", "size_mm", "support", "channels", "manualUrl", "position", "rotation", "release"] as const;
+export const UNIT_FIELDS = ["uid", "name", "device", "serial", "revision", "domain", "size_mm", "support", "channels", "manualUrl", "position", "rotation", "release", "group"] as const;
+/**
+ * The fields of a group: furniture (a shelf, a bench, a rack, a desk) that units and other groups stand in or on. A
+ * group is not a unit: it names no device, takes no grant, run or driver, and is not drawn as a pickable object. `group`
+ * names the group it stands in (a shelf level names its shelf), so groups make a tree.
+ */
+export const GROUP_FIELDS = ["uid", "name", "size_mm", "position", "rotation", "group"] as const;
 /**
  * `links`: the parts of the world's model that a run moves (packages/domain/world/pose.js modelPose). A definition's
  * link grammar, with the unit named in each joint and emit: `links={[{ node: "ram", joint: { unit: "press-1",
@@ -57,6 +63,8 @@ const WORLD_FIELDS = ["name", "kind", "description", "from", "model", "links"] a
 export interface WorldDoc {
   name: string;
   kind: "physical" | "simulation";
+  /** The world's furniture (not units). */
+  groups?: Record<string, unknown>[];
   units: Record<string, unknown>[];
   [field: string]: unknown;
 }
@@ -68,6 +76,7 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
   tags: {
     world: { parents: [], required: ["name", "kind"], attrs: WORLD_FIELDS },
     space: { parents: ["world"], single: true, required: ["origin_mm", "size_mm"], attrs: ["origin_mm", "size_mm"] },
+    group: { parents: ["world"], key: "uid", required: ["uid", "name", "size_mm"], attrs: GROUP_FIELDS },
     unit: { parents: ["world"], key: "uid", required: ["uid", "name", "device"], attrs: UNIT_FIELDS },
     view: { parents: ["world"], single: true },
     scene: { parents: ["world"], single: true },
@@ -77,10 +86,22 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
     if (t.attrs.kind !== "physical" && t.attrs.kind !== "simulation") throw new Error(`<world> kind is "physical" or "simulation", said explicitly, not ${JSON.stringify(t.attrs.kind)}`);
     const space = childrenOf(t, "space")[0], view = childrenOf(t, "view")[0], scene = childrenOf(t, "scene")[0];
     const bodies = scene ? childrenOf(scene, "body") : [];
+    const groups = childrenOf(t, "group"), units = childrenOf(t, "unit");
+    // Units and groups share one namespace: `<address>#<uid>` names one thing, and a group names its own group by uid.
+    const uids = new Set<unknown>();
+    for (const r of [...groups, ...units])
+      if (r.attrs.uid !== undefined) {
+        if (uids.has(r.attrs.uid)) throw new Error(`a <unit> and a <group> in <world> share the uid ${JSON.stringify(r.attrs.uid)}`);
+        uids.add(r.attrs.uid);
+      }
+    for (const g of groups)
+      if (g.attrs.group !== undefined && !groups.some((o) => o.attrs.uid === g.attrs.group))
+        throw new Error(`<group uid="${String(g.attrs.uid)}"> stands in a group ${JSON.stringify(g.attrs.group)} that is not in <world>`);
     return {
       ...(own(t.attrs, WORLD_FIELDS) as { name: string; kind: "physical" | "simulation" }),
       ...(space ? { space: { ...space.attrs } } : {}),
-      units: childrenOf(t, "unit").map((u) => ({ ...u.attrs })),
+      ...(groups.length ? { groups: groups.map((g) => ({ ...g.attrs })) } : {}),
+      units: units.map((u) => ({ ...u.attrs })),
       ...(view ? { view: { ...view.attrs } } : {}),
       ...(scene ? { scene: { ...scene.attrs, ...(bodies.length ? { bodies: bodies.map((b) => ({ ...b.attrs })) } : {}) } } : {}),
     };
@@ -88,6 +109,7 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
   toTree(w) {
     const children: DocTree[] = [];
     if (isRecord(w.space)) children.push(leaf("space", { ...w.space }));
+    for (const g of w.groups ?? []) children.push(leaf("group", own(g, GROUP_FIELDS)));
     for (const u of w.units ?? []) children.push(leaf("unit", own(u, UNIT_FIELDS)));
     if (isRecord(w.view)) children.push(leaf("view", { ...w.view }));
     if (isRecord(w.scene)) {

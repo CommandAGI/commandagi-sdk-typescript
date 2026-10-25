@@ -50,6 +50,28 @@ test("a world in JSX declares its world: units, space and a scene's bodies are e
   assert.throws(world_(el("lamp", {})), /<lamp> is not a tag of a world/);
 });
 
+test("a world's furniture is its <group>s, never units: a unit or a group names the group it stands in, and uids are one namespace", () => {
+  const shelf = el("group", { uid: "shelf", name: "machine shelf", size_mm: [2440, 760, 2600], position: [0, 3600, 0], rotation: 0 });
+  const level = el("group", { uid: "level-2", name: "shelf level 2", size_mm: [2440, 760, 650], position: [0, 3600, 800], rotation: 0, group: "shelf" });
+  const printer = el("unit", { uid: "printer-01", name: "printer", device: "../../devices/ender/definition.tsx", position: [-900, 3600, 800], rotation: 0, group: "level-2" });
+  const world = documentOf({ default: () => el("world", { name: "Shop", kind: "physical" }, shelf, level, printer) }).document;
+  assert.deepEqual(world, {
+    name: "Shop",
+    kind: "physical",
+    groups: [
+      { uid: "shelf", name: "machine shelf", size_mm: [2440, 760, 2600], position: [0, 3600, 0], rotation: 0 },
+      { uid: "level-2", name: "shelf level 2", size_mm: [2440, 760, 650], position: [0, 3600, 800], rotation: 0, group: "shelf" },
+    ],
+    units: [{ uid: "printer-01", name: "printer", device: "../../devices/ender/definition.tsx", position: [-900, 3600, 800], rotation: 0, group: "level-2" }],
+  });
+  assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(world as never)), world, "the furniture both ways");
+
+  const world_ = (...children: unknown[]) => () => declarationOf({ default: el("world", { name: "W", kind: "physical" }, ...children) });
+  assert.throws(world_(el("group", { uid: "a", name: "a", size_mm: [1, 1, 1], position: [0, 0, 0], rotation: 0, group: "nowhere" })), /stands in a group "nowhere" that is not in <world>/);
+  assert.throws(world_(el("unit", { uid: "a", name: "a", device: "d" }), el("group", { uid: "a", name: "a", size_mm: [1, 1, 1], position: [0, 0, 0], rotation: 0 })), /a <unit> and a <group> in <world> share the uid "a"/);
+  assert.throws(world_(el("group", { uid: "a", name: "a", size_mm: [1, 1, 1], position: [0, 0, 0], rotation: 0, device: "d" })), /<group uid="a">: device is not read/);
+});
+
 test("a device definition's channels are <channel> elements; its bounds are attributes, declared and not enforced here", () => {
   const def = el(
     "device",
