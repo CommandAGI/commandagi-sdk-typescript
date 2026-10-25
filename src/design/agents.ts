@@ -7,7 +7,7 @@
  * parent and keeps its parent's harness.
  *
  *   // cloud://global/agents/harnesses/claude-code/harness.tsx
- *   export default () => <harness kind="cli" label="Claude Code" provider="anthropic" cli="claude" runs={["host", "vm"]} />;
+ *   export default () => <harness kind="cli" label="Claude Code" provider="anthropic" cli="claude" runs={["host", "cloud"]} />;
  *
  *   // cloud://global/agents/harnesses/symbolic-planner-001/harness.tsx — a program with no model, one variant of a family
  *   export default () => <harness kind="program" label="Symbolic Planner 001" family="symbolic" experimental runs={["host"]} />;
@@ -44,8 +44,8 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 
 /** What runs an agent: a CLI program, an API provider's loop, or a program with no model. */
 export const HARNESS_KINDS = ["cli", "api", "program"] as const;
-/** Where a harness runs: this machine's host (`local-host/agent-clis.mjs`), a cloud computer (the thread's VM kernel), or the api worker's loop. */
-export const HARNESS_RUNTIMES = ["host", "vm", "worker"] as const;
+/** Where a harness runs: this machine's host (`local-host/agent-clis.mjs`), a computer in the cloud (a `scripted` program on the thread's computer), a container in the cloud (a CLI's turn per thread member, `docs/agent-clis.md` § a turn in the cloud), or the api worker's loop. */
+export const HARNESS_RUNTIMES = ["host", "vm", "cloud", "worker"] as const;
 /**
  * What a single-task model does in one turn: it takes a task-shaped input and answers a typed value. `classify`: one of
  * the caller's labels with a probability for each; `decide`: typed answers (yes or no, one of several, a level of a

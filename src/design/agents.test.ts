@@ -10,9 +10,9 @@ const el = (tag: string, props: Record<string, unknown> = {}) => jsx(tag, props)
 const declare = (root: unknown) => declarationOf({ default: () => root }).document!;
 
 test("a harness of each kind, and both ways", () => {
-  const cli = declare(el("harness", { kind: "cli", label: "Claude Code", provider: "anthropic", cli: "claude", runs: ["host", "vm"] }));
+  const cli = declare(el("harness", { kind: "cli", label: "Claude Code", provider: "anthropic", cli: "claude", runs: ["host", "cloud"] }));
   assert.equal(cli.format, "harness");
-  assert.deepEqual(cli.document, { kind: "cli", label: "Claude Code", provider: "anthropic", cli: "claude", runs: ["host", "vm"] });
+  assert.deepEqual(cli.document, { kind: "cli", label: "Claude Code", provider: "anthropic", cli: "claude", runs: ["host", "cloud"] });
   const program = declare(el("harness", { kind: "program", label: "Symbolic Planner 001", family: "symbolic", experimental: true, runs: ["host"] }));
   assert.deepEqual(program.document, { kind: "program", label: "Symbolic Planner 001", family: "symbolic", experimental: true, runs: ["host"] }, "a program harness has no model and no provider");
   const single = declare(el("harness", { kind: "api", label: "ScaleDown Classify-1", provider: "scaledown", tasks: ["classify", "decide"], family: "system-one", experimental: true, runs: ["host"] }));
@@ -40,7 +40,7 @@ test("refusals, by name", () => {
   assert.throws(() => declare(el("harness", { kind: "cli", label: "X" })), /names the program it starts/);
   assert.throws(() => declare(el("harness", { kind: "api", label: "X" })), /names its provider/);
   assert.throws(() => declare(el("harness", { kind: "program", label: "X", cli: "x" })), /cli is for kind="cli" only/);
-  assert.throws(() => declare(el("harness", { kind: "api", label: "X", provider: "p", runs: ["cloud"] })), /runs is a list of/);
+  assert.throws(() => declare(el("harness", { kind: "api", label: "X", provider: "p", runs: ["laptop"] })), /runs is a list of/);
   assert.throws(() => declare(el("harness", { kind: "robot", label: "X" })), /kind is/);
   assert.throws(() => declare(el("harness", { kind: "program", label: "X", experimental: "yes" })), /experimental is true or false/);
   assert.throws(() => declare(el("harness", { kind: "api", label: "X", provider: "p", tasks: ["chat"] })), /tasks is a list of/);
