@@ -1,5 +1,6 @@
 /**
- * SCOUTS IN JSX — the two documents of CommandAGI's scouts (docs/scouts.md, in the CommandAGI repository):
+ * SCOUTS IN JSX — the two documents of CommandAGI's scouts (docs/scouts.md, in the CommandAGI repository). The Python
+ * SDK's `scouts.py` and the Rust SDK's `scouts.rs` declare the same documents.
  *
  *   `<name>.scout.tsx`        one comparison to run: the configurations (a harness, a model, an effort, instructions)
  *                             measured on the same cases of each workload, and the rules of the verdict;
