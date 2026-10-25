@@ -5749,6 +5749,12 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "The exhaust it needs, by class: \"general\", \"acid\", \"solvent\", \"toxic gas\", \"pyrophoric\" …",
      "pattern": "\\S"
     },
+    "exhaustFlow": {
+     "type": "number",
+     "description": "The flow that exhaust class needs at the station: the hood's face velocity times its open face, or the cabinet's rated flow, as its datasheet or a cited standard states it. No class gives a flow by itself.",
+     "x-unit": "m3/h",
+     "exclusiveMinimum": 0
+    },
     "interlocks": {
      "type": "array",
      "items": {
