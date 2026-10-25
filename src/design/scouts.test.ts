@@ -76,6 +76,12 @@ test("a tool case offers its tools and their answers", () => {
   assert.throws(() => one({ check: { program: { data: [] } } }), /program is { data: \[\[x, y\], …\] }/);
   assert.throws(() => one({ check: { program: { data: [[1, 4], [2]] } } }), /program is { data: \[\[x, y\], …\] }/);
   assert.throws(() => one({ check: { program: { data: [[1, 4]], tolerance: -1 } } }), /program tolerance is a number of 0 or more/);
+  // A `document` check reads the answer as one of our documents: the file it must be, and what it must say.
+  const docCheck = { document: { as: "world.tsx", expect: { kind: "simulation" } } };
+  const code = declare(el("scout", { budget: 1 }, el("workload", { id: "w" }, el("case", { id: "c", from: "synthetic", prompt: "p", check: docCheck }))));
+  assert.deepEqual((code.document as { workloads: { cases: { check: unknown }[] }[] }).workloads[0]!.cases[0]!.check, docCheck);
+  assert.throws(() => one({ check: { document: { as: "result.txt" } } }), /the file a document's own reader knows by its extension/);
+  assert.throws(() => one({ check: { document: { as: "world.tsx", expect: [] } } }), /document expect is the object the document must hold/);
 });
 
 test("a replacement analysis declares its layers, capabilities with evidence, and its decision; and both ways", () => {
