@@ -28,9 +28,9 @@
  *     </postcard>
  *   );
  *
- * A postcard is 4x6 inches (A6 in Europe), colour, first class. `<front image>` is a ref: a JPEG or PNG relative to
- * the postcard's folder (or an absolute address); it covers the front edge to edge. The `<paragraph>`s are the message
- * on the back, left of the address the provider prints.
+ * A postcard is 4x6 inches (A6 in Europe) unless `size` names 6x9 or 6x11, colour, first class. `<front image>` is a
+ * ref: a JPEG or PNG relative to the postcard's folder (or an absolute address); it covers the front edge to edge. The
+ * `<paragraph>`s are the message on the back, left of the address the provider prints.
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
 
@@ -109,8 +109,14 @@ export const letterVocabulary: Vocabulary<LetterDoc> = {
 
 registerVocabulary(letterVocabulary);
 
+/** The sizes a postcard prints at, in inches. */
+export const POSTCARD_SIZES = ["4x6", "6x9", "6x11"] as const;
+export type PostcardSize = (typeof POSTCARD_SIZES)[number];
+
 /** A postcard as the postal pane edits it. `front` is the ref of its front image. */
 export interface PostcardDoc {
+  /** Absent is 4x6. Lob prints every size; Click2Mail prints only 4x6. */
+  size?: PostcardSize;
   to?: LetterAddress;
   from?: LetterAddress;
   front?: string;
@@ -122,7 +128,7 @@ export const postcardVocabulary: Vocabulary<PostcardDoc> = {
   noun: "a postcard",
   root: "postcard",
   tags: {
-    postcard: { parents: [], attrs: [] },
+    postcard: { parents: [], attrs: ["size"] },
     to: { parents: ["postcard"], single: true, attrs: ADDRESS_FIELDS },
     from: { parents: ["postcard"], single: true, attrs: ADDRESS_FIELDS },
     front: { parents: ["postcard"], single: true, required: ["image"], attrs: ["image"] },
@@ -130,11 +136,15 @@ export const postcardVocabulary: Vocabulary<PostcardDoc> = {
   },
   fromTree(t) {
     check(t);
+    const size = t.attrs.size;
+    if (size !== undefined && !POSTCARD_SIZES.includes(size as PostcardSize))
+      throw new Error(`<postcard> size is ${POSTCARD_SIZES.map((s) => `"${s}"`).join(", ")}, not ${JSON.stringify(size)}`);
     const to = t.children.find((c) => c.tag === "to");
     const from = t.children.find((c) => c.tag === "from");
     const front = t.children.find((c) => c.tag === "front");
     if (front && typeof front.attrs.image !== "string") throw new Error("<front> image is the ref of a JPEG or PNG");
     return {
+      ...(size !== undefined ? { size: size as PostcardSize } : {}),
       ...(to ? { to: { ...to.attrs } as LetterAddress } : {}),
       ...(from ? { from: { ...from.attrs } as LetterAddress } : {}),
       ...(front ? { front: front.attrs.image as string } : {}),
@@ -147,7 +157,7 @@ export const postcardVocabulary: Vocabulary<PostcardDoc> = {
     if (d.from) children.push({ tag: "from", attrs: fields(d.from as Record<string, unknown>, ADDRESS_FIELDS), children: [] });
     if (d.front) children.push({ tag: "front", attrs: { image: d.front }, children: [] });
     for (const text of d.paragraphs ?? []) children.push({ tag: "paragraph", attrs: { text }, children: [] });
-    return { tag: "postcard", attrs: {}, children };
+    return { tag: "postcard", attrs: fields(d as unknown as Record<string, unknown>, ["size"]), children };
   },
   empty: () => ({ paragraphs: [] }),
 };

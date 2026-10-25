@@ -49,3 +49,16 @@ test("a postcard in JSX: <to>, <from>, one <front image> and the message's <para
   assert.throws(() => declarationOf({ default: el("postcard", {}, el("front", {})) }), /image/);
   assert.throws(() => declarationOf({ default: el("postcard", { color: true }) }), /color/);
 });
+
+test("a postcard's size: 4x6, 6x9 or 6x11, both ways; a size no provider prints is refused by name", () => {
+  for (const size of ["4x6", "6x9", "6x11"] as const) {
+    const file = el("postcard", { size }, el("front", { image: "Austin.jpg" }), el("paragraph", { text: "Hi" }));
+    const doc = declarationOf({ default: file }).document!;
+    assert.equal((doc.document as { size?: string }).size, size);
+    assert.deepEqual(POSTAL.postcard.fromTree(POSTAL.postcard.toTree(doc.document as never)), doc.document, "both ways");
+  }
+  assert.throws(
+    () => declarationOf({ default: el("postcard", { size: "5x7" }) }),
+    /size is "4x6", "6x9", "6x11"/,
+  );
+});
