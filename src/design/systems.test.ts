@@ -91,7 +91,8 @@ test("an interface is its frame, pins, holes, messages, params and sides; a side
       el("hole", { id: "m2-a", at: [0, 0], diameter: 2.2 }),
       el("message", { id: "lte-only", text: "AT+CNMP=38" }),
       el("param", { id: "baud", value: 115200, unit: "Bd" }),
-      el("side", { id: "base", ref: "ee/base.circuit.ts", parts: ["J1", "J2"], origin: [0, 1.4] }),
+      el("param", { id: "framing", value: "8N1" }),
+      el("side", { id: "base", ref: "ee/base.circuit.ts", parts: ["J1", "J2"], origin: [0, 1.4], rotation: 90, face: "back" }),
       el("side", { id: "firmware", ref: "fw/config.h", defines: { BOARD: 1 }, pins: { RX_PIN: 4 }, params: { BAUD: "baud" } }),
       el("side", { id: "host", ref: "devices/cam/definition.tsx", channel: "modem", params: { baud: "baud" } }),
     ),
@@ -107,8 +108,14 @@ test("an interface is its frame, pins, holes, messages, params and sides; a side
   assert.throws(bad("pin", { number: 1, signal: "x", at: [1] }), /at is \[x, y\] mm/);
   assert.throws(bad("hole", { id: "h", at: [0, 0, 0] }), /<hole id="h">: at is \[x, y\] mm/);
   assert.throws(bad("message", { id: "m" }), /a message has its text, its code, or both/);
+  assert.throws(bad("param", { id: "p", value: "" }), /value is a number with its unit in unit, or a text/);
+  assert.throws(bad("param", { id: "p", value: "8N1", unit: "Bd" }), /a text value has no unit/);
   assert.throws(bad("side", { id: "s", ref: "x", kind: "mechanical" }), /kind must be one of circuit, 3d, firmware, definition/);
   assert.throws(bad("side", { id: "s", ref: "x", channel: 3 }), /channel is the id of a channel of the device definition/);
+  assert.throws(bad("side", { id: "s", ref: "x", rotation: "90" }), /rotation is the angle the side is turned/);
+  assert.throws(bad("side", { id: "s", ref: "x", face: "sideways" }), /face must be one of top, bottom \(got "sideways"\)/);
+  // A circuit board's faces are front and back; the same word on a 3D part is refused.
+  assert.throws(bad("side", { id: "s", ref: "x.circuit.ts", face: "bottom" }), /face must be one of front, back \(got "bottom"\)/);
   assert.throws(bad("frame", { unit: "in" }), /positions are in mm/);
   assert.throws(() => declare(el("interface", {}, el("frame", {}), el("frame", {}))), /<interface> has one <frame>/);
 });

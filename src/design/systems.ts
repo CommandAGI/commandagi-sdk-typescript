@@ -69,7 +69,14 @@ export const PIN_FIELDS = ["number", "signal", "dir", "voltage", "gpio", "at", "
 export const HOLE_FIELDS = ["id", "at", "diameter", "description"] as const;
 export const MESSAGE_FIELDS = ["id", "text", "code", "define", "dir", "description"] as const;
 export const PARAM_FIELDS = ["id", "value", "unit", "description"] as const;
-export const SIDE_FIELDS = ["id", "ref", "kind", "part", "parts", "channel", "origin", "defines", "pins", "params", "files", "description"] as const;
+export const SIDE_FIELDS = ["id", "ref", "kind", "part", "parts", "channel", "origin", "rotation", "face", "defines", "pins", "params", "files", "description"] as const;
+/** A circuit file's name (`turned.circuit.ts`, `Board.sch.tsx`, `Board.pcb.tsx`): its board has a front and a back. */
+const CIRCUIT_FILE = /\.(?:sch|pcb)\.(?:[jt]sx|py|rs)$|\.circuit\.(?:[jt]sx?|py|rs)$/i;
+/** The faces a side may name, by its kind: a circuit board has a front and a back, a part a top and a bottom. */
+function facesOf(a: Rec): readonly string[] {
+  const kind = typeof a.kind === "string" ? a.kind : CIRCUIT_FILE.test(typeof a.ref === "string" ? a.ref : "") ? "circuit" : "";
+  return kind === "circuit" ? ["front", "back"] : ["top", "bottom"];
+}
 
 type Rec = Record<string, unknown>;
 export interface RequirementsDoc { name?: string; description?: string; requirements?: Rec[] }
@@ -224,10 +231,18 @@ export const interfaceVocabulary: Vocabulary<InterfaceDoc> = {
         check(a.diameter === undefined || isNum(a.diameter), `${at}: diameter is mm`);
       }
       if (c.tag === "message") check(a.text !== undefined || a.code !== undefined, `${at}: a message has its text, its code, or both`);
-      if (c.tag === "param") check(isNum(a.value), `${at}: value is a number (its unit in unit)`);
+      if (c.tag === "param") {
+        // A text is a format, a dialect or a transport (8N1, serial); a number is a quantity with its unit in `unit`.
+        const text = typeof a.value === "string" && a.value.trim();
+        check(isNum(a.value) || text, `${at}: value is a number with its unit in unit, or a text (a format, a dialect, a transport)`);
+        check(!text || a.unit === undefined, `${at}: a text value has no unit`);
+      }
       if (c.tag === "side") {
         check(a.kind === undefined || (SIDE_KINDS as readonly unknown[]).includes(a.kind), `${at}: kind must be one of ${SIDE_KINDS.join(", ")} (got ${JSON.stringify(a.kind)})`);
         check(a.origin === undefined || pair(a.origin, 2) || pair(a.origin, 3), `${at}: origin is where the interface's frame sits in this side's frame, [x, y] or [x, y, z] mm`);
+        check(a.rotation === undefined || isNum(a.rotation), `${at}: rotation is the angle the side is turned in its frame, in degrees counter-clockwise`);
+        const faces = facesOf(a);
+        check(a.face === undefined || (faces as readonly unknown[]).includes(a.face), `${at}: face must be one of ${faces.join(", ")} (got ${JSON.stringify(a.face)})`);
         check(a.parts === undefined || (Array.isArray(a.parts) && a.parts.every((p) => typeof p === "string")), `${at}: parts is a list of part references, whose pins are the interface's in turn`);
         check(a.channel === undefined || typeof a.channel === "string", `${at}: channel is the id of a channel of the device definition`);
       }

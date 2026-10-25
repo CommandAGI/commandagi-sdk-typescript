@@ -48,4 +48,9 @@ test("a postcard in JSX: <to>, <from>, one <front image> and the message's <para
   assert.deepEqual(POSTAL.postcard.fromTree(POSTAL.postcard.toTree(doc.document as never)), doc.document, "both ways");
   assert.throws(() => declarationOf({ default: el("postcard", {}, el("front", {})) }), /image/);
   assert.throws(() => declarationOf({ default: el("postcard", { color: true }) }), /color/);
+  // A size is one the printers know (Lob's 6x9 and 6x11, Click2Mail's 4.25 x 6); one nobody prints does not run.
+  const big = declarationOf({ default: el("postcard", { size: "6x9" }, el("front", { image: "Austin.jpg" })) }).document!;
+  assert.equal((big.document as { size?: string }).size, "6x9");
+  assert.deepEqual(POSTAL.postcard.fromTree(POSTAL.postcard.toTree(big.document as never)), big.document, "both ways");
+  assert.throws(() => declarationOf({ default: el("postcard", { size: "5x7" }) }), /size is "4x6", "6x9", "6x11"/);
 });

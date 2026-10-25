@@ -91,7 +91,8 @@ function checkInput(a: Rec): void {
 /** The placeholders in a text: `${input:name}` (a typed input) and `${env:NAME}` (the host's secret store). */
 function placeholders(s: string): { kind: string; name: string }[] {
   return [...s.matchAll(/\$\{([^}]*)\}/g)].map((m) => {
-    const inner = m[1];
+    // The pattern's one group always matches here (an empty body is still a match); `?? ""` only satisfies the type.
+    const inner = m[1] ?? "";
     const i = inner.indexOf(":");
     return i < 0 ? { kind: "", name: inner } : { kind: inner.slice(0, i), name: inner.slice(i + 1) };
   });
@@ -129,7 +130,7 @@ function checkStep(t: DocTree): void {
   const action = (FLOW_ACTION_KINDS as readonly unknown[]).includes(a.kind);
   if (action) {
     const says = (n: string) => n === "instruction" ? "its instruction" : n === "channel" ? "its channel" : n === "command" ? "its command" : "what it calls (ref)";
-    const missing = ACTION_NEEDS[a.kind as string].filter((n) => a[n] === undefined).map(says);
+    const missing = (ACTION_NEEDS[a.kind as string] ?? []).filter((n) => a[n] === undefined).map(says);
     check(!missing.length, `${at}: a ${a.kind} step states ${missing.join(" and ")}`);
     check(a.tool === undefined && a.by === undefined && a.fixture === undefined, `${at}: an action step names no tool, no fixture and no by: it acts on its channel (or calls what its ref names)`);
     check(!t.children.some((c) => c.tag === "visit" || c.tag === "measure"), `${at}: an action step takes no visit or measure: say what must be observed after it in an <expect>`);
