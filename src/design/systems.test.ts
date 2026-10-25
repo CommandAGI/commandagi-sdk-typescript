@@ -59,10 +59,19 @@ test("a system is its modes, rails, converters, loads, contributions, boms, budg
   assert.deepEqual(SYSTEMS.system.fromTree(SYSTEMS.system.toTree(doc as never)), doc, "both ways");
   const bad = (props: Record<string, unknown>, tag = "budget") => () => declare(el("system", {}, el(tag, props)));
   // Any other quantity is declared by its contributions and names its family by its unit (LABS-09: an exhaust flow).
-  assert.throws(bad({ id: "b", quantity: "Exhaust flow", limit: 1, unit: "m3/h" }), /<budget id="b">: quantity must be one of mass, power, cost, thermal, or a quantity's name/);
+  assert.throws(bad({ id: "b", quantity: "Exhaust flow", limit: 1, unit: "m3/h" }), /<budget id="b">: quantity must be one of mass, power, cost, thermal, rf-link, or a quantity's name/);
   assert.throws(bad({ id: "b", quantity: "exhaust-flow", limit: 600 }), /<budget id="b">: a quantity of exhaust-flow states its unit/);
   assert.throws(bad({ id: "c", quantity: "exhaust-flow", part: "P", value: 35, source: "datasheet" }, "contribution"), /<contribution id="c">: a quantity of exhaust-flow states its unit/);
   assert.equal(declare(el("system", {}, el("contribution", { id: "c", quantity: "exhaust-flow", part: "collar", value: 35, qty: 14, unit: "m3/h", source: "hood datasheet" }), el("budget", { id: "b", quantity: "exhaust-flow", limit: 600, unit: "m3/h" }))).format, "system");
+  // A link budget is a margin in dB: two power levels in dBm and the gains and losses in dB between them.
+  const link = declare(el("system", {},
+    el("contribution", { id: "tx", quantity: "rf-link", part: "U4", value: 23, unit: "dBm", source: "modem datasheet" }),
+    el("contribution", { id: "antenna", quantity: "rf-link", part: "A1", value: 2, unit: "dB", source: "antenna datasheet" }),
+    el("contribution", { id: "path", quantity: "rf-link", part: "the room", value: -70, unit: "dB", source: "estimate: free space at 30 m" }),
+    el("contribution", { id: "rx", quantity: "rf-link", part: "the network", value: -100, unit: "dBm", source: "estimate" }),
+    el("budget", { id: "link", quantity: "rf-link", limit: 6, unit: "dB" }),
+  ));
+  assert.equal(link.format, "system");
   assert.throws(bad({ id: "b", quantity: "power", limit: 1 }), /a power budget names its rail and its mode/);
   assert.deepEqual((doc.loads as Record<string, unknown>[])[0]!.peakCurrent, 0.9);
   assert.throws(bad({ id: "b", quantity: "mass", limit: 1, peak: true }), /peak is true or false, on a power budget/);

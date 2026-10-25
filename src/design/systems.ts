@@ -43,7 +43,9 @@
  * Every ref is a path relative to the file that holds it, with `#` and the id of one element of the file it names.
  * Nothing adds a default. A `<bom>` gives masses; a cost budget reads the logistics roll-up of the design it names
  * (`design`: a 3D document, a schematic or a board with a cost check), the one source of cost, so no contribution is a
- * cost. The checks (a requirement's trace, a budget's roll-up, each side against its interface) are
+ * cost. A link budget (`quantity="rf-link"`) is its margin in dB: two contributions in dBm (the transmitter's power
+ * and the receiver's sensitivity) and the gains (positive) and losses (negative) in dB between them.
+ * The checks (a requirement's trace, a budget's roll-up, each side against its interface) are
  * the host's: `commandagi check <file>`, `commandagi trace <folder>`.
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
@@ -51,7 +53,7 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 /** The verification methods: test and demonstration need a physical run; analysis and inspection a check. */
 export const VERIFICATION_METHODS = ["test", "analysis", "inspection", "demonstration"] as const;
 /** What a budget sums from the design's own records; any other quantity is declared by its contributions, with a unit. */
-export const BUDGET_QUANTITIES = ["mass", "power", "cost", "thermal"] as const;
+export const BUDGET_QUANTITIES = ["mass", "power", "cost", "thermal", "rf-link"] as const;
 /** A declared quantity's name ("exhaust-flow", "floor-area"). */
 export const DECLARED_QUANTITY = /^[a-z][a-z0-9-]*$/;
 /** What a system's `<check>` runs. */
