@@ -38,7 +38,7 @@
  *   <check id kind severity>, <accept id check rule refs net region reason>
  *                                     the checks the board must pass (erc, drc) and the findings it accepts on
  *                                     purpose (`./circuit-checks.ts`)
- *   <component name footprint library pcbX pcbY pcbRotation layer refAt chart uuid kicad>
+ *   <component name footprint library pcbX pcbY pcbRotation layer refAt valueAt chart uuid kicad>
  *                                     the schematic's part `name` on this board: its footprint (one of the editor's
  *                                     own land patterns, BOARD_FOOTPRINTS, or a library footprint by its ref,
  *                                     "Package_SO:SOIC-8", in the `.pretty` folder `library` names: its
@@ -47,7 +47,9 @@
  *                                     (its schematic path). With no pcbX and pcbY it is not placed. The editor
  *                                     reads a library footprint's pads, artwork and attributes from its file. A
  *                                     footprint ref with no library is named only: no pads yet, not placed. On a
- *                                     board with a `surface`, `chart` names the face it sits on.
+ *                                     board with a `surface`, `chart` names the face it sits on. `refAt` and
+ *                                     `valueAt` are where its reference and value texts sit ([x, y] mm in the
+ *                                     footprint's own frame).
  *   <trace name layer width points from to net surface uuid segmentUuids kicad>
  *                                     a copper run: its points ([[x, y], …]) on one copper layer, a finished width.
  *                                     `surface` (true) runs it on the board's surface: its points are in the unfolded
@@ -538,7 +540,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
         case "stack":
           break;
         case "component": {
-          refuseUnknown(el, ["name", "footprint", "library", "pcbX", "pcbY", "pcbRotation", "layer", "refAt", "chart", "uuid", "kicad"]);
+          refuseUnknown(el, ["name", "footprint", "library", "pcbX", "pcbY", "pcbRotation", "layer", "refAt", "valueAt", "chart", "uuid", "kicad"]);
           const ref = el.props.name as string;
           const fp = el.props.footprint;
           const library = el.props.library;
@@ -562,6 +564,12 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
           if (refAt !== undefined && !(Array.isArray(refAt) && refAt.length === 2 && refAt.every((v) => typeof v === "number" && Number.isFinite(v))))
             throw new Error(`${where(el)}: refAt is [x, y] in mm, in the footprint's own frame`);
           if (refAt !== undefined && x === undefined) throw new Error(`${where(el)}: refAt needs pcbX and pcbY`);
+          // Where the value text sits, in the same frame: the layout moves it too where the footprint draws it on a
+          // silkscreen.
+          const valueAt = el.props.valueAt;
+          if (valueAt !== undefined && !(Array.isArray(valueAt) && valueAt.length === 2 && valueAt.every((v) => typeof v === "number" && Number.isFinite(v))))
+            throw new Error(`${where(el)}: valueAt is [x, y] in mm, in the footprint's own frame`);
+          if (valueAt !== undefined && x === undefined) throw new Error(`${where(el)}: valueAt needs pcbX and pcbY`);
           const chart = text(el, "chart");
           if (chart !== undefined && !surface) throw new Error(`${where(el)}: chart names a face of the board's surface, and the <board> has no surface`);
           if (chart !== undefined && x === undefined) throw new Error(`${where(el)}: chart needs pcbX and pcbY`);
@@ -572,6 +580,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
               ...(library !== undefined ? { footprint: fp, library: (library as string).replace(/\/$/, "") } : named ? { footprint: fp } : { footprint: `Authored:${fp}` }),
               ...(x !== undefined ? { placement: { x, y, rot: rot ?? 0, side: side ?? "top" } } : {}),
               ...(refAt !== undefined ? { refAt: [...(refAt as number[])] } : {}),
+              ...(valueAt !== undefined ? { valueAt: [...(valueAt as number[])] } : {}),
               ...(chart !== undefined ? { surfaceMount: { chart } } : {}),
               ...uuidOf(el),
               ...kicad(el),

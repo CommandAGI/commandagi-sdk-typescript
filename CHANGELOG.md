@@ -8,6 +8,10 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- A board's component says where its `valueAt` sits, as `refAt` says where its reference does (`[x, y]` mm in the
+  footprint's own frame): the layout moves a value text the footprint draws on a silkscreen, off copper and the other
+  texts. Python's `component(value_at=…)` and Rust's `component().value_at(…)` are the same attribute.
+
 - A monitor source names the connected account it reads as (`<source connection="gmail@jacobfv123@gmail.com">`); the api worker reads it (`via="worker"` only).
 
 Added
