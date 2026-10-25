@@ -130,6 +130,25 @@ test("a board on the faces of a CAD part: its surface, each component's face and
   assert.throws(() => board({}, jsx("trace", { layer: "F.Cu", width: 0.3, points: [[4, 5], [9, 5]], surface: true }))(), /has no surface/);
 });
 
+test("an IC mask layout is declared as <masks>: its polygons, the stream's units and its library", () => {
+  const polygons = [
+    { layer: 1, datatype: 0, points: [[0, 0], [4, 0], [4, 2], [0, 2]] },
+    { layer: 2, datatype: 1, points: [[1, 1], [3, 1], [2, 1.5]] },
+  ];
+  const g = board({ width: 10, height: 10 }, jsx("masks", { polygons, unitUmPerDb: 0.001, libName: "Inverter", __source: 2 }))();
+  assert.deepEqual(g.nodes.masks, { id: "masks", type: "eda.masks", label: "Inverter", inputs: { polygons, unitUmPerDb: 0.001, libName: "Inverter" }, meta: { source: 2 } });
+  assert.ok(g.nodes.board, "the outline is the board's");
+  // A die is its layout alone: the file declares the layout and, with no board fact, no board.
+  const die = board({}, jsx("masks", { polygons, unitUmPerDb: 0.001 }))();
+  assert.equal(die.nodes.board, undefined);
+  assert.equal(die.nodes.masks!.label, "Masks", "with no library, the layout is called Masks");
+  assert.throws(() => board({}, jsx("masks", { unitUmPerDb: 0.001 }))(), /<masks> needs polygons/);
+  assert.throws(() => board({}, jsx("masks", { polygons: [{ layer: 1, datatype: 0, points: [[0, 0], [1, 1]] }], unitUmPerDb: 0.001 }))(), /polygons is the mask layout's polygons/);
+  assert.throws(() => board({}, jsx("masks", { polygons, unitUmPerDb: 0 }))(), /unitUmPerDb is more than 0/);
+  assert.throws(() => board({}, jsx("masks", { polygons }))(), /<masks> needs unitUmPerDb/);
+  assert.throws(() => board({}, jsx("masks", { polygons, unitUmPerDb: 0.001 }), jsx("masks", { polygons, unitUmPerDb: 0.001 }))(), /one <masks>/);
+});
+
 test("a net class states the rules a four-layer board needs: least width, inner layers, edge and hole gaps, spokes", () => {
   const g = board({ width: 60, height: 40 }, jsx("netclass", { name: "Default", nets: ["*"], width: 0.2, minWidth: 0.15, clearance: 0.2, edgeClearance: 0.3, holeClearance: 0.15, inner: { clearance: 0.15, width: 0.15 }, minSpokes: 1 }))();
   assert.deepEqual(Object.values(g.nodes).find((n) => n.type === "eda.boardfact")!.inputs, { fact: "netclass", name: "Default", nets: ["*"], width: 0.2, minWidth: 0.15, clearance: 0.2, edgeClearance: 0.3, holeClearance: 0.15, inner: { clearance: 0.15, width: 0.15 }, minSpokes: 1 });
