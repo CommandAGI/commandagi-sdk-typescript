@@ -20,7 +20,7 @@
  *
  *   // Cards/Austin.postcard.tsx
  *   export default () => (
- *     <postcard>
+ *     <postcard size="6x9">
  *       <to name="Ada Lovelace" line1="500 Elm St" city="Austin" region="TX" postalCode="78702" country="US" />
  *       <from name="Northwind Survey" line1="1 Main St" city="Portland" region="OR" postalCode="97201" country="US" />
  *       <front image="Austin.jpg" />
@@ -37,6 +37,10 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 
 export const ADDRESS_FIELDS = ["name", "company", "line1", "line2", "city", "region", "postalCode", "country"] as const;
 export const LETTER_FIELDS = ["color", "doubleSided", "mailClass"] as const;
+export const POSTCARD_FIELDS = ["size"] as const;
+/** A postcard's sizes, in inches. Absent: 4x6. */
+export type PostcardSize = "4x6" | "6x9" | "6x11";
+export const POSTCARD_SIZES: readonly PostcardSize[] = ["4x6", "6x9", "6x11"];
 
 export interface LetterAddress {
   name?: string;
@@ -118,7 +122,7 @@ export const letterVocabulary: Vocabulary<LetterDoc> = {
 
 registerVocabulary(letterVocabulary);
 
-/** A postcard as the postal pane edits it. `front` is the ref of its front image. */
+/** A postcard as the postal pane edits it. `front` is the ref of its front image; `size` absent means 4x6. */
 export interface PostcardDoc {
   /** The card's size; absent is 4x6. */
   size?: PostcardSize;
@@ -128,15 +132,12 @@ export interface PostcardDoc {
   paragraphs: string[];
 }
 
-export const POSTCARD_SIZES = ["4x6", "6x9", "6x11"] as const;
-export type PostcardSize = (typeof POSTCARD_SIZES)[number];
-
 export const postcardVocabulary: Vocabulary<PostcardDoc> = {
   format: "postcard",
   noun: "a postcard",
   root: "postcard",
   tags: {
-    postcard: { parents: [], attrs: ["size"] },
+    postcard: { parents: [], attrs: POSTCARD_FIELDS },
     to: { parents: ["postcard"], single: true, attrs: ADDRESS_FIELDS },
     from: { parents: ["postcard"], single: true, attrs: ADDRESS_FIELDS },
     front: { parents: ["postcard"], single: true, required: ["image"], attrs: ["image"] },

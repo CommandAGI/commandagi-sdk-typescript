@@ -30,10 +30,10 @@ test("a letter in JSX: <to>, <from> and <paragraph text> children; both ways", (
   assert.throws(() => declarationOf({ default: el("letter", {}, el("to", {}), el("to", {})) }), /<letter> has one <to>/);
 });
 
-test("a postcard in JSX: <to>, <from>, one <front image> and the message's <paragraph>s; both ways", () => {
+test("a postcard in JSX: <to>, <from>, one <front image>, its <paragraph>s and a size; both ways", () => {
   const file = el(
     "postcard",
-    {},
+    { size: "6x9" },
     el("to", { name: "Ada Lovelace", line1: "500 Elm St", city: "Austin", region: "TX", postalCode: "78702", country: "US" }),
     el("front", { image: "Austin.jpg" }),
     el("paragraph", { text: "Greetings from Austin!" }),
@@ -41,11 +41,14 @@ test("a postcard in JSX: <to>, <from>, one <front image> and the message's <para
   const doc = declarationOf({ default: file }).document!;
   assert.equal(doc.format, "postcard");
   assert.deepEqual(doc.document, {
+    size: "6x9",
     to: { name: "Ada Lovelace", line1: "500 Elm St", city: "Austin", region: "TX", postalCode: "78702", country: "US" },
     front: "Austin.jpg",
     paragraphs: ["Greetings from Austin!"],
   });
   assert.deepEqual(POSTAL.postcard.fromTree(POSTAL.postcard.toTree(doc.document as never)), doc.document, "both ways");
+  const plain = declarationOf({ default: el("postcard", {}, el("front", { image: "A.jpg" })) }).document!;
+  assert.equal((plain.document as { size?: string }).size, undefined, "a card that names no size is 4x6");
   assert.throws(() => declarationOf({ default: el("postcard", {}, el("front", {})) }), /image/);
   assert.throws(() => declarationOf({ default: el("postcard", { color: true }) }), /color/);
 });
