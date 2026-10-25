@@ -25,6 +25,10 @@
  *   <stack name label domain units process layers overallThickness>
  *                                     the cross-section, layer by layer (top first), when it is more than core and
  *                                     copper: each { name, role, thickness, material, copperWeightOz, ply, … }.
+ *   <masks name label libName unitUmPerDb polygons>
+ *                                     an IC mask layout, flattened: each polygon { layer, datatype, points } with
+ *                                     points in micrometres, the stream's units (micrometres per database unit) and
+ *                                     the library the stream names.
  *   <graphic kind layer points width filled id kicad>
  *                                     a board drawing (`line`, `arc`, `circle`, `rect`, `poly`) on a layer: the
  *                                     outline is graphics on Edge.Cuts when it is not the width × height rectangle.
@@ -210,6 +214,25 @@ function plain(el: DesignElement, prop: string, check: (v: unknown) => boolean, 
 }
 const isObject = (v: unknown) => !!v && typeof v === "object" && !Array.isArray(v);
 
+/** A flattened mask layout's polygons: each `{ layer, datatype, points }`, its points `[x, y]` in micrometres. */
+function isMaskPolygons(v: unknown): boolean {
+  const polygon = (p: unknown): boolean => {
+    if (!isObject(p)) return false;
+    const { layer, datatype, points } = p as { layer?: unknown; datatype?: unknown; points?: unknown };
+    return (
+      Number.isInteger(layer) &&
+      (layer as number) >= 0 &&
+      Number.isInteger(datatype) &&
+      (datatype as number) >= 0 &&
+      Array.isArray(points) &&
+      points.length >= 3 &&
+      points.every((q) => Array.isArray(q) && q.length === 2 && q.every((c) => typeof c === "number" && Number.isFinite(c))) &&
+      Object.keys(p as object).every((k) => ["layer", "datatype", "points"].includes(k))
+    );
+  };
+  return Array.isArray(v) && v.length > 0 && v.every(polygon);
+}
+
 /** A trace point's id: the editor's own (`start`, `end`, and `p<i>` between them). */
 export function tracePointId(index: number, count: number): string {
   return index === 0 ? "start" : index === count - 1 ? "end" : `p${index}`;
@@ -393,6 +416,8 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
     if ((core === undefined) !== (copper === undefined)) throw new Error("<board>: give core and copper together");
     const stacks = children.filter((el) => el.type === "stack");
     if (stacks.length > 1) throw new Error("a board has one <stack>");
+    const maskLayouts = children.filter((el) => el.type === "masks");
+    if (maskLayouts.length > 1) throw new Error("a board has one <masks>");
     if (stacks.length && core !== undefined) throw new Error("<board>: core and copper are a two-layer <stack>; give one or the other");
     if (thickness !== undefined && core !== undefined) throw new Error("<board>: core and copper say the thickness");
     if (core !== undefined && w === undefined) throw new Error("<board>: core and copper need the outline (width and height)");
@@ -490,7 +515,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
         const key = el.type === "objective" ? "objective" : typeof nm === "string" ? `${el.type}:${nm}` : null;
         if (key && constraintNames.has(key)) throw new Error(el.type === "objective" ? "a board has one <objective>" : `two <${el.type}> elements are called ${nm}`);
         if (key) constraintNames.add(key);
-      } else if (el.type !== "stack" && !FACTS.has(el.type)) throw new Error(`<${el.type}> is not read on a board (see commandagi/design pcb)`);
+      } else if (el.type !== "stack" && el.type !== "masks" && !FACTS.has(el.type)) throw new Error(`<${el.type}> is not read on a board (see commandagi/design pcb)`);
     }
     const idOf = new Map<DesignElement, string>([...conductors.values()].map((c) => [c.el, c.id]));
     for (const el of children) if (CONDUCTORS.has(el.type) && !idOf.has(el)) idOf.set(el, freeId());
@@ -537,6 +562,18 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
       switch (el.type) {
         case "stack":
           break;
+        case "masks": {
+          refuseUnknown(el, ["name", "label", "libName", "unitUmPerDb", "polygons"]);
+          const maskPolygons = plain(el, "polygons", isMaskPolygons, "the mask layout's polygons: [{ layer, datatype, points: [[x, y], …] }, …], points in micrometres");
+          if (maskPolygons === undefined) throw new Error("<masks> needs polygons");
+          const libName = text(el, "libName");
+          s.add(
+            "eda.masks",
+            { polygons: maskPolygons, unitUmPerDb: positive(el, "unitUmPerDb", true), ...(libName !== undefined ? { libName } : {}) },
+            { id: text(el, "name") ?? "masks", label: text(el, "label") ?? libName ?? "Masks", meta: meta(el) },
+          );
+          break;
+        }
         case "component": {
           refuseUnknown(el, ["name", "footprint", "library", "pcbX", "pcbY", "pcbRotation", "layer", "refAt", "chart", "uuid", "kicad"]);
           const ref = el.props.name as string;
