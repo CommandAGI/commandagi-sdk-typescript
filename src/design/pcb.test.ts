@@ -13,7 +13,7 @@ test("a <board> that names its schematic declares the board half: outline, stack
   const g = board(
     { width: 40, height: 30, core: 1.5, copper: 0.035, __source: 0 },
     jsx("component", { name: "R1", footprint: "smd-0805", pcbX: 10, pcbY: 10, __source: 1 }),
-    jsx("component", { name: "R2", footprint: "axial-7.62", pcbX: 25, pcbY: 10, pcbRotation: 90, layer: "bottom", refAt: [0, -2.5] }),
+    jsx("component", { name: "R2", footprint: "axial-7.62", pcbX: 25, pcbY: 10, pcbRotation: 90, layer: "bottom", refAt: [0, -2.5], refRot: 90 }),
     jsx("component", { name: "V1", footprint: "smd-0805" }),
     jsx("trace", { layer: "F.Cu", width: 0.2, points: [[11, 10], [18, 14], [24, 10]], from: ".R1 > .pin2", to: ".R2 > .1", __source: 4 }),
     jsx("trace", { layer: "B.Cu", width: 0.25, points: [[18, 14], [18, 20]], from: ".VIA1" }),
@@ -33,6 +33,7 @@ test("a <board> that names its schematic declares the board half: outline, stack
   assert.deepEqual(g.nodes.fp_R1!, { id: "fp_R1", type: "eda.footprint", label: "R1", inputs: { ref: "R1", footprint: "Authored:smd-0805", placement: { x: 10, y: 10, rot: 0, side: "top" } }, meta: { source: 1 } });
   assert.deepEqual(g.nodes.fp_R2!.inputs.placement, { x: 25, y: 10, rot: 90, side: "bottom" });
   assert.deepEqual(g.nodes.fp_R2!.inputs.refAt, [0, -2.5]);
+  assert.equal(g.nodes.fp_R2!.inputs.refRot, 90, "the reference text is turned a quarter where it sits");
   assert.equal(g.nodes.fp_V1!.inputs.placement, undefined, "a footprint with no pcbX and pcbY is not placed");
   assert.deepEqual(g.nodes.cu_1!.inputs, {
     kind: "run",
@@ -71,6 +72,7 @@ test("a board refuses, by name, what it cannot say", () => {
   assert.throws(board({}, jsx("component", { name: "R1", footprint: "0603" })), /footprint is one of smd-0805/);
   assert.throws(board({}, jsx("component", { name: "R1", footprint: "smd-0805", schX: 3 })), /schX is the schematic's/);
   assert.throws(board({}, jsx("component", { name: "R1", footprint: "smd-0805", pcbX: 3 })), /pcbX and pcbY together/);
+  assert.throws(board({}, jsx("component", { name: "R1", footprint: "smd-0805", refRot: 90 })), /refRot needs pcbX and pcbY/);
   assert.throws(board({}, jsx("resistor", { name: "R1" })), /<resistor> is not read on a board/);
   assert.throws(board({ width: 10 }), /width and height together/);
   assert.throws(board({}, jsx("trace", { layer: "F.SilkS", width: 0.2, points: [[0, 0], [1, 0]] })), /copper layer/);
