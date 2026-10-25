@@ -32,7 +32,8 @@
  *       <pin number={2} signal="GND" required at={[2.54, 0]} />
  *       <param id="baud" value={115200} unit="Bd" />
  *       <message id="hello" text="AT" />
- *       <side id="main" ref="ee/main.circuit.ts" part="J1" />
+ *       <channel dir="duplex" medium="records" format="state" transport="serial" />
+ *       <side id="main" ref="ee/main.circuit.ts" part="J1" rotate={90} />
  *       <side id="firmware" ref="firmware/config.h" defines={{ BOARD_MAIN: 1 }} params={{ LINK_BAUD: "baud" }} />
  *     </interface>
  *   );
@@ -57,6 +58,9 @@ export const DECLARED_QUANTITY = /^[a-z][a-z0-9-]*$/;
 export const SYSTEM_CHECK_KINDS = ["interface", "trace"] as const;
 /** What a side of an interface is, when its file does not say. */
 export const SIDE_KINDS = ["circuit", "3d", "firmware", "definition"] as const;
+/** A channel's direction, and what it carries: the channel vocabulary of a device definition (docs/devices.md). */
+export const CHANNEL_DIRS = ["in", "out", "duplex"] as const;
+export const CHANNEL_MEDIA = ["records", "video", "audio", "bytes"] as const;
 
 export const REQUIREMENT_FIELDS = ["id", "text", "rationale", "method", "verifiedBy", "design", "parent"] as const;
 export const MODE_FIELDS = ["id", "description"] as const;
@@ -69,12 +73,13 @@ export const PIN_FIELDS = ["number", "signal", "dir", "voltage", "gpio", "at", "
 export const HOLE_FIELDS = ["id", "at", "diameter", "description"] as const;
 export const MESSAGE_FIELDS = ["id", "text", "code", "define", "dir", "description"] as const;
 export const PARAM_FIELDS = ["id", "value", "unit", "description"] as const;
-export const SIDE_FIELDS = ["id", "ref", "kind", "part", "parts", "channel", "origin", "defines", "pins", "params", "files", "description"] as const;
+export const SIDE_FIELDS = ["id", "ref", "kind", "part", "parts", "channel", "origin", "rotate", "flip", "defines", "pins", "params", "files", "description"] as const;
+export const CHANNEL_FIELDS = ["format", "dir", "medium", "dialect", "transport", "description"] as const;
 
 type Rec = Record<string, unknown>;
 export interface RequirementsDoc { name?: string; description?: string; requirements?: Rec[] }
 export interface SystemDoc { name?: string; description?: string; modes?: Rec[]; rails?: Rec[]; converters?: Rec[]; loads?: Rec[]; contributions?: Rec[]; boms?: Rec[]; budgets?: Rec[]; checks?: Rec[] }
-export interface InterfaceDoc { name?: string; description?: string; frame?: Rec; pins?: Rec[]; holes?: Rec[]; messages?: Rec[]; params?: Rec[]; sides?: Rec[] }
+export interface InterfaceDoc { name?: string; description?: string; frame?: Rec; pins?: Rec[]; holes?: Rec[]; messages?: Rec[]; params?: Rec[]; channel?: Rec; sides?: Rec[] }
 
 const own = (o: Rec, keys: readonly string[]): Rec => {
   const out: Rec = {};
@@ -195,7 +200,7 @@ export const systemVocabulary: Vocabulary<SystemDoc> = {
 };
 
 const INTERFACE_LISTS = { pin: "pins", hole: "holes", message: "messages", param: "params", side: "sides" };
-const INTERFACE_TAG_FIELDS: Record<string, readonly string[]> = { pin: PIN_FIELDS, hole: HOLE_FIELDS, message: MESSAGE_FIELDS, param: PARAM_FIELDS, side: SIDE_FIELDS };
+const INTERFACE_TAG_FIELDS: Record<string, readonly string[]> = { pin: PIN_FIELDS, hole: HOLE_FIELDS, message: MESSAGE_FIELDS, param: PARAM_FIELDS, channel: CHANNEL_FIELDS, side: SIDE_FIELDS };
 export const interfaceVocabulary: Vocabulary<InterfaceDoc> = {
   format: "interface",
   noun: "an interface",
@@ -207,6 +212,7 @@ export const interfaceVocabulary: Vocabulary<InterfaceDoc> = {
     hole: { parents: ["interface"], key: "id", required: ["id", "at"], attrs: HOLE_FIELDS },
     message: { parents: ["interface"], key: "id", required: ["id"], attrs: MESSAGE_FIELDS },
     param: { parents: ["interface"], key: "id", required: ["id", "value"], attrs: PARAM_FIELDS },
+    channel: { parents: ["interface"], single: true, attrs: CHANNEL_FIELDS },
     side: { parents: ["interface"], key: "id", required: ["id", "ref"], attrs: SIDE_FIELDS },
   },
   fromTree(t) {
@@ -228,19 +234,27 @@ export const interfaceVocabulary: Vocabulary<InterfaceDoc> = {
       if (c.tag === "side") {
         check(a.kind === undefined || (SIDE_KINDS as readonly unknown[]).includes(a.kind), `${at}: kind must be one of ${SIDE_KINDS.join(", ")} (got ${JSON.stringify(a.kind)})`);
         check(a.origin === undefined || pair(a.origin, 2) || pair(a.origin, 3), `${at}: origin is where the interface's frame sits in this side's frame, [x, y] or [x, y, z] mm`);
+        check(a.rotate === undefined || isNum(a.rotate), `${at}: rotate is the interface's frame turned as this side has it, in degrees counter-clockwise`);
+        check(a.flip === undefined || typeof a.flip === "boolean", `${at}: flip is true or false (true: this side is seen from the mating board, its x the other way)`);
         check(a.parts === undefined || (Array.isArray(a.parts) && a.parts.every((p) => typeof p === "string")), `${at}: parts is a list of part references, whose pins are the interface's in turn`);
         check(a.channel === undefined || typeof a.channel === "string", `${at}: channel is the id of a channel of the device definition`);
       }
+      if (c.tag === "channel") {
+        check(typeof a.format === "string" && a.format.trim(), `${at}: format is the channel's format, a name ("state", "lines", "gcode-chat")`);
+        check(a.dir === undefined || (CHANNEL_DIRS as readonly unknown[]).includes(a.dir), `${at}: dir must be one of ${CHANNEL_DIRS.join(", ")} (got ${JSON.stringify(a.dir)})`);
+        check(a.medium === undefined || (CHANNEL_MEDIA as readonly unknown[]).includes(a.medium), `${at}: medium must be one of ${CHANNEL_MEDIA.join(", ")} (got ${JSON.stringify(a.medium)})`);
+        for (const k of ["dialect", "transport"]) check(a[k] === undefined || (typeof a[k] === "string" && (a[k] as string).trim()), `${at}: ${k} is a name (${k}="usb-serial")`);
+      }
     }
-    const frame = t.children.find((c) => c.tag === "frame");
-    return { ...own(t.attrs, ["name", "description"]), ...(frame ? { frame: { ...frame.attrs } } : {}), ...lists({ ...t, children: t.children.filter((c) => c.tag !== "frame") }, INTERFACE_LISTS) };
+    const one = (tag: string) => { const c = t.children.find((x) => x.tag === tag); return c ? { [tag]: { ...c.attrs } } : {}; };
+    return { ...own(t.attrs, ["name", "description"]), ...one("frame"), ...one("channel"), ...lists({ ...t, children: t.children.filter((c) => c.tag !== "frame" && c.tag !== "channel") }, INTERFACE_LISTS) };
   },
   toTree(d) {
-    const frame = (d as Rec).frame as Rec | undefined;
+    const one = (tag: string, fields: readonly string[]) => { const r = (d as Rec)[tag] as Rec | undefined; return r ? [{ tag, attrs: own(r, fields), children: [] }] : []; };
     return {
       tag: "interface",
       attrs: own(d as Rec, ["name", "description"]),
-      children: [...(frame ? [{ tag: "frame", attrs: own(frame, ["description", "unit"]), children: [] }] : []), ...children(d as Rec, INTERFACE_LISTS, INTERFACE_TAG_FIELDS)],
+      children: [...one("frame", ["description", "unit"]), ...one("channel", CHANNEL_FIELDS), ...children(d as Rec, INTERFACE_LISTS, INTERFACE_TAG_FIELDS)],
     };
   },
   empty: (name) => ({ name }),

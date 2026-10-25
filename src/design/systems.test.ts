@@ -91,7 +91,8 @@ test("an interface is its frame, pins, holes, messages, params and sides; a side
       el("hole", { id: "m2-a", at: [0, 0], diameter: 2.2 }),
       el("message", { id: "lte-only", text: "AT+CNMP=38" }),
       el("param", { id: "baud", value: 115200, unit: "Bd" }),
-      el("side", { id: "base", ref: "ee/base.circuit.ts", parts: ["J1", "J2"], origin: [0, 1.4] }),
+      el("channel", { format: "lines", dir: "duplex", medium: "records", dialect: "at", transport: "usb-serial" }),
+      el("side", { id: "base", ref: "ee/base.circuit.ts", parts: ["J1", "J2"], origin: [0, 1.4], rotate: 90, flip: true }),
       el("side", { id: "firmware", ref: "fw/config.h", defines: { BOARD: 1 }, pins: { RX_PIN: 4 }, params: { BAUD: "baud" } }),
       el("side", { id: "host", ref: "devices/cam/definition.tsx", channel: "modem", params: { baud: "baud" } }),
     ),
@@ -99,6 +100,8 @@ test("an interface is its frame, pins, holes, messages, params and sides; a side
   assert.equal(d.format, "interface");
   const doc = d.document as Record<string, unknown>;
   assert.deepEqual(doc.frame, { description: "the base board's top, pin 1 at the origin", unit: "mm" });
+  assert.deepEqual(doc.channel, { format: "lines", dir: "duplex", medium: "records", dialect: "at", transport: "usb-serial" }, "the link's own channel, one element");
+  assert.deepEqual((doc.sides as unknown[])[0], { id: "base", ref: "ee/base.circuit.ts", parts: ["J1", "J2"], origin: [0, 1.4], rotate: 90, flip: true });
   assert.deepEqual((doc.sides as unknown[])[1], { id: "firmware", ref: "fw/config.h", defines: { BOARD: 1 }, pins: { RX_PIN: 4 }, params: { BAUD: "baud" } });
   assert.deepEqual((doc.sides as unknown[])[2], { id: "host", ref: "devices/cam/definition.tsx", channel: "modem", params: { baud: "baud" } });
   assert.deepEqual(SYSTEMS.interface.fromTree(SYSTEMS.interface.toTree(doc as never)), doc, "both ways");
@@ -111,4 +114,13 @@ test("an interface is its frame, pins, holes, messages, params and sides; a side
   assert.throws(bad("side", { id: "s", ref: "x", channel: 3 }), /channel is the id of a channel of the device definition/);
   assert.throws(bad("frame", { unit: "in" }), /positions are in mm/);
   assert.throws(() => declare(el("interface", {}, el("frame", {}), el("frame", {}))), /<interface> has one <frame>/);
+  // A side placed turned, or seen from the mating board, says so; the checks place its positions with it.
+  assert.throws(bad("side", { id: "s", ref: "x", rotate: "90" }), /rotate is the interface's frame turned as this side has it/);
+  assert.throws(bad("side", { id: "s", ref: "x", flip: "yes" }), /flip is true or false/);
+  // The link's channel: a format, a dialect, a transport a definition side's channel is held to.
+  assert.throws(bad("channel", { dir: "duplex" }), /<channel>: format is the channel's format/);
+  assert.throws(bad("channel", { format: "lines", dir: "sideways" }), /dir must be one of in, out, duplex \(got "sideways"\)/);
+  assert.throws(bad("channel", { format: "lines", medium: "light" }), /medium must be one of records, video, audio, bytes/);
+  assert.throws(bad("channel", { format: "lines", transport: 3 }), /transport is a name/);
+  assert.throws(() => declare(el("interface", {}, el("channel", { format: "lines" }), el("channel", { format: "state" }))), /<interface> has one <channel>/);
 });
