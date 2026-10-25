@@ -12,8 +12,8 @@
  * A record is an element and its fields are the element's attributes, verbatim; a list of records is the parent's
  * children (`units` → `<unit>`, `channels` → `<channel>`, a scene's `bodies` → `<body>`). The tags:
  *
- *   <world name kind description? from? model?    world.tsx             <space origin_mm size_mm>, <unit uid …>,
- *          links?>                                                       <view …>, <scene …> (<body id …> children)
+ *   <world name kind description? from? model?    world.tsx             <space origin_mm size_mm>, <group uid …>,
+ *          links?>                                                       <unit uid …>, <view …>, <scene …> (<body id …>)
  *   <device name … firmware? revision?>           definition.tsx        <channel id dir medium format transport …>
  *   <dashboard name …>                            <name>.dashboard.tsx   <param id type …>, one layout: <split axis
  *                                                                        ratio> of two <split>|<pane id kind …>, or
@@ -45,7 +45,13 @@ const leaf = (tag: string, attrs: Record<string, unknown>): DocTree => ({ tag, a
 
 /** The fields of a unit in a world's file (packages/domain/world/worlds.js). */
 /** `serial`: the serial number of the one physical thing a unit is; `revision`: its hardware revision (a firmware release says which it supports). */
-export const UNIT_FIELDS = ["uid", "name", "device", "serial", "revision", "domain", "size_mm", "support", "channels", "manualUrl", "position", "rotation", "tilt_deg", "release"] as const;
+export const UNIT_FIELDS = ["uid", "name", "device", "serial", "revision", "domain", "group", "size_mm", "support", "channels", "manualUrl", "position", "rotation", "tilt_deg", "release"] as const;
+/**
+ * The fields of a group in a world's file (packages/domain/world/worlds.js): what one unit stands in — a shelf level, a
+ * bench, a rack, a desk. `group` nests a group in another (a shelf holds its levels); `size_mm` with `position` and
+ * `rotation` is the box the world view draws. A group has no device and no channel: nothing runs or is granted on it.
+ */
+export const GROUP_FIELDS = ["uid", "name", "description", "group", "size_mm", "position", "rotation"] as const;
 /**
  * `links`: the parts of the world's model that a run moves (packages/domain/world/pose.js modelPose). A definition's
  * link grammar, with the unit named in each joint and emit: `links={[{ node: "ram", joint: { unit: "press-1",
@@ -58,6 +64,7 @@ export interface WorldDoc {
   name: string;
   kind: "physical" | "simulation";
   units: Record<string, unknown>[];
+  groups?: Record<string, unknown>[];
   [field: string]: unknown;
 }
 
@@ -68,6 +75,7 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
   tags: {
     world: { parents: [], required: ["name", "kind"], attrs: WORLD_FIELDS },
     space: { parents: ["world"], single: true, required: ["origin_mm", "size_mm"], attrs: ["origin_mm", "size_mm"] },
+    group: { parents: ["world"], key: "uid", required: ["uid", "name"], attrs: GROUP_FIELDS },
     unit: { parents: ["world"], key: "uid", required: ["uid", "name", "device"], attrs: UNIT_FIELDS },
     view: { parents: ["world"], single: true },
     scene: { parents: ["world"], single: true },
@@ -76,10 +84,11 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
   fromTree(t) {
     if (t.attrs.kind !== "physical" && t.attrs.kind !== "simulation") throw new Error(`<world> kind is "physical" or "simulation", said explicitly, not ${JSON.stringify(t.attrs.kind)}`);
     const space = childrenOf(t, "space")[0], view = childrenOf(t, "view")[0], scene = childrenOf(t, "scene")[0];
-    const bodies = scene ? childrenOf(scene, "body") : [];
+    const bodies = scene ? childrenOf(scene, "body") : [], groups = childrenOf(t, "group");
     return {
       ...(own(t.attrs, WORLD_FIELDS) as { name: string; kind: "physical" | "simulation" }),
       ...(space ? { space: { ...space.attrs } } : {}),
+      ...(groups.length ? { groups: groups.map((g) => ({ ...g.attrs })) } : {}),
       units: childrenOf(t, "unit").map((u) => ({ ...u.attrs })),
       ...(view ? { view: { ...view.attrs } } : {}),
       ...(scene ? { scene: { ...scene.attrs, ...(bodies.length ? { bodies: bodies.map((b) => ({ ...b.attrs })) } : {}) } } : {}),
@@ -88,6 +97,7 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
   toTree(w) {
     const children: DocTree[] = [];
     if (isRecord(w.space)) children.push(leaf("space", { ...w.space }));
+    for (const g of w.groups ?? []) children.push(leaf("group", own(g, GROUP_FIELDS)));
     for (const u of w.units ?? []) children.push(leaf("unit", own(u, UNIT_FIELDS)));
     if (isRecord(w.view)) children.push(leaf("view", { ...w.view }));
     if (isRecord(w.scene)) {
