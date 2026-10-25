@@ -8,6 +8,7 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- A case's check may be a `document` (`check={{ document: { as: "world.tsx", expect: { … } } }}`): the answer is one of our documents in code, in the file the check names, read by that document's own reader and held to what it must say. The scouts' runner scores it in the code sandbox (`docs/scouts.md` § compare).
 - A monitor source names the connected account it reads as (`<source connection="gmail@jacobfv123@gmail.com">`); the api worker reads it (`via="worker"` only).
 
 Added
