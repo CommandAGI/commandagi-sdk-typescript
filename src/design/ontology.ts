@@ -13,7 +13,8 @@
  * children (`units` → `<unit>`, `channels` → `<channel>`, a scene's `bodies` → `<body>`). The tags:
  *
  *   <world name kind description? from? model?    world.tsx             <space origin_mm size_mm>, <unit uid …>,
- *          links?>                                                       <view …>, <scene …> (<body id …> children)
+ *          links?>                                                       <view …>, <scene …> (<body id …>,
+ *                                                                        <camera id …> children)
  *   <device name … firmware? revision?>           definition.tsx        <channel id dir medium format transport …>
  *   <dashboard name …>                            <name>.dashboard.tsx   <param id type …>, one layout: <split axis
  *                                                                        ratio> of two <split>|<pane id kind …>, or
@@ -53,6 +54,11 @@ export const UNIT_FIELDS = ["uid", "name", "device", "serial", "revision", "doma
  * the model's feature that makes the part. A model with no links is drawn as it is.
  */
 const WORLD_FIELDS = ["name", "kind", "description", "from", "model", "links"] as const;
+/**
+ * A camera of a world's scene (packages/domain/world/sim.js CAMERA_FIELDS): where it stands and what it looks at
+ * (metres), and the picture it records. Its `id` is the uid of the unit whose `video` channel records it.
+ */
+export const CAMERA_FIELDS = ["id", "at", "look_at", "up", "fov_deg", "width", "height"] as const;
 
 export interface WorldDoc {
   name: string;
@@ -72,17 +78,18 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
     view: { parents: ["world"], single: true },
     scene: { parents: ["world"], single: true },
     body: { parents: ["scene"], key: "id", required: ["id"] },
+    camera: { parents: ["scene"], key: "id", required: ["id"], attrs: CAMERA_FIELDS },
   },
   fromTree(t) {
     if (t.attrs.kind !== "physical" && t.attrs.kind !== "simulation") throw new Error(`<world> kind is "physical" or "simulation", said explicitly, not ${JSON.stringify(t.attrs.kind)}`);
     const space = childrenOf(t, "space")[0], view = childrenOf(t, "view")[0], scene = childrenOf(t, "scene")[0];
-    const bodies = scene ? childrenOf(scene, "body") : [];
+    const bodies = scene ? childrenOf(scene, "body") : [], cameras = scene ? childrenOf(scene, "camera") : [];
     return {
       ...(own(t.attrs, WORLD_FIELDS) as { name: string; kind: "physical" | "simulation" }),
       ...(space ? { space: { ...space.attrs } } : {}),
       units: childrenOf(t, "unit").map((u) => ({ ...u.attrs })),
       ...(view ? { view: { ...view.attrs } } : {}),
-      ...(scene ? { scene: { ...scene.attrs, ...(bodies.length ? { bodies: bodies.map((b) => ({ ...b.attrs })) } : {}) } } : {}),
+      ...(scene ? { scene: { ...scene.attrs, ...(bodies.length ? { bodies: bodies.map((b) => ({ ...b.attrs })) } : {}), ...(cameras.length ? { cameras: cameras.map((c) => ({ ...c.attrs })) } : {}) } } : {}),
     };
   },
   toTree(w) {
@@ -91,8 +98,12 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
     for (const u of w.units ?? []) children.push(leaf("unit", own(u, UNIT_FIELDS)));
     if (isRecord(w.view)) children.push(leaf("view", { ...w.view }));
     if (isRecord(w.scene)) {
-      const bodies = Array.isArray(w.scene.bodies) && w.scene.bodies.every((b) => isRecord(b) && typeof b.id === "string") ? (w.scene.bodies as Record<string, unknown>[]) : null;
-      children.push({ tag: "scene", attrs: bodies ? omit(w.scene, ["bodies"]) : { ...w.scene }, children: (bodies ?? []).map((b) => leaf("body", { ...b })) });
+      const scene = w.scene;
+      // A list of records is the scene's children, as `bodies` → `<body>`: a camera is where it stands and where it looks.
+      const held = (k: "bodies" | "cameras") => Array.isArray(scene[k]) && scene[k].every((x) => isRecord(x) && typeof x.id === "string") ? (scene[k] as Record<string, unknown>[]) : null;
+      const bodies = held("bodies"), cameras = held("cameras"), tags = [...(bodies ? ["bodies"] : []), ...(cameras ? ["cameras"] : [])];
+      const kids = [...(bodies ?? []).map((b) => leaf("body", { ...b })), ...(cameras ?? []).map((c) => leaf("camera", { ...c }))];
+      children.push({ tag: "scene", attrs: tags.length ? omit(scene, tags) : { ...scene }, children: kids });
     }
     return { tag: "world", attrs: own(w, WORLD_FIELDS), children };
   },

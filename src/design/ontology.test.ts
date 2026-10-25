@@ -21,7 +21,7 @@ test("a world in JSX declares its world: units, space and a scene's bodies are e
     { name: "Shop", kind: "simulation", __source: 0 },
     el("space", { origin_mm: [0, 0, 0], size_mm: [4000, 3000, 2500] }),
     el("unit", { uid: "arm", name: "arm", device: "../../devices/so-101/definition.tsx", position: [100, 0, 0], rotation: 90, __source: 2 }),
-    el("scene", { hz: 240 }, el("body", { id: "cube", shape: { type: "box", hx: 0.02 }, at: [0, 0, 1] })),
+    el("scene", { hz: 240 }, el("body", { id: "cube", shape: { type: "box", hx: 0.02 }, at: [0, 0, 1] }), el("camera", { id: "cam", at: [0, -0.7, 1], look_at: [0, 0, 0.76], fov_deg: 50 })),
   );
   const { format, document: world, sources } = documentOf({ default: () => file });
   assert.equal(format, "world");
@@ -31,7 +31,7 @@ test("a world in JSX declares its world: units, space and a scene's bodies are e
     kind: "simulation",
     space: { origin_mm: [0, 0, 0], size_mm: [4000, 3000, 2500] },
     units: [{ uid: "arm", name: "arm", device: "../../devices/so-101/definition.tsx", position: [100, 0, 0], rotation: 90 }],
-    scene: { hz: 240, bodies: [{ id: "cube", shape: { type: "box", hx: 0.02 }, at: [0, 0, 1] }] },
+    scene: { hz: 240, bodies: [{ id: "cube", shape: { type: "box", hx: 0.02 }, at: [0, 0, 1] }], cameras: [{ id: "cam", at: [0, -0.7, 1], look_at: [0, 0, 0.76], fov_deg: 50 }] },
   });
   assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(world as never)), world, "both ways");
 
@@ -47,6 +47,7 @@ test("a world in JSX declares its world: units, space and a scene's bodies are e
   assert.throws(world_(el("unit", { uid: "a", name: "a", device: "d.json", speed: 3 })), /<unit uid="a">: speed is not read/);
   assert.throws(world_(el("unit", { uid: "a", name: "a", device: "d" }), el("unit", { uid: "a", name: "b", device: "d" })), /two <unit> in <world> have uid "a"/);
   assert.throws(world_(el("body", { id: "b" })), /<body> stands in <scene>, not in <world>/);
+  assert.throws(world_(el("camera", { id: "cam" })), /<camera> stands in <scene>, not in <world>/, 'a camera is placed in the scene: where it stands and where it looks');
   assert.throws(world_(el("lamp", {})), /<lamp> is not a tag of a world/);
 });
 
