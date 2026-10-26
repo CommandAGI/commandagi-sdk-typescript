@@ -153,6 +153,25 @@ test("a <mask> is the one layer it holds, wired to the mask port of the node it 
   assert.deepEqual(p.nodes["paint.layer"]!.inputs.mask, wire("paint.fill"));
 });
 
+test('a <mask of="…"> names a layer the stack shows, even one below it; a name must match one layer', () => {
+  const g = run(
+    h("painting", {},
+      h("layer", { name: "Mood" }, h("mask", { of: "Brush", enabled: false, __source: 7 })),
+      h("layer", { name: "Brush" }),
+    ),
+  );
+  assert.deepEqual(g.nodes["paint.layer"]!.inputs.mask, wire("paint.layer_2"));
+  assert.equal(g.nodes["paint.layer"]!.inputs.maskEnabled, false);
+  assert.deepEqual(g.nodes["paint.layer"]!.meta, { sources: { mask: 7 } });
+  assert.equal(g.nodes["paint.layer_2"]!.inputs.mask, undefined);
+  assert.throws(() => run(h("painting", {}, h("layer", { name: "A" }, h("mask", { of: "Gone" })))), /no layer is named that/);
+  assert.throws(
+    () => run(h("painting", {}, h("layer", { name: "A" }, h("mask", { of: "B" })), h("layer", { name: "B" }), h("layer", { name: "B" }))),
+    /2 layers are named that/,
+  );
+  assert.throws(() => run(h("painting", {}, h("layer", { name: "A" }, h("mask", { of: "B" }, h("fill", {}))), h("layer", { name: "B" }))), /holds no layer/);
+});
+
 test("a nest declares its sheet, stock, options and parts", () => {
   const g = run(
     h("nest", { safeZMm: 5 },
