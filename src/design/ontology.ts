@@ -17,7 +17,8 @@
  *   <device name … firmware? revision?>           definition.tsx        <channel id dir medium format transport …>
  *   <dashboard name …>                            <name>.dashboard.tsx   <param id type …>, one layout: <split axis
  *                                                                        ratio> of two <split>|<pane id kind …>, or
- *                                                                        one <pane>; <region side tab …>
+ *                                                                        one <pane> (repeat="live-stream": one pane
+ *                                                                        per live stream); <region side tab …>
  *   <geoproject id name …>                        <name>.geo.tsx         <dateRange start end>, <camera …>,
  *                                                                        <reference role path …>
  *   <opgraph name>                                <name>.opgraph.tsx     <node id type x y …ports>, <wire from to>
@@ -169,7 +170,11 @@ export const dashboardVocabulary: Vocabulary<DashboardDoc> = {
       if (n.tag === "pane") {
         const id = String(n.attrs.id);
         if (panes[id]) throw new Error(`two <pane> have id "${id}"`);
-        panes[id] = omit(n.attrs, ["id"]);
+        const pane = omit(n.attrs, ["id"]);
+        // A repeating pane is one pane per live stream (the shell grows it): it is what it repeats, never a file.
+        if (pane.repeat !== undefined && (pane.repeat !== "live-stream" || pane.kind !== "files" || "selected" in pane || "path" in pane))
+          throw new Error(`<pane ${id}>: repeat is "live-stream", and a repeating pane shows files and names no file of its own (it is filled from what is live)`);
+        panes[id] = pane;
         return { kind: "leaf", paneId: id };
       }
       const kids = n.children.filter((c) => c.tag === "split" || c.tag === "pane");
