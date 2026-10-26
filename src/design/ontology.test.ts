@@ -94,6 +94,15 @@ test("a dashboard's layout is nested <split>s of <pane>s; its params and regions
   assert.throws(() => declarationOf({ default: el("dashboard", { name: "x" }, el("split", { axis: "x", ratio: 0.5 }, el("pane", { id: "a" }))) }), /a <split> has two sides/);
 });
 
+test("a pane with repeat is one pane per live stream, and names no file of its own", () => {
+  const { document: live } = documentOf({ default: el("dashboard", { name: "everything live" }, el("pane", { id: "live", kind: "files", repeat: "live-stream" })) });
+  assert.deepEqual((live as { panes: Record<string, unknown> }).panes.live, { kind: "files", repeat: "live-stream" });
+  const paneOf = (attrs: Record<string, unknown>) => () => declarationOf({ default: el("dashboard", { name: "x" }, el("pane", { id: "live", ...attrs })) });
+  assert.throws(paneOf({ kind: "files", repeat: "runs" }), /repeat is "live-stream"/);
+  assert.throws(paneOf({ kind: "files", repeat: "live-stream", selected: "runs/r/run.json" }), /names no file of its own/);
+  assert.throws(paneOf({ kind: "devices", repeat: "live-stream" }), /shows files/);
+});
+
 test("a geo project's manifest: its date range and camera are elements", () => {
   const doc = documentOf({ default: el("geoproject", { id: "p1", name: "Chokepoints" }, el("dateRange", { start: "2015-01", end: "2030-01" }), el("camera", { centerLng: 40, centerLat: 25, scale: 320 })) }).document;
   assert.deepEqual(doc, { type: "geoeconomics/project", schemaVersion: "1.0", id: "p1", name: "Chokepoints", data: { defaultDateRange: { start: "2015-01", end: "2030-01" }, defaultCamera: { centerLng: 40, centerLat: 25, scale: 320 } } });
