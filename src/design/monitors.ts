@@ -8,7 +8,7 @@
  *   export const Corporation = ({ cik, ticker, name }) => (
  *     <monitor title={`${name} (${ticker})`} class="corporation" about={`cik:${cik}`}>
  *       <source id="filings" adapter="sec-filings" params={{ cik }} every="15m" />
- *       <follows monitor="../../central-banks/fed" match="fomc.statement" />
+ *       <follows monitor="../../central-banks/fed" when={{ class: "fomc.statement" }} />
  *     </monitor>
  *   );
  *
@@ -34,7 +34,7 @@ export const MONITOR_FIELDS = ["title", "class", "about", "readme", "sameAs"] as
 /** A subject: `<scheme>:<id>` (`cik:0001045810`, `ticker:NVDA`, `fomc:`). */
 export const SUBJECT = /^[a-z][a-z0-9-]*:\S*$/;
 export const SOURCE_FIELDS = ["id", "adapter", "params", "every", "via", "exit", "host", "mode", "retain", "since", "session", "snapshot", "profile", "keep", "maxCostPerDay", "unit", "vantage", "connection"] as const;
-export const FOLLOW_FIELDS = ["monitor", "match", "where"] as const;
+export const FOLLOW_FIELDS = ["monitor", "when"] as const;
 export const DISCOVER_FIELDS = ["into", "of", "when", "slug", "class", "props", "name", "max"] as const;
 /** The most new folders a discover writes a tick. */
 export const DISCOVER_MAX = 50;
@@ -102,9 +102,8 @@ export interface MonitorSource {
 export interface MonitorFollow {
   /** The followed monitor's folder, as a ref relative to this monitor's folder (`../../central-banks/fed`). */
   monitor: string;
-  match?: string;
-  /** A filter on the followed records: `name=value` terms joined by `,` (`conversation=123`); a name is `about`, `class` or a data path. */
-  where?: string;
+  /** Which followed records it takes: a `when` (`{ class: "fomc.statement" }`), as a discover takes one; absent: every record. */
+  when?: When;
 }
 /** A term of a `when`: a value (a string is a glob), the values allowed, or operators on the value. */
 export type WhenTest =
@@ -116,6 +115,8 @@ export type WhenTest =
   | { eq?: string | number | boolean; ne?: string | number | boolean; gt?: number | string; gte?: number | string; lt?: number | string; lte?: number | string; in?: Array<string | number | boolean>; glob?: string; contains?: string; exists?: boolean };
 /** A condition: every term holds. A term is named `class`, `about`, `key`, `title` or `data.<path>`. */
 export type WhenCondition = Record<string, WhenTest>;
+/** A record predicate: one condition, or a list of them of which one holds (the platform reads it: predicate.js). */
+export type When = WhenCondition | WhenCondition[];
 /**
  * A discovering monitor's part (docs/monitors.md § own thread or record): each record that satisfies `when` and names a
  * thing by its `slug` that has no folder yet gets `<into>/<word>/monitor.tsx`, a one-line instance of the class
@@ -128,7 +129,7 @@ export interface MonitorDiscover {
   /** The monitors whose records it reads, relative to this monitor's folder (absent: its own). */
   of?: string | string[];
   /** Which records name a thing that gets its own thread: one condition, or a list of them (any holds). Absent: every record. */
-  when?: WhenCondition | WhenCondition[];
+  when?: When;
   /** What names the thing, one folder per value, ever: a data path, or the first value of `paths` that `pattern` takes. */
   slug: string | { paths: string[]; pattern?: string };
   /** The class an instance renders: its file relative to this monitor's folder, `#`, its exported name. */
@@ -254,7 +255,6 @@ function sourceOf(t: DocTree): MonitorSource {
 
 const WORD = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
 const DATA_PATH = /^[A-Za-z_]\w*(\.[A-Za-z_]\w*)*$/;
-const WHERE = /^[A-Za-z][\w.]*=[^,]+(,\s*[A-Za-z][\w.]*=[^,]+)*$/;
 /** A term's name in a `when`: a record field, or a path of its data. */
 const WHEN_NAME = /^(class|about|key|title|data(\.[A-Za-z_]\w*)+)$/;
 const WHEN_OPS = ["eq", "ne", "gt", "gte", "lt", "lte", "in", "glob", "contains", "exists"];
@@ -326,9 +326,10 @@ function monitorOf(t: DocTree): MonitorDoc {
   const parts = (tag: string) => t.children.filter((c) => c.tag === tag);
   const follows = parts("follows").map((c) => {
     text(c, "monitor", "monitor");
-    text(c, "match", "monitor");
-    text(c, "where", "monitor");
-    if (c.attrs.where !== undefined && !WHERE.test(c.attrs.where as string)) throw new Error(`<follows monitor="${c.attrs.monitor as string}"> where is name=value terms joined by "," (conversation=123), not ${JSON.stringify(c.attrs.where)}`);
+    if (c.attrs.when !== undefined) {
+      const bad = whenShape(c.attrs.when);
+      if (bad) throw new Error(`<follows monitor="${c.attrs.monitor as string}"> when: ${bad}`);
+    }
     if (/^\.\/?$/.test(c.attrs.monitor as string)) throw new Error(`<follows monitor="${c.attrs.monitor as string}"> names this monitor; a follow names another monitor's folder`);
     return said(c.attrs, FOLLOW_FIELDS) as unknown as MonitorFollow;
   });
@@ -385,7 +386,7 @@ export function monitorWithDefaults(m: MonitorDoc) {
     readme: m.readme ?? null,
     sameAs: m.sameAs ?? [],
     sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null, host: s.host ?? null, mode: s.mode ?? "poll", retain: s.mode === "stream" ? (s.retain ?? "derived") : null, since: s.since ?? null, session: s.session ?? null, snapshot: s.snapshot ?? null, profile: s.profile ?? null, keep: s.keep ?? null, maxCostPerDay: s.maxCostPerDay ?? null, unit: s.unit ?? null, vantage: s.vantage ?? null, connection: s.connection ?? null })),
-    follows: m.follows.map((f) => ({ monitor: f.monitor, match: f.match ?? null, where: f.where ?? null })),
+    follows: m.follows.map((f) => ({ monitor: f.monitor, when: f.when ?? null })),
     derives: (m.derives ?? []).map((d) => ({ id: d.id, op: d.op, inputs: d.inputs, params: d.params ?? {}, since: d.since ?? null })),
     wakes: m.wakes.map((w) => ({ match: w.match ?? null, prompt: w.prompt })),
     discovers: (m.discovers ?? []).map((d) => ({ into: d.into ?? "./", of: d.of === undefined ? [] : typeof d.of === "string" ? [d.of] : d.of, when: d.when ?? null, slug: d.slug, class: d.class, props: d.props ?? {}, name: d.name ?? null, max: d.max ?? 10 })),
