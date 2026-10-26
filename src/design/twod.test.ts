@@ -109,6 +109,8 @@ test("a painting's bucket, gradient and move chain on a layer beside its strokes
         h("bucket", { x: 5, y: 6, tolerance: 20, contiguous: true, color: [1, 0, 0, 1] }),
         h("gradientFill", { shape: "linear", from: [0, 0], to: [100, 0], stops: [{ at: 0, color: [0, 0, 0, 1] }, { at: 1, color: [1, 1, 1, 1] }] }),
         h("move", { dx: 12, dy: -3, selection: [{ wand: [5, 6], tolerance: 32, contiguous: false }] }),
+        h("erase", { selection }),
+        h("freeTransform", { cx: 60, cy: 40, scaleX: 1.5, angle: 15 }),
       ),
       h("rect", { name: "Rectangle 1", x: 4, y: 5, w: 30, h: 20, fill: [0, 0, 1, 1], stroke: [0, 0, 0, 1], strokeWidth: 2 }),
       h("line", { name: "Line 1", from: [0, 0], to: [10, 10], stroke: [1, 0, 0, 1], strokeWidth: 3 }),
@@ -118,7 +120,9 @@ test("a painting's bucket, gradient and move chain on a layer beside its strokes
   assert.deepEqual(g.nodes["paint.bucket"]!.inputs, { name: "Paint", visible: true, opacity: 1, blend: "normal", x: 5, y: 6, tolerance: 20, contiguous: true, color: [1, 0, 0, 1], src: wire("paint.stroke") });
   assert.deepEqual(g.nodes["paint.gradientFill"]!.inputs.src, wire("paint.bucket"));
   assert.deepEqual(g.nodes["paint.move"]!.inputs.dx, 12);
-  assert.deepEqual(g.nodes.doc!.inputs["layers.1"], wire("paint.move"));
+  assert.deepEqual(g.nodes["paint.erase"]!.inputs, { name: "Paint", visible: true, opacity: 1, blend: "normal", selection, src: wire("paint.move") });
+  assert.deepEqual(g.nodes["paint.freeTransform"]!.inputs, { name: "Paint", visible: true, opacity: 1, blend: "normal", cx: 60, cy: 40, scaleX: 1.5, angle: 15, src: wire("paint.erase") });
+  assert.deepEqual(g.nodes.doc!.inputs["layers.1"], wire("paint.freeTransform"));
   assert.deepEqual(g.nodes["paint.shape"]!.inputs, { name: "Rectangle 1", x: 4, y: 5, w: 30, h: 20, fill: [0, 0, 1, 1], stroke: [0, 0, 0, 1], strokeWidth: 2, shape: "rect" });
   assert.equal(g.nodes["paint.shape_2"]!.inputs.shape, "line");
   assert.throws(() => run(h("painting", {}, h("layer", {}, h("bucket", { opacity: 0.5 })))), /opacity is the layer's/);
@@ -151,6 +155,30 @@ test("a <mask> is the one layer it holds, wired to the mask port of the node it 
   assert.throws(() => run(h("photo", {}, h("exposure", {}, h("mask", {})))), /holds one layer/);
   const p = run(h("painting", {}, h("layer", {}, h("stroke", { points: [] }), h("mask", {}, h("fill", {})))));
   assert.deepEqual(p.nodes["paint.layer"]!.inputs.mask, wire("paint.fill"));
+});
+
+test("a <mask of=\"…\"> names a layer the stack shows, wired to its mask port; an unknown or ambiguous name is refused", () => {
+  // The mask layer is declared AFTER the layer it masks: the whole stack is read before a name is resolved.
+  const g = run(
+    h("painting", {},
+      h("layer", { name: "Ink" }, h("mask", { of: "Fade", __source: 4 })),
+      h("layer", { name: "Fade" }, h("stroke", { points: [] })),
+    ),
+  );
+  assert.deepEqual(g.nodes["paint.layer"]!.inputs.mask, wire("paint.stroke"));
+  assert.deepEqual(g.nodes["paint.layer"]!.meta, { sources: { mask: 4 } });
+  assert.equal(g.nodes["paint.stroke"]!.inputs.name, "Fade", "the named layer is the stack's own slot, its stroke on top");
+  assert.equal(Object.values(g.nodes).filter((n) => n.type === "paint.layer").length, 2, "the name declares no extra layer");
+  // `enabled` turns a named mask off without removing the name.
+  const off = run(h("painting", {}, h("layer", { name: "Ink" }, h("mask", { of: "Fade", enabled: false })), h("layer", { name: "Fade" })));
+  assert.equal(off.nodes["paint.layer"]!.inputs.maskEnabled, false);
+  assert.throws(() => run(h("painting", {}, h("layer", { name: "Ink" }, h("mask", { of: "Nowhere" })))), /no layer is called "Nowhere"/);
+  assert.throws(
+    () => run(h("painting", {}, h("layer", { name: "Ink" }, h("mask", { of: "Same" })), h("layer", { name: "Same" }), h("layer", { name: "Same" }))),
+    /2 layers are called "Same"/,
+  );
+  assert.throws(() => run(h("painting", {}, h("layer", { name: "Ink" }, h("mask", { of: "Ink" })))), /cannot be its own mask/);
+  assert.throws(() => run(h("painting", {}, h("layer", {}, h("mask", { of: "Fill" }, h("fill", {}))))), /names a layer; it holds none/);
 });
 
 test("a nest declares its sheet, stock, options and parts", () => {

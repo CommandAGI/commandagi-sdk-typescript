@@ -35,7 +35,8 @@
  *             drawing is in this file.
  *   painting  `<layer>`, `<fill>`, `<group>`, `<textLayer>`, the shape layers (`<rect>`, `<ellipse>`, `<polygon>`, `<line>`)
  *             and the photo's adjustment tags are the stack, bottom first; a layer's `<stroke>`, `<bucket>`,
- *             `<gradientFill>` and `<move>` children are what was painted, filled and moved on it, oldest first; a
+ *             `<gradientFill>`, `<move>`, `<erase>` and `<freeTransform>` children are what was painted, filled, moved,
+ *             cleared and resampled on it, oldest first; a
  *             filter among them (`<gaussianBlur radius={3} />`, the photo's filters) changes what is under it. A stroke's
  *             points are `[x, y, pressure, t]` (with tilt, `[x, y, pressure, t, tiltX, tiltY]`): free-hand data is a points
  *             array, written once. Each may hold a `selection` (`[{ rect: [x, y, w, h], feather }, { op: "subtract",
@@ -46,7 +47,8 @@
  *   photo     `<raster>`, `<fill>`, `<gradient>`, `<group>` and one tag per adjustment (`<exposure ev={0.35} />`,
  *             `<hsl>`, `<levels>`, `<develop exposure={0.3} contrast={12} />`, …) are the stack; a raster's children are its filters (`<gaussianBlur radius={3} />`).
  *             In a painting or a photo, a `<mask>` child of a layer (or of a stroke or a filter) holds the one layer
- *             that masks it (`<mask><gradient /></mask>`).
+ *             that masks it (`<mask><gradient /></mask>`), or names a layer the stack shows with `of` (`<mask
+ *             of="Gradient" />`; the name is the layer's `name`, and two layers of that name are refused).
  *   nest      `<sheet>`, `<stock>`, `<options>`, one `<part>` per part and one `<engrave>` per image burned on the first
  *             sheet (`<engrave id="logo" src="logo.png" xMm={20} yMm={20} widthMm={60} heightMm={30} dpi={254}
  *             dither="ordered" />`; `powerPct`, `minPowerPct`, `feedMmMin` and `passes` when not the stock's).
@@ -60,7 +62,7 @@
  * scripts/workbench/schemas.mjs); a wrong one is refused with every issue: `<gaussianBlur>: radius: must be at most 250
  * (got 300)`.
  */
-import { Declaration, Scope, channels, slug, withScope, type IRNode, type NodeRef } from "./ir.js";
+import { Declaration, NodeRef, Scope, channels, slug, withScope, type IRNode } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
 import { describeIssue, validate, withDefaults } from "./schema.js";
 import { TWOD_SCHEMA } from "./twod-schema.js";
@@ -358,8 +360,8 @@ function adjustmentLayer(el: DesignElement, type: string): { type: string; input
   return { type, inputs: { ...common, adjustment } };
 }
 
-/** What is painted on a painting's pixel layer: strokes, the Paint Bucket, the Gradient, the Move tool. A filter (`PHOTO_FILTERS`) chains among them. */
-export const PAINT_CHAIN = ["stroke", "bucket", "gradientFill", "move"] as const;
+/** What is painted on a painting's pixel layer: strokes, the Paint Bucket, the Gradient, the Move tool and Delete. A filter (`PHOTO_FILTERS`) chains among them. */
+export const PAINT_CHAIN = ["stroke", "bucket", "gradientFill", "move", "erase", "freeTransform"] as const;
 /** A painting's shape layers. */
 export const PAINT_SHAPES = ["rect", "ellipse", "polygon", "line"] as const;
 
@@ -420,23 +422,74 @@ const PHOTO: StackKind = {
   chain: filterMember,
 };
 
+/** A `<mask of="…">` whose referent may be declared later than the layer it masks. */
+interface PendingMask {
+  /** The masked node, waiting for its `mask` port. */
+  node: NodeRef;
+  /** The stack layer's name, as `of` wrote it. */
+  name: string;
+  enabled: boolean;
+  at?: unknown;
+  where: string;
+}
+
 /**
  * A layer's (or a stroke's, or a filter's) `<mask>`: the one stack layer it holds, declared outside the stack and
- * wired to the node's `mask` port. A mask is any layer the stack could hold (a `<gradient>`, a `<raster src>`, a
- * `<fill>`, a `<group>` …). The `<mask>` element is not a node: where it was written is the masked node's
- * `meta.sources.mask`.
+ * wired to the node's `mask` port, or `<mask of="…">`, which names a layer the stack shows (that layer is seen in its
+ * own place and is what this node is seen through). A mask is any layer the stack could hold (a `<gradient>`, a
+ * `<raster src>`, a `<fill>`, a `<group>` …). The `<mask>` element is not a node: where it was written is the masked
+ * node's `meta.sources.mask`.
  */
-function maskOf(s: Scope, kind: StackKind, el: DesignElement): { inputs: { mask?: NodeRef }; at?: unknown } {
+function maskOf(
+  s: Scope,
+  kind: StackKind,
+  el: DesignElement,
+  pending: PendingMask[],
+  every: NodeRef[],
+): { inputs: { mask?: NodeRef; maskEnabled?: false }; at?: unknown; named?: { name: string; enabled: boolean; at?: unknown } } {
   const masks = kids(el).filter((c) => c.type === "mask");
   if (!masks.length) return { inputs: {} };
   if (masks.length > 1) throw new Error(`${where(el)} has one <mask>`);
   const m = masks[0]!;
   const ma = attrs(m);
+  const named = ma.of !== undefined;
   for (const k of Object.keys(ma))
-    if (k !== "enabled" || typeof ma.enabled !== "boolean") throw new Error(`<mask> in ${where(el)} has one attribute, enabled (write the rest on the layer it holds)`);
+    if (!(named ? ["enabled", "of"].includes(k) : k === "enabled") || (k === "enabled" && typeof ma.enabled !== "boolean"))
+      throw new Error(
+        named
+          ? `<mask> in ${where(el)} has enabled and of (of names a layer the stack shows)`
+          : `<mask> in ${where(el)} has one attribute, enabled (write the rest on the layer it holds)`,
+      );
+  if (named) {
+    if (typeof ma.of !== "string" || !ma.of) throw new Error(`<mask of="…"> in ${where(el)} names a layer with its name`);
+    if (kids(m).length) throw new Error(`<mask of="…"> in ${where(el)} names a layer; it holds none`);
+    return { inputs: {}, at: m.source, named: { name: ma.of, enabled: ma.enabled !== false, at: m.source } };
+  }
   const held = kids(m);
   if (held.length !== 1) throw new Error(`<mask> in ${where(el)} holds one layer`);
-  return { inputs: { mask: declareStack(s, kind, held)[0]!, ...(ma.enabled === false ? { maskEnabled: false } : {}) }, at: m.source };
+  return { inputs: { mask: declareStack(s, kind, held, pending, every)[0]!, ...(ma.enabled === false ? { maskEnabled: false } : {}) }, at: m.source };
+}
+
+/**
+ * Wire each `<mask of="…">` to the layer its name names, once the whole stack is declared. The name is a stack slot's
+ * `name` (the layer, or the top of its chain); two slots with that name are refused, because the file could not say
+ * which one it meant.
+ */
+function resolveMasks(pending: PendingMask[], slots: NodeRef[]): void {
+  if (!pending.length) return;
+  for (const p of pending) {
+    const found = slots.filter((slot) => slot.node.inputs.name === p.name);
+    if (found.length !== 1)
+      throw new Error(
+        found.length
+          ? `${p.where}: ${found.length} layers are called "${p.name}" (a <mask of="…"> names one)`
+          : `${p.where}: no layer is called "${p.name}" (a <mask of="…"> names a layer the stack shows)`,
+      );
+    if (found[0]!.id === p.node.id) throw new Error(`${p.where}: a layer cannot be its own mask`);
+    p.node.set("mask", found[0]!);
+    if (!p.enabled) p.node.set("maskEnabled", false);
+    if (p.at !== undefined) p.node.node.meta = { ...p.node.node.meta, sources: { ...(p.node.node.meta?.sources as object | undefined), mask: p.at } };
+  }
 }
 
 /** A painting layer's `<fx>`: its styles, in order, as the layer's `fx`; where each was written goes in `meta.sources`. */
@@ -458,8 +511,8 @@ function stylesOf(kind: StackKind, el: DesignElement): { fx?: Record<string, unk
 }
 
 /** Declare `el` as one node of `type`, masked by its `<mask>` when it has one. */
-function addMasked(s: Scope, kind: StackKind, el: DesignElement, type: string, inputs: Record<string, unknown>): NodeRef {
-  const mask = maskOf(s, kind, el);
+function addMasked(s: Scope, kind: StackKind, el: DesignElement, type: string, inputs: Record<string, unknown>, pending: PendingMask[], every: NodeRef[]): NodeRef {
+  const mask = maskOf(s, kind, el, pending, every);
   const styles = stylesOf(kind, el);
   const ref = add(s, el, type, { ...inputs, ...mask.inputs, ...(styles.fx ? { fx: styles.fx } : {}) });
   const sources = { ...styles.sources, ...(mask.at !== undefined ? { mask: mask.at } : {}) };
@@ -467,10 +520,11 @@ function addMasked(s: Scope, kind: StackKind, el: DesignElement, type: string, i
     const node = ref.node as IRNode;
     node.meta = { ...node.meta, sources };
   }
+  if (mask.named) pending.push({ node: ref, ...mask.named, where: where(el) });
   return ref;
 }
 
-function declareStack(s: Scope, kind: StackKind, children: DesignElement[]): NodeRef[] {
+function declareStack(s: Scope, kind: StackKind, children: DesignElement[], pending: PendingMask[], every: NodeRef[] = []): NodeRef[] {
   const slots: NodeRef[] = [];
   for (const el of children) {
     const layer = kind.layer(el);
@@ -481,13 +535,14 @@ function declareStack(s: Scope, kind: StackKind, children: DesignElement[]): Nod
     const stack: DesignElement[] = [], chain: DesignElement[] = [];
     for (const c of kids(el)) if (c.type !== "mask" && c.type !== "fx") (kind.chains(c) ? chain : stack).push(c);
     if (stack.length && layer.type !== `${kind.prefix}.group`) throw new Error(`${where(el)}: only a <group> holds layers`);
-    const inner = layer.type === `${kind.prefix}.group` ? declareStack(s, kind, stack) : [];
-    let top = addMasked(s, kind, el, layer.type, { ...layer.inputs, ...channels("layers", inner) });
+    const inner = layer.type === `${kind.prefix}.group` ? declareStack(s, kind, stack, pending, every) : [];
+    let top = addMasked(s, kind, el, layer.type, { ...layer.inputs, ...channels("layers", inner) }, pending, every);
     // Each chain member carries the layer's fields: the stack reads them off whichever member is on top.
     const carried: Record<string, unknown> = { ...COMMON_DEFAULTS };
     for (const k of COMMON) if (layer.inputs[k] !== undefined) carried[k] = layer.inputs[k];
-    for (const c of chain) top = addMasked(s, kind, c, kind.chainType(c), { ...carried, ...kind.chain(c), src: top });
+    for (const c of chain) top = addMasked(s, kind, c, kind.chainType(c), { ...carried, ...kind.chain(c), src: top }, pending, every);
     slots.push(top);
+    every.push(top);
   }
   return slots;
 }
@@ -499,7 +554,10 @@ function stackDocument(kind: StackKind, root: DesignElement, name: string): Decl
   const title = typeof a.name === "string" ? a.name : name;
   const s = new Scope(`${kind.prefix}:${slug(title)}`, { domain: kind.prefix, name: title });
   withScope(s, () => {
-    const layers = declareStack(s, kind, kids(root));
+    const pending: PendingMask[] = [];
+    const every: NodeRef[] = [];
+    const layers = declareStack(s, kind, kids(root), pending, every);
+    resolveMasks(pending, every);
     const doc = s.add(`${kind.prefix}.doc`, { ...a, ...channels("layers", layers) }, { id: "doc", meta: meta(root) });
     s.output(doc);
   });
