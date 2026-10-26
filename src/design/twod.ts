@@ -46,7 +46,8 @@
  *   photo     `<raster>`, `<fill>`, `<gradient>`, `<group>` and one tag per adjustment (`<exposure ev={0.35} />`,
  *             `<hsl>`, `<levels>`, `<develop exposure={0.3} contrast={12} />`, …) are the stack; a raster's children are its filters (`<gaussianBlur radius={3} />`).
  *             In a painting or a photo, a `<mask>` child of a layer (or of a stroke or a filter) holds the one layer
- *             that masks it (`<mask><gradient /></mask>`).
+ *             that masks it (`<mask><gradient /></mask>`); a mask that is also a layer of the stack names that layer by
+ *             its id instead (`<mask of="badge" />`), and the layer's element carries `id="badge"`.
  *   nest      `<sheet>`, `<stock>`, `<options>`, one `<part>` per part and one `<engrave>` per image burned on the first
  *             sheet (`<engrave id="logo" src="logo.png" xMm={20} yMm={20} widthMm={60} heightMm={30} dpi={254}
  *             dither="ordered" />`; `powerPct`, `minPowerPct`, `feedMmMin` and `passes` when not the stock's).
@@ -420,23 +421,43 @@ const PHOTO: StackKind = {
   chain: filterMember,
 };
 
+/** The layers a `<mask of>` may name, and the masks to wire once the whole stack is declared (a target may be later). */
+interface MaskScope {
+  /** Each layer element's id → the node it declared. */
+  ids: Map<string, string>;
+  /** A `<mask of>` written before its target: the node it masks, the id it names, and whether it is on. */
+  pending: { node: NodeRef; of: string; enabled: boolean }[];
+}
+
 /**
  * A layer's (or a stroke's, or a filter's) `<mask>`: the one stack layer it holds, declared outside the stack and
  * wired to the node's `mask` port. A mask is any layer the stack could hold (a `<gradient>`, a `<raster src>`, a
- * `<fill>`, a `<group>` …). The `<mask>` element is not a node: where it was written is the masked node's
- * `meta.sources.mask`.
+ * `<fill>`, a `<group>` …). A mask that is ALSO a layer of the stack is named by its id instead (`<mask of="badge" />`),
+ * so it is declared once; the mask's element holds no layer then. The `<mask>` element is not a node: where it was
+ * written is the masked node's `meta.sources.mask`.
  */
-function maskOf(s: Scope, kind: StackKind, el: DesignElement): { inputs: { mask?: NodeRef }; at?: unknown } {
-  const masks = kids(el).filter((c) => c.type === "mask");
-  if (!masks.length) return { inputs: {} };
-  if (masks.length > 1) throw new Error(`${where(el)} has one <mask>`);
-  const m = masks[0]!;
+function maskOf(
+  s: Scope,
+  kind: StackKind,
+  el: DesignElement,
+  masks: MaskScope,
+): { inputs: { mask?: NodeRef }; at?: unknown; of?: string; enabled: boolean } {
+  const blocks = kids(el).filter((c) => c.type === "mask");
+  if (!blocks.length) return { inputs: {}, enabled: true };
+  if (blocks.length > 1) throw new Error(`${where(el)} has one <mask>`);
+  const m = blocks[0]!;
   const ma = attrs(m);
   for (const k of Object.keys(ma))
-    if (k !== "enabled" || typeof ma.enabled !== "boolean") throw new Error(`<mask> in ${where(el)} has one attribute, enabled (write the rest on the layer it holds)`);
+    if ((k !== "enabled" || typeof ma.enabled !== "boolean") && (k !== "of" || typeof ma.of !== "string"))
+      throw new Error(`<mask> in ${where(el)} has two attributes, enabled and of (write the rest on the layer it holds)`);
+  const enabled = ma.enabled !== false;
   const held = kids(m);
-  if (held.length !== 1) throw new Error(`<mask> in ${where(el)} holds one layer`);
-  return { inputs: { mask: declareStack(s, kind, held)[0]!, ...(ma.enabled === false ? { maskEnabled: false } : {}) }, at: m.source };
+  if (ma.of !== undefined) {
+    if (held.length) throw new Error(`<mask of="${String(ma.of)}"> in ${where(el)} holds no layer (it names one the stack shows)`);
+    return { inputs: {}, of: ma.of as string, enabled, at: m.source };
+  }
+  if (held.length !== 1) throw new Error(`<mask> in ${where(el)} holds one layer (or names one the stack shows, with of)`);
+  return { inputs: { mask: declareStack(s, kind, held, masks)[0]!, ...(enabled ? {} : { maskEnabled: false }) }, enabled, at: m.source };
 }
 
 /** A painting layer's `<fx>`: its styles, in order, as the layer's `fx`; where each was written goes in `meta.sources`. */
@@ -458,10 +479,12 @@ function stylesOf(kind: StackKind, el: DesignElement): { fx?: Record<string, unk
 }
 
 /** Declare `el` as one node of `type`, masked by its `<mask>` when it has one. */
-function addMasked(s: Scope, kind: StackKind, el: DesignElement, type: string, inputs: Record<string, unknown>): NodeRef {
-  const mask = maskOf(s, kind, el);
+function addMasked(s: Scope, kind: StackKind, el: DesignElement, type: string, inputs: Record<string, unknown>, masks: MaskScope): NodeRef {
+  const mask = maskOf(s, kind, el, masks);
   const styles = stylesOf(kind, el);
   const ref = add(s, el, type, { ...inputs, ...mask.inputs, ...(styles.fx ? { fx: styles.fx } : {}) });
+  if (typeof el.props.id === "string" && el.props.id) masks.ids.set(slug(el.props.id), ref.id);
+  if (mask.of !== undefined) masks.pending.push({ node: ref, of: mask.of, enabled: mask.enabled });
   const sources = { ...styles.sources, ...(mask.at !== undefined ? { mask: mask.at } : {}) };
   if (Object.keys(sources).length) {
     const node = ref.node as IRNode;
@@ -470,7 +493,7 @@ function addMasked(s: Scope, kind: StackKind, el: DesignElement, type: string, i
   return ref;
 }
 
-function declareStack(s: Scope, kind: StackKind, children: DesignElement[]): NodeRef[] {
+function declareStack(s: Scope, kind: StackKind, children: DesignElement[], masks: MaskScope): NodeRef[] {
   const slots: NodeRef[] = [];
   for (const el of children) {
     const layer = kind.layer(el);
@@ -481,12 +504,12 @@ function declareStack(s: Scope, kind: StackKind, children: DesignElement[]): Nod
     const stack: DesignElement[] = [], chain: DesignElement[] = [];
     for (const c of kids(el)) if (c.type !== "mask" && c.type !== "fx") (kind.chains(c) ? chain : stack).push(c);
     if (stack.length && layer.type !== `${kind.prefix}.group`) throw new Error(`${where(el)}: only a <group> holds layers`);
-    const inner = layer.type === `${kind.prefix}.group` ? declareStack(s, kind, stack) : [];
-    let top = addMasked(s, kind, el, layer.type, { ...layer.inputs, ...channels("layers", inner) });
+    const inner = layer.type === `${kind.prefix}.group` ? declareStack(s, kind, stack, masks) : [];
+    let top = addMasked(s, kind, el, layer.type, { ...layer.inputs, ...channels("layers", inner) }, masks);
     // Each chain member carries the layer's fields: the stack reads them off whichever member is on top.
     const carried: Record<string, unknown> = { ...COMMON_DEFAULTS };
     for (const k of COMMON) if (layer.inputs[k] !== undefined) carried[k] = layer.inputs[k];
-    for (const c of chain) top = addMasked(s, kind, c, kind.chainType(c), { ...carried, ...kind.chain(c), src: top });
+    for (const c of chain) top = addMasked(s, kind, c, kind.chainType(c), { ...carried, ...kind.chain(c), src: top }, masks);
     slots.push(top);
   }
   return slots;
@@ -499,7 +522,15 @@ function stackDocument(kind: StackKind, root: DesignElement, name: string): Decl
   const title = typeof a.name === "string" ? a.name : name;
   const s = new Scope(`${kind.prefix}:${slug(title)}`, { domain: kind.prefix, name: title });
   withScope(s, () => {
-    const layers = declareStack(s, kind, kids(root));
+    const masks: MaskScope = { ids: new Map(), pending: [] };
+    const layers = declareStack(s, kind, kids(root), masks);
+    // `<mask of>` now names a layer the whole stack declared (it may come after the layer it masks).
+    for (const p of masks.pending) {
+      const target = masks.ids.get(slug(p.of));
+      if (!target) throw new Error(`a <mask> names the layer "${p.of}", and no layer of this ${kind.root} has that id`);
+      p.node.node.inputs.mask = { wire: { node: target, port: "out" } };
+      if (!p.enabled) p.node.node.inputs.maskEnabled = false;
+    }
     const doc = s.add(`${kind.prefix}.doc`, { ...a, ...channels("layers", layers) }, { id: "doc", meta: meta(root) });
     s.output(doc);
   });

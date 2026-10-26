@@ -153,6 +153,31 @@ test("a <mask> is the one layer it holds, wired to the mask port of the node it 
   assert.deepEqual(p.nodes["paint.layer"]!.inputs.mask, wire("paint.fill"));
 });
 
+test("a mask that is also a layer of the stack names it by its id, so that layer is declared once", () => {
+  const g = run(
+    h("photo", {},
+      h("raster", { id: "Sky", src: "a.png" }),
+      h("exposure", { name: "Mood", ev: 0.2 }, h("mask", { of: "Sky", __source: 9 })),
+    ),
+  );
+  assert.deepEqual(g.nodes["photo.adjust"]!.inputs.mask, wire("Sky"), "the mask is the stack's own layer");
+  assert.deepEqual(g.nodes.doc!.inputs["layers.1"], wire("Sky"), "the stack names it by the id it was given");
+  assert.deepEqual(g.nodes["photo.adjust"]!.meta, { sources: { mask: 9 } });
+  // The target may be written after the layer it masks, and a mask may be turned off.
+  const after = run(
+    h("photo", {},
+      h("exposure", { name: "Mood" }, h("mask", { of: "Ink", enabled: false })),
+      h("fill", { id: "Ink", color: [1, 1, 1, 1] }),
+    ),
+  );
+  assert.deepEqual(after.nodes["photo.adjust"]!.inputs.mask, wire("Ink"));
+  assert.equal(after.nodes["photo.adjust"]!.inputs.maskEnabled, false);
+  assert.deepEqual(Object.keys(after.nodes).sort(), ["Ink", "doc", "photo.adjust"], "one node per layer, and the mask holds none");
+  // Refused by name: an id no layer has, and a mask that both names a layer and holds one.
+  assert.throws(() => run(h("photo", {}, h("exposure", {}, h("mask", { of: "nope" })))), /names the layer "nope", and no layer of this photo has that id/);
+  assert.throws(() => run(h("photo", {}, h("exposure", {}, h("mask", { of: "x" }, h("fill", {}))))), /holds no layer \(it names one the stack shows\)/);
+});
+
 test("a nest declares its sheet, stock, options and parts", () => {
   const g = run(
     h("nest", { safeZMm: 5 },
