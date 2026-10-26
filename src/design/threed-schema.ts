@@ -2463,9 +2463,9 @@ export const THREED_SCHEMA: SchemaDocument = {
       "dae",
       "usd",
       "kicad_pcb",
-      "pcb.tsx"
+      "pcb"
      ],
-     "description": "How to interpret the linked file: a 3D document in code (`\"3d\"`, a `.3d.tsx` run), a foreign solid imported via the named importer (\"step\"/\"iges\"), or a KiCad board (\"kicad_pcb\") converted to a 3D solid on open (a LIVE link — board edits re-mesh here). Mirrors `FileRef.importer`."
+     "description": "How to interpret the linked file: a 3D document in code (`\"3d\"`, a `.3d.tsx`/`.3d.py`/`.3d.rs` run), a foreign solid imported via the named importer (\"step\"/\"iges\"), a KiCad board (\"kicad_pcb\") or a board in code (`\"pcb\"`, any language) converted to a 3D solid on open (a LIVE link — board edits re-mesh here). Mirrors `FileRef.importer`."
     },
     "unitScaleMm": {
      "type": "number",

@@ -1189,9 +1189,9 @@ export type ExternalPartRef = {
   /** Filename of the linked part (fallback locator when no path, or a human label). */
   fileName?: string;
   /**
-   * How to interpret the linked file: a 3D document in code (`"3d"`, a `.3d.tsx` run), a foreign solid imported via the named importer ("step"/"iges"), or a KiCad board ("kicad_pcb") converted to a 3D solid on open (a LIVE link — board edits re-mesh here). Mirrors `FileRef.importer`.
+   * How to interpret the linked file: a 3D document in code (`"3d"`, a `.3d.tsx`/`.3d.py`/`.3d.rs` run), a foreign solid imported via the named importer ("step"/"iges"), a KiCad board ("kicad_pcb") or a board in code (`"pcb"`, any language) converted to a 3D solid on open (a LIVE link — board edits re-mesh here). Mirrors `FileRef.importer`.
    */
-  importer?: "step" | "iges" | "3d" | "wrl" | "glb" | "gltf" | "obj" | "stl" | "ply" | "3mf" | "fbx" | "dae" | "usd" | "kicad_pcb" | "pcb.tsx";
+  importer?: "step" | "iges" | "3d" | "wrl" | "glb" | "gltf" | "obj" | "stl" | "ply" | "3mf" | "fbx" | "dae" | "usd" | "kicad_pcb" | "pcb";
   /**
    * Millimetres represented by one source coordinate for unitless/scene formats. Defaults are format-aware (glTF/VRML standard metres → 1000 mm; OBJ/STL → 1 mm). KiCad WRL adapters set 2.54.
    */
