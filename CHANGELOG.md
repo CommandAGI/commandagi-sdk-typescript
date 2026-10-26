@@ -12,6 +12,8 @@ Added
 - A board's component says where its `valueAt` sits, as `refAt` says where its reference does (`[x, y]` mm in the
   footprint's own frame): the layout moves a value text the footprint draws on a silkscreen, off copper and the other
   texts. Python's `component(value_at=…)` and Rust's `component().value_at(…)` are the same attribute.
+- A side places the interface's frame by `rotation` (degrees, counter-clockwise) and `face` (`back`: read from the
+  mating part, the frame mirrored through its y axis, so a hole or pin placed on it is mirrored too).
 - A monitor source names the connected account it reads as (`<source connection="gmail@jacobfv123@gmail.com">`); the api worker reads it (`via="worker"` only).
 - `<component refRot={90}>`: how far a part's reference text is turned where it sits, in degrees, in the footprint's own frame (the placer turns a text it has no upright place for).
 
