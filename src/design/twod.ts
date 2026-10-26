@@ -25,7 +25,8 @@
  *
  *   drawing   the drawing is its first artboard; each `<artboard name width height background>` after its layers is
  *             another, holding its own `<layer>`s (one `composite` each; `meta.pages` lists them in order). A
- *             top-level `<group>` is written `<layer>` (the editor's layers panel lists them); a path's `subpaths`
+ *             top-level `<group>` is written `<layer>` (the editor's layers panel lists them), and so is any shape,
+ *             image or sketch written straight on the drawing; a path's `subpaths`
  *             is `d`, an SVG path (M L C Q Z, absolute); a brush stroke's points are `[x, y]` pairs; an `<image>`
  *             or a `<raster-layer>` names its image file by `src`. A modifier
  *             (`<blur>`, `<transform>`, `<fill>`, …) wraps the one node it takes; `<boolean>` its shapes; `<clip>` its
@@ -47,6 +48,10 @@
  *             `<hsl>`, `<levels>`, `<develop exposure={0.3} contrast={12} />`, …) are the stack; a raster's children are its filters (`<gaussianBlur radius={3} />`).
  *             In a painting or a photo, a `<mask>` child of a layer (or of a stroke or a filter) holds the one layer
  *             that masks it (`<mask><gradient /></mask>`).
+ *   sketch    `<sketch sketch={{ points, segments, constraints, … }} x y unit drawingScale strokeColor strokeWidth
+ *             annotations />` is a CONSTRAINED SKETCH: graphics' `Sketch` object (the one a 3D document's sketch holds)
+ *             as plain data, placed at `x`, `y` in document px, one `unit` to its `drawingScale`. Its stored positions
+ *             are the last solve; nothing solves in the file.
  *   nest      `<sheet>`, `<stock>`, `<options>`, one `<part>` per part and one `<engrave>` per image burned on the first
  *             sheet (`<engrave id="logo" src="logo.png" xMm={20} yMm={20} widthMm={60} heightMm={30} dpi={254}
  *             dither="ordered" />`; `powerPct`, `minPowerPct`, `feedMmMin` and `passes` when not the stock's).
@@ -128,11 +133,13 @@ function checked(el: DesignElement, fields: Record<string, unknown>): Record<str
 
 /** Shapes and modifiers a drawing declares: the draw editor's op types. */
 const DRAW_SOURCES = new Set(["rect", "ellipse", "polygon", "path", "text", "brush-stroke"]);
+/** Drawables written with their data: a constrained sketch (one `Sketch` object of its own) and any future leaf. */
+const DRAW_DATA = new Set(["sketch"]);
 /** Modifiers: the one node each takes is its child, on port `in`. */
 const DRAW_MODIFIERS = new Set(["transform", "offset", "array", "mirror", "stroke", "fill", "blur", "levels", "threshold", "adjust", "crop", "bucket-fill"]);
 /** Pixels a drawing places: each names its image file (`src`). */
 const DRAW_PIXELS = new Set(["image", "raster-layer"]);
-const DRAW_LATER = new Set(["sketch", "connector"]);
+const DRAW_LATER = new Set(["connector"]);
 /** An address (`cloud://…`, `https://…`, a path from the site's root); anything else is a path from the file's folder. */
 const ADDRESS = /^[a-z][a-z0-9+.-]*:\/\/|^\//i;
 
@@ -207,7 +214,6 @@ function pairs(v: unknown, what: string): { x: number; y: number }[] {
 function declareDrawn(s: Scope, el: DesignElement, top: boolean): NodeRef {
   const t = el.type;
   if (t === "layer" && !top) throw new Error(`${where(el)}: a <layer> is a child of the <drawing>; inside it, group with <group>`);
-  if (t !== "layer" && top) throw new Error(`<${t}> is inside a <layer> (a drawing's children are its layers)`);
   if (t === "layer" || t === "group") {
     const children = kids(el).map((c) => declareDrawn(s, c, false));
     return add(s, el, "group", { ...attrs(el), ...channels("children", children) });
@@ -224,6 +230,13 @@ function declareDrawn(s: Scope, el: DesignElement, top: boolean): NodeRef {
       }
     }
     if (t === "brush-stroke" && a.points !== undefined) a.points = pairs(a.points, `${where(el)} points`);
+    return add(s, el, t, a);
+  }
+  if (DRAW_DATA.has(t)) {
+    if (kids(el).length) throw new Error(`${where(el)} takes no children`);
+    const a = attrs(el);
+    if (a.sketch === undefined || typeof a.sketch !== "object" || a.sketch === null || Array.isArray(a.sketch))
+      throw new Error(`${where(el)}: sketch is its geometry, as the editor holds it ({ points, segments, constraints, … })`);
     return add(s, el, t, a);
   }
   if (DRAW_PIXELS.has(t)) {
@@ -248,7 +261,7 @@ function declareDrawn(s: Scope, el: DesignElement, top: boolean): NodeRef {
     if (!content || !mask || rest.length) throw new Error(`${where(el)} takes its content, then its mask`);
     return add(s, el, t, { ...attrs(el), content: declareDrawn(s, content, false), mask: declareDrawn(s, mask, false) });
   }
-  if (DRAW_LATER.has(t)) throw new Error(`<${t}> is not declared in code yet (a drawing in code holds shapes, images, links, groups and modifiers)`);
+  if (DRAW_LATER.has(t)) throw new Error(`<${t}> is not declared in code yet (a drawing in code holds shapes, images, sketches, links, groups and modifiers)`);
   throw new Error(`<${t}> is not read in a drawing (see commandagi/design twod)`);
 }
 
