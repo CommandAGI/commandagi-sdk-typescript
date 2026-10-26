@@ -111,7 +111,7 @@ const ACTION_NEEDS: Record<string, readonly string[]> = {
   command: ["channel", "command"],
   computer: ["channel", "instruction"],
   robot: ["channel", "command"],
-  chain: ["ref"],
+  chain: ["ref", "channel"],
   workflow: ["ref"],
   decision: ["instruction"],
   agent: ["ref", "instruction"],
