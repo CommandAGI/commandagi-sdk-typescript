@@ -59,3 +59,16 @@ test("a postcard's size is one Lob prints, and it is written back into the code"
   assert.deepEqual(POSTAL.postcard.toTree(sized.document as never), { tag: "postcard", attrs: { size: "6x9" }, children: [{ tag: "front", attrs: { image: "Austin.jpg" }, children: [] }] });
   assert.throws(() => declarationOf({ default: el("postcard", { size: "5x7" }) }), /size is "4x6", "6x9", "6x11"/);
 });
+
+test("a postcard's size round-trips in all three sizes, and a size no provider prints is refused by name", () => {
+  for (const size of ["4x6", "6x9", "6x11"] as const) {
+    const file = el("postcard", { size }, el("front", { image: "Austin.jpg" }), el("paragraph", { text: "Hi" }));
+    const doc = declarationOf({ default: file }).document!;
+    assert.equal((doc.document as { size?: string }).size, size);
+    assert.deepEqual(POSTAL.postcard.fromTree(POSTAL.postcard.toTree(doc.document as never)), doc.document, "both ways");
+  }
+  assert.throws(
+    () => declarationOf({ default: el("postcard", { size: "5x7" }) }),
+    /size is "4x6", "6x9", "6x11"/,
+  );
+});
