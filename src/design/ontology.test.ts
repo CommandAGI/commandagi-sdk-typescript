@@ -35,6 +35,29 @@ test("a world in JSX declares its world: units, space and a scene's bodies are e
   });
   assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(world as never)), world, "both ways");
 
+  // A group is what a unit stands in or on: a shelf and its level, the level inside the shelf, the unit naming its level.
+  const shelved = documentOf({
+    default: () =>
+      el(
+        "world",
+        { name: "Shop", kind: "physical" },
+        el("group", { uid: "shelf", name: "machine shelf", size_mm: [2440, 760, 2600], position: [0, 3600, 0], rotation: 0 }),
+        el("group", { uid: "shelf-1", name: "level 1", group: "shelf", size_mm: [2440, 760, 650], position: [0, 3600, 150], rotation: 0 }),
+        el("unit", { uid: "cnc-01", name: "router", device: "../../devices/cnc/definition.tsx", group: "shelf-1", position: [-900, 3600, 150], rotation: 0 }),
+      ),
+  }).document;
+  assert.deepEqual(shelved.groups, [
+    { uid: "shelf", name: "machine shelf", size_mm: [2440, 760, 2600], position: [0, 3600, 0], rotation: 0 },
+    { uid: "shelf-1", name: "level 1", group: "shelf", size_mm: [2440, 760, 650], position: [0, 3600, 150], rotation: 0 },
+  ]);
+  assert.equal((shelved.units as Record<string, unknown>[])[0].group, "shelf-1");
+  assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(shelved as never)), shelved, "a group both ways");
+  assert.throws(
+    () => declarationOf({ default: el("world", { name: "W", kind: "physical" }, el("group", { uid: "g", name: "g", device: "d" })) }),
+    /<group uid="g">: device is not read/,
+  );
+  assert.throws(() => declarationOf({ default: el("world", { name: "W", kind: "physical" }, el("group", { uid: "g" })) }), /<group uid="g"> needs name/);
+
   // A world's model and the parts of it a run moves are attributes of <world>: the model a ref, the links its records.
   const links = [{ node: "ram", joint: { unit: "press-1", channel: "axes", name: "z", type: "prismatic", axis: "z", origin_mm: [0, 0, 0], home: 0 } }];
   const posed = documentOf({ default: () => el("world", { name: "Press", kind: "physical", model: "press.3d.tsx", links }) }).document;
