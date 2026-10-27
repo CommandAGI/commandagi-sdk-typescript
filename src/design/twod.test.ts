@@ -181,12 +181,20 @@ test("a nest's <engrave> is a nest.engrave node on the engraves channel; it has 
   assert.throws(() => run(h("nest", {}, h("sheet", {}), h("stock", {}), h("options", {}), h("engrave", { src: "a.png" }))), /an engrave has an id/);
 });
 
+test("a constrained sketch is a leaf whose geometry is its own data, placed on the page", () => {
+  const sketch = { points: { p1: { id: "p1", x: 0, y: 0 }, p2: { id: "p2", x: 40, y: 0 } }, segments: { s1: { id: "s1", type: "line", a: "p1", b: "p2" } }, constraints: {}, pointOrder: ["p1", "p2"], segmentOrder: ["s1"], constraintOrder: [] };
+  const g = run(h("drawing", { width: 100, height: 80 }, h("sketch", { sketch, x: 40, y: 60, unit: "mm", drawingScale: 2, annotations: false })));
+  assert.deepEqual(g.nodes.sketch!.inputs, { sketch, x: 40, y: 60, unit: "mm", drawingScale: 2, annotations: false });
+  assert.deepEqual(g.nodes.composite!.inputs["layers.1"], wire("sketch"), "written straight on the drawing, it is a layer of it");
+  assert.throws(() => run(h("drawing", {}, h("sketch", {}))), /<sketch>: sketch is its geometry/);
+  assert.throws(() => run(h("drawing", {}, h("sketch", { sketch: [1, 2] }))), /sketch is its geometry/);
+});
+
 test("refused by name: pixels in code, a tag the vocabulary lacks, a stroke outside a layer, relative d", () => {
   const paint = (child: unknown) => () => run(h("painting", {}, child));
   assert.throws(paint(h("layer", { src: "data:image/png;base64,AAAA" })), /src names an image file by relative path/);
   assert.throws(paint(h("stroke", { points: [] })), /is painted on a layer: write it inside one/);
-  assert.throws(() => run(h("drawing", {}, h("layer", {}, h("sketch", {})))), /<sketch> is not declared in code yet/);
-  assert.throws(() => run(h("drawing", {}, h("rect", {}))), /<rect> is inside a <layer>/);
+  assert.throws(() => run(h("drawing", {}, h("layer", {}, h("connector", {})))), /<connector> is not declared in code yet/);
   assert.throws(() => subpathsOf("m 0 0 l 1 1", "<path>"), /absolute commands/);
   assert.throws(() => run(h("nest", {}, h("part", { id: "a" }))), /a nest needs its <sheet>/);
 });
