@@ -153,6 +153,27 @@ test("a <mask> is the one layer it holds, wired to the mask port of the node it 
   assert.deepEqual(p.nodes["paint.layer"]!.inputs.mask, wire("paint.fill"));
 });
 
+test("a <mask of=\"…\"> names a layer the document declares: one layer is both a stack layer and a mask's source", () => {
+  // The mask names a layer written above it, so its layer is given once the stack is declared.
+  const g = run(
+    h("photo", { name: "Harbour" },
+      h("exposure", { name: "Mood", ev: -0.5 }, h("mask", { of: "sky", __source: 7 })),
+      h("raster", { name: "Sky", id: "sky", src: "sky.png" }),
+    ),
+  );
+  assert.deepEqual(g.nodes["photo.adjust"]!.inputs.mask, wire("sky"));
+  assert.deepEqual(g.nodes["photo.adjust"]!.meta, { sources: { mask: 7 } });
+  assert.deepEqual(g.nodes.doc!.inputs["layers.2"], wire("sky"), "the layer the mask names is still the stack's second layer");
+  assert.equal(Object.keys(g.nodes).length, 3, "the mask declares no second layer");
+  // An `of` that names nothing in the document is refused by name, and so is one that holds a layer as well.
+  assert.throws(() => run(h("photo", {}, h("exposure", {}, h("mask", { of: "nope" })))), /<mask of="nope"> names no layer in this document/);
+  assert.throws(() => run(h("photo", {}, h("exposure", {}, h("mask", { of: "sky" }, h("fill", {}))))), /holds no layer: of names one the document declares/);
+  // A painting too: its layer masked by another layer of its stack.
+  const p = run(h("painting", {}, h("layer", { name: "Ink" }, h("mask", { of: "wash", enabled: false })), h("layer", { name: "Wash", id: "wash" })));
+  assert.deepEqual(p.nodes["paint.layer"]!.inputs.mask, wire("wash"));
+  assert.equal(p.nodes["paint.layer"]!.inputs.maskEnabled, false);
+});
+
 test("a nest declares its sheet, stock, options and parts", () => {
   const g = run(
     h("nest", { safeZMm: 5 },

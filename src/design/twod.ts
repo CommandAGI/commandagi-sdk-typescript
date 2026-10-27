@@ -46,7 +46,9 @@
  *   photo     `<raster>`, `<fill>`, `<gradient>`, `<group>` and one tag per adjustment (`<exposure ev={0.35} />`,
  *             `<hsl>`, `<levels>`, `<develop exposure={0.3} contrast={12} />`, …) are the stack; a raster's children are its filters (`<gaussianBlur radius={3} />`).
  *             In a painting or a photo, a `<mask>` child of a layer (or of a stroke or a filter) holds the one layer
- *             that masks it (`<mask><gradient /></mask>`).
+ *             that masks it (`<mask><gradient /></mask>`), or `of` names a layer the document declares, so one layer is
+ *             both a stack layer and the mask's source (`<gradient id="sky" />` in the stack,
+ *             `<mask of="sky" />` on the layer it masks).
  *   nest      `<sheet>`, `<stock>`, `<options>`, one `<part>` per part and one `<engrave>` per image burned on the first
  *             sheet (`<engrave id="logo" src="logo.png" xMm={20} yMm={20} widthMm={60} heightMm={30} dpi={254}
  *             dither="ordered" />`; `powerPct`, `minPowerPct`, `feedMmMin` and `passes` when not the stock's).
@@ -60,7 +62,7 @@
  * scripts/workbench/schemas.mjs); a wrong one is refused with every issue: `<gaussianBlur>: radius: must be at most 250
  * (got 300)`.
  */
-import { Declaration, Scope, channels, slug, withScope, type IRNode, type NodeRef } from "./ir.js";
+import { Declaration, NodeRef, Scope, channels, slug, withScope, type IRNode } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
 import { describeIssue, validate, withDefaults } from "./schema.js";
 import { TWOD_SCHEMA } from "./twod-schema.js";
@@ -421,22 +423,46 @@ const PHOTO: StackKind = {
 };
 
 /**
- * A layer's (or a stroke's, or a filter's) `<mask>`: the one stack layer it holds, declared outside the stack and
- * wired to the node's `mask` port. A mask is any layer the stack could hold (a `<gradient>`, a `<raster src>`, a
- * `<fill>`, a `<group>` …). The `<mask>` element is not a node: where it was written is the masked node's
- * `meta.sources.mask`.
+ * A layer's (or a stroke's, or a filter's) `<mask>`, in one of two forms: it holds one layer declared outside the stack
+ * (a `<gradient>`, a `<raster src>`, a `<fill>`, a `<group>` …), or `of` names a layer the document already declares
+ * (`<mask of="sky" />`), so one layer can be both a stack layer and a mask's source. The `<mask>` element is not a
+ * node: where it was written is the masked node's `meta.sources.mask`. An `of` is given its layer once the stack is
+ * declared (`resolveMasks`), so it may name a layer written above or below the masked one.
  */
-function maskOf(s: Scope, kind: StackKind, el: DesignElement): { inputs: { mask?: NodeRef }; at?: unknown } {
+function maskOf(s: Scope, kind: StackKind, el: DesignElement): { inputs: { mask?: NodeRef; maskEnabled?: false }; at?: unknown; of?: string } {
   const masks = kids(el).filter((c) => c.type === "mask");
   if (!masks.length) return { inputs: {} };
   if (masks.length > 1) throw new Error(`${where(el)} has one <mask>`);
   const m = masks[0]!;
   const ma = attrs(m);
-  for (const k of Object.keys(ma))
-    if (k !== "enabled" || typeof ma.enabled !== "boolean") throw new Error(`<mask> in ${where(el)} has one attribute, enabled (write the rest on the layer it holds)`);
+  for (const k of Object.keys(ma)) {
+    if (k === "of") {
+      if (typeof ma.of !== "string" || !ma.of) throw new Error(`<mask> in ${where(el)}: of is the id of a layer in this document`);
+    } else if (k !== "enabled" || typeof ma.enabled !== "boolean")
+      throw new Error(`<mask> in ${where(el)} has two attributes, of and enabled (write the rest on the layer it holds)`);
+  }
+  const enabled: { maskEnabled?: false } = ma.enabled === false ? { maskEnabled: false } : {};
   const held = kids(m);
+  if (ma.of !== undefined) {
+    if (held.length) throw new Error(`<mask of="${String(ma.of)}"> in ${where(el)} holds no layer: of names one the document declares`);
+    return { inputs: enabled, at: m.source, of: ma.of as string };
+  }
   if (held.length !== 1) throw new Error(`<mask> in ${where(el)} holds one layer`);
-  return { inputs: { mask: declareStack(s, kind, held)[0]!, ...(ma.enabled === false ? { maskEnabled: false } : {}) }, at: m.source };
+  return { inputs: { mask: declareStack(s, kind, held)[0]!, ...enabled }, at: m.source };
+}
+
+/** The `<mask of="…">`s waiting for the stack: each masked node, the name it gives, and where it was written. */
+const namedMasks = new WeakMap<Scope, { ref: NodeRef; of: string; at: string }[]>();
+
+/** Give each `<mask of="…">` its layer, now that the document has declared its stack (docs/formats.md § 2D in code). */
+function resolveMasks(s: Scope): void {
+  const pending = namedMasks.get(s);
+  if (!pending?.length) return;
+  namedMasks.delete(s);
+  for (const { ref, of, at } of pending) {
+    if (!s.nodes[slug(of)]) throw new Error(`${at}: <mask of="${of}"> names no layer in this document`);
+    ref.set("mask", new NodeRef(s, slug(of)));
+  }
 }
 
 /** A painting layer's `<fx>`: its styles, in order, as the layer's `fx`; where each was written goes in `meta.sources`. */
@@ -462,6 +488,11 @@ function addMasked(s: Scope, kind: StackKind, el: DesignElement, type: string, i
   const mask = maskOf(s, kind, el);
   const styles = stylesOf(kind, el);
   const ref = add(s, el, type, { ...inputs, ...mask.inputs, ...(styles.fx ? { fx: styles.fx } : {}) });
+  if (mask.of !== undefined) {
+    const pending = namedMasks.get(s) ?? [];
+    namedMasks.set(s, pending);
+    pending.push({ ref, of: mask.of, at: where(el) });
+  }
   const sources = { ...styles.sources, ...(mask.at !== undefined ? { mask: mask.at } : {}) };
   if (Object.keys(sources).length) {
     const node = ref.node as IRNode;
@@ -500,6 +531,7 @@ function stackDocument(kind: StackKind, root: DesignElement, name: string): Decl
   const s = new Scope(`${kind.prefix}:${slug(title)}`, { domain: kind.prefix, name: title });
   withScope(s, () => {
     const layers = declareStack(s, kind, kids(root));
+    resolveMasks(s);
     const doc = s.add(`${kind.prefix}.doc`, { ...a, ...channels("layers", layers) }, { id: "doc", meta: meta(root) });
     s.output(doc);
   });
