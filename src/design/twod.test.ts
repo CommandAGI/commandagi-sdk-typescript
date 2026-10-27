@@ -147,6 +147,23 @@ test("a <mask> is the one layer it holds, wired to the mask port of the node it 
   assert.deepEqual(g.nodes["photo.adjust"]!.meta, { sources: { mask: 9 } });
   assert.deepEqual(g.nodes["photo.filter"]!.inputs.mask, wire("photo.fill"));
   assert.equal(g.nodes["photo.raster"]!.inputs.mask, undefined);
+  // The ten layer styles are the tags of a layer's <fx>, and each is a part in order.
+  const styled = run(
+    h("painting", { width: 100, height: 80 },
+      h("layer", {}, h("fx", { __source: 3 },
+        h("dropShadow", { distance: 4 }), h("innerShadow", {}), h("outerGlow", {}), h("innerGlow", { source: "center" }),
+        h("bevelEmboss", { depth: 2 }), h("satin", { invert: true }), h("colorOverlay", {}), h("gradientOverlay", { align: "layer" }),
+        h("patternOverlay", { pattern: "dots" }), h("stroke", { position: "inside" }),
+      )),
+    ),
+  );
+  assert.deepEqual(styled.nodes["paint.layer"]!.inputs.fx, [
+    { type: "dropShadow", distance: 4 }, { type: "innerShadow" }, { type: "outerGlow" }, { type: "innerGlow", source: "center" },
+    { type: "bevelEmboss", depth: 2 }, { type: "satin", invert: true }, { type: "colorOverlay" }, { type: "gradientOverlay", align: "layer" },
+    { type: "patternOverlay", pattern: "dots" }, { type: "stroke", position: "inside" },
+  ]);
+  assert.equal((styled.nodes["paint.layer"]!.meta!.sources as Record<string, unknown>).fx, 3, "the <fx> block carries where it was written");
+  assert.throws(() => run(h("painting", {}, h("layer", {}, h("fx", {}, h("blur", {}))))), /not a layer style/);
   assert.deepEqual(Object.keys(g.nodes.doc!.inputs).filter((k) => k.startsWith("layers.")), ["layers.1", "layers.2"]);
   assert.throws(() => run(h("photo", {}, h("exposure", {}, h("mask", {})))), /holds one layer/);
   const p = run(h("painting", {}, h("layer", {}, h("stroke", { points: [] }), h("mask", {}, h("fill", {})))));

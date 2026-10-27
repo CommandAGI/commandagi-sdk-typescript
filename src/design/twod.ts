@@ -41,8 +41,9 @@
  *             array, written once. Each may hold a `selection` (`[{ rect: [x, y, w, h], feather }, { op: "subtract",
  *             polygon: [[x, y], …] }, …]`), the region it changed. `<textLayer text="Title" x y size font weight color
  *             align />` is a type layer (point text at the baseline anchor; with `width` and `height`, a paragraph box). A
- *             layer's `<fx>` holds its styles (`<dropShadow>`, `<innerShadow>`, `<outerGlow>`, `<stroke>`,
- *             `<colorOverlay>`, `<gradientOverlay>`), as its `fx`; a `<mask enabled={false}>` is a mask turned off.
+ *             layer's `<fx>` holds its styles (`<dropShadow>`, `<innerShadow>`, `<outerGlow>`, `<innerGlow>`,
+ *             `<bevelEmboss>`, `<satin>`, `<stroke>`, `<colorOverlay>`, `<gradientOverlay>`, `<patternOverlay>`), as its
+ *             `fx`; a `<mask enabled={false}>` is a mask turned off.
  *   photo     `<raster>`, `<fill>`, `<gradient>`, `<group>` and one tag per adjustment (`<exposure ev={0.35} />`,
  *             `<hsl>`, `<levels>`, `<develop exposure={0.3} contrast={12} />`, …) are the stack; a raster's children are its filters (`<gaussianBlur radius={3} />`).
  *             In a painting or a photo, a `<mask>` child of a layer (or of a stroke or a filter) holds the one layer
@@ -314,7 +315,7 @@ const COMMON_DEFAULTS = { name: "Layer", visible: true, opacity: 1, blend: "norm
 export const PHOTO_ADJUSTMENTS = ["exposure", "levels", "curves", "hsl", "vibrance", "colorBalance", "blackWhite", "invert", "threshold", "posterize", "develop"] as const;
 export const PHOTO_FILTERS = ["gaussianBlur", "unsharpMask", "sharpen", "noise"] as const;
 /** A painting layer's styles, the tags of its `<fx>` (Photoshop's Layer Style). */
-export const LAYER_STYLES = ["dropShadow", "innerShadow", "outerGlow", "stroke", "colorOverlay", "gradientOverlay"] as const;
+export const LAYER_STYLES = ["dropShadow", "innerShadow", "outerGlow", "innerGlow", "bevelEmboss", "satin", "stroke", "colorOverlay", "gradientOverlay", "patternOverlay"] as const;
 
 const MIME: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", gif: "image/gif", bmp: "image/bmp" };
 
