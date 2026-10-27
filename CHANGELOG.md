@@ -8,6 +8,8 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- A painting's or a photo's `<mask of="Name" />` names a layer the stack shows, by its `name`, and wires the masked node to it; the element holds no layer of its own.
+
 - A case's check may be a `document` (`check={{ document: { as: "world.tsx", expect: { … } } }}`): the answer is one of our documents in code, in the file the check names, read by that document's own reader and held to what it must say. The scouts' runner scores it in the code sandbox (`docs/scouts.md` § compare).
 - A board's component says where its `valueAt` sits, as `refAt` says where its reference does (`[x, y]` mm in the
   footprint's own frame): the layout moves a value text the footprint draws on a silkscreen, off copper and the other
