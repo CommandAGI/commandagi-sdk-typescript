@@ -13,7 +13,7 @@ test("a <board> that names its schematic declares the board half: outline, stack
   const g = board(
     { width: 40, height: 30, core: 1.5, copper: 0.035, __source: 0 },
     jsx("component", { name: "R1", footprint: "smd-0805", pcbX: 10, pcbY: 10, __source: 1 }),
-    jsx("component", { name: "R2", footprint: "axial-7.62", pcbX: 25, pcbY: 10, pcbRotation: 90, layer: "bottom", refAt: [0, -2.5] }),
+    jsx("component", { name: "R2", footprint: "axial-7.62", pcbX: 25, pcbY: 10, pcbRotation: 90, layer: "bottom", refAt: [0, -2.5], refRot: 90 }),
     jsx("component", { name: "V1", footprint: "smd-0805" }),
     jsx("trace", { layer: "F.Cu", width: 0.2, points: [[11, 10], [18, 14], [24, 10]], from: ".R1 > .pin2", to: ".R2 > .1", __source: 4 }),
     jsx("trace", { layer: "B.Cu", width: 0.25, points: [[18, 14], [18, 20]], from: ".VIA1" }),
@@ -33,6 +33,7 @@ test("a <board> that names its schematic declares the board half: outline, stack
   assert.deepEqual(g.nodes.fp_R1!, { id: "fp_R1", type: "eda.footprint", label: "R1", inputs: { ref: "R1", footprint: "Authored:smd-0805", placement: { x: 10, y: 10, rot: 0, side: "top" } }, meta: { source: 1 } });
   assert.deepEqual(g.nodes.fp_R2!.inputs.placement, { x: 25, y: 10, rot: 90, side: "bottom" });
   assert.deepEqual(g.nodes.fp_R2!.inputs.refAt, [0, -2.5]);
+  assert.equal(g.nodes.fp_R2!.inputs.refRot, 90, "the reference text is turned a quarter where it sits");
   assert.equal(g.nodes.fp_V1!.inputs.placement, undefined, "a footprint with no pcbX and pcbY is not placed");
   assert.deepEqual(g.nodes.cu_1!.inputs, {
     kind: "run",
@@ -71,6 +72,7 @@ test("a board refuses, by name, what it cannot say", () => {
   assert.throws(board({}, jsx("component", { name: "R1", footprint: "0603" })), /footprint is one of smd-0805/);
   assert.throws(board({}, jsx("component", { name: "R1", footprint: "smd-0805", schX: 3 })), /schX is the schematic's/);
   assert.throws(board({}, jsx("component", { name: "R1", footprint: "smd-0805", pcbX: 3 })), /pcbX and pcbY together/);
+  assert.throws(board({}, jsx("component", { name: "R1", footprint: "smd-0805", refRot: 90 })), /refRot needs pcbX and pcbY/);
   assert.throws(board({}, jsx("resistor", { name: "R1" })), /<resistor> is not read on a board/);
   assert.throws(board({ width: 10 }), /width and height together/);
   assert.throws(board({}, jsx("trace", { layer: "F.SilkS", width: 0.2, points: [[0, 0], [1, 0]] })), /copper layer/);
@@ -126,6 +128,25 @@ test("a board on the faces of a CAD part: its surface, each component's face and
   assert.deepEqual(g.nodes.cu_1!.inputs.mount, { kind: "unwrap", domain: surface.domain });
   assert.throws(() => board({}, jsx("component", { name: "R1", footprint: "smd-0805", pcbX: 4, pcbY: 5, chart: "top" }))(), /has no surface/);
   assert.throws(() => board({}, jsx("trace", { layer: "F.Cu", width: 0.3, points: [[4, 5], [9, 5]], surface: true }))(), /has no surface/);
+});
+
+test("an IC mask layout is declared as <masks>: its polygons, the stream's units and its library", () => {
+  const polygons = [
+    { layer: 1, datatype: 0, points: [[0, 0], [4, 0], [4, 2], [0, 2]] },
+    { layer: 2, datatype: 1, points: [[1, 1], [3, 1], [2, 1.5]] },
+  ];
+  const g = board({ width: 10, height: 10 }, jsx("masks", { polygons, unitUmPerDb: 0.001, libName: "Inverter", __source: 2 }))();
+  assert.deepEqual(g.nodes.masks, { id: "masks", type: "eda.masks", label: "Inverter", inputs: { polygons, unitUmPerDb: 0.001, libName: "Inverter" }, meta: { source: 2 } });
+  assert.ok(g.nodes.board, "the outline is the board's");
+  // A die is its layout alone: the file declares the layout and, with no board fact, no board.
+  const die = board({}, jsx("masks", { polygons, unitUmPerDb: 0.001 }))();
+  assert.equal(die.nodes.board, undefined);
+  assert.equal(die.nodes.masks!.label, "Masks", "with no library, the layout is called Masks");
+  assert.throws(() => board({}, jsx("masks", { unitUmPerDb: 0.001 }))(), /<masks> needs polygons/);
+  assert.throws(() => board({}, jsx("masks", { polygons: [{ layer: 1, datatype: 0, points: [[0, 0], [1, 1]] }], unitUmPerDb: 0.001 }))(), /polygons is the mask layout's polygons/);
+  assert.throws(() => board({}, jsx("masks", { polygons, unitUmPerDb: 0 }))(), /unitUmPerDb is more than 0/);
+  assert.throws(() => board({}, jsx("masks", { polygons }))(), /<masks> needs unitUmPerDb/);
+  assert.throws(() => board({}, jsx("masks", { polygons, unitUmPerDb: 0.001 }), jsx("masks", { polygons, unitUmPerDb: 0.001 }))(), /one <masks>/);
 });
 
 test("a net class states the rules a four-layer board needs: least width, inner layers, edge and hole gaps, spokes", () => {
