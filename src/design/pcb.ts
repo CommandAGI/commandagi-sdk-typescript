@@ -42,13 +42,14 @@
  *   <check id kind severity>, <accept id check rule refs net region reason>
  *                                     the checks the board must pass (erc, drc) and the findings it accepts on
  *                                     purpose (`./circuit-checks.ts`)
- *   <component name footprint library pcbX pcbY pcbRotation layer refAt refRot chart uuid kicad>
+ *   <component name footprint library pcbX pcbY pcbRotation layer refAt refRot valueAt chart uuid kicad>
  *                                     the schematic's part `name` on this board: its footprint (one of the editor's
  *                                     own land patterns, BOARD_FOOTPRINTS, or a library footprint by its ref,
  *                                     "Package_SO:SOIC-8", in the `.pretty` folder `library` names: its
  *                                     `SOIC-8.kicad_mod`), where it sits, its rotation (degrees), its side ("top" or
  *                                     "bottom"), where its reference text sits (`refAt`, [x, y] mm in the footprint's
- *                                     frame) and how far it is turned there (`refRot`, degrees), its KiCad uuid,
+ *                                     frame), how far it is turned there (`refRot`, degrees) and where its value
+ *                                     text sits (`valueAt`, the same frame), its KiCad uuid,
  *                                     the KiCad forms that say which instance it is
  *                                     (its schematic path). With no pcbX and pcbY it is not placed. The editor
  *                                     reads a library footprint's pads, artwork and attributes from its file. A
@@ -577,7 +578,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
           break;
         }
         case "component": {
-          refuseUnknown(el, ["name", "footprint", "library", "pcbX", "pcbY", "pcbRotation", "layer", "refAt", "refRot", "chart", "uuid", "kicad"]);
+          refuseUnknown(el, ["name", "footprint", "library", "pcbX", "pcbY", "pcbRotation", "layer", "refAt", "refRot", "valueAt", "chart", "uuid", "kicad"]);
           const ref = el.props.name as string;
           const fp = el.props.footprint;
           const library = el.props.library;
@@ -604,6 +605,12 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
           // How far the reference text is turned where it sits: the placer turns a text it has no upright place for.
           const refRot = num(el, "refRot");
           if (refRot !== undefined && x === undefined) throw new Error(`${where(el)}: refRot needs pcbX and pcbY`);
+          // Where the value text sits, in the same frame: the layout moves it too where the footprint draws it on a
+          // silkscreen.
+          const valueAt = el.props.valueAt;
+          if (valueAt !== undefined && !(Array.isArray(valueAt) && valueAt.length === 2 && valueAt.every((v) => typeof v === "number" && Number.isFinite(v))))
+            throw new Error(`${where(el)}: valueAt is [x, y] in mm, in the footprint's own frame`);
+          if (valueAt !== undefined && x === undefined) throw new Error(`${where(el)}: valueAt needs pcbX and pcbY`);
           const chart = text(el, "chart");
           if (chart !== undefined && !surface) throw new Error(`${where(el)}: chart names a face of the board's surface, and the <board> has no surface`);
           if (chart !== undefined && x === undefined) throw new Error(`${where(el)}: chart needs pcbX and pcbY`);
@@ -615,6 +622,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
               ...(x !== undefined ? { placement: { x, y, rot: rot ?? 0, side: side ?? "top" } } : {}),
               ...(refAt !== undefined ? { refAt: [...(refAt as number[])] } : {}),
               ...(refRot !== undefined ? { refRot } : {}),
+              ...(valueAt !== undefined ? { valueAt: [...(valueAt as number[])] } : {}),
               ...(chart !== undefined ? { surfaceMount: { chart } } : {}),
               ...uuidOf(el),
               ...kicad(el),
