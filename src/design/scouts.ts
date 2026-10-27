@@ -52,10 +52,13 @@ export const WORKLOAD_NEEDS = ["tools", "structured", "image"] as const;
 /**
  * The checks a case may name, cheapest first (a judge's rubric only where no check exists): the answer's text equal to
  * one (`exact`, `oneOf`), a number within `tolerance`, phrases it holds, a pattern, a JSON object it holds, a
- * multiple-choice `letter`, a Python `literal` (spaces and quotes aside), the first `tool` the model called, or a
- * `program` (an arithmetic expression in `x` that maps each input to its output).
+ * multiple-choice `letter`, a Python `literal` (spaces and quotes aside), the first `tool` the model called, a
+ * `program` (an arithmetic expression in `x` that maps each input to its output), or a `document` (the answer is one of
+ * our documents in code, read by that document's own reader).
  */
-export const CHECK_KINDS = ["exact", "oneOf", "number", "contains", "regex", "json", "letter", "literal", "tool", "program"] as const;
+export const CHECK_KINDS = ["exact", "oneOf", "number", "contains", "regex", "json", "letter", "literal", "tool", "program", "document"] as const;
+/** The file names a `document` check reads: one our reader knows by its extension (`world.tsx`, `definition.py` …). */
+export const DOCUMENT_FILE = /\.(?:[jt]sx|py|rs)$/i;
 
 export interface ScoutConfiguration {
   id: string;
@@ -83,6 +86,12 @@ export interface ScoutCheck {
   tool?: string;
   /** An arithmetic expression in `x` that maps each input to its output (within `tolerance`). */
   program?: { data: [number, number][]; tolerance?: number };
+  /**
+   * The answer is one of our documents in code, in the file `as` names (`world.tsx`, `definition.tsx`, `monitor.tsx`,
+   * `<name>.task.tsx` …): it is read by that document's own reader, and must say what `expect` names — an object
+   * matches by its fields, and a list of objects that each have an `id` matches by id in any order.
+   */
+  document?: { as: string; expect?: Record<string, unknown> };
 }
 /**
  * A tool a case offers the model. Its answers are the case's own: the first of `results` whose `when` holds of the
@@ -255,6 +264,12 @@ function checkOf(t: DocTree): void {
     if (!p || typeof p !== "object" || !Array.isArray(p.data) || !p.data.length || !p.data.every((d) => Array.isArray(d) && d.length === 2 && d.every((n) => typeof n === "number" && Number.isFinite(n))))
       throw new Error(`${where(t)} check: program is { data: [[x, y], …] }`);
     if (p.tolerance !== undefined && !(typeof p.tolerance === "number" && p.tolerance >= 0)) throw new Error(`${where(t)} check: program tolerance is a number of 0 or more`);
+  }
+  if (x.document !== undefined) {
+    const d = x.document;
+    if (!d || typeof d !== "object" || typeof d.as !== "string" || !DOCUMENT_FILE.test(d.as))
+      throw new Error(`${where(t)} check: document is { as: "world.tsx", expect? } — the file a document's own reader knows by its extension`);
+    if (d.expect !== undefined && (!d.expect || typeof d.expect !== "object" || Array.isArray(d.expect))) throw new Error(`${where(t)} check: document expect is the object the document must hold`);
   }
 }
 
