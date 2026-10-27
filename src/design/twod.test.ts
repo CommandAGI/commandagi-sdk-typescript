@@ -109,6 +109,8 @@ test("a painting's bucket, gradient and move chain on a layer beside its strokes
         h("bucket", { x: 5, y: 6, tolerance: 20, contiguous: true, color: [1, 0, 0, 1] }),
         h("gradientFill", { shape: "linear", from: [0, 0], to: [100, 0], stops: [{ at: 0, color: [0, 0, 0, 1] }, { at: 1, color: [1, 1, 1, 1] }] }),
         h("move", { dx: 12, dy: -3, selection: [{ wand: [5, 6], tolerance: 32, contiguous: false }] }),
+        h("erase", { selection: [{ rect: [0, 0, 10, 10], feather: 0 }] }),
+        h("freeTransform", { cx: 50, cy: 40, dx: 2, dy: 3, scaleX: 1.5, scaleY: 1.5, angle: 0.25 }),
       ),
       h("rect", { name: "Rectangle 1", x: 4, y: 5, w: 30, h: 20, fill: [0, 0, 1, 1], stroke: [0, 0, 0, 1], strokeWidth: 2 }),
       h("line", { name: "Line 1", from: [0, 0], to: [10, 10], stroke: [1, 0, 0, 1], strokeWidth: 3 }),
@@ -118,7 +120,10 @@ test("a painting's bucket, gradient and move chain on a layer beside its strokes
   assert.deepEqual(g.nodes["paint.bucket"]!.inputs, { name: "Paint", visible: true, opacity: 1, blend: "normal", x: 5, y: 6, tolerance: 20, contiguous: true, color: [1, 0, 0, 1], src: wire("paint.stroke") });
   assert.deepEqual(g.nodes["paint.gradientFill"]!.inputs.src, wire("paint.bucket"));
   assert.deepEqual(g.nodes["paint.move"]!.inputs.dx, 12);
-  assert.deepEqual(g.nodes.doc!.inputs["layers.1"], wire("paint.move"));
+  assert.deepEqual(g.nodes["paint.erase"]!.inputs.src, wire("paint.move"));
+  assert.deepEqual(g.nodes["paint.freeTransform"]!.inputs.src, wire("paint.erase"));
+  assert.deepEqual(g.nodes["paint.freeTransform"]!.inputs.scaleX, 1.5);
+  assert.deepEqual(g.nodes.doc!.inputs["layers.1"], wire("paint.freeTransform"));
   assert.deepEqual(g.nodes["paint.shape"]!.inputs, { name: "Rectangle 1", x: 4, y: 5, w: 30, h: 20, fill: [0, 0, 1, 1], stroke: [0, 0, 0, 1], strokeWidth: 2, shape: "rect" });
   assert.equal(g.nodes["paint.shape_2"]!.inputs.shape, "line");
   assert.throws(() => run(h("painting", {}, h("layer", {}, h("bucket", { opacity: 0.5 })))), /opacity is the layer's/);

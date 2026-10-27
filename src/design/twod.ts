@@ -36,7 +36,8 @@
  *             drawing is in this file.
  *   painting  `<layer>`, `<fill>`, `<group>`, `<textLayer>`, the shape layers (`<rect>`, `<ellipse>`, `<polygon>`, `<line>`)
  *             and the photo's adjustment tags are the stack, bottom first; a layer's `<stroke>`, `<bucket>`,
- *             `<gradientFill>` and `<move>` children are what was painted, filled and moved on it, oldest first; a
+ *             `<gradientFill>`, `<move>` and `<erase>` children are what was painted, filled, moved and cleared on it,
+ *             oldest first, as is a `<freeTransform cx cy dx dy scaleX scaleY angle>` (a resample about a pivot); a
  *             filter among them (`<gaussianBlur radius={3} />`, the photo's filters) changes what is under it. A stroke's
  *             points are `[x, y, pressure, t]` (with tilt, `[x, y, pressure, t, tiltX, tiltY]`): free-hand data is a points
  *             array, written once. Each may hold a `selection` (`[{ rect: [x, y, w, h], feather }, { op: "subtract",
@@ -373,8 +374,8 @@ function adjustmentLayer(el: DesignElement, type: string): { type: string; input
   return { type, inputs: { ...common, adjustment } };
 }
 
-/** What is painted on a painting's pixel layer: strokes, the Paint Bucket, the Gradient, the Move tool. A filter (`PHOTO_FILTERS`) chains among them. */
-export const PAINT_CHAIN = ["stroke", "bucket", "gradientFill", "move"] as const;
+/** What is painted on a painting's pixel layer: strokes, the Paint Bucket, the Gradient, the Move tool, the Eraser, Free Transform. A filter (`PHOTO_FILTERS`) chains among them. */
+export const PAINT_CHAIN = ["stroke", "bucket", "gradientFill", "move", "erase", "freeTransform"] as const;
 /** A painting's shape layers. */
 export const PAINT_SHAPES = ["rect", "ellipse", "polygon", "line"] as const;
 
