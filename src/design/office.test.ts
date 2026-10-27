@@ -73,3 +73,29 @@ test("a <deck> declares the deck's own graph: doc, slides by layout name, elemen
   assert.deepEqual(graph.nodes["slide-2.1"]!.inputs, { box: { x: 1, y: 2, w: 3, h: 4 }, shape: "ellipse" });
   assert.throws(() => declarationOf({ default: () => el("deck", {}, el("slide", {}, el("shape", { x: 1 }))) }), /needs x, y, w and h/);
 });
+
+test("a text box's run says its own colour, size and family; a list paragraph its bullet and level", () => {
+  const { graph } = declarationOf({
+    default: () =>
+      el(
+        "deck",
+        {},
+        el(
+          "slide",
+          { layout: "Blank" },
+          el("text", { x: 0, y: 0, w: 400, h: 300 }, el("p", {}, "Plain ", el("span", { color: "#b91c1c", size: 20, font: "Georgia" }, "accent")), el("li", { bullet: "number", level: 2 }, "Second"), el("li", {}, "Third")),
+        ),
+      ),
+  });
+  assert.deepEqual(graph.nodes["slide-1.1"]!.inputs.text, {
+    paragraphs: [
+      { runs: [{ text: "Plain " }, { text: "accent", color: "#b91c1c", sizePx: 20, fontFamily: "Georgia" }] },
+      { runs: [{ text: "Second" }], listLevel: 2, bullet: "number" },
+      { runs: [{ text: "Third" }], listLevel: 1, bullet: "disc" },
+    ],
+  });
+  assert.throws(
+    () => declarationOf({ default: () => el("deck", {}, el("slide", {}, el("text", { x: 0, y: 0, w: 4, h: 4 }, el("li", { level: 0 }, "x")))) }),
+    /level is a whole number from 1/,
+  );
+});
