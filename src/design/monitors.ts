@@ -35,9 +35,12 @@ export const MONITOR_FIELDS = ["title", "class", "about", "readme", "sameAs"] as
 export const SUBJECT = /^[a-z][a-z0-9-]*:\S*$/;
 export const SOURCE_FIELDS = ["id", "adapter", "params", "every", "via", "exit", "host", "mode", "retain", "since", "session", "snapshot", "profile", "keep", "maxCostPerDay", "unit", "vantage", "connection"] as const;
 export const FOLLOW_FIELDS = ["monitor", "match", "where"] as const;
-export const DISCOVER_FIELDS = ["into", "of", "when", "slug", "class", "props", "name", "max"] as const;
+export const DISCOVER_FIELDS = ["into", "of", "when", "slug", "class", "props", "name", "max", "visibility"] as const;
 /** The most new folders a discover writes a tick. */
 export const DISCOVER_MAX = 50;
+/** Who may read a file a discover writes (docs/monitors.md § own thread or record). */
+export const VISIBILITIES = ["private", "unlisted", "public"] as const;
+export type Visibility = (typeof VISIBILITIES)[number];
 export const WAKE_FIELDS = ["match", "prompt"] as const;
 export const DERIVE_FIELDS = ["id", "op", "inputs", "params", "since"] as const;
 
@@ -139,6 +142,8 @@ export interface MonitorDiscover {
   name?: string;
   /** At most this many new folders a tick (absent: 10). */
   max?: number;
+  /** The Drive visibility each written file takes (absent: private); a file whose terms forbid passing its data on stays private. */
+  visibility?: Visibility;
 }
 /**
  * A derived stream (docs/records.md § 6): an operator folds the records of other monitors into records of this one.
@@ -300,6 +305,8 @@ function discoverOf(t: DocTree): MonitorDiscover {
   }
   const max = t.attrs.max;
   if (max !== undefined && !(Number.isInteger(max) && (max as number) >= 1 && (max as number) <= DISCOVER_MAX)) throw new Error(`${at} max is a whole number from 1 to ${DISCOVER_MAX}, not ${JSON.stringify(max)}`);
+  const visibility = t.attrs.visibility;
+  if (visibility !== undefined && !VISIBILITIES.includes(visibility as Visibility)) throw new Error(`${at} visibility is ${VISIBILITIES.join(", ")}, not ${JSON.stringify(visibility)}`);
   return said(t.attrs, DISCOVER_FIELDS) as unknown as MonitorDiscover;
 }
 function deriveOf(t: DocTree): MonitorDerive {
@@ -388,6 +395,6 @@ export function monitorWithDefaults(m: MonitorDoc) {
     follows: m.follows.map((f) => ({ monitor: f.monitor, match: f.match ?? null, where: f.where ?? null })),
     derives: (m.derives ?? []).map((d) => ({ id: d.id, op: d.op, inputs: d.inputs, params: d.params ?? {}, since: d.since ?? null })),
     wakes: m.wakes.map((w) => ({ match: w.match ?? null, prompt: w.prompt })),
-    discovers: (m.discovers ?? []).map((d) => ({ into: d.into ?? "./", of: d.of === undefined ? [] : typeof d.of === "string" ? [d.of] : d.of, when: d.when ?? null, slug: d.slug, class: d.class, props: d.props ?? {}, name: d.name ?? null, max: d.max ?? 10 })),
+    discovers: (m.discovers ?? []).map((d) => ({ into: d.into ?? "./", of: d.of === undefined ? [] : typeof d.of === "string" ? [d.of] : d.of, when: d.when ?? null, slug: d.slug, class: d.class, props: d.props ?? {}, name: d.name ?? null, max: d.max ?? 10, visibility: d.visibility ?? null })),
   };
 }

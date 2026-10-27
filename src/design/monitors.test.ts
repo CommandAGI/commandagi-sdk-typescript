@@ -164,7 +164,7 @@ test("a mirror discovers its conversations: a source names its vantage, a follow
     ),
   }).document!.document as never;
   assert.deepEqual(monitorWithDefaults(mirror).discovers, [
-    { into: "./", of: [], when: { class: "message.*" }, slug: "conversation", class: "../../conversation.tsx#Conversation", props: { conversation: "conversation", title: "fromName" }, name: "fromName", max: 5 },
+    { into: "./", of: [], when: { class: "message.*" }, slug: "conversation", class: "../../conversation.tsx#Conversation", props: { conversation: "conversation", title: "fromName" }, name: "fromName", max: 5, visibility: null },
   ]);
   assert.equal(monitorWithDefaults(mirror).sources[0]!.vantage, "../../../infra/vantages/laptop-linux");
   assert.deepEqual(MONITORS.monitor.fromTree(MONITORS.monitor.toTree(mirror)), mirror, "both ways");
@@ -184,6 +184,11 @@ test("a mirror discovers its conversations: a source names its vantage, a follow
   assert.throws(refuse({ of: [] }), /of is a monitor's folder or a list of them/);
   assert.throws(refuse({ props: { title: "a b" } }), /props.title is a data path/);
   assert.throws(refuse({ max: 500 }), /max is a whole number from 1 to 50/);
+  // A discover says the visibility its folders take; absent, the platform writes them private.
+  const says = (attrs: Record<string, unknown>) => monitorWithDefaults(declarationOf({ default: el("monitor", {}, el("discover", { slug: "cve", class: "../c.tsx#Exploit", ...attrs })) }).document!.document as never).discovers[0]!;
+  assert.equal(says({ visibility: "public" }).visibility, "public");
+  assert.equal(says({}).visibility, null);
+  assert.throws(refuse({ visibility: "shared" }), /visibility is private, unlisted, public/);
   assert.throws(refuse({ delete: true }), /delete is not read/);
   assert.throws(refuse({ by: "conversation" }), /by is not read/);
   assert.throws(() => declarationOf({ default: el("monitor", {}, el("follows", { monitor: "../x", where: "conversation" })) }), /where is name=value terms/);
