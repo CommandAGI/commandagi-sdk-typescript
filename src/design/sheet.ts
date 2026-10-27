@@ -26,7 +26,7 @@
  *   <part name symbol library value>                                       a library part: its symbol named by its
  *                                                                          library ref ("Device:R_Small") in a
  *                                                                          .kicad_sym the file names by path
- *   <unit part unit schX schY schRotation schMirror>                       where another unit of a part sits
+ *   <unit part unit schX schY schRotation schMirror schStyle>              where another unit of a part sits
  *                                                                          (U1B: unit={2}); the part's own schX and
  *                                                                          schY place unit 1
  *   <code name source inputs>                                              a code part: the parts another file
@@ -62,7 +62,8 @@
  *                                                                          its project): the file, by its path
  *
  * schX and schY are the sheet's own coordinates: millimetres, Y DOWN (tscircuit's are Y up). schRotation is 0, 90,
- * 180 or 270 degrees; schMirror is "x" or "y". A part with neither schX nor schY is declared and not placed. The
+ * 180 or 270 degrees; schMirror is "x" or "y"; schStyle is the De Morgan body style the placement shows (1, the
+ * format's default, unless the file says another). A part with neither schX nor schY is declared and not placed. The
  * symbols are named (`Ideal:R`, `Device:R_Small`): the editor draws its own ideal symbols and reads a library part's
  * pins and body from the library file, so the file holds no artwork and no pin geometry. A library part's pin is
  * named by its number (".U1 > .pin5"); the editor binds it to the unit that has that pin (a pin common to every unit
@@ -124,7 +125,7 @@ export const SHEET_PARTS: Readonly<Record<string, Ideal>> = {
 /** The tags only a schematic has (a board reads resistors, capacitors and inductors too). */
 const SHEET_ONLY = new Set(["voltagesource", "currentsource", "ground", "junction", "netlabel", "part", "unit", "code", "net", "attachment"]);
 
-const PLACE_PROPS = ["schX", "schY", "schRotation", "schMirror"];
+const PLACE_PROPS = ["schX", "schY", "schRotation", "schMirror", "schStyle"];
 const MIRRORS = ["x", "y"];
 /** A library part's wire end before the editor reads its library: the part node, and the pin by number. */
 export const LIBRARY_PIN_PORT = "pin:";
@@ -205,20 +206,33 @@ function fieldsOf(el: DesignElement): { foreign?: unknown[] } {
   return forms.length ? { foreign: forms } : {};
 }
 
-/** Add the placement of `unit` of `part` that `el` declares (its schX, schY, schRotation, schMirror). */
+/** Add the placement of `unit` of `part` that `el` declares (its schX, schY, schRotation, schMirror, schStyle). */
 function place(s: Scope, part: Placed, unit: number, el: DesignElement, pins: readonly string[]): void {
   const x = num(el, "schX"), y = num(el, "schY"), rot = num(el, "schRotation");
   const mirror = el.props.schMirror;
+  const style = el.props.schStyle;
   if (x === undefined && y === undefined) {
-    if (rot !== undefined || mirror !== undefined) throw new Error(`${where(el)}: ${rot !== undefined ? "schRotation" : "schMirror"} needs schX and schY`);
+    const unplaced = rot !== undefined ? "schRotation" : mirror !== undefined ? "schMirror" : style !== undefined ? "schStyle" : undefined;
+    if (unplaced) throw new Error(`${where(el)}: ${unplaced} needs schX and schY`);
     if (el.type === "unit") throw new Error(`${where(el)}: a unit is placed: give it schX and schY`);
     return;
   }
   if (rot !== undefined && ![0, 90, 180, 270].includes(rot)) throw new Error(`${where(el)}: schRotation is 0, 90, 180 or 270`);
   if (mirror !== undefined && !MIRRORS.includes(mirror as string)) throw new Error(`${where(el)}: schMirror is "x" or "y"`);
+  // A body style is 1 or more: 0 is "common to every style", which a placement never shows on its own.
+  if (style !== undefined && (typeof style !== "number" || !Number.isInteger(style) || style < 1))
+    throw new Error(`${where(el)}: schStyle is 1 or more (KiCad's De Morgan body style)`);
+  const bodyStyle = style === undefined ? 1 : (style as number);
   const id = s.add(
     schSymbolTypeFor(pins),
-    { unit, style: 1, at: { x: x ?? 0, y: y ?? 0 }, rot: rot ?? 0, mirror: (mirror as string | undefined) ?? "", [PART_PORT]: { wire: { node: part.id, port: PART_BODY_PORT } } },
+    {
+      unit,
+      style: bodyStyle,
+      at: { x: x ?? 0, y: y ?? 0 },
+      rot: rot ?? 0,
+      mirror: (mirror as string | undefined) ?? "",
+      [PART_PORT]: { wire: { node: part.id, port: PART_BODY_PORT } },
+    },
     { id: `sym_${part.ref}_${unit}`, label: part.ref, meta: meta(el) },
   ).id;
   part.units.set(unit, id);
