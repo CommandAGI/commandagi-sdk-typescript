@@ -23,6 +23,28 @@ test("a <workbook> declares the workbook JSON: cells by A1 reference, formats, s
   assert.throws(() => declarationOf({ default: () => el("workbook", {}, el("sheet", {}, el("cell", { at: "A1", font: "x" }))) }), /font is not read on a <cell>/);
 });
 
+test("a <sheet> with a source is a data sheet: a file beside the workbook, an http(s) URL or surface:<id>", () => {
+  const sheet = (props: Record<string, unknown>, ...kids: unknown[]) => declarationOf({ default: () => el("workbook", {}, el("sheet", props, ...kids)) });
+  const s = (props: Record<string, unknown>) => (sheet(props).document?.document as { sheets: Record<string, unknown>[] }).sheets[0]!;
+  assert.deepEqual(s({ name: "Sales", source: "sales.parquet", format: "parquet", query: "select * from sales" }), {
+    id: "sheet-1",
+    name: "Sales",
+    kind: "data",
+    source: { kind: "file", ref: "sales.parquet", format: "parquet" },
+    query: "select * from sales",
+  });
+  assert.deepEqual(s({ name: "Prices", source: "https://example.test/prices.csv" }).source, { kind: "remote", engine: "http", url: "https://example.test/prices.csv" });
+  assert.deepEqual(s({ name: "Devices", source: "surface:devices" }).source, { kind: "surface", surface: "devices" });
+  // A data sheet reads a table: it holds no children, and a grid sheet reads no source.
+  assert.throws(() => sheet({ name: "Sales", source: "sales.parquet" }, el("cell", { at: "A1", value: 1 })), /a data sheet holds nothing/);
+  assert.throws(() => sheet({ name: "Sales", source: "sales.parquet", rows: 10 }), /a data sheet reads a table, so it has no rows/);
+  assert.throws(() => sheet({ name: "Sales", query: "select 1" }), /a grid sheet reads no source/);
+  assert.throws(() => sheet({ name: "Sales", source: "self" }), /source is a file beside the workbook, an http\(s\) URL or surface:<id>/);
+  assert.throws(() => sheet({ name: "Sales", source: "ftp://example.test/x.csv" }), /source is a file beside the workbook/);
+  assert.throws(() => sheet({ name: "Sales", source: "surface:planets" }), /source is surface:<id>/);
+  assert.throws(() => sheet({ name: "Sales", source: "sales.parquet", format: "csvz" }), /format is one of/);
+});
+
 test("a sheet's <chart>, <pivot> and <filter> are checked against the workbook schema and read into the sheet", () => {
   const sheet = (...kids: unknown[]) => declarationOf({ default: () => el("workbook", {}, el("sheet", { name: "Sales" }, el("cell", { at: "A1", value: "Region" }), ...kids)) });
   const { document } = sheet(
