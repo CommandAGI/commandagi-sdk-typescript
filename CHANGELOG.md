@@ -8,7 +8,9 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- A case's check may be a `document` (`check={{ document: { as: "world.tsx", expect: { … } } }}`): the answer is one of our documents in code, in the file the check names, read by that document's own reader and held to what it must say. The scouts' runner scores it in the code sandbox (`docs/scouts.md` § compare).
 - A monitor source names the connected account it reads as (`<source connection="gmail@jacobfv123@gmail.com">`); the api worker reads it (`via="worker"` only).
+- `<component refRot={90}>`: how far a part's reference text is turned where it sits, in degrees, in the footprint's own frame (the placer turns a text it has no upright place for).
 
 Added
 
@@ -17,6 +19,12 @@ Added
   switch-on when it is more than its peak draw.
 - An agent declares its `supervisor` (`<agent supervisor="agent:lead">`, `agent:<id>` or `person:<id>`): a thread's
   membership takes it at join, and a person's supervise of that member overrides it.
+- An interface's `<param>` states a number with its unit, or a text a channel states (a `format`, a `dialect`,
+  a `transport`: `<param id="framing" value="8N1" />`) and then no unit. A side's `params` maps such a field
+  to it, and the check compares the texts: a definition's channel and a firmware `#define` alike.
+- A side states where the interface's frame sits on it with `rotation` (degrees counter-clockwise) and `face`
+  (`top`, or `bottom` for the side seen from the mating board, whose frame is mirrored): a 3D deck turned a
+  quarter turn, or read from underneath, matches the same hole pattern.
 
 Fixed
 
