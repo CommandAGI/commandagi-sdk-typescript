@@ -40,6 +40,10 @@
  * The tags:
  *   <workbook title>                                        the workbook
  *   <sheet name rows cols frozenRows frozenCols color>      a grid sheet (200 rows and 26 columns unless it says)
+ *   <sheet name source query format>                        a data sheet: what it reads and the SQL over it (a
+ *                                                           source is a file beside the workbook, an http(s) URL
+ *                                                           or `surface:<id>`; format "parquet", "sqlite" …). A
+ *                                                           data sheet holds no cells, columns or rows
  *   <cell at value formula numFmt bold italic align bg color wrap>
  *                                                           one cell: `value` (text, a number, true/false) or a
  *                                                           `formula` that starts with "="
@@ -156,6 +160,25 @@ const ALIGN = ["left", "center", "right"] as const;
 
 const RANGE = /^[A-Z]{1,3}[1-9]\d{0,6}(:[A-Z]{1,3}[1-9]\d{0,6})?$/i;
 
+const DATA_FORMATS = ["parquet", "arrow", "feather", "csv", "tsv", "json", "ndjson", "avro", "orc", "sqlite", "duckdb", "xlsx", "auto"] as const;
+const SURFACES = ["threads", "devices", "snapshots", "drive", "notifications", "marketplace", "credits"] as const;
+
+/** A data sheet's source as its `source` text names it: a file beside the workbook, an http(s) URL, or `surface:<id>`. */
+function dataSourceOf(el: DesignElement, text: string, format: string | undefined): Record<string, unknown> {
+  if (/^https?:\/\//.test(text)) return defined({ kind: "remote", engine: "http", url: text, format });
+  const surface = /^surface:([a-z]+)$/.exec(text);
+  if (surface) {
+    if (!(SURFACES as readonly string[]).includes(surface[1]!))
+      throw new Error(`${where(el)}: source is surface:<id>, a platform surface (${SURFACES.join(", ")}), not ${JSON.stringify(text)}`);
+    if (format !== undefined) throw new Error(`${where(el)}: a surface source has no format`);
+    return { kind: "surface", surface: surface[1] };
+  }
+  // The workbook's own file is its code, so a data sheet names another file.
+  if (text === "self" || /^[a-z][a-z0-9+.-]*:\/\//.test(text))
+    throw new Error(`${where(el)}: source is a file beside the workbook, an http(s) URL or surface:<id>, not ${JSON.stringify(text)}`);
+  return defined({ kind: "file", ref: text, format });
+}
+
 /**
  * The attributes of a `<chart>`, `<pivot>`, `<filter>` or `<criterion>`, checked against the element's schema
  * (`WORKBOOK_SCHEMA`, generated from the sheets editor's types) with the sentences an op panel shows; a required
@@ -179,12 +202,23 @@ export function readWorkbook(root: DesignElement): DeclaredDocument {
   const named = { chart: new Set<string>(), pivot: new Set<string>() };
   const sheets = childElements(root.props.children).map((el, i) => {
     if (el.type !== "sheet") throw new Error(`<${el.type}> is not read in a <workbook> (it holds <sheet>s)`);
-    only(el, ["name", "rows", "cols", "frozenRows", "frozenCols", "color"]);
+    only(el, ["name", "rows", "cols", "frozenRows", "frozenCols", "color", "source", "format", "query"]);
     const id = `sheet-${i + 1}`;
     const name = str(el, "name") ?? `Sheet ${i + 1}`;
     if (names.has(name.toLowerCase())) throw new Error(`two sheets are called ${name}`);
     names.add(name.toLowerCase());
     sources[`sheet:${id}`] = el.source;
+    const source = str(el, "source");
+    if (source !== undefined) {
+      const format = oneOf(el, "format", DATA_FORMATS);
+      const query = str(el, "query");
+      if (el.props.children !== undefined) throw new Error(`${where(el)}: a data sheet holds nothing: its source and query say what it reads`);
+      for (const k of ["rows", "cols", "frozenRows", "frozenCols"] as const)
+        if (el.props[k] !== undefined) throw new Error(`${where(el)}: a data sheet reads a table, so it has no ${k}`);
+      return defined({ id, name, color: str(el, "color"), kind: "data", source: dataSourceOf(el, source, format), query });
+    }
+    if (el.props.query !== undefined || el.props.format !== undefined)
+      throw new Error(`${where(el)}: a grid sheet reads no source (a <sheet> with a source is a data sheet)`);
     const cells: Record<string, Record<string, unknown>> = {};
     const colWidths: Record<number, number> = {};
     const rowHeights: Record<number, number> = {};
