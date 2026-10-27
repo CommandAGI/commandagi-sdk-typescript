@@ -33,7 +33,7 @@
  *       <param id="baud" value={115200} unit="Bd" />
  *       <param id="framing" value="8N1" />
  *       <message id="hello" text="AT" />
- *       <side id="main" ref="ee/main.circuit.ts" part="J1" origin={[30, 10]} rotation={90} face="top" />
+ *       <side id="main" ref="ee/main.circuit.ts" part="J1" origin={[30, 10]} rotation={90} face="back" />
  *       <side id="firmware" ref="firmware/config.h" defines={{ BOARD_MAIN: 1 }} params={{ LINK_BAUD: "baud", FRAMING: "framing" }} />
  *     </interface>
  *   );
@@ -44,8 +44,8 @@
  * Nothing adds a default. A `<bom>` gives masses; a cost budget reads the logistics roll-up of the design it names
  * (`design`: a 3D document, a schematic or a board with a cost check), the one source of cost, so no contribution is a
  * cost. A `<param>` states a number with its unit, or a text a channel states (`"8N1"` for a framing) with no unit.
- * A side's `origin`, `rotation` (degrees counter-clockwise) and `face` (`top`, or `bottom` for the side seen from the
- * mating board, whose frame is mirrored) put the interface's frame in the side's. The checks (a requirement's trace, a
+ * A side's `origin`, `rotation` (degrees counter-clockwise) and `face` (`front`, or `back` for the side read from the
+ * mating part, whose frame is mirrored) put the interface's frame in the side's. The checks (a requirement's trace, a
  * budget's roll-up, each side against its interface) are the host's: `commandagi check <file>`, `commandagi trace <folder>`.
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
@@ -60,8 +60,8 @@ export const DECLARED_QUANTITY = /^[a-z][a-z0-9-]*$/;
 export const SYSTEM_CHECK_KINDS = ["interface", "trace"] as const;
 /** What a side of an interface is, when its file does not say. */
 export const SIDE_KINDS = ["circuit", "3d", "firmware", "definition"] as const;
-/** Which face of a side the interface's frame is on: `top` as the side's own frame has it, `bottom` seen from the mating board. */
-export const SIDE_FACES = ["top", "bottom"] as const;
+/** The faces a side states: `front` (as drawn), or `back` (read from the mating part: the frame mirrored through its y axis). */
+export const SIDE_FACES = ["front", "back"] as const;
 
 export const REQUIREMENT_FIELDS = ["id", "text", "rationale", "method", "verifiedBy", "design", "parent"] as const;
 export const MODE_FIELDS = ["id", "description"] as const;

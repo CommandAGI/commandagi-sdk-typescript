@@ -24,7 +24,9 @@
  * A `<board>` that names its schematic is a board in code instead (`./pcb.ts`).
  * A tree that places symbols (`schX`, `schY`) or uses a schematic tag is a schematic instead (`./sheet.ts`): its
  * traces are wires of the sheet. tscircuit's autorouter is an engine and is not here, so on a board traces are nets
- * (the ratsnest shows them).
+ * (the ratsnest shows them). A board's `autorouter` prop and a chip's own custom footprint (a `<footprint>` element
+ * drawn in the file) are refused by name: an autorouter's copper is routed by an engine this importer does not run,
+ * and an inline land pattern has no name to declare.
  */
 import type { Declaration } from "./ir.js";
 import { board, circuit, connect, footprints, net, part, partByRef, type Footprint, type PartRef } from "./eda.js";
@@ -50,6 +52,7 @@ export function length(v: unknown, what: string): number {
 }
 
 function footprintOf(v: unknown, kind: "R" | "C" | "L" | "LED" | "D" | "chip", owner: string): Footprint {
+  if (isElement(v)) refuseCustomFootprint(owner, `<${v.type}>`);
   if (typeof v !== "string") throw new Error(`${owner}: footprint is a footprint name ("0603", "soic8", …)`);
   const s = v.toLowerCase();
   if (["0402", "0603", "0805", "1206"].includes(s) && kind !== "chip") return footprints.chip(s as "0603", kind);
@@ -62,6 +65,11 @@ function footprintOf(v: unknown, kind: "R" | "C" | "L" | "LED" | "D" | "chip", o
 }
 
 const KNOWN_PROPS = new Set(["name", "footprint", "pcbX", "pcbY", "pcbRotation", "layer", "children", "key"]);
+/** A land pattern drawn in the file has no name to declare (`footprint` is a footprint's name, never a drawing). */
+function refuseCustomFootprint(owner: string, how: string): never {
+  throw new Error(`${owner}: a custom footprint (${how} drawn in the file) is not read by this importer; name a footprint ("0402", "0603", "soic8", …)`);
+}
+
 function refuseUnknown(el: DesignElement, extra: string[]): void {
   for (const k of Object.keys(el.props))
     if (!KNOWN_PROPS.has(k) && !extra.includes(k)) throw new Error(`<${el.type} name="${String(el.props.name ?? "")}">: prop ${k} is not read by this importer`);
@@ -86,6 +94,8 @@ export function fromTscircuit(root: unknown, name?: string): Declaration {
   }
   const w = length(b.props.width, "<board> width");
   const h = length(b.props.height, "<board> height");
+  // A board's other props are engines' switches — `autorouter` routes copper, which this importer never declares.
+  refuseUnknown(b, ["width", "height"]);
   return circuit(title, () => {
     board({ width: w, height: h });
     const at = (el: DesignElement) =>
@@ -122,6 +132,8 @@ export function fromTscircuit(root: unknown, name?: string): Declaration {
         }
         case "chip": {
           refuseUnknown(el, ["pinLabels", "manufacturerPartNumber"]);
+          const drawn = childElements(el.props.children).find((c) => c.type === "footprint");
+          if (drawn) refuseCustomFootprint(needName(), "<footprint>");
           const labels = (el.props.pinLabels ?? {}) as Record<string, string>;
           const pinNames: Record<string, string> = {};
           for (const [k, v] of Object.entries(labels)) {
