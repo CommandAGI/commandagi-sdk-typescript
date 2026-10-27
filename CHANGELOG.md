@@ -9,6 +9,10 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 Added
 
 - A case's check may be a `document` (`check={{ document: { as: "world.tsx", expect: { … } } }}`): the answer is one of our documents in code, in the file the check names, read by that document's own reader and held to what it must say. The scouts' runner scores it in the code sandbox (`docs/scouts.md` § compare).
+- A board's component says where its `valueAt` sits, as `refAt` says where its reference does (`[x, y]` mm in the
+  footprint's own frame): the layout moves a value text the footprint draws on a silkscreen, off copper and the other
+  texts. Python's `component(value_at=…)` and Rust's `component().value_at(…)` are the same attribute.
+
 - A monitor source names the connected account it reads as (`<source connection="gmail@jacobfv123@gmail.com">`); the api worker reads it (`via="worker"` only).
 - `<component refRot={90}>`: how far a part's reference text is turned where it sits, in degrees, in the footprint's own frame (the placer turns a text it has no upright place for).
 
