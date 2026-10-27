@@ -40,7 +40,8 @@
  * Media files are named by path relative to the file (`src`), never inlined; the editor reads them. So are a nested
  * composition (`<composition src>`: another video's code, a `video.instance` node whose frames are its clip's source;
  * `inputs` are the values it gives that video's parameters) and an artboard (`<artboard src>`: a drawing's page, drawn
- * live; `view` names the page, else the first). Times on a
+ * live; `view` names the page, else the first; `crop` is the source rectangle it shows and `inputs` the values it
+ * gives the drawing's parameters). Times on a
  * video's timeline are seconds; times in a song are beats (an audio clip's `in`, where it starts in its file, is
  * seconds, as on a video). Each node carries the element that declared it in
  * `meta.source`; what a node holds that is not a node (a clip's effects, audio effects, transition, intro, outro and keyframes; a midi clip's
@@ -252,6 +253,17 @@ function inputValues(el: DesignElement): Record<string, number> {
     throw new Error(`${where(el)}: inputs is { parameter: number }, not ${JSON.stringify(v)}`);
   if (INSTANCE_REF in v) throw new Error(`${where(el)}: ${INSTANCE_REF} is not a parameter`);
   return { ...(v as Record<string, number>) };
+}
+
+/** A `<artboard crop>`: the source rectangle shown, in the drawing's own scene units. */
+function rectOf(el: DesignElement, prop: string): { x: number; y: number; width: number; height: number } | undefined {
+  const v = el.props[prop];
+  if (v === undefined) return undefined;
+  if (typeof v !== "object" || v === null || Array.isArray(v)) throw new Error(`${where(el)}: ${prop} is { x, y, width, height }, not ${JSON.stringify(v)}`);
+  const r = v as Record<string, unknown>;
+  for (const k of ["x", "y", "width", "height"]) if (typeof r[k] !== "number" || !Number.isFinite(r[k])) throw new Error(`${where(el)}: ${prop}.${k} is a number`);
+  if ((r.width as number) <= 0 || (r.height as number) <= 0) throw new Error(`${where(el)}: ${prop} has a positive width and height`);
+  return { x: r.x as number, y: r.y as number, width: r.width as number, height: r.height as number };
 }
 
 /** A clip's length: out − in at its speed, or its duration. */
@@ -487,16 +499,18 @@ export function declareVideo(root: DesignElement): Declaration {
         inputs.source = null;
       } else if (c.type === "artboard") {
         // A drawing's page, drawn live: the clip keeps the reference, never the drawing.
-        refuseUnknown(c, [...CLIP_PROPS.filter((p) => p !== "in" && p !== "out" && p !== "speed" && p !== "volume"), "src", "view", "fit", "representation"]);
+        refuseUnknown(c, [...CLIP_PROPS.filter((p) => p !== "in" && p !== "out" && p !== "speed" && p !== "volume"), "src", "view", "fit", "representation", "crop", "inputs"]);
         if (kind !== "video") throw new Error(`${where(c)}: an artboard goes on a video track`);
         const src = documentSrc(c, ARTBOARD_FILE, "a drawing's code (a .draw.tsx, .draw.py or .draw.rs)");
         clipName = str(c, "name") ?? src.split("/").pop()!;
         const duration = num(c, "duration", { min: 0 });
         if (duration === undefined) throw new Error(`${where(c)}: give its duration in seconds`);
         const view = str(c, "view");
-        const ref = { locator: src, fileKind: "drawing", representation: str(c, "representation", ARTBOARD_REPRESENTATIONS) ?? ARTBOARD.representation, ...(view !== undefined ? { view } : {}) };
+        const overrides = inputValues(c);
+        const ref = { locator: src, fileKind: "drawing", representation: str(c, "representation", ARTBOARD_REPRESENTATIONS) ?? ARTBOARD.representation, ...(view !== undefined ? { view } : {}), ...(Object.keys(overrides).length ? { overrides } : {}) };
+        const crop = rectOf(c, "crop");
         inputs = { kind: "renderable", name: clipName, start: num(c, "start", { min: 0 }) ?? 0, duration, inPoint: 0, speed: 1, ...common(c), volume: 1 };
-        inputs.renderable = { ref, fit: str(c, "fit", ARTBOARD_FITS) ?? ARTBOARD.fit };
+        inputs.renderable = { ref, fit: str(c, "fit", ARTBOARD_FITS) ?? ARTBOARD.fit, ...(crop !== undefined ? { crop } : {}) };
         inputs.source = null;
       } else if (c.type === "title") {
         refuseUnknown(c, [...CLIP_PROPS.filter((p) => p !== "in" && p !== "out" && p !== "speed" && p !== "volume"), ...Object.keys(TITLE_TEXT), "typewriter"]);
