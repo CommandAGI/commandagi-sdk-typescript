@@ -69,9 +69,15 @@
  *                                                           "plain", "ink", "editorial" or "signal" (plain unless it says)
  *   <slide layout name notes background hidden>             a slide on a layout, by the layout's name
  *   <text placeholder x y w h rotation fontSize color bold italic underline align valign columns gutter inset>
- *                                                           a text box; its children are its text (a <p> per
- *                                                           paragraph, or text for one); columns, the gutter between
- *                                                           them and the inset from the box's edges frame its text
+ *                                                           a text box; its children are its text (a <p> or a <li>
+ *                                                           per paragraph, or text for one); columns, the gutter
+ *                                                           between them and the inset from the box's edges frame
+ *                                                           its text
+ *   <p> <li bullet level>                                   one paragraph of a text box; a <li> is a list item:
+ *                                                           bullet "disc" or "number" (disc unless it says), level
+ *                                                           its indent depth from 1
+ *   <span color size font>                                  a run's own colour, em size and family, inside a text
+ *                                                           box's paragraph
  *   <shape shape x y w h fill stroke strokeWidth cornerRadius>  <image src x y w h fit alt>
  *                                                           every element also takes opacity, label and locked (the
  *                                                           editor does not move it)
@@ -370,11 +376,40 @@ interface Run {
   italic?: boolean;
   underline?: boolean;
   strike?: boolean;
+  color?: string;
+  sizePx?: number;
+  fontFamily?: string;
   link?: string;
 }
 
-/** A text box's children as the deck's rich text: a `<p>` per paragraph, or text and marks for one paragraph. */
-export function richText(children: unknown, at: string): { paragraphs: { runs: Run[] }[] } {
+interface Paragraph {
+  runs: Run[];
+  listLevel?: number;
+  bullet?: "disc" | "number" | "none";
+}
+
+/** The paragraph tags of a text box: `<p>` is prose, `<li>` a list item at its own level and bullet. */
+const PARAGRAPHS = new Set(["p", "li"]);
+const BULLETS = ["disc", "number", "none"] as const;
+
+/** One paragraph of a text box (`<p>` or `<li>`) as its runs. */
+function paragraphOf(el: DesignElement, at: string, runsOf: (c: unknown, style: Omit<Run, "text">, out: Run[]) => void): Paragraph {
+  if (el.type === "p") {
+    only(el, []);
+    const runs: Run[] = [];
+    runsOf(el.props.children, {}, runs);
+    return { runs };
+  }
+  only(el, ["bullet", "level"]);
+  const level = num(el, "level") ?? 1;
+  if (!Number.isInteger(level) || level < 1) throw new Error(`${where(el)}: level is a whole number from 1`);
+  const runs: Run[] = [];
+  runsOf(el.props.children, {}, runs);
+  return { runs, listLevel: level, bullet: oneOf(el, "bullet", BULLETS) ?? "disc" };
+}
+
+/** A text box's children as the deck's rich text: a `<p>` or `<li>` per paragraph, or text and marks for one. */
+export function richText(children: unknown, at: string): { paragraphs: Paragraph[] } {
   const kids = (Array.isArray(children) ? children.flat(Infinity) : [children]).filter((c) => c !== null && c !== undefined && typeof c !== "boolean");
   const runsOf = (c: unknown, style: Omit<Run, "text">, out: Run[]) => {
     if (c === null || c === undefined || typeof c === "boolean") return;
@@ -391,17 +426,19 @@ export function richText(children: unknown, at: string): { paragraphs: { runs: R
       only(c, ["href"]);
       return runsOf(c.props.children, { ...style, link: str(c, "href") ?? "" }, out);
     }
-    if (!mark[c.type]) throw new Error(`${at}: <${c.type}> is not a mark of a text box (b, i, u, s, a; a <p> per paragraph)`);
+    if (c.type === "span") {
+      only(c, ["color", "size", "font"]);
+      const own = defined({ color: str(c, "color"), sizePx: num(c, "size"), fontFamily: str(c, "font") });
+      return runsOf(c.props.children, { ...style, ...own } as Omit<Run, "text">, out);
+    }
+    if (!mark[c.type]) throw new Error(`${at}: <${c.type}> is not a mark of a text box (b, i, u, s, a, span; a <p> or a <li> per paragraph)`);
     only(c, []);
     runsOf(c.props.children, { ...style, [mark[c.type]!]: true }, out);
   };
-  const paragraphs = kids.some((c) => isElement(c) && c.type === "p")
+  const paragraphs = kids.some((c) => isElement(c) && PARAGRAPHS.has(c.type))
     ? kids.map((c) => {
-        if (!isElement(c) || c.type !== "p") throw new Error(`${at}: a text with paragraphs holds only <p>s`);
-        only(c, []);
-        const runs: Run[] = [];
-        runsOf(c.props.children, {}, runs);
-        return { runs };
+        if (!isElement(c) || !PARAGRAPHS.has(c.type)) throw new Error(`${at}: a text with paragraphs holds only <p>s and <li>s`);
+        return paragraphOf(c, at, runsOf);
       })
     : [{ runs: ((): Run[] => { const runs: Run[] = []; runsOf(kids, {}, runs); return runs; })() }];
   return { paragraphs: paragraphs.length ? paragraphs : [{ runs: [] }] };
