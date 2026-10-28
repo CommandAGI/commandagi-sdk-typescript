@@ -14,7 +14,7 @@ const Corporation = ({ cik, ticker, name }: { cik: string; ticker: string; name:
     "monitor",
     { title: `${name} (${ticker})`, class: "corporation", about: `cik:${cik}`, sameAs: [`ticker:${ticker}`], __source: 0 },
     el("source", { id: "filings", adapter: "sec-filings", params: { cik }, every: "15m", __source: 1 }),
-    el("follows", { monitor: "../../central-banks/fed", where: { class: "fomc.*" }, __source: 2 }),
+    el("follows", { monitor: "../../central-banks/fed", match: "fomc.*", __source: 2 }),
     el("wake", { match: "sec.filing.8-k*", prompt: "Say what the report changes." }),
   );
 
@@ -30,7 +30,7 @@ test("a monitor in JSX: a class is a component, an instance is one element, and 
     about: "cik:0001045810",
     sameAs: ["ticker:NVDA"],
     sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m" }],
-    follows: [{ monitor: "../../central-banks/fed", where: { class: "fomc.*" } }],
+    follows: [{ monitor: "../../central-banks/fed", match: "fomc.*" }],
     derives: [],
     wakes: [{ match: "sec.filing.8-k*", prompt: "Say what the report changes." }],
     discovers: [],
@@ -43,7 +43,7 @@ test("a monitor in JSX: a class is a component, an instance is one element, and 
     readme: null,
     sameAs: ["ticker:NVDA"],
     sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m", via: "worker", exit: null, host: null, mode: "poll", retain: null, since: null, session: null, snapshot: null, profile: null, keep: null, maxCostPerDay: null, unit: null, vantage: null, connection: null }],
-    follows: [{ monitor: "../../central-banks/fed", where: { class: "fomc.*" } }],
+    follows: [{ monitor: "../../central-banks/fed", match: "fomc.*", when: null }],
     derives: [],
     wakes: [{ match: "sec.filing.8-k*", prompt: "Say what the report changes." }],
     discovers: [],
@@ -154,7 +154,7 @@ test("the paths with a browser, a machine launched from a snapshot, or a phone: 
 
 test("a mirror discovers its conversations: a source names its vantage, a follow filters, a discover writes one folder per conversation", () => {
   const Conversation = ({ conversation, title }: { conversation: string; title: string }) =>
-    el("monitor", { title, class: "conversation" }, el("follows", { monitor: "../", where: { class: "message.*", "data.conversation": conversation } }));
+    el("monitor", { title, class: "conversation" }, el("follows", { monitor: "../", match: "message.*", when: { "data.conversation": conversation } }));
   const mirror = declarationOf({
     default: el(
       "monitor",
@@ -169,7 +169,7 @@ test("a mirror discovers its conversations: a source names its vantage, a follow
   assert.equal(monitorWithDefaults(mirror).sources[0]!.vantage, "../../../infra/vantages/laptop-linux");
   assert.deepEqual(MONITORS.monitor.fromTree(MONITORS.monitor.toTree(mirror)), mirror, "both ways");
   const one = declarationOf({ default: () => el(Conversation, { conversation: "4412", title: "Alice" }) }).document!.document as { follows: unknown[] };
-  assert.deepEqual(one.follows, [{ monitor: "../", where: { class: "message.*", "data.conversation": "4412" } }]);
+  assert.deepEqual(one.follows, [{ monitor: "../", match: "message.*", when: { "data.conversation": "4412" } }]);
   const refuse = (props: Record<string, unknown>) => () =>
     declarationOf({ default: el("monitor", {}, el("discover", { slug: "conversation", class: "../c.tsx#Conversation", ...props })) });
   assert.doesNotThrow(refuse({}));
@@ -191,6 +191,5 @@ test("a mirror discovers its conversations: a source names its vantage, a follow
   assert.throws(refuse({ visibility: "shared" }), /visibility is private, unlisted, public/);
   assert.throws(refuse({ delete: true }), /delete is not read/);
   assert.throws(refuse({ by: "conversation" }), /by is not read/);
-  assert.throws(() => declarationOf({ default: el("monitor", {}, el("follows", { monitor: "../x", where: "conversation" })) }), /where: a condition is an object of terms/);
-  assert.throws(() => declarationOf({ default: el("monitor", {}, el("follows", { monitor: "../x", where: { bogus: 1 } })) }), /where: "bogus" is class, about, key, title or a data path/);
+  assert.throws(() => declarationOf({ default: el("monitor", {}, el("follows", { monitor: "../x", when: { "data.conversation": { above: 1 } } })) }), /when: data\.conversation: above is not an operator/);
 });
