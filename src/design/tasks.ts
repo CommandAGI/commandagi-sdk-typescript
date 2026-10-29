@@ -11,14 +11,15 @@
  *
  *   // Launch.project.tsx
  *   export default () => (
- *     <project id="launch" name="Launch">
+ *     <project id="launch" name="Launch" files={["cad/Plate.3d.tsx", "Launch notes.md"]}>
  *       <view id="board" name="Board" mode="board" groupBy="status" />
  *     </project>
  *   );
  *
  * The rule of the ontology's files: a record is an element and its fields are the element's attributes, verbatim. A
  * task's `subtasks` (the files of its subtasks, by path from this file) are `<subtask ref>` children, in order; a
- * project's `views` are `<view>` children. A subtask is its own file, never inlined: a task holds no other task.
+ * project's `views` are `<view>` children. A project's `files` are the files it links, each by its path from this file
+ * (a ref). A subtask is its own file, never inlined: a task holds no other task.
  *
  * A proposal is a task with status `proposed` (docs/suggestions.md § proposals, in the CommandAGI repository): an agent
  * asks for authority to act. Its `<sketch ref>` names the file that shows what it will do (the run.json of a simulated
@@ -83,7 +84,7 @@ export const ASK_FIELDS = ["world", "units", "channels", "verbs", "folder", "fil
 /** The fields of one `<change>` of a change proposal: the file it edits, the version it was made from, the edited copy. */
 export const CHANGE_FIELDS = ["file", "base", "proposed"] as const;
 /** The fields of a project's body (`ProjectDoc`), but its views. */
-export const PROJECT_FIELDS = ["id", "name", "glyph", "defaultViewId", "subprojects", "archived", "readme", "createdAt", "updatedAt"] as const;
+export const PROJECT_FIELDS = ["id", "name", "glyph", "defaultViewId", "subprojects", "files", "archived", "readme", "createdAt", "updatedAt"] as const;
 /** The fields of a project's view (`TaskView`). */
 export const VIEW_FIELDS = ["id", "name", "mode", "groupBy", "filter", "laneOrder"] as const;
 /** The fields that are times: epoch milliseconds in the document, a date or a UTC time in code. */
