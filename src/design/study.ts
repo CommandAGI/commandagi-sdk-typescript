@@ -29,7 +29,7 @@
  *   { kind, part, units, material?, fixtures?: [{ id, type, faces, region?, stiffness?, axis? }], loadCases?: [{ id, loads: [{ type: "force" |
  *     "pressure", id, faces, total | value }] }], mesh?, solver?, criteria?: [{ id, quantity, limit, region?,
  *     loadCase?, step? }], revise?: [{ parameter, min, max }], steps?: [{ id, joint, from, to }], gains?: [{ joint, kp?,
- *     kv? }], response?: { duration, dt?, band? } }
+ *     kv? }], tune?: [{ joint, kp?: [low, high], kv?: [low, high] }], response?: { duration, dt?, band? } }
  */
 import { registerVocabulary, type DocTree, type TagRule, type Vocabulary } from "./documents.js";
 
@@ -118,7 +118,9 @@ registerStudyKind("flow", {
  * simulated machine a device definition declares (its `dynamics`: each joint's kp, kv, limits and the links it carries).
  * `part` names the machine: a `definition.tsx`, or a unit of a world (`world.tsx#<uid>`), whose `.calibration.tsx`
  * gains then apply. Each `<step>` moves one joint from `from` to `to` (radians, the chain's own angle) and is solved
- * alone; `<gains>` are the gains to try on a joint, in place of the definition's or the calibration's; `<response>` is
+ * alone; `<gains>` are the gains to try on a joint, in place of the definition's or the calibration's; `<tune>` gives
+ * the bounds the validation planner may search a joint's gains in when the study fails (`kp`, `kv`: [low, high]), and
+ * it proposes what it finds as an edit of the unit's calibration; `<response>` is
  * the window (`duration`, s), the sample period (`dt`, s) and the settling band (a fraction of the step). A criterion
  * reads `overshoot` (%), `riseTime` (s, 10 to 90 %), `settlingTime` (s) or `steadyStateError` (rad), on every step or on
  * the one its `step` names.
@@ -126,6 +128,7 @@ registerStudyKind("flow", {
  *   <study kind="step-response" part="../worlds/arm-cell/world.tsx#arm" units="rad-s">
  *     <step id="lift" joint="shoulder_lift" from={0.54} to={0.84} />
  *     <gains joint="shoulder_lift" kp={12} kv={0.6} />
+ *     <tune joint="shoulder_lift" kp={[4, 40]} kv={[0.1, 2]} />
  *     <response duration={1} dt={0.001} band={0.02} />
  *     <criterion id="overshoot" quantity="overshoot" limit={10} />
  *     <criterion id="settle" quantity="settlingTime" limit={0.3} step="lift" />
@@ -135,6 +138,7 @@ export const STEP_RESPONSE_UNITS = "rad-s";
 registerStudyKind("step-response", {
   step: { rule: { parents: ["study"], key: "id", required: ["id", "joint", "from", "to"], attrs: ["id", "joint", "from", "to"] }, field: "steps", list: true },
   gains: { rule: { parents: ["study"], key: "joint", required: ["joint"], attrs: ["joint", "kp", "kv"] }, field: "gains", list: true },
+  tune: { rule: { parents: ["study"], key: "joint", required: ["joint"], attrs: ["joint", "kp", "kv"] }, field: "tune", list: true },
   response: { rule: { parents: ["study"], single: true, required: ["duration"], attrs: ["duration", "dt", "band"] }, field: "response" },
 });
 
