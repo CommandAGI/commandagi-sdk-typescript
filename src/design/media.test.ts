@@ -303,3 +303,55 @@ test("a video's own <artboard>s are other frames of it; an <override artboard> i
     /b\.png is not a video file/,
   );
 });
+
+test("an <override> sets a shape's look, an artboard clip's drawing inputs and its own keyframes; a <composition> names the artboard it shows", () => {
+  const g = declarationOf({
+    default: jsx("video", {
+      children: [
+        jsx("track", {
+          children: [
+            jsx("shape", { kind: "ellipse", duration: 2, fill: "#ff0000", children: [jsx("override", { artboard: "Square", fill: "#00ff00", strokeWidth: 4 })] }),
+            jsx("artboard", { src: "Card.draw.tsx", start: 2, duration: 2, inputs: { title: "Wide" }, children: [jsx("override", { artboard: "Square", inputs: { title: "Square" } })] }),
+            jsx("title", {
+              text: "Hi",
+              start: 4,
+              duration: 2,
+              children: [
+                jsx("keyframe", { property: "transform.y", time: 0, value: 0 }),
+                jsx("override", {
+                  artboard: "Square",
+                  children: [jsx("keyframe", { property: "transform.y", time: 0, value: 100 }), jsx("keyframe", { property: "transform.y", time: 1, value: 300, easing: "easeOut" })],
+                }),
+              ],
+            }),
+            jsx("composition", { src: "Inner.vid.tsx", start: 6, out: 2, artboard: "Vertical" }),
+          ],
+        }),
+        jsx("artboard", { name: "Square", width: 1080, height: 1080 }),
+      ],
+    }),
+  }).graph;
+  assert.deepEqual(g.nodes.clip_Sticker!.inputs.overrides, { Square: { sticker: { fill: "#00ff00", strokeWidth: 4 } } });
+  assert.deepEqual(g.nodes["clip_Card.draw.tsx"]!.inputs.overrides, { Square: { inputs: { title: "Square" } } });
+  assert.deepEqual(g.nodes.clip_Title!.inputs.overrides, {
+    Square: {
+      keyframes: [
+        {
+          property: "transform.y",
+          keys: [
+            { id: "kf_clip_Title_Square", time: 0, value: 100, easing: "linear" },
+            { id: "kf_clip_Title_Square_2", time: 1, value: 300, easing: "easeOut" },
+          ],
+        },
+      ],
+    },
+  });
+  assert.equal((g.nodes.clip_Title!.inputs.keyframes as unknown[]).length, 1, "the clip keeps its own keys");
+  assert.deepEqual(g.nodes["comp_Inner.vid.tsx"]!.inputs.__instance, { path: "Inner.vid.tsx", name: "Inner.vid.tsx", artboard: "Vertical" });
+
+  const title = (kids: unknown[]) => () =>
+    declarationOf({ default: jsx("video", { children: [jsx("track", { children: [jsx("title", { text: "T", duration: 1, children: kids })] }), jsx("artboard", { name: "S", width: 1, height: 1 })] }) });
+  assert.throws(title([jsx("override", { artboard: "S", children: [jsx("keyframe", { property: "volume", time: 0, value: 1 })] })]), /property is one of opacity, transform.x.*not "volume"/);
+  assert.throws(title([jsx("override", { artboard: "S", children: [jsx("note", {})] })]), /<note> is not read in an <override>/);
+  assert.throws(title([jsx("override", { artboard: "S", fill: "#fff" })]), /prop fill is not read on a <override>/);
+});

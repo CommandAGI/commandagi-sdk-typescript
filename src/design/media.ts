@@ -45,7 +45,8 @@
  *
  * Media files are named by path relative to the file (`src`), never inlined; the editor reads them. So are a nested
  * composition (`<composition src>`: another video's code, a `video.instance` node whose frames are its clip's source;
- * `inputs` are the values it gives that video's parameters) and an artboard (`<artboard src>`: a drawing's page, drawn
+ * `inputs` are the values it gives that video's parameters; `artboard` names which of that video's own artboards it
+ * shows, else its own frame) and an artboard (`<artboard src>`: a drawing's page, drawn
  * live; `view` names the page, else the first; `crop={{ x, y, width, height }}` the part of it to show; `inputs` are
  * the values it gives the drawing's parameters, so two artboards of one drawing can say two things). A video file
  * on an audio track is its sound.
@@ -53,8 +54,9 @@
  * A video's own artboards are other frames of it at other sizes (`<artboard name="Vertical" width={1080} height={1920} />`
  * in the `<video>`, with no `src`; the video itself is the first). A clip, title or effect says what it is on one of them
  * with an `<override artboard="Vertical" …>` inside it: the properties it names replace the clip's own on that artboard
- * only (a title reframed for 9:16, another media file in a `<clip>`, an effect's amount), and every other artboard keeps
- * the clip's own. Two `<clip>`s with the same `link` are one take's picture and sound, edited as a pair
+ * only (a title reframed for 9:16, another media file in a `<clip>`, a `<shape>`'s fill, an `<artboard>` clip's drawing
+ * `inputs`, an effect's amount), and every other artboard keeps the clip's own. The `<keyframe property>`s inside an
+ * `<override>` are that artboard's own keys: there the property follows them, not the clip's. Two `<clip>`s with the same `link` are one take's picture and sound, edited as a pair
  * (the editor's source patch writes them). Times on a
  * video's timeline are seconds; times in a song are beats (an audio clip's `in`, where it starts in its file, is
  * seconds, as on a video). Each node carries the element that declared it in
@@ -241,16 +243,21 @@ export const CLIP_CROP = { cropTop: "top", cropRight: "right", cropBottom: "bott
 const CLIP_PROPS = ["name", "start", "duration", "in", "out", "speed", "opacity", "volume", "blendMode", "fitMode", ...Object.keys(CLIP_TRANSFORM), ...Object.keys(CLIP_COLOR), ...Object.keys(CLIP_CROP)];
 
 /** What an `<override>` in a clip may set on one artboard: its look (not its sound), transform, colour and crop; a title's
- *  text fields; a `<clip>`'s media file (`src`, of the same kind). An `<override>` in an `<effect>` sets its params and
- *  `enabled`. */
+ *  text fields; a `<clip>`'s media file (`src`, of the same kind); a `<shape>`'s fill, stroke and strokeWidth; an
+ *  `<artboard>` clip's drawing `inputs`; and its own `<keyframe property>`s of the look and transform (on that artboard
+ *  the property follows them, not the clip's). An `<override>` in an `<effect>` sets its params and `enabled`. */
 export const OVERRIDE_LOOK = ["opacity", "blendMode", "fitMode"] as const;
+/** The properties an `<override>`'s own keyframes animate: the picture's, not the sound's. */
+export const OVERRIDE_ANIMATABLE = ANIMATABLE.filter((p) => p !== "volume");
+/** A `<shape>`'s look an `<override>` sets. */
+export const OVERRIDE_SHAPE = ["fill", "stroke", "strokeWidth"] as const;
 /** A video's own artboard (`<artboard name width height>` in the `<video>`): its props. */
 export const VIDEO_ARTBOARD_PROPS = ["name", "width", "height"] as const;
 type ClipOverride = Record<string, unknown> & { src?: string };
 
 /** One `<override artboard>` in a clip: what the clip is on that artboard. */
 function clipOverride(el: DesignElement, clip: DesignElement, artboards: ReadonlySet<string>): { artboard: string; override: ClipOverride } {
-  const own = clip.type === "title" ? Object.keys(TITLE_TEXT) : clip.type === "clip" ? ["src"] : [];
+  const own = clip.type === "title" ? Object.keys(TITLE_TEXT) : clip.type === "clip" ? ["src"] : clip.type === "shape" ? [...OVERRIDE_SHAPE] : clip.type === "artboard" ? ["inputs"] : [];
   refuseUnknown(el, ["artboard", ...OVERRIDE_LOOK, ...Object.keys(CLIP_TRANSFORM), ...Object.keys(CLIP_COLOR), ...Object.keys(CLIP_CROP), ...own]);
   const artboard = overrideArtboard(el, artboards);
   const o: ClipOverride = {};
@@ -285,7 +292,19 @@ function clipOverride(el: DesignElement, clip: DesignElement, artboards: Readonl
     const src = str(el, "src");
     if (src !== undefined) o.src = src;
   }
-  if (!Object.keys(o).length) throw new Error(`${where(el)} in ${where(clip)}: an override names what it sets on artboard "${artboard}"`);
+  if (clip.type === "shape") {
+    const look: Record<string, unknown> = {};
+    const fill = str(el, "fill"), stroke = str(el, "stroke"), strokeWidth = num(el, "strokeWidth", { min: 0 });
+    if (fill !== undefined) look.fill = fill;
+    if (stroke !== undefined) look.stroke = stroke;
+    if (strokeWidth !== undefined) look.strokeWidth = strokeWidth;
+    if (Object.keys(look).length) o.sticker = look;
+  }
+  if (clip.type === "artboard") {
+    const inputs = drawingInputs(el);
+    if (inputs) o.inputs = inputs;
+  }
+  if (!Object.keys(o).length && !childElements(el.props.children).length) throw new Error(`${where(el)} in ${where(clip)}: an override names what it sets on artboard "${artboard}"`);
   return { artboard, override: o };
 }
 
@@ -377,16 +396,18 @@ function clipChildren(clip: DesignElement, clipId: string, sources: Record<strin
   const noteId = idMaker();
   const effects: { id: string; type: string; enabled: boolean; params: Record<string, number>; colors?: Record<string, string>; src?: string; overrides?: Record<string, { enabled?: boolean; params?: Record<string, number> }> }[] = [];
   const overrides: Record<string, ClipOverride> = {};
-  const keyframes: { property: string; keys: { id: string; time: number; value: number; easing: string; bezier?: number[] }[] }[] = [];
+  type KeyTrack = { property: string; keys: { id: string; time: number; value: number; easing: string; bezier?: number[] }[] };
+  const keyframes: KeyTrack[] = [];
   const fxId = idMaker();
   const kfId = idMaker();
-  const keyframe = (el: DesignElement, property: string) => {
+  // An <override>'s keys go into its own tracks and have no source of their own: the override's element is theirs.
+  const keyframe = (el: DesignElement, property: string, into: KeyTrack[] = keyframes, base = `kf_${clipId}`) => {
     const time = num(el, "time", { min: 0 });
     const value = num(el, "value");
     if (time === undefined || value === undefined) throw new Error(`${where(el)}: a keyframe has a time and a value`);
-    const id = kfId(`kf_${clipId}`);
-    let track = keyframes.find((k) => k.property === property);
-    if (!track) keyframes.push((track = { property, keys: [] }));
+    const id = kfId(base);
+    let track = into.find((k) => k.property === property);
+    if (!track) into.push((track = { property, keys: [] }));
     const easing = str(el, "easing", EASINGS) ?? "linear";
     const bezier = el.props.bezier;
     if (bezier !== undefined && easing !== "bezier") throw new Error(`${where(el)}: bezier is read with easing="bezier"`);
@@ -396,7 +417,7 @@ function clipChildren(clip: DesignElement, clipId: string, sources: Record<strin
     }
     track.keys.push({ id, time, value, easing, ...(easing === "bezier" ? { bezier: [...(bezier as number[])] } : {}) });
     track.keys.sort((a, b) => a.time - b.time);
-    sources[`keyframe:${id}`] = sourceMeta(el);
+    if (into === keyframes) sources[`keyframe:${id}`] = sourceMeta(el);
   };
   let sawTransition = false;
   for (const el of childElements(clip.props.children)) {
@@ -491,6 +512,16 @@ function clipChildren(clip: DesignElement, clipId: string, sources: Record<strin
       case "override": {
         const { artboard, override } = clipOverride(el, clip, artboards);
         if (overrides[artboard]) throw new Error(`${where(clip)}: one <override> for artboard "${artboard}"`);
+        // Its own keyframes: on this artboard the property follows them, not the clip's.
+        const keys: KeyTrack[] = [];
+        for (const k of childElements(el.props.children)) {
+          if (k.type !== "keyframe") throw new Error(`<${k.type}> is not read in an <override> (it holds its artboard's <keyframe property time value>s)`);
+          refuseUnknown(k, ["property", "time", "value", "easing", "bezier"]);
+          const property = str(k, "property", OVERRIDE_ANIMATABLE);
+          if (!property) throw new Error(`${where(k)}: a keyframe names its property (${OVERRIDE_ANIMATABLE.join(", ")})`);
+          keyframe(k, property, keys, `kf_${clipId}_${artboard}`);
+        }
+        if (keys.length) override.keyframes = keys;
         overrides[artboard] = override;
         sources[`override:${artboard}`] = sourceMeta(el);
         break;
@@ -587,7 +618,7 @@ export function declareVideo(root: DesignElement): Declaration {
       const sources: Record<string, unknown> = {};
       let inputs: Record<string, unknown>;
       let clipName: string;
-      let nested: { src: string; values: Record<string, number> } | null = null;
+      let nested: { src: string; values: Record<string, number>; artboard?: string } | null = null;
       if (c.type === "clip") {
         refuseUnknown(c, ["src", "link", ...CLIP_PROPS]);
         const src = str(c, "src");
@@ -617,7 +648,7 @@ export function declareVideo(root: DesignElement): Declaration {
         inputs.source = wire(sourceId, "media");
       } else if (c.type === "composition") {
         // Another video, drawn live from its own code: a `video.instance` node (made below, once the clip has its id).
-        refuseUnknown(c, ["src", "inputs", ...CLIP_PROPS]);
+        refuseUnknown(c, ["src", "inputs", "artboard", ...CLIP_PROPS]);
         if (kind !== "video") throw new Error(`${where(c)}: a composition goes on a video track`);
         const src = documentSrc(c, COMPOSITION_FILE, "another video's code (a .vid.tsx, .vid.py or .vid.rs)");
         clipName = str(c, "name") ?? src.split("/").pop()!;
@@ -625,7 +656,10 @@ export function declareVideo(root: DesignElement): Declaration {
         const inPoint = num(c, "in", { min: 0 }) ?? 0;
         const duration = clipLength(c, inPoint, speed, false);
         inputs = { kind: "video", name: clipName, start: num(c, "start", { min: 0 }) ?? 0, duration, inPoint, speed, ...common(c) };
-        nested = { src, values: inputValues(c) };
+        // Which of the other video's own artboards it shows (absent: its own frame).
+        const shows = str(c, "artboard");
+        if (shows === "") throw new Error(`${where(c)}: artboard names one of the other video's own artboards, not ""`);
+        nested = { src, values: inputValues(c), ...(shows !== undefined ? { artboard: shows } : {}) };
         inputs.source = null;
       } else if (c.type === "artboard") {
         // A drawing's page, drawn live: the clip keeps the reference, never the drawing.
@@ -691,7 +725,7 @@ export function declareVideo(root: DesignElement): Declaration {
       const clipId = id(`clip_${clipName}`);
       if (nested) {
         const compId = id(`comp_${clipName}`);
-        nodes[compId] = node(compId, "video.instance", { [INSTANCE_REF]: { path: nested.src, name: clipName }, ...nested.values }, clipName);
+        nodes[compId] = node(compId, "video.instance", { [INSTANCE_REF]: { path: nested.src, name: clipName, ...(nested.artboard !== undefined ? { artboard: nested.artboard } : {}) }, ...nested.values }, clipName);
         inputs.source = wire(compId, "frames");
       }
       const kids = clipChildren(c, clipId, sources, artboardNames);
