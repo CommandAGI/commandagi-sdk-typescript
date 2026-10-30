@@ -218,6 +218,9 @@ test("a <composition> is another video by path (a video.instance whose frames ar
   assert.deepEqual(art.inputs.renderable, { ref: { locator: "Poster.draw.tsx", fileKind: "drawing", representation: "auto", view: "page_2" }, fit: "cover" });
   assert.equal(art.inputs.source, null);
   assert.equal(art.inputs.opacity, 0.5);
+  const cropped = declarationOf({ default: jsx("video", { children: [jsx("track", { children: [jsx("artboard", { src: "Poster.draw.tsx", duration: 2, crop: { x: 10, y: 20, width: 400, height: 300 } })] })] }) }).graph;
+  assert.deepEqual((cropped.nodes["clip_Poster.draw.tsx"]!.inputs.renderable as { crop: unknown }).crop, { x: 10, y: 20, width: 400, height: 300 });
+  assert.throws(() => declarationOf({ default: jsx("video", { children: [jsx("track", { children: [jsx("artboard", { src: "P.draw.tsx", duration: 2, crop: { x: 0, y: 0, width: 0, height: 3 } })] })] }) }), /crop is \{ x, y, width, height \}/);
   const video = (...children: unknown[]) => () => declarationOf({ default: jsx("video", { children: [jsx("track", { children })] }) });
   assert.throws(video(jsx("composition", { src: "Intro.mp4", out: 1 })), /is not another video's code/);
   assert.throws(video(jsx("composition", { src: "/x/Intro.vid.tsx", out: 1 })), /relative to this file/);
