@@ -2762,6 +2762,12 @@ export type ProcessChemical = {
   containmentLitres?: number;
   /** The exhaust it needs, by class: "general", "acid", "solvent", "toxic gas", "pyrophoric" … */
   exhaust?: string;
+  /**
+   * The flow that exhaust class needs at the station: the hood's face velocity times its open face, or the cabinet's rated flow, as its datasheet or a cited standard states it. No class gives a flow by itself.
+   * @unit m3/h
+   * @exclusiveMinimum 0
+   */
+  exhaustFlow?: number;
   /** The interlocks that guard it ("gas detector closes the cylinder valve", "exhaust flow switch"). */
   interlocks?: string[];
   /** Its safety data sheet: a URL or a path. */
