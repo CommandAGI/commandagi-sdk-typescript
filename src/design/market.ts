@@ -19,7 +19,8 @@
  * Every field is text. A price or a quantity is decimal text ("185.09"), never a number: a float loses cents. A
  * `t` is an ISO time. Records repeat, so no tag has a key. A book's `<bid>` and `<ask>` children are its `bids` and
  * `asks`, as [price, qty] pairs in order. An account's `<holding>`, `<open-order>` and `<problem>` children are its
- * `positions`, `open` and `problems`.
+ * `positions`, `open` and `problems`. A bracket is an `<order>` with `takeProfit` and `stopLoss`; what became of one of
+ * its two exits is an `<order-update>` or a `<fill>` with `leg` (`take-profit` or `stop-loss`).
  *
  * Structure only. What a record means (a venue's modes, an id's shape, time order) is the application's to check.
  */
@@ -47,14 +48,14 @@ export const MARKET_TAGS: Readonly<Record<string, MarketTag>> = {
   ask: { parent: "book", required: ["price", "qty"], decimal: ["price", "qty"] },
   news: { parent: "market", required: ["t", "headline"], other: ["sym", "source", "tone"] },
   position: { parent: "market", required: ["t", "sym", "qty", "avg"], decimal: ["qty", "avg"] },
-  fill: { parent: "market", required: ["t", "sym", "side", "price", "qty"], other: ["by", "order", "mode", "ref", "at"], decimal: ["price", "qty"] },
+  fill: { parent: "market", required: ["t", "sym", "side", "price", "qty"], other: ["by", "order", "leg", "mode", "ref", "at"], decimal: ["price", "qty"] },
   order: {
     parent: "market",
     required: ["t", "id", "sym", "side", "qty", "type", "tif", "venue", "mode", "by", "grant"],
-    other: ["limit", "stop", "instrument", "account", "connection"],
-    decimal: ["qty", "limit", "stop"],
+    other: ["limit", "stop", "takeProfit", "stopLoss", "instrument", "account", "connection"],
+    decimal: ["qty", "limit", "stop", "takeProfit", "stopLoss"],
   },
-  "order-update": { parent: "market", required: ["t", "order", "state", "mode"], other: ["ref", "filled", "avg", "error", "src"], decimal: ["filled", "avg"] },
+  "order-update": { parent: "market", required: ["t", "order", "state", "mode"], other: ["leg", "ref", "filled", "avg", "error", "src"], decimal: ["filled", "avg"] },
   cancel: { parent: "market", required: ["t", "id", "venue", "mode", "ref", "by", "grant"], other: ["order", "connection", "account"] },
   "cancel-update": { parent: "market", required: ["t", "cancel", "state", "mode"], other: ["error"] },
   amend: {

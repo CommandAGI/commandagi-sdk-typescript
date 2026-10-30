@@ -113,3 +113,14 @@ test("what a market recording does not say is refused by name", () => {
   refused(el("market", {}, el("note", { t: "yesterday", text: "x" })), /<note> t is an ISO time/);
   refused(el("market", { venue: "sim" }), /<market>: venue is not read/);
 });
+
+test("a bracket is an <order> with takeProfit and stopLoss; each exit's outcome names its leg; its prices are decimal text", () => {
+  const t = "2026-10-01T13:30:00.000Z";
+  const order = { t, id: "o-a1b2c3d4e5f6", sym: "NRTH", side: "buy", qty: "10", type: "limit", limit: "184.50", takeProfit: "190.25", stopLoss: "180", tif: "gtc", venue: "alpaca-paper", mode: "paper", by: "person:ada", grant: "g-paper" };
+  const exit = { t, order: "o-a1b2c3d4e5f6", leg: "take-profit", state: "filled", mode: "paper", ref: "alp-1003", filled: "10", avg: "190.25", src: "venue" };
+  const fill = { t, sym: "NRTH", side: "sell", price: "190.25", qty: "10", by: "person:ada", order: "o-a1b2c3d4e5f6", leg: "take-profit", mode: "paper", ref: "fill-2" };
+  const doc = declared(el("market", {}, el("order", order), el("order-update", exit), el("fill", fill)));
+  assert.deepEqual(doc.document, { records: [{ kind: "order", ...order }, { kind: "order-update", ...exit }, { kind: "fill", ...fill }] });
+  assert.throws(() => declared(el("market", {}, el("order", { ...order, stopLoss: 180 }))), /<order> stopLoss is decimal text \("185\.09"\), not a number/);
+  assert.throws(() => declared(el("market", {}, el("order", { ...order, takeProfit: "1.9e2" }))), /<order> takeProfit is decimal text \("185\.09"\), not "1\.9e2"/);
+});
