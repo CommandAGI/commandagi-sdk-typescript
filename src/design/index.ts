@@ -132,6 +132,7 @@ export * from "./study.js";
 export * from "./testplans.js";
 export * from "./firmware.js";
 export * from "./postal.js";
+export * from "./market.js";
 export * from "./pdf.js";
 
 /** What a code part declares: its graph and the parameters it takes. */

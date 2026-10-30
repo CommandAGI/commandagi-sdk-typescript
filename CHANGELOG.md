@@ -12,6 +12,11 @@ Added
   declares nothing (the graph's disabled node).
 - A board's `<trace>` takes `rule`, its routing rule: "45", "90" or "any" (the default). A value off these three is
   refused.
+- A market recording in code (`<name>.market.tsx`, format `market`): one element per record, in time order, under
+  `<market>` (`<note>`, `<quote>`, `<trade>`, `<book>` with `<bid>`/`<ask>`, `<news>`, `<position>`, `<fill>`,
+  `<order>`, `<order-update>`, `<cancel>`, `<cancel-update>`, `<amend>`, `<amend-update>`, `<account>` with
+  `<holding>`/`<open-order>`/`<problem>`). Every field is text; a price or a quantity is decimal text ("185.09"), and
+  a number is refused by name. `MARKET`, `MARKET_TAGS`, `MARKET_FIELDS`, `DECIMAL` and `ISO_TIME` are exported.
 - A step-response study's `<tune joint kp={[low, high]} kv={[low, high]}>`: the bounds the validation planner may
   search a joint's gains in when the study fails; what it finds is proposed as an edit of the unit's calibration.
 - A study of kind `step-response` (`units="rad-s"`): `<step id joint from to>` (each solved alone), `<gains joint kp kv>`
