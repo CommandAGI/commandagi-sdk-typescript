@@ -121,6 +121,8 @@ test("a bracket is an <order> with takeProfit and stopLoss; each exit's outcome 
   const fill = { t, sym: "NRTH", side: "sell", price: "190.25", qty: "10", by: "person:ada", order: "o-a1b2c3d4e5f6", leg: "take-profit", mode: "paper", ref: "fill-2" };
   const doc = declared(el("market", {}, el("order", order), el("order-update", exit), el("fill", fill)));
   assert.deepEqual(doc.document, { records: [{ kind: "order", ...order }, { kind: "order-update", ...exit }, { kind: "fill", ...fill }] });
+  const cancel = { t, id: "x-a1b2c3d4e5f6", venue: "alpaca-paper", mode: "paper", ref: "alp-1004", order: "o-a1b2c3d4e5f6", leg: "stop-loss", by: "person:ada", grant: "g-paper" };
+  assert.deepEqual(declared(el("market", {}, el("cancel", cancel))).document, { records: [{ kind: "cancel", ...cancel }] });
   assert.throws(() => declared(el("market", {}, el("order", { ...order, stopLoss: 180 }))), /<order> stopLoss is decimal text \("185\.09"\), not a number/);
   assert.throws(() => declared(el("market", {}, el("order", { ...order, takeProfit: "1.9e2" }))), /<order> takeProfit is decimal text \("185\.09"\), not "1\.9e2"/);
 });

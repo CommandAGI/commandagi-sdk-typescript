@@ -56,7 +56,7 @@ export const MARKET_TAGS: Readonly<Record<string, MarketTag>> = {
     decimal: ["qty", "limit", "stop", "takeProfit", "stopLoss"],
   },
   "order-update": { parent: "market", required: ["t", "order", "state", "mode"], other: ["leg", "ref", "filled", "avg", "error", "src"], decimal: ["filled", "avg"] },
-  cancel: { parent: "market", required: ["t", "id", "venue", "mode", "ref", "by", "grant"], other: ["order", "connection", "account"] },
+  cancel: { parent: "market", required: ["t", "id", "venue", "mode", "ref", "by", "grant"], other: ["order", "leg", "connection", "account"] },
   "cancel-update": { parent: "market", required: ["t", "cancel", "state", "mode"], other: ["error"] },
   amend: {
     parent: "market",
