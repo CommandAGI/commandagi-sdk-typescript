@@ -16,6 +16,12 @@
  *       <track name="A1" kind="audio">
  *         <clip src="media/tone.wav" start={0} in={0.5} out={2.5} volume={0.8} />
  *       </track>
+ *       <track name="V3">
+ *         <clip src="media/take.mp4" link="L1" start={7} in={2} out={4} volume={0} />
+ *       </track>
+ *       <track name="A2" kind="audio">
+ *         <clip src="media/take.mp4" link="L1" start={7} in={2} out={4} />
+ *       </track>
  *     </video>
  *   );
  *
@@ -40,7 +46,9 @@
  * Media files are named by path relative to the file (`src`), never inlined; the editor reads them. So are a nested
  * composition (`<composition src>`: another video's code, a `video.instance` node whose frames are its clip's source;
  * `inputs` are the values it gives that video's parameters) and an artboard (`<artboard src>`: a drawing's page, drawn
- * live; `view` names the page, else the first; `crop={{ x, y, width, height }}` the part of it to show). Times on a
+ * live; `view` names the page, else the first; `crop={{ x, y, width, height }}` the part of it to show). A video file
+ * on an audio track is its sound. Two `<clip>`s with the same `link` are one take's picture and sound, edited as a pair
+ * (the editor's source patch writes them). Times on a
  * video's timeline are seconds; times in a song are beats (an audio clip's `in`, where it starts in its file, is
  * seconds, as on a video). Each node carries the element that declared it in
  * `meta.source`; what a node holds that is not a node (a clip's effects, audio effects, transition, intro, outro and keyframes; a midi clip's
@@ -461,13 +469,16 @@ export function declareVideo(root: DesignElement): Declaration {
       let clipName: string;
       let nested: { src: string; values: Record<string, number> } | null = null;
       if (c.type === "clip") {
-        refuseUnknown(c, ["src", ...CLIP_PROPS]);
+        refuseUnknown(c, ["src", "link", ...CLIP_PROPS]);
         const src = str(c, "src");
         if (!src) throw new Error(`<clip> names its media file (src="media/take-1.mp4", relative to this file)`);
         if (/^[a-z]+:|^\//i.test(src)) throw new Error(`${where(c)}: src is a path relative to this file, not ${src}`);
         const mk = mediaKind(src);
         if (!mk) throw new Error(`${where(c)}: ${src} is not a video, audio or image file this editor reads`);
-        if ((mk === "audio") !== (kind === "audio")) throw new Error(`${where(c)}: ${mk === "audio" ? "a sound goes on an audio track" : "a picture goes on a video track"} (kind="${mk === "audio" ? "audio" : "video"}")`);
+        // A video file on an audio track is its sound; a sound file has no picture, and a still has no sound.
+        if (mk === "audio" ? kind !== "audio" : mk === "image" && kind === "audio") throw new Error(`${where(c)}: ${mk === "audio" ? "a sound goes on an audio track" : "a picture goes on a video track"} (kind="${mk === "audio" ? "audio" : "video"}")`);
+        const link = str(c, "link");
+        if (link === "") throw new Error(`${where(c)}: link names the clips that are one take's picture and sound, not ""`);
         const assetId = slug(src);
         const sourceId = `src_${assetId}`;
         const fileName = src.split("/").pop()!;
@@ -480,8 +491,9 @@ export function declareVideo(root: DesignElement): Declaration {
         const speed = num(c, "speed", { min: 0.01 }) ?? 1;
         const inPoint = num(c, "in", { min: 0 }) ?? 0;
         const duration = clipLength(c, inPoint, speed, mk === "image");
-        inputs = { kind: mk, assetId, name: clipName, start: num(c, "start", { min: 0 }) ?? 0, duration, inPoint, speed };
+        inputs = { kind: kind === "audio" ? "audio" : mk, assetId, name: clipName, start: num(c, "start", { min: 0 }) ?? 0, duration, inPoint, speed };
         Object.assign(inputs, common(c));
+        if (link !== undefined) inputs.link = link;
         inputs.source = wire(sourceId, "media");
       } else if (c.type === "composition") {
         // Another video, drawn live from its own code: a `video.instance` node (made below, once the clip has its id).

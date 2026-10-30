@@ -8,6 +8,9 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- A video's `<clip>` takes `link`: two clips of one video file with the same `link` are its picture and its sound,
+  patched to two tracks at once. A video file on an audio track is its sound (a clip of kind `audio`); a still there is
+  refused.
 - A camera unit's calibration takes `<camera channel intrinsics extrinsics residual robot marker run reality at by>`, one
   per video channel: the lens (pixels), the camera in the world (mm and a unit quaternion), the residual (reprojection
   px and the pose bounds it implies) and the run that measured it with its reality. A camera measured by a run must say

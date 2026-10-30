@@ -57,6 +57,23 @@ test("a <video> declares sources, clips, tracks and the composite the video edit
   assert.throws(video(jsx("clip", { src: "a.mp4", out: 2, trackers: [] })), /prop trackers is not read/);
 });
 
+test("a video file on an audio track is its sound; two clips with one link are a take's picture and sound", () => {
+  const take = { src: "media/take.mp4", link: "L1", start: 1, in: 2, out: 4 };
+  const g = declarationOf({
+    default: jsx("video", {
+      children: [jsx("track", { name: "V1", children: [jsx("clip", { ...take, volume: 0 })] }), jsx("track", { name: "A1", kind: "audio", children: [jsx("clip", take)] })],
+    }),
+  }).graph;
+  const clips = Object.values(g.nodes).filter((n) => n.type === "video.clip");
+  assert.deepEqual(clips.map((n) => [n.inputs.kind, n.inputs.link, n.inputs.assetId, n.inputs.volume]), [
+    ["video", "L1", "media_take.mp4", 0],
+    ["audio", "L1", "media_take.mp4", 1],
+  ]);
+  const audio = (c: unknown) => () => declarationOf({ default: jsx("video", { children: [jsx("track", { kind: "audio", children: [c] })] }) });
+  assert.throws(audio(jsx("clip", { src: "a.png", duration: 1 })), /a picture goes on a video track/);
+  assert.throws(audio(jsx("clip", { src: "a.mp4", out: 1, link: "" })), /link names the clips/);
+});
+
 test("a clip's <intro> and <outro> are its intro and outro animations (animIn, animOut), each with its element", () => {
   const tree = jsx("video", {
     children: [
