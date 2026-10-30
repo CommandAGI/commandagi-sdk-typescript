@@ -1138,7 +1138,7 @@ export type DynamicsJoint = {
   /** The geometry of the second body the joint binds. */
   refB?: JointReference;
   /**
-   * The limits of the joint's motion, lower then upper: radians for a joint that turns (revolute, cylindrical, screw, universal, spherical), millimetres for a prismatic joint. Absent: no limit.
+   * The limits of the joint's motion, lower then upper: radians for a joint that turns (revolute, cylindrical, screw, universal, spherical), millimetres for a prismatic joint. A screw's limits bound its turn over any number of turns, and so its slide (`pitch` × turn / 2π). Absent: no limit.
    * @minItems 2
    * @maxItems 2
    */
@@ -1156,6 +1156,11 @@ export type DynamicsJoint = {
    * @exclusiveMinimum 0
    */
   pitch?: number;
+  /**
+   * A screw joint's back-drive efficiency: the share of an axial load's work on the nut that reaches the screw's turn. A ball screw is near 0.9 and turns under a load; a self-locking (Acme) screw is 0 or less, tan(λ − φ) / tan(λ) for a lead angle λ at or under the friction angle φ, and holds. The simulation turns the screw under a load at this share and holds it at 0 or less. Absent: the screw holds.
+   * @maximum 1
+   */
+  efficiency?: number;
   /**
    * Where the joint's free motion sits when the design is assembled: radians for a joint that turns (revolute, cylindrical, screw, planar), millimetres for a prismatic joint. The assembly solver places `a` at this value; a screw at it also slides `pitch` × home / 2π. Within `limits` when the joint has them. Absent: 0.
    */

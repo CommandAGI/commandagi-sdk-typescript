@@ -2355,7 +2355,7 @@ export const THREED_SCHEMA: SchemaDocument = {
      },
      "minItems": 2,
      "maxItems": 2,
-     "description": "The limits of the joint's motion, lower then upper: radians for a joint that turns (revolute, cylindrical, screw, universal, spherical), millimetres for a prismatic joint. Absent: no limit."
+     "description": "The limits of the joint's motion, lower then upper: radians for a joint that turns (revolute, cylindrical, screw, universal, spherical), millimetres for a prismatic joint. A screw's limits bound its turn over any number of turns, and so its slide (`pitch` × turn / 2π). Absent: no limit."
     },
     "travel": {
      "type": "array",
@@ -2372,6 +2372,11 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "How far a screw joint advances along its axis in one turn.",
      "x-unit": "mm",
      "exclusiveMinimum": 0
+    },
+    "efficiency": {
+     "type": "number",
+     "description": "A screw joint's back-drive efficiency: the share of an axial load's work on the nut that reaches the screw's turn. A ball screw is near 0.9 and turns under a load; a self-locking (Acme) screw is 0 or less, tan(λ − φ) / tan(λ) for a lead angle λ at or under the friction angle φ, and holds. The simulation turns the screw under a load at this share and holds it at 0 or less. Absent: the screw holds.",
+     "maximum": 1
     },
     "home": {
      "type": "number",
