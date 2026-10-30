@@ -219,15 +219,17 @@ const finiteNumber = (v: unknown): v is number => typeof v === "number" && Numbe
 
 const numbers = (v: unknown, n: number) => Array.isArray(v) && v.length === n && v.every(finiteNumber);
 /** A `<camera>` as a calibration holds it, or the reason it is not one. */
-function cameraChecked(c: CameraCalibrationRecord): void {
-  const at = `<camera channel="${c.channel}">`;
+function cameraChecked(c: Record<string, unknown>): asserts c is Record<string, unknown> & CameraCalibrationRecord {
+  const at = `<camera channel="${String(c.channel)}">`;
+  if (typeof c.channel !== "string" || !c.channel) throw new Error(`${at}: channel names the video channel, not ${JSON.stringify(c.channel)}`);
   const i = c.intrinsics as Record<string, unknown> | undefined;
   if (!i || typeof i !== "object" || !["width", "height", "fx", "fy"].every((k) => finiteNumber(i[k]) && (i[k] as number) > 0) || !finiteNumber(i.cx) || !finiteNumber(i.cy))
     throw new Error(`${at}: intrinsics are { width, height, fx, fy, cx, cy } in pixels (width, height, fx and fy positive), not ${JSON.stringify(c.intrinsics)}`);
   const e = c.extrinsics as Record<string, unknown> | undefined;
   if (!e || typeof e !== "object" || !numbers(e.position_mm, 3) || !numbers(e.quaternion, 4))
     throw new Error(`${at}: extrinsics are { position_mm: [x, y, z], quaternion: [x, y, z, w] }, not ${JSON.stringify(c.extrinsics)}`);
-  if (c.marker !== undefined && (typeof c.marker !== "object" || !numbers(c.marker.position_mm, 3) || !numbers(c.marker.quaternion, 4)))
+  const m = c.marker as Record<string, unknown> | undefined;
+  if (m !== undefined && (typeof m !== "object" || m === null || !numbers(m.position_mm, 3) || !numbers(m.quaternion, 4)))
     throw new Error(`${at}: marker is { position_mm: [x, y, z], quaternion: [x, y, z, w] }, not ${JSON.stringify(c.marker)}`);
   const r = c.residual as Record<string, unknown> | undefined;
   if (!r || typeof r !== "object" || !finiteNumber(r.rms_px) || r.rms_px < 0) throw new Error(`${at}: residual has rms_px, the reprojection error in pixels, not ${JSON.stringify(c.residual)}`);
@@ -282,8 +284,11 @@ export const calibrationVocabulary: Vocabulary<CalibrationRecord> = {
       if (r.at < last) throw new Error(`${at}: the re-zeros are oldest first, and this one is older than the one before it`);
       last = r.at;
     }
-    const cameras = list("camera") as CameraCalibrationRecord[];
-    for (const c of cameras) cameraChecked(c);
+    const cameras: CameraCalibrationRecord[] = [];
+    for (const c of list("camera")) {
+      cameraChecked(c);
+      cameras.push(c);
+    }
     return { ...(own(t.attrs, CALIBRATION_FIELDS) as { device: string }), joints, rezeros, ...(cameras.length ? { cameras } : {}) };
   },
   toTree(d) {
