@@ -252,3 +252,54 @@ test("a <composition> is another video by path (a video.instance whose frames ar
   assert.throws(video(jsx("artboard", { src: "Poster.draw.tsx", duration: 1, fit: "stretch" })), /fit is one of fill, contain, cover, none/);
   assert.throws(() => declarationOf({ default: jsx("video", { children: [jsx("track", { kind: "audio", children: [jsx("artboard", { src: "P.draw.tsx", duration: 1 })] })] }) }), /an artboard goes on a video track/);
 });
+
+test("a video's own <artboard>s are other frames of it; an <override artboard> in a clip, title or effect sets what it is on that one", () => {
+  const g = declarationOf({
+    default: jsx("video", {
+      width: 1920,
+      height: 1080,
+      children: [
+        jsx("track", {
+          name: "V1",
+          children: [
+            jsx("clip", {
+              src: "media/wide.mp4",
+              out: 4,
+              __source: 1,
+              children: [
+                jsx("override", { artboard: "Vertical", src: "media/tall.mp4", __source: 2 }),
+                jsx("effect", { type: "vignette", amount: 0.3, __source: 3, children: [jsx("override", { artboard: "Vertical", amount: 0.6, __source: 4 })] }),
+              ],
+            }),
+            jsx("title", { text: "Hello", start: 4, duration: 2, y: 300, children: [jsx("override", { artboard: "Vertical", y: 700, scaleX: 0.8, fontSize: 64, cropLeft: 0.1, __source: 5 })] }),
+          ],
+        }),
+        jsx("artboard", { name: "Vertical", width: 1080, height: 1920, __source: 6 }),
+      ],
+    }),
+  }).graph;
+  const composite = g.nodes.composite!;
+  assert.deepEqual(composite.inputs.artboards, [{ name: "Vertical", width: 1080, height: 1920 }]);
+  assert.equal((composite.meta!.sources as Record<string, unknown>)["artboard:Vertical"], 6);
+  const clip = g.nodes["clip_wide.mp4"]!;
+  assert.deepEqual(clip.inputs.overrides, { Vertical: { assetId: "media_tall.mp4" } }, "another media file on one artboard is named by its source");
+  assert.deepEqual(g.nodes["src_media_tall.mp4"]!.inputs.__asset, { kind: "file", $file: "media/tall.mp4" });
+  const fx = (clip.inputs.effects as { overrides?: unknown }[])[0]!;
+  assert.deepEqual(fx.overrides, { Vertical: { params: { amount: 0.6 } } });
+  assert.deepEqual(clip.meta!.sources, { "override:Vertical": 2, "effect:fx_vignette": 3, "effectOverride:fx_vignette:Vertical": 4 });
+  assert.deepEqual(g.nodes.clip_Title!.inputs.overrides, { Vertical: { transform: { y: 700, scaleX: 0.8 }, crop: { left: 0.1 }, text: { fontSize: 64 } } });
+
+  const video = (clipKids: unknown[], extra: unknown[] = [jsx("artboard", { name: "Vertical", width: 1080, height: 1920 })]) => () =>
+    declarationOf({ default: jsx("video", { children: [jsx("track", { children: [jsx("title", { text: "T", duration: 1, children: clipKids })] }), ...extra] }) });
+  assert.throws(video([jsx("override", { artboard: "Square", x: 1 })]), /declares no <artboard name="Square"> \(it declares "Vertical"\)/);
+  assert.throws(video([jsx("override", { artboard: "Vertical" })]), /names what it sets/);
+  assert.throws(video([jsx("override", { artboard: "Vertical", volume: 0.5 })]), /prop volume is not read on a <override>/);
+  assert.throws(video([jsx("override", { artboard: "Vertical", x: 1 }), jsx("override", { artboard: "Vertical", y: 1 })]), /one <override> for artboard "Vertical"/);
+  assert.throws(video([], [jsx("artboard", { name: "V", width: 10 })]), /give its width and height/);
+  assert.throws(video([], [jsx("artboard", { src: "Poster.draw.tsx", duration: 1 })]), /an artboard of a drawing goes on a <track>/);
+  assert.throws(video([], [jsx("artboard", { name: "V", width: 1, height: 1 }), jsx("artboard", { name: "V", width: 2, height: 2 })]), /two artboards are named "V"/);
+  assert.throws(
+    () => declarationOf({ default: jsx("video", { children: [jsx("track", { children: [jsx("clip", { src: "a.mp4", out: 1, children: [jsx("override", { artboard: "V", src: "b.png" })] })] }), jsx("artboard", { name: "V", width: 1, height: 1 })] }) }),
+    /b\.png is not a video file/,
+  );
+});

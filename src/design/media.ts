@@ -48,7 +48,13 @@
  * `inputs` are the values it gives that video's parameters) and an artboard (`<artboard src>`: a drawing's page, drawn
  * live; `view` names the page, else the first; `crop={{ x, y, width, height }}` the part of it to show; `inputs` are
  * the values it gives the drawing's parameters, so two artboards of one drawing can say two things). A video file
- * on an audio track is its sound. Two `<clip>`s with the same `link` are one take's picture and sound, edited as a pair
+ * on an audio track is its sound.
+ *
+ * A video's own artboards are other frames of it at other sizes (`<artboard name="Vertical" width={1080} height={1920} />`
+ * in the `<video>`, with no `src`; the video itself is the first). A clip, title or effect says what it is on one of them
+ * with an `<override artboard="Vertical" …>` inside it: the properties it names replace the clip's own on that artboard
+ * only (a title reframed for 9:16, another media file in a `<clip>`, an effect's amount), and every other artboard keeps
+ * the clip's own. Two `<clip>`s with the same `link` are one take's picture and sound, edited as a pair
  * (the editor's source patch writes them). Times on a
  * video's timeline are seconds; times in a song are beats (an audio clip's `in`, where it starts in its file, is
  * seconds, as on a video). Each node carries the element that declared it in
@@ -234,6 +240,64 @@ const TRACK_HEIGHT = { video: 64, audio: 48, midi: 56 } as const;
 export const CLIP_CROP = { cropTop: "top", cropRight: "right", cropBottom: "bottom", cropLeft: "left" } as const;
 const CLIP_PROPS = ["name", "start", "duration", "in", "out", "speed", "opacity", "volume", "blendMode", "fitMode", ...Object.keys(CLIP_TRANSFORM), ...Object.keys(CLIP_COLOR), ...Object.keys(CLIP_CROP)];
 
+/** What an `<override>` in a clip may set on one artboard: its look (not its sound), transform, colour and crop; a title's
+ *  text fields; a `<clip>`'s media file (`src`, of the same kind). An `<override>` in an `<effect>` sets its params and
+ *  `enabled`. */
+export const OVERRIDE_LOOK = ["opacity", "blendMode", "fitMode"] as const;
+/** A video's own artboard (`<artboard name width height>` in the `<video>`): its props. */
+export const VIDEO_ARTBOARD_PROPS = ["name", "width", "height"] as const;
+type ClipOverride = Record<string, unknown> & { src?: string };
+
+/** One `<override artboard>` in a clip: what the clip is on that artboard. */
+function clipOverride(el: DesignElement, clip: DesignElement, artboards: ReadonlySet<string>): { artboard: string; override: ClipOverride } {
+  const own = clip.type === "title" ? Object.keys(TITLE_TEXT) : clip.type === "clip" ? ["src"] : [];
+  refuseUnknown(el, ["artboard", ...OVERRIDE_LOOK, ...Object.keys(CLIP_TRANSFORM), ...Object.keys(CLIP_COLOR), ...Object.keys(CLIP_CROP), ...own]);
+  const artboard = overrideArtboard(el, artboards);
+  const o: ClipOverride = {};
+  const opacity = num(el, "opacity", { min: 0, max: 1 });
+  if (opacity !== undefined) o.opacity = opacity;
+  const blend = str(el, "blendMode");
+  if (blend !== undefined) o.blendMode = blend;
+  const fit = str(el, "fitMode", ["fit", "fill", "stretch"]);
+  if (fit !== undefined) o.fitMode = fit;
+  const part = (spec: Record<string, unknown>, read: (k: string) => unknown, rename: (k: string) => string = (k) => k) => {
+    const out: Record<string, unknown> = {};
+    for (const k of Object.keys(spec)) {
+      const v = read(k);
+      if (v !== undefined) out[rename(k)] = v;
+    }
+    return Object.keys(out).length ? out : undefined;
+  };
+  const transform = part(CLIP_TRANSFORM, (k) => num(el, k));
+  if (transform) o.transform = transform;
+  const color = part(CLIP_COLOR, (k) => num(el, k, { min: k === "hue" ? -180 : -1, max: k === "hue" ? 180 : 1 }));
+  if (color) o.color = color;
+  const crop = part(CLIP_CROP, (k) => num(el, k, { min: 0, max: 0.49 }), (k) => CLIP_CROP[k as keyof typeof CLIP_CROP]);
+  if (crop) o.crop = crop;
+  if (clip.type === "title") {
+    const text = part(TITLE_TEXT, (k) => {
+      const d = TITLE_TEXT[k as keyof typeof TITLE_TEXT];
+      return typeof d === "number" ? num(el, k, { min: 0 }) : typeof d === "boolean" ? bool(el, k) : str(el, k, k === "align" ? ["left", "center", "right"] : undefined);
+    });
+    if (text) o.text = text;
+  }
+  if (clip.type === "clip") {
+    const src = str(el, "src");
+    if (src !== undefined) o.src = src;
+  }
+  if (!Object.keys(o).length) throw new Error(`${where(el)} in ${where(clip)}: an override names what it sets on artboard "${artboard}"`);
+  return { artboard, override: o };
+}
+
+/** The artboard an `<override>` names: one the `<video>` declares. */
+function overrideArtboard(el: DesignElement, artboards: ReadonlySet<string>): string {
+  const artboard = str(el, "artboard");
+  if (!artboard) throw new Error(`<override> names its artboard (artboard="…", one the <video> declares)`);
+  if (!artboards.has(artboard))
+    throw new Error(`<override artboard="${artboard}">: the <video> declares no <artboard name="${artboard}">${artboards.size ? ` (it declares ${[...artboards].map((a) => `"${a}"`).join(", ")})` : ""}`);
+  return artboard;
+}
+
 /** The files a `<composition>` and an `<artboard>` name: another video's code, a drawing's code. */
 export const COMPOSITION_FILE = /\.vid\.(tsx|jsx|py|rs)$/i;
 export const ARTBOARD_FILE = /\.draw\.(tsx|jsx|py|rs)$/i;
@@ -304,14 +368,15 @@ interface Keyed {
 }
 
 /** A clip's children: its transition, its intro and outro, its effects (each with its keyframes) and its keyframes. */
-function clipChildren(clip: DesignElement, clipId: string, sources: Record<string, unknown>) {
+function clipChildren(clip: DesignElement, clipId: string, sources: Record<string, unknown>, artboards: ReadonlySet<string>) {
   let transitionIn: { kind: string; duration: number; params?: Record<string, number | string> } = { kind: "none", duration: 0 };
   const audioEffects: ReturnType<typeof audioEffect>[] = [];
   const afxId = idMaker();
   const anims: { animIn?: { preset: string; duration: number }; animOut?: { preset: string; duration: number } } = {};
   const notes: { id: string; pitch: number; start: number; duration: number; velocity: number }[] = [];
   const noteId = idMaker();
-  const effects: { id: string; type: string; enabled: boolean; params: Record<string, number>; colors?: Record<string, string>; src?: string }[] = [];
+  const effects: { id: string; type: string; enabled: boolean; params: Record<string, number>; colors?: Record<string, string>; src?: string; overrides?: Record<string, { enabled?: boolean; params?: Record<string, number> }> }[] = [];
+  const overrides: Record<string, ClipOverride> = {};
   const keyframes: { property: string; keys: { id: string; time: number; value: number; easing: string; bezier?: number[] }[] }[] = [];
   const fxId = idMaker();
   const kfId = idMaker();
@@ -392,15 +457,42 @@ function clipChildren(clip: DesignElement, clipId: string, sources: Record<strin
         const colors = el.props.colors;
         if (colors !== undefined && (typeof colors !== "object" || colors === null || Object.values(colors).some((c) => typeof c !== "string")))
           throw new Error(`<effect type="${type}">: colors is { name: "#rrggbb" }`);
+        const fxOverrides: Record<string, { enabled?: boolean; params?: Record<string, number> }> = {};
         effects.push({ id, type, enabled: bool(el, "enabled") ?? true, params, ...(colors ? { colors: { ...(colors as Record<string, string>) } } : {}), ...(src !== undefined ? { src } : {}) });
         sources[`effect:${id}`] = sourceMeta(el);
         for (const k of childElements(el.props.children)) {
-          if (k.type !== "keyframe") throw new Error(`<${k.type}> is not read in an <effect> (its keyframes are <keyframe param time value>)`);
+          if (k.type === "override") {
+            const artboard = overrideArtboard(k, artboards);
+            if (fxOverrides[artboard]) throw new Error(`<effect type="${type}">: one <override> for artboard "${artboard}"`);
+            const o: { enabled?: boolean; params?: Record<string, number> } = {};
+            const on = bool(k, "enabled");
+            if (on !== undefined) o.enabled = on;
+            for (const [p, v] of Object.entries(k.props)) {
+              if (["children", "key", "artboard", "enabled"].includes(p)) continue;
+              if (typeof v !== "number" || !Number.isFinite(v)) throw new Error(`<override artboard="${artboard}"> in <effect type="${type}">: ${p} is a number, not ${JSON.stringify(v)}`);
+              (o.params ??= {})[p] = v;
+            }
+            if (!Object.keys(o).length) throw new Error(`<override artboard="${artboard}"> in <effect type="${type}"> names what it sets`);
+            fxOverrides[artboard] = o;
+            sources[`effectOverride:${id}:${artboard}`] = sourceMeta(k);
+            continue;
+          }
+          if (k.type !== "keyframe") throw new Error(`<${k.type}> is not read in an <effect> (its keyframes are <keyframe param time value>, its overrides <override artboard>)`);
           refuseUnknown(k, ["param", "time", "value", "easing", "bezier"]);
           const param = str(k, "param");
           if (!param) throw new Error(`${where(k)}: an effect's keyframe names its param`);
           keyframe(k, `effect.${id}.${param}`);
         }
+        if (Object.keys(fxOverrides).length) {
+          effects[effects.length - 1]!.overrides = fxOverrides;
+        }
+        break;
+      }
+      case "override": {
+        const { artboard, override } = clipOverride(el, clip, artboards);
+        if (overrides[artboard]) throw new Error(`${where(clip)}: one <override> for artboard "${artboard}"`);
+        overrides[artboard] = override;
+        sources[`override:${artboard}`] = sourceMeta(el);
         break;
       }
       case "keyframe": {
@@ -419,10 +511,10 @@ function clipChildren(clip: DesignElement, clipId: string, sources: Record<strin
           sources[`audio:${fx.id}`] = sourceMeta(el);
           break;
         }
-        throw new Error(`<${el.type}> is not read in a <${clip.type}> (a clip holds <transition>, <intro>, <outro>, <effect>, <keyframe> and audio effects (${Object.keys(VIDEO_AUDIO_EFFECTS).join(", ")}); a <midi> clip its <note>s)`);
+        throw new Error(`<${el.type}> is not read in a <${clip.type}> (a clip holds <transition>, <intro>, <outro>, <effect>, <keyframe>, <override> and audio effects (${Object.keys(VIDEO_AUDIO_EFFECTS).join(", ")}); a <midi> clip its <note>s)`);
     }
   }
-  return { transitionIn, ...anims, effects, audioEffects, keyframes, notes };
+  return { transitionIn, ...anims, effects, audioEffects, keyframes, notes, overrides };
 }
 
 /** Declare a video (`<video>` and its tracks) as the video editor's own op graph. */
@@ -444,7 +536,23 @@ export function declareVideo(root: DesignElement): Declaration {
   const compositeSources: Record<string, unknown> = {};
   const masterEffects: ReturnType<typeof audioEffect>[] = [];
   const masterId = idMaker();
+  // The video's own artboards first: an <override> anywhere names one of them.
+  const artboards: { name: string; width: number; height: number }[] = [];
+  for (const a of childElements(root.props.children)) {
+    if (a.type !== "artboard") continue;
+    if (a.props.src !== undefined) throw new Error(`${where(a)}: an artboard of a drawing goes on a <track>; an <artboard> in the <video> is another frame of it (name, width, height)`);
+    refuseUnknown(a, VIDEO_ARTBOARD_PROPS);
+    const an = str(a, "name");
+    if (!an) throw new Error(`<artboard> in a <video> has a name (the <override>s name it)`);
+    if (artboards.some((x) => x.name === an)) throw new Error(`${where(a)}: two artboards are named "${an}"`);
+    const width = num(a, "width", { min: 1 }), height = num(a, "height", { min: 1 });
+    if (width === undefined || height === undefined) throw new Error(`${where(a)}: give its width and height in pixels`);
+    artboards.push({ name: an, width, height });
+    compositeSources[`artboard:${an}`] = sourceMeta(a);
+  }
+  const artboardNames = new Set(artboards.map((a) => a.name));
   for (const tr of childElements(root.props.children)) {
+    if (tr.type === "artboard") continue;
     if (VIDEO_AUDIO_EFFECTS[tr.type]) {
       const fx = audioEffect(tr, masterId);
       masterEffects.push(fx);
@@ -460,7 +568,7 @@ export function declareVideo(root: DesignElement): Declaration {
       compositeSources[`marker:${mid}`] = sourceMeta(tr);
       continue;
     }
-    if (tr.type !== "track") throw new Error(`<${tr.type}> is not read in a <video> (it holds <track>, <marker> and the master's audio effects)`);
+    if (tr.type !== "track") throw new Error(`<${tr.type}> is not read in a <video> (it holds <track>, <artboard>, <marker> and the master's audio effects)`);
     refuseUnknown(tr, ["name", "kind", "muted", "hidden", "locked", "volume", "height"]);
     const kind = (str(tr, "kind", VIDEO_TRACK_KINDS) ?? "video") as (typeof VIDEO_TRACK_KINDS)[number];
     const trackName = str(tr, "name") ?? (kind === "audio" ? "A" : kind === "midi" ? "M" : "V");
@@ -586,7 +694,7 @@ export function declareVideo(root: DesignElement): Declaration {
         nodes[compId] = node(compId, "video.instance", { [INSTANCE_REF]: { path: nested.src, name: clipName }, ...nested.values }, clipName);
         inputs.source = wire(compId, "frames");
       }
-      const kids = clipChildren(c, clipId, sources);
+      const kids = clipChildren(c, clipId, sources, artboardNames);
       inputs.transitionIn = kids.transitionIn;
       if (kids.animIn) inputs.animIn = kids.animIn;
       if (kids.animOut) inputs.animOut = kids.animOut;
@@ -594,6 +702,28 @@ export function declareVideo(root: DesignElement): Declaration {
       if (kids.audioEffects.length) inputs.audioEffects = kids.audioEffects;
       inputs.trackers = [];
       if (kids.keyframes.length) inputs.keyframes = kids.keyframes;
+      if (Object.keys(kids.overrides).length) {
+        // Another media file on one artboard is a source of its own, of the clip's kind.
+        for (const [an, o] of Object.entries(kids.overrides)) {
+          if (o.src === undefined) continue;
+          const src = o.src;
+          const own = mediaKind(String(c.props.src));
+          if (/^[a-z]+:|^\//i.test(src)) throw new Error(`<override artboard="${an}"> in ${where(c)}: src is a path relative to this file, not ${src}`);
+          const mk = mediaKind(src);
+          if (!mk || mk !== own) throw new Error(`<override artboard="${an}"> in ${where(c)}: ${src} is not a ${own} file (the clip's own kind)`);
+          const assetId = slug(src);
+          const sourceId = `src_${assetId}`;
+          const fileName = src.split("/").pop()!;
+          if (!nodes[sourceId])
+            nodes[sourceId] = node(sourceId, "video.source", {
+              asset: { id: assetId, kind: mk, name: fileName, url: "", path: src, duration: 0, width: 0, height: 0, hasAudio: mk !== "image" },
+              __asset: { kind: "file", $file: src },
+            }, fileName);
+          delete o.src;
+          o.assetId = assetId;
+        }
+        inputs.overrides = kids.overrides;
+      }
       if (c.type === "midi")
         inputs.midi = { notes: kids.notes, instrument: str(c, "instrument", MIDI_INSTRUMENTS) ?? MIDI_CLIP.instrument, gain: num(c, "gain", { min: 0 }) ?? MIDI_CLIP.gain };
       const { source, ...rest } = inputs;
@@ -615,7 +745,7 @@ export function declareVideo(root: DesignElement): Declaration {
     trackWires.push(wire(trackId, "frames"));
   }
   const projectId = slug(`proj_${name}`);
-  const composite: Record<string, unknown> = { id: projectId, name, settings, ...(markers.length ? { markers } : {}), ...(masterEffects.length ? { masterEffects } : {}), createdAt: 0, updatedAt: 0 };
+  const composite: Record<string, unknown> = { id: projectId, name, settings, ...(artboards.length ? { artboards } : {}), ...(markers.length ? { markers } : {}), ...(masterEffects.length ? { masterEffects } : {}), createdAt: 0, updatedAt: 0 };
   trackWires.forEach((w, i) => (composite[`tracks.${i + 1}`] = w));
   nodes.composite = node("composite", "video.composite", composite, name, metaOf(root, compositeSources));
   const graph: IRGraph = { id: projectId, nodes, outputs: ["composite"], meta: { kind: "video" } };
