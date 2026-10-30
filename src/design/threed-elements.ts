@@ -1125,7 +1125,7 @@ export type DynamicsJoint = {
   /** The body `a` moves relative to, named as `a` is. Absent: the first body is jointed to the world. */
   b?: string;
   /**
-   * A point of the joint's axis, in the document's space.
+   * A point of the joint's axis, in the document's space. A side with no reference binds this point of its body as drawn; when both sides have one, the assembly solver writes it where the two references meet.
    * @unit mm
    */
   anchor: Vec32;
@@ -1156,6 +1156,15 @@ export type DynamicsJoint = {
    * @exclusiveMinimum 0
    */
   pitch?: number;
+  /**
+   * Where the joint's free motion sits when the design is assembled: radians for a joint that turns (revolute, cylindrical, screw, planar), millimetres for a prismatic joint. The assembly solver places `a` at this value; a screw at it also slides `pitch` × home / 2π. Within `limits` when the joint has them. Absent: 0.
+   */
+  home?: number;
+  /**
+   * Where a cylindrical joint's slide sits when the design is assembled. Within `travel`. Absent: 0.
+   * @unit mm
+   */
+  homeTravel?: number;
   /** An actuator driving this joint → the mechanism becomes a robot. */
   actuator?: {
     mode: "position" | "velocity" | "torque";
@@ -1770,11 +1779,13 @@ export type Inspection = {
  */
 export type JointKind = "fixed" | "revolute" | "prismatic" | "cylindrical" | "planar" | "screw" | "spherical" | "universal";
 
-/** The geometry of a body that a joint binds: a face, an edge or a vertex, named by where it is. */
+/**
+ * The geometry of a body that a joint binds: a face, an edge or a vertex, named by where it is in the body's own space (the body as its features draw it, before the placement the assembly gives it).
+ */
 export type JointReference = {
   kind: "face" | "edge" | "vertex";
   /**
-   * The face's centre, the edge's midpoint or the vertex.
+   * The face's centre, the edge's midpoint or the vertex, in the body's own space.
    * @unit mm
    */
   point: Vec32;

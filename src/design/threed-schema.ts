@@ -2333,7 +2333,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "anchor": {
      "$ref": "#/$defs/Vec32",
-     "description": "A point of the joint's axis, in the document's space.",
+     "description": "A point of the joint's axis, in the document's space. A side with no reference binds this point of its body as drawn; when both sides have one, the assembly solver writes it where the two references meet.",
      "x-unit": "mm"
     },
     "axis": {
@@ -2372,6 +2372,15 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "How far a screw joint advances along its axis in one turn.",
      "x-unit": "mm",
      "exclusiveMinimum": 0
+    },
+    "home": {
+     "type": "number",
+     "description": "Where the joint's free motion sits when the design is assembled: radians for a joint that turns (revolute, cylindrical, screw, planar), millimetres for a prismatic joint. The assembly solver places `a` at this value; a screw at it also slides `pitch` × home / 2π. Within `limits` when the joint has them. Absent: 0."
+    },
+    "homeTravel": {
+     "type": "number",
+     "description": "Where a cylindrical joint's slide sits when the design is assembled. Within `travel`. Absent: 0.",
+     "x-unit": "mm"
     },
     "actuator": {
      "type": "object",
@@ -3672,7 +3681,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "point": {
      "$ref": "#/$defs/Vec32",
-     "description": "The face's centre, the edge's midpoint or the vertex.",
+     "description": "The face's centre, the edge's midpoint or the vertex, in the body's own space.",
      "x-unit": "mm"
     },
     "direction": {
@@ -3689,7 +3698,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "point"
    ],
    "additionalProperties": false,
-   "description": "The geometry of a body that a joint binds: a face, an edge or a vertex, named by where it is."
+   "description": "The geometry of a body that a joint binds: a face, an edge or a vertex, named by where it is in the body's own space (the body as its features draw it, before the placement the assembly gives it)."
   },
   "JointSweep": {
    "type": "object",
