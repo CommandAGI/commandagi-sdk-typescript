@@ -29,7 +29,8 @@
  *             image or sketch written straight on the drawing; a path's `subpaths`
  *             is `d`, an SVG path (M L C Q Z, absolute); a brush stroke's points are `[x, y]` pairs; an `<image>`
  *             or a `<raster-layer>` names its image file by `src`. A modifier
- *             (`<blur>`, `<transform>`, `<fill>`, …) wraps the one node it takes; `<boolean>` its shapes; `<clip>` its
+ *             (`<blur>`, `<transform>`, `<fill>`, …) wraps the one node it takes; `<compound op>` its shapes (a live
+ *             Pathfinder: `unite`, `minus`, `intersect` or `exclude`); `<clip>` its
  *             content then its mask. `<link src="parts/Badge.draw.tsx" x={40} y={60} />` shows another drawing's
  *             first artboard as that file draws it now (`src`: a path from this file's folder, or an address;
  *             `inputs={{ size: 40 }}` gives values to the parameters that drawing declares). Nothing of the other
@@ -258,7 +259,7 @@ function declareDrawn(s: Scope, el: DesignElement, top: boolean): NodeRef {
     if (!input || rest.length) throw new Error(`${where(el)} wraps the one node it changes`);
     return add(s, el, t, { ...attrs(el), in: declareDrawn(s, input, false) });
   }
-  if (t === "boolean") return add(s, el, t, { ...attrs(el), ...channels("shapes", kids(el).map((c) => declareDrawn(s, c, false))) });
+  if (t === "compound") return add(s, el, t, { ...attrs(el), ...channels("children", kids(el).map((c) => declareDrawn(s, c, false))) });
   if (t === "clip") {
     const [content, mask, ...rest] = kids(el);
     if (!content || !mask || rest.length) throw new Error(`${where(el)} takes its content, then its mask`);

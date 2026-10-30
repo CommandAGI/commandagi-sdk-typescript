@@ -38,6 +38,18 @@ test("a drawing declares the composite, its layers as groups, shapes with their 
   assert.deepEqual(g.nodes.rect!.meta, { source: 2 });
 });
 
+test("a <compound> is one node that holds its shapes, back to front, with its operation and its own paint", () => {
+  const g = run(
+    h("drawing", {},
+      h("layer", { name: "Art" },
+        h("compound", { op: "minus", fill: "#0f172a" }, h("rect", { x: 0, y: 0, w: 100, h: 100 }), h("ellipse", { cx: 100, cy: 100, rx: 40, ry: 40 })),
+      ),
+    ),
+  );
+  assert.deepEqual(g.nodes.group!.inputs, { name: "Art", "children.1": wire("compound") });
+  assert.deepEqual(g.nodes.compound, { id: "compound", type: "compound", inputs: { op: "minus", fill: "#0f172a", "children.1": wire("rect"), "children.2": wire("ellipse") } });
+});
+
 test("a drawing is its first artboard; each <artboard> after its layers is another, with its own composite and page", () => {
   const g = run(
     h("drawing", { name: "Card", width: 400, height: 300, background: "#ffffff" },
