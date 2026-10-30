@@ -346,6 +346,17 @@ function constraintFact(el: DesignElement): Record<string, unknown> {
 }
 const CONSTRAINTS = new Set(["netclass", "diffpair", "group", "keepout", "thermal", "bus", "objective"]);
 
+/**
+ * A layout constraint stated outside a board file: a circuit's `constraint(tag, props)` (./eda.ts). It is checked as
+ * the board file's element of that tag is, and is `{ constraint: tag, …its attributes }`, as the board holds it.
+ */
+export function boardConstraint(tag: string, props: Record<string, unknown>): Record<string, unknown> {
+  const el: DesignElement = { $$design: "element", type: tag, props };
+  if (tag === "fab") return { constraint: tag, ...fabFact(el) };
+  if (!CONSTRAINTS.has(tag)) throw new Error(`<${tag}> is not a constraint of a board (${[...CONSTRAINTS, "fab"].join(", ")})`);
+  return { constraint: tag, ...constraintFact(el) };
+}
+
 const FAB_CAPABILITIES = ["minTrack", "minSpace", "minDrill", "minAnnularRing"];
 const SIDES = ["top", "bottom"];
 const ELECTRICAL = ["flying-probe", "fixture", "none"];

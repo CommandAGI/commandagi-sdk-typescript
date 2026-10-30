@@ -68,6 +68,7 @@ export {
 export {
   circuit,
   board,
+  constraint,
   part as component,
   net,
   connect,

@@ -14,6 +14,7 @@ import {
   circuit,
   component,
   connect,
+  constraint,
   cylinder,
   declarationOf,
   extrude,
@@ -179,6 +180,22 @@ test("a circuit's board has two copper layers, or four when it says so", () => {
   assert.deepEqual(copper(), ["F.Cu", "B.Cu"]);
   assert.deepEqual(copper(4), ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"]);
   assert.throws(() => circuit("X", () => void board({ width: 10, height: 10, layers: 3 as 4 })), /2 or 4 copper layers/);
+});
+
+test("a circuit's board holds its constraints as the board file's elements state them, and refuses a wrong one by the element's rule", () => {
+  const g = circuit("Rules", () => {
+    board({ width: 10, height: 10 });
+    constraint("netclass", { name: "Default", nets: ["*"], width: 0.15, clearance: 0.15, edgeClearance: 0.4 });
+    constraint("keepout", { name: "pins", layers: ["B.Cu"], no: ["track", "via"], points: [[1, 1], [3, 1], [3, 2]] });
+  }).ir;
+  assert.deepEqual(g.nodes.board!.inputs.constraints, [
+    { constraint: "netclass", name: "Default", nets: ["*"], width: 0.15, clearance: 0.15, edgeClearance: 0.4 },
+    { constraint: "keepout", name: "pins", points: [[1, 1], [3, 1], [3, 2]], layers: ["B.Cu"], no: ["track", "via"] },
+  ]);
+  assert.throws(() => circuit("X", () => { board({ width: 10, height: 10 }); constraint("netclass", { name: "a", nets: [] }); }), /nets is a list of names/);
+  assert.throws(() => circuit("X", () => { board({ width: 10, height: 10 }); constraint("keepout", { points: [[0, 0], [1, 0], [1, 1]], no: ["pads"] }); }), /no is a list of track, via, component, pour/);
+  assert.throws(() => circuit("X", () => { board({ width: 10, height: 10 }); constraint("pour", {}); }), /not a constraint of a board/);
+  assert.throws(() => circuit("X", () => constraint("netclass", { name: "a", nets: ["*"] })), /board\(\) first/);
 });
 
 test("a circuit's part on the bottom holds its pads as the board holds a flipped part: mirrored, on the B. layers", () => {

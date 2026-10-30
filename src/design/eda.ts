@@ -28,6 +28,7 @@
  */
 import { Declaration, NodeRef, Out, Scope, currentScope, withScope, channels, slug } from "./ir.js";
 import { partFieldForms, type PartFields } from "./part-fields.js";
+import { boardConstraint } from "./pcb.js";
 
 /** One pad's geometry, in footprint-local millimetres (y down, as KiCad draws). */
 export interface Pad {
@@ -225,6 +226,22 @@ export function board(o: { width: number; height: number; origin?: [number, numb
     },
     { id: "board", label: "Board" },
   );
+}
+
+/**
+ * Declare a layout constraint of the board, as the board file's element of the same tag says it: `"netclass"`,
+ * `"diffpair"`, `"group"`, `"keepout"`, `"thermal"`, `"bus"`, `"objective"` or `"fab"`, with that element's
+ * attributes. The board a router writes from this circuit carries each one (`scripts/workbench/route-board.mts`).
+ *
+ *   constraint("netclass", { name: "Default", nets: ["*"], width: 0.15, clearance: 0.15, edgeClearance: 0.4 });
+ *   constraint("keepout", { name: "antenna", layers: ["F.Cu", "B.Cu"], points: [[0, 0], [8, 0], [8, 5], [0, 5]] });
+ */
+export function constraint(tag: string, props: Record<string, unknown>): void {
+  const s = scope("constraint()");
+  const node = s.nodes.board;
+  if (!node) throw new Error("constraint(): declare the board() first");
+  const list = (node.inputs.constraints as Record<string, unknown>[] | undefined) ?? [];
+  node.inputs.constraints = [...list, boardConstraint(tag, props)];
 }
 
 /** Where a part sits on the board: `[x, y]` mm, or with rotation (degrees) and side. */
