@@ -238,6 +238,9 @@ test("a <composition> is another video by path (a video.instance whose frames ar
   const cropped = declarationOf({ default: jsx("video", { children: [jsx("track", { children: [jsx("artboard", { src: "Poster.draw.tsx", duration: 2, crop: { x: 10, y: 20, width: 400, height: 300 } })] })] }) }).graph;
   assert.deepEqual((cropped.nodes["clip_Poster.draw.tsx"]!.inputs.renderable as { crop: unknown }).crop, { x: 10, y: 20, width: 400, height: 300 });
   assert.throws(() => declarationOf({ default: jsx("video", { children: [jsx("track", { children: [jsx("artboard", { src: "P.draw.tsx", duration: 2, crop: { x: 0, y: 0, width: 0, height: 3 } })] })] }) }), /crop is \{ x, y, width, height \}/);
+  const given = declarationOf({ default: jsx("video", { children: [jsx("track", { children: [jsx("artboard", { src: "Poster.draw.tsx", duration: 2, inputs: { title: "Square", size: 40, dark: true } })] })] }) }).graph;
+  assert.deepEqual((given.nodes["clip_Poster.draw.tsx"]!.inputs.renderable as { ref: { overrides: unknown } }).ref.overrides, { title: "Square", size: 40, dark: true }, "an artboard's inputs are its reference's overrides");
+  assert.throws(() => declarationOf({ default: jsx("video", { children: [jsx("track", { children: [jsx("artboard", { src: "P.draw.tsx", duration: 2, inputs: { size: [1] } })] })] }) }), /inputs is \{ parameter: number \| text \| true\/false \}/);
   const video = (...children: unknown[]) => () => declarationOf({ default: jsx("video", { children: [jsx("track", { children })] }) });
   assert.throws(video(jsx("composition", { src: "Intro.mp4", out: 1 })), /is not another video's code/);
   assert.throws(video(jsx("composition", { src: "/x/Intro.vid.tsx", out: 1 })), /relative to this file/);

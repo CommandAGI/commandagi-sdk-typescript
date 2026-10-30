@@ -46,7 +46,8 @@
  * Media files are named by path relative to the file (`src`), never inlined; the editor reads them. So are a nested
  * composition (`<composition src>`: another video's code, a `video.instance` node whose frames are its clip's source;
  * `inputs` are the values it gives that video's parameters) and an artboard (`<artboard src>`: a drawing's page, drawn
- * live; `view` names the page, else the first; `crop={{ x, y, width, height }}` the part of it to show). A video file
+ * live; `view` names the page, else the first; `crop={{ x, y, width, height }}` the part of it to show; `inputs` are
+ * the values it gives the drawing's parameters, so two artboards of one drawing can say two things). A video file
  * on an audio track is its sound. Two `<clip>`s with the same `link` are one take's picture and sound, edited as a pair
  * (the editor's source patch writes them). Times on a
  * video's timeline are seconds; times in a song are beats (an audio clip's `in`, where it starts in its file, is
@@ -260,6 +261,17 @@ function inputValues(el: DesignElement): Record<string, number> {
     throw new Error(`${where(el)}: inputs is { parameter: number }, not ${JSON.stringify(v)}`);
   if (INSTANCE_REF in v) throw new Error(`${where(el)}: ${INSTANCE_REF} is not a parameter`);
   return { ...(v as Record<string, number>) };
+}
+
+/** An artboard's input values: the drawing's parameters (`export const params`) by name, each a number, a text or a
+ *  yes/no. Read into the reference's `overrides`, which the drawing is run with. */
+function drawingInputs(el: DesignElement): Record<string, number | string | boolean> | undefined {
+  const v = el.props.inputs;
+  if (v === undefined) return undefined;
+  const ok = (x: unknown) => typeof x === "string" || typeof x === "boolean" || (typeof x === "number" && Number.isFinite(x));
+  if (typeof v !== "object" || v === null || Array.isArray(v) || !Object.values(v).every(ok))
+    throw new Error(`${where(el)}: inputs is { parameter: number | text | true/false }, not ${JSON.stringify(v)}`);
+  return Object.keys(v).length ? { ...(v as Record<string, number | string | boolean>) } : undefined;
 }
 
 /** An artboard's `crop`: the rectangle of the drawing's page to show, `{ x, y, width, height }` in the page's own units. */
@@ -509,14 +521,15 @@ export function declareVideo(root: DesignElement): Declaration {
         inputs.source = null;
       } else if (c.type === "artboard") {
         // A drawing's page, drawn live: the clip keeps the reference, never the drawing.
-        refuseUnknown(c, [...CLIP_PROPS.filter((p) => p !== "in" && p !== "out" && p !== "speed" && p !== "volume"), "src", "view", "fit", "representation", "crop"]);
+        refuseUnknown(c, [...CLIP_PROPS.filter((p) => p !== "in" && p !== "out" && p !== "speed" && p !== "volume"), "src", "view", "fit", "representation", "crop", "inputs"]);
         if (kind !== "video") throw new Error(`${where(c)}: an artboard goes on a video track`);
         const src = documentSrc(c, ARTBOARD_FILE, "a drawing's code (a .draw.tsx, .draw.py or .draw.rs)");
         clipName = str(c, "name") ?? src.split("/").pop()!;
         const duration = num(c, "duration", { min: 0 });
         if (duration === undefined) throw new Error(`${where(c)}: give its duration in seconds`);
         const view = str(c, "view");
-        const ref = { locator: src, fileKind: "drawing", representation: str(c, "representation", ARTBOARD_REPRESENTATIONS) ?? ARTBOARD.representation, ...(view !== undefined ? { view } : {}) };
+        const overrides = drawingInputs(c);
+        const ref = { locator: src, fileKind: "drawing", representation: str(c, "representation", ARTBOARD_REPRESENTATIONS) ?? ARTBOARD.representation, ...(view !== undefined ? { view } : {}), ...(overrides ? { overrides } : {}) };
         inputs = { kind: "renderable", name: clipName, start: num(c, "start", { min: 0 }) ?? 0, duration, inPoint: 0, speed: 1, ...common(c), volume: 1 };
         const crop = cropRect(c);
         inputs.renderable = { ref, fit: str(c, "fit", ARTBOARD_FITS) ?? ARTBOARD.fit, ...(crop ? { crop } : {}) };
