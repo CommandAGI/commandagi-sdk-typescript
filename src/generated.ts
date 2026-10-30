@@ -2557,6 +2557,13 @@ export const SDK_SCHEMA = {
                   maxLength: 64,
                   description: "a key or a combo: enter, ctrl+l, ctrl+shift+t",
                 },
+                holdMs: {
+                  type: "integer",
+                  minimum: 0,
+                  maximum: 60000,
+                  description:
+                    "hold the key down this many milliseconds before releasing it (absent: a tap)",
+                },
                 basis: {
                   type: "string",
                   maxLength: 10,
@@ -2787,6 +2794,8 @@ export const SDK_SCHEMA = {
               type: "object",
               properties: {
                 body: { type: "string", minLength: 1, maxLength: 1024 },
+                robot: { type: "string", minLength: 1, maxLength: 1024 },
+                link: { type: "string", minLength: 1, maxLength: 1024 },
                 local: {
                   type: "array",
                   minItems: 3,
@@ -2804,7 +2813,7 @@ export const SDK_SCHEMA = {
                 max_force: { type: "number", minimum: 0, maximum: 1000000000 },
                 max_speed: { type: "number", minimum: 0, maximum: 1000000 },
               },
-              required: ["body", "local", "target"],
+              required: ["local", "target"],
               additionalProperties: false,
             },
           },
@@ -3746,7 +3755,7 @@ export class DesktopControls {
     return this.a.act("mouse_up", payload);
   }
   /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `key` */
-  key(payload: { key: string; basis?: string }): Promise<unknown> {
+  key(payload: { key: string; holdMs?: number; basis?: string }): Promise<unknown> {
     return this.a.act("key", payload);
   }
   /** Computer. Coordinates are pixels of the latest frame of this computer (0,0 top left); take a screenshot first. · `type` */
@@ -3839,7 +3848,9 @@ export class SimControls {
   }
   /** Simulation force drag · `grab` */
   grab(payload: {
-    body: string;
+    body?: string;
+    robot?: string;
+    link?: string;
     local: number[];
     target: number[];
     stiffness?: number;

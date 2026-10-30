@@ -17,8 +17,9 @@
  * place. Any other answer is the answer, a refusal of the op included: it is never sent again elsewhere.
  *
  * The places: `page` is the workbench page's own kernel (a Web Worker, packages/appkit/workbench/page-kernel.js), which
- * answers `observe` only, so every other op falls from it by the 404 rule; `local` is this computer's service; `cloud`
- * the platform's door. Only the page has a transport for `page`: every other caller passes it over.
+ * answers `observe` and `check` (`PAGE_KERNEL_OPS`), so every other op falls from it by the 404 rule; `local` is this computer's service; `cloud`
+ * the platform's door (a small document's `observe` and `check` first go to its 3D kernel's Durable Object, which runs the
+ * page's engine; the rest to the 3D service). Only the page has a transport for `page`: every other caller passes it over.
  *
  * `ran.place` is set here, from the place the request went to, never from the answer. So a service on this computer
  * cannot call its result a cloud result, and a page result is never anything but the page's (docs/integrity.md
