@@ -124,4 +124,12 @@ test("a unit's calibration in JSX: its joints' zeros and gains, its re-zeros old
   assert.throws(() => declarationOf({ default: cal(el("joint", { name: "a", kp: 0 })) }), /kp is a positive number/);
   assert.throws(() => declarationOf({ default: cal(el("rezero", { joint: "a", zero: 0.1, at: 1, by: "owner" })) }), /by is person:<id> or agent:<id>/);
   assert.throws(() => declarationOf({ default: cal(el("rezero", { joint: "a", zero: 0.1, at: 2, by: "person:o" }), el("rezero", { joint: "a", zero: 0.2, at: 1, by: "person:o" })) }), /oldest first/);
+  // A camera unit's calibration: its lens, where it is and the residual, with the run that measured it and its reality.
+  const camera = { channel: "view", robot: "arm", intrinsics: { width: 320, height: 240, fx: 207.6, fy: 207.4, cx: 160.1, cy: 119.9 }, extrinsics: { position_mm: [14.2, -509.1, 1006], quaternion: [0.69, -0.06, -0.06, 0.72] }, residual: { rms_px: 0.07, position_mm: 0.83, rotation_deg: 0.18 }, run: "runs/c/run.json", reality: "simulation" };
+  const withCamera = declarationOf({ default: cal(el("camera", camera)) }).document!.document as { cameras: unknown[] };
+  assert.deepEqual(withCamera.cameras, [camera]);
+  assert.deepEqual(RECORDS.calibration.fromTree(RECORDS.calibration.toTree(withCamera as never)), withCamera, "a camera both ways");
+  assert.throws(() => declarationOf({ default: cal(el("camera", { ...camera, intrinsics: { ...camera.intrinsics, fx: 0 } })) }), /intrinsics are/);
+  assert.throws(() => declarationOf({ default: cal(el("camera", { ...camera, reality: undefined })) }), /says its reality/);
+  assert.throws(() => declarationOf({ default: cal(el("camera", camera), el("camera", camera)) }), /view/);
 });

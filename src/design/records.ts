@@ -184,6 +184,13 @@ export const CALIBRATION_FIELDS = ["device", "serial", "note"] as const;
 export const CALIBRATION_JOINT_FIELDS = ["name", "zero", "kp", "kv", "run"] as const;
 /** The fields of one re-zero: the joint, its new zero (rad), when (epoch ms), who (person:<id> | agent:<id>), why. */
 export const REZERO_FIELDS = ["joint", "zero", "at", "by", "reason"] as const;
+/**
+ * The fields of one calibrated camera: its video channel, the arm it was measured against, its intrinsics (pixels),
+ * its extrinsics (the camera in the world: mm and a unit quaternion, x right, y down, z forward), the marker in that
+ * arm's tool frame, the residual (reprojection px, and the position mm and rotation degrees it bounds, three sigma),
+ * the run that measured it and that run's reality, when and by whom.
+ */
+export const CALIBRATION_CAMERA_FIELDS = ["channel", "robot", "intrinsics", "extrinsics", "marker", "residual", "run", "reality", "at", "by"] as const;
 
 export interface CalibrationRecord {
   device: string;
@@ -191,19 +198,60 @@ export interface CalibrationRecord {
   note?: string;
   joints: { name: string; zero?: number; kp?: number; kv?: number; run?: string }[];
   rezeros: { joint: string; zero: number; at: number; by: string; reason?: string }[];
+  /** Only when the unit is a camera that was calibrated. */
+  cameras?: CameraCalibrationRecord[];
+}
+
+export interface CameraCalibrationRecord {
+  channel: string;
+  robot?: string;
+  intrinsics: { width: number; height: number; fx: number; fy: number; cx: number; cy: number };
+  extrinsics: { position_mm: number[]; quaternion: number[] };
+  marker?: { position_mm: number[]; quaternion: number[] };
+  residual: { rms_px: number; max_px?: number; position_mm?: number | null; rotation_deg?: number | null; views?: number; points?: number };
+  run?: string;
+  reality?: "physical" | "simulation";
+  at?: number;
+  by?: string;
 }
 
 const finiteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+
+const numbers = (v: unknown, n: number) => Array.isArray(v) && v.length === n && v.every(finiteNumber);
+/** A `<camera>` as a calibration holds it, or the reason it is not one. */
+function cameraChecked(c: CameraCalibrationRecord): void {
+  const at = `<camera channel="${c.channel}">`;
+  const i = c.intrinsics as Record<string, unknown> | undefined;
+  if (!i || typeof i !== "object" || !["width", "height", "fx", "fy"].every((k) => finiteNumber(i[k]) && (i[k] as number) > 0) || !finiteNumber(i.cx) || !finiteNumber(i.cy))
+    throw new Error(`${at}: intrinsics are { width, height, fx, fy, cx, cy } in pixels (width, height, fx and fy positive), not ${JSON.stringify(c.intrinsics)}`);
+  const e = c.extrinsics as Record<string, unknown> | undefined;
+  if (!e || typeof e !== "object" || !numbers(e.position_mm, 3) || !numbers(e.quaternion, 4))
+    throw new Error(`${at}: extrinsics are { position_mm: [x, y, z], quaternion: [x, y, z, w] }, not ${JSON.stringify(c.extrinsics)}`);
+  if (c.marker !== undefined && (typeof c.marker !== "object" || !numbers(c.marker.position_mm, 3) || !numbers(c.marker.quaternion, 4)))
+    throw new Error(`${at}: marker is { position_mm: [x, y, z], quaternion: [x, y, z, w] }, not ${JSON.stringify(c.marker)}`);
+  const r = c.residual as Record<string, unknown> | undefined;
+  if (!r || typeof r !== "object" || !finiteNumber(r.rms_px) || r.rms_px < 0) throw new Error(`${at}: residual has rms_px, the reprojection error in pixels, not ${JSON.stringify(c.residual)}`);
+  if (c.reality !== undefined && c.reality !== "physical" && c.reality !== "simulation") throw new Error(`${at}: reality is physical or simulation, not ${JSON.stringify(c.reality)}`);
+  if (c.run !== undefined && c.reality === undefined) throw new Error(`${at}: a camera measured by a run says its reality (a simulated run is never physical evidence)`);
+}
 
 /**
  * A UNIT'S CALIBRATION (`<name>.calibration.tsx`): what one physical unit measures off its definition. A unit of a world
  * names it (`<unit calibration="arm.calibration.tsx">`). Each `<joint>` holds the joint's zero and its servo's gains as
  * this unit has them; each `<rezero>` is an event of the unit, oldest first: a replaced motor or a lost index re-zeroed,
  * by whom and why. A joint's zero is its newest re-zero's, else its `<joint>`'s. A re-zero is appended, never edited.
+ * A camera unit's calibration holds a `<camera>` per video channel: its lens and where it is, measured by a run that
+ * moved a marker through its view, with the residual that says how far to trust them; a new run replaces it.
  *
  *   <calibration device="../../devices/so101-follower-arm/definition.tsx" serial="SO101-0007">
  *     <joint name="shoulder_lift" zero={0.012} kp={12} kv={0.6} run="runs/2026-10-30-lift/run.json" />
  *     <rezero joint="shoulder_lift" zero={0.015} at={1793318400000} by="person:owner" reason="motor replaced" />
+ *   </calibration>
+ *
+ *   <calibration device="../../devices/cell-camera/definition.tsx">
+ *     <camera channel="view" robot="arm" intrinsics={{ width: 320, height: 240, fx: 207.6, fy: 207.4, cx: 160.1, cy: 119.9 }}
+ *       extrinsics={{ position_mm: [14.2, -509.1, 1006], quaternion: [0.69, -0.06, -0.06, 0.72] }}
+ *       residual={{ rms_px: 0.07, position_mm: 0.83, rotation_deg: 0.18 }} run="runs/2026-10-30-cam/run.json" reality="simulation" />
  *   </calibration>
  */
 export const calibrationVocabulary: Vocabulary<CalibrationRecord> = {
@@ -214,6 +262,7 @@ export const calibrationVocabulary: Vocabulary<CalibrationRecord> = {
     calibration: { parents: [], required: ["device"], attrs: CALIBRATION_FIELDS },
     joint: { parents: ["calibration"], key: "name", required: ["name"], attrs: CALIBRATION_JOINT_FIELDS },
     rezero: { parents: ["calibration"], required: ["joint", "zero", "at", "by"], attrs: REZERO_FIELDS },
+    camera: { parents: ["calibration"], key: "channel", required: ["channel", "intrinsics", "extrinsics", "residual"], attrs: CALIBRATION_CAMERA_FIELDS },
   },
   fromTree(t: DocTree) {
     const list = (tag: string) => t.children.filter((c) => c.tag === tag).map((c) => ({ ...c.attrs }));
@@ -233,14 +282,20 @@ export const calibrationVocabulary: Vocabulary<CalibrationRecord> = {
       if (r.at < last) throw new Error(`${at}: the re-zeros are oldest first, and this one is older than the one before it`);
       last = r.at;
     }
-    return { ...(own(t.attrs, CALIBRATION_FIELDS) as { device: string }), joints, rezeros };
+    const cameras = list("camera") as CameraCalibrationRecord[];
+    for (const c of cameras) cameraChecked(c);
+    return { ...(own(t.attrs, CALIBRATION_FIELDS) as { device: string }), joints, rezeros, ...(cameras.length ? { cameras } : {}) };
   },
   toTree(d) {
     const leaf = (tag: string, o: Record<string, unknown>, keys: readonly string[]) => ({ tag, attrs: own(o, keys), children: [] });
     return {
       tag: "calibration",
       attrs: own(d as unknown as Record<string, unknown>, CALIBRATION_FIELDS),
-      children: [...(d.joints ?? []).map((j) => leaf("joint", j, CALIBRATION_JOINT_FIELDS)), ...(d.rezeros ?? []).map((r) => leaf("rezero", r, REZERO_FIELDS))],
+      children: [
+        ...(d.joints ?? []).map((j) => leaf("joint", j, CALIBRATION_JOINT_FIELDS)),
+        ...(d.rezeros ?? []).map((r) => leaf("rezero", r, REZERO_FIELDS)),
+        ...(d.cameras ?? []).map((c) => leaf("camera", c as unknown as Record<string, unknown>, CALIBRATION_CAMERA_FIELDS)),
+      ],
     };
   },
   empty: () => ({ device: "", joints: [], rezeros: [] }),

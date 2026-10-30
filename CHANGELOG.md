@@ -8,6 +8,10 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- A camera unit's calibration takes `<camera channel intrinsics extrinsics residual robot marker run reality at by>`, one
+  per video channel: the lens (pixels), the camera in the world (mm and a unit quaternion), the residual (reprojection
+  px and the pose bounds it implies) and the run that measured it with its reality. A camera measured by a run must say
+  its reality. A calibration with no camera declares no `cameras`.
 - A board's `<component>` takes `locked` (KiCad's footprint lock, `true` or left out), so a KiCad board's locked footprints keep the
   lock through the code and back to a `.kicad_pcb`.
 - A schematic's code part takes `suppressed` (`<code name source suppressed />`): a suppressed part is not run and
