@@ -277,6 +277,12 @@ test("a sheet's library part names its symbol by ref, places each unit, mirrors;
   assert.throws(sheet(jsx("resistor", { name: "R1", schX: 0, schY: 0, schStyle: 1.5 })), /schStyle is 1 or more/);
   assert.throws(sheet(jsx("resistor", { name: "R1", schStyle: 2 })), /schStyle needs schX and schY/);
   assert.throws(sheet(jsx("code", { name: "c", source: "c.ts", inputs: { source: "d.ts" } })), /source is the file/);
+  // A suppressed code part is the graph's disabled node: it is not run, so it declares nothing.
+  const off = declarationOf({ default: jsx("group", { name: "S", children: [jsx("code", { name: "c", source: "c.ts", suppressed: true })] }) }).graph;
+  assert.deepEqual(off.nodes.c, { id: "c", type: "code", label: "c.ts", inputs: { source: "c.ts" }, disabled: true });
+  const on = declarationOf({ default: jsx("group", { name: "S", children: [jsx("code", { name: "c", source: "c.ts", suppressed: false })] }) }).graph;
+  assert.equal(on.nodes.c!.disabled, undefined, "suppressed={false} is the default");
+  assert.throws(sheet(jsx("code", { name: "c", source: "c.ts", suppressed: "yes" })), /suppressed is true or false/);
 });
 
 test("a netlist circuit lists each part's pins and names the pins on each net; it has no sheet", () => {

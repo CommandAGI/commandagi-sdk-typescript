@@ -55,8 +55,10 @@
  *                                     reads a library footprint's pads, artwork and attributes from its file. A
  *                                     footprint ref with no library is named only: no pads yet, not placed. On a
  *                                     board with a `surface`, `chart` names the face it sits on.
- *   <trace name layer width points from to net surface uuid segmentUuids kicad>
+ *   <trace name layer width points rule from to net surface uuid segmentUuids kicad>
  *                                     a copper run: its points ([[x, y], …]) on one copper layer, a finished width.
+ *                                     `rule` is its routing rule, "45", "90" or "any" (the default): the angles its
+ *                                     legs take between its points, so a moved point re-routes the legs.
  *                                     `surface` (true) runs it on the board's surface: its points are in the unfolded
  *                                     charts.
  *   <arc name layer width points from to net uuid kicad>
@@ -248,6 +250,8 @@ export function isBoardFile(root: unknown): boolean {
 }
 
 const CONDUCTORS = new Set(["trace", "arc", "via", "pour"]);
+/** A run's routing rules: the angles its legs take between its points (45° steps, 90° steps, or any angle). */
+const TRACE_RULES: readonly string[] = ["45", "90", "any"];
 const FACTS = new Set(["graphic", "text", "dimension", "kicad", "net", "netclass", "diffpair", "group", "keepout", "thermal", "bus", "objective", "fab"]);
 
 /** The layout's constraints, each a board fact (`fact` is its tag): what each takes, and its check. */
@@ -633,7 +637,9 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
         }
         case "trace":
         case "arc": {
-          refuseUnknown(el, ["name", "layer", "width", "points", "from", "to", "net", "uuid", "kicad", ...(el.type === "trace" ? ["segmentUuids", "surface"] : [])]);
+          refuseUnknown(el, ["name", "layer", "width", "points", "from", "to", "net", "uuid", "kicad", ...(el.type === "trace" ? ["segmentUuids", "surface", "rule"] : [])]);
+          const rule = el.props.rule ?? "any";
+          if (typeof rule !== "string" || !TRACE_RULES.includes(rule)) throw new Error(`${where(el)}: rule is "45", "90" or "any", not ${JSON.stringify(rule)}`);
           const onSurface = el.props.surface;
           if (onSurface !== undefined && onSurface !== true) throw new Error(`${where(el)}: surface is true or left out`);
           if (onSurface && !surface) throw new Error(`${where(el)}: surface runs the trace on the board's surface, and the <board> has no surface`);
@@ -649,8 +655,8 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
               points: pts.map((p, i) => ({ ...p, id: tracePointId(i, pts.length) })),
               widthMm: positive(el, "width", true),
               layer,
-              // The board view routes and re-routes a run under any angle; a KiCad segment says no rule.
-              ...(el.type === "trace" ? { rule: "any" } : {}),
+              // A run is routed under its rule; an arc has none.
+              ...(el.type === "trace" ? { rule } : {}),
               ...(terminals.length ? { terminals } : {}),
               ...(segmentUuids !== undefined ? { segmentUuids } : {}),
               ...(onSurface ? { mount: { kind: "unwrap", domain: surface!.domain } } : {}),

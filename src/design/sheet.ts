@@ -29,9 +29,11 @@
  *   <unit part unit schX schY schRotation schMirror schStyle>              where another unit of a part sits
  *                                                                          (U1B: unit={2}); the part's own schX and
  *                                                                          schY place unit 1
- *   <code name source inputs>                                              a code part: the parts another file
+ *   <code name source inputs suppressed>                                   a code part: the parts another file
  *                                                                          declares (its path relative to this one),
- *                                                                          run with these inputs
+ *                                                                          run with these inputs; a suppressed one
+ *                                                                          (`suppressed`, true) is not run and
+ *                                                                          declares nothing
  *   <part name value symbol pins>                                          a part of a netlist circuit (no sheet): its
  *                                                                          pins by number (["1", "2"], or
  *                                                                          [{ number: "1", name: "VBAT" }, …])
@@ -314,14 +316,18 @@ export function declareSheet(children: unknown): void {
         break;
       }
       case "code": {
-        refuseUnknown(el, ["name", "source", "inputs"]);
+        refuseUnknown(el, ["name", "source", "inputs", "suppressed"]);
         const name = str(el, "name", "the code part's id");
+        const suppressed = el.props.suppressed;
+        if (suppressed !== undefined && typeof suppressed !== "boolean") throw new Error(`${where(el)}: suppressed is true or false`);
         const source = str(el, "source", "the path of the file it runs, relative to this one");
         const inputs = el.props.inputs === undefined ? {} : plainData(el.props.inputs, `${where(el)} inputs`);
         if (typeof inputs !== "object" || inputs === null || Array.isArray(inputs)) throw new Error(`${where(el)}: inputs is an object of the file's parameters`);
         if ("source" in inputs) throw new Error(`${where(el)}: source is the file, not one of its inputs`);
         if (s.nodes[name]) throw new Error(`two nodes are called ${name}`);
-        s.add(CODE_OP, { source, ...(inputs as Record<string, unknown>) }, { id: name, label: source.split("/").pop() ?? source, meta: meta(el) });
+        const code = s.add(CODE_OP, { source, ...(inputs as Record<string, unknown>) }, { id: name, label: source.split("/").pop() ?? source, meta: meta(el) });
+        // The graph's own suppression: a disabled code node is not run (`suppressed={false}` says the default).
+        if (suppressed) s.nodes[code.id]!.disabled = true;
         break;
       }
       case "junction": {

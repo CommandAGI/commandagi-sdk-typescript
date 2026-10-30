@@ -62,6 +62,20 @@ test("a trace's end names a via or another trace's point by name, written before
   assert.deepEqual(g.nodes.VIA1!.inputs, { kind: "via", points: [{ x: 5, y: 0 }], drillMm: 0.3, padDiameterMm: 0.6, layers: ["F.Cu", "B.Cu"] });
 });
 
+test("a trace names its routing rule (45, 90 or any): the angles its legs take; an arc has none", () => {
+  const g = board(
+    {},
+    jsx("trace", { layer: "F.Cu", width: 0.2, points: [[0, 0], [5, 5]], rule: "45" }),
+    jsx("trace", { layer: "F.Cu", width: 0.2, points: [[0, 0], [5, 0]], rule: "90" }),
+    jsx("trace", { layer: "F.Cu", width: 0.2, points: [[0, 0], [3, 1]] }),
+    jsx("arc", { layer: "F.Cu", width: 0.2, points: [[0, 0], [1, 1], [2, 0]] }),
+  )();
+  assert.deepEqual([1, 2, 3, 4].map((i) => g.nodes[`cu_${i}`]!.inputs.rule), ["45", "90", "any", undefined]);
+  assert.throws(board({}, jsx("trace", { layer: "F.Cu", width: 0.2, points: [[0, 0], [1, 0]], rule: 45 })), /rule is "45", "90" or "any", not 45/);
+  assert.throws(board({}, jsx("trace", { layer: "F.Cu", width: 0.2, points: [[0, 0], [1, 0]], rule: "30" })), /rule is "45", "90" or "any"/);
+  assert.throws(board({}, jsx("arc", { layer: "F.Cu", width: 0.2, points: [[0, 0], [1, 1], [2, 0]], rule: "45" })), /prop rule is not read on a board/);
+});
+
 test("a library footprint is its ref and the .pretty folder that holds it; its pads are the library's", () => {
   const g = board({}, jsx("component", { name: "U1", footprint: "Package_SO:SOIC-8", library: "footprints.pretty", pcbX: 12, pcbY: 8, pcbRotation: 90 }))();
   assert.deepEqual(g.nodes.fp_U1!.inputs, { ref: "U1", footprint: "Package_SO:SOIC-8", library: "footprints.pretty", placement: { x: 12, y: 8, rot: 90, side: "top" } });
