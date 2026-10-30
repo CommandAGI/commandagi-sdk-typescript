@@ -8,7 +8,7 @@
  *   export const Corporation = ({ cik, ticker, name }) => (
  *     <monitor title={`${name} (${ticker})`} class="corporation" about={`cik:${cik}`}>
  *       <source id="filings" adapter="sec-filings" params={{ cik }} every="15m" />
- *       <follows monitor="../../central-banks/fed" match="fomc.statement" />
+ *       <follows monitor="../../central-banks/fed" when={{ class: "fomc.statement" }} />
  *     </monitor>
  *   );
  *
@@ -34,7 +34,7 @@ export const MONITOR_FIELDS = ["title", "class", "about", "readme", "sameAs"] as
 /** A subject: `<scheme>:<id>` (`cik:0001045810`, `ticker:NVDA`, `fomc:`). */
 export const SUBJECT = /^[a-z][a-z0-9-]*:\S*$/;
 export const SOURCE_FIELDS = ["id", "adapter", "params", "every", "via", "exit", "host", "mode", "retain", "since", "session", "snapshot", "profile", "keep", "maxCostPerDay", "unit", "vantage", "connection"] as const;
-export const FOLLOW_FIELDS = ["monitor", "match", "when"] as const;
+export const FOLLOW_FIELDS = ["monitor", "when"] as const;
 export const DISCOVER_FIELDS = ["into", "of", "when", "slug", "class", "props", "name", "max", "visibility"] as const;
 /** The most new folders a discover writes a tick. */
 export const DISCOVER_MAX = 50;
@@ -105,8 +105,7 @@ export interface MonitorSource {
 export interface MonitorFollow {
   /** The followed monitor's folder, as a ref relative to this monitor's folder (`../../central-banks/fed`). */
   monitor: string;
-  match?: string;
-  /** Which followed records it takes: one condition, or a list of them (any holds). Absent: every record the match takes. */
+  /** Which followed records it takes: one condition, or a list of them (any holds); its `class` term is a glob. Absent: every record. */
   when?: WhenCondition | WhenCondition[];
 }
 /** A term of a `when`: a value (a string is a glob), the values allowed, or operators on the value. */
@@ -332,7 +331,6 @@ function monitorOf(t: DocTree): MonitorDoc {
   const parts = (tag: string) => t.children.filter((c) => c.tag === tag);
   const follows = parts("follows").map((c) => {
     text(c, "monitor", "monitor");
-    text(c, "match", "monitor");
     if (c.attrs.when !== undefined && c.attrs.when !== null) {
       const bad = whenShape(c.attrs.when);
       if (bad) throw new Error(`<follows monitor="${c.attrs.monitor as string}"> when: ${bad}`);
@@ -393,7 +391,7 @@ export function monitorWithDefaults(m: MonitorDoc) {
     readme: m.readme ?? null,
     sameAs: m.sameAs ?? [],
     sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null, host: s.host ?? null, mode: s.mode ?? "poll", retain: s.mode === "stream" ? (s.retain ?? "derived") : null, since: s.since ?? null, session: s.session ?? null, snapshot: s.snapshot ?? null, profile: s.profile ?? null, keep: s.keep ?? null, maxCostPerDay: s.maxCostPerDay ?? null, unit: s.unit ?? null, vantage: s.vantage ?? null, connection: s.connection ?? null })),
-    follows: m.follows.map((f) => ({ monitor: f.monitor, match: f.match ?? null, when: f.when ?? null })),
+    follows: m.follows.map((f) => ({ monitor: f.monitor, when: f.when ?? null })),
     derives: (m.derives ?? []).map((d) => ({ id: d.id, op: d.op, inputs: d.inputs, params: d.params ?? {}, since: d.since ?? null })),
     wakes: m.wakes.map((w) => ({ match: w.match ?? null, prompt: w.prompt })),
     discovers: (m.discovers ?? []).map((d) => ({ into: d.into ?? "./", of: d.of === undefined ? [] : typeof d.of === "string" ? [d.of] : d.of, when: d.when ?? null, slug: d.slug, class: d.class, props: d.props ?? {}, name: d.name ?? null, max: d.max ?? 10, visibility: d.visibility ?? null })),
