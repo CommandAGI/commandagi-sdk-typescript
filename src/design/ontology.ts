@@ -44,8 +44,8 @@ const leaf = (tag: string, attrs: Record<string, unknown>): DocTree => ({ tag, a
 // ── world.tsx ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** The fields of a unit in a world's file (packages/domain/world/worlds.js). */
-/** `serial`: the serial number of the one physical thing a unit is; `revision`: its hardware revision (a firmware release says which it supports). */
-export const UNIT_FIELDS = ["uid", "name", "device", "serial", "revision", "domain", "group", "size_mm", "support", "channels", "manualUrl", "position", "rotation", "tilt_deg", "release"] as const;
+/** `serial`: the serial number of the one physical thing a unit is; `revision`: its hardware revision (a firmware release says which it supports); `calibration`: a ref to the unit's own `.calibration.tsx` (its joints' zeros and gains, and its re-zeros). */
+export const UNIT_FIELDS = ["uid", "name", "device", "serial", "revision", "domain", "group", "size_mm", "support", "channels", "manualUrl", "position", "rotation", "tilt_deg", "release", "calibration"] as const;
 /**
  * The fields of a group in a world's file (packages/domain/world/worlds.js): what one unit stands in — a shelf level, a
  * bench, a rack, a desk. `group` nests a group in another (a shelf holds its levels); `size_mm` with `position` and

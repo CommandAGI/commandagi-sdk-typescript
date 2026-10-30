@@ -83,3 +83,27 @@ test("a kind registered later reads its own tags and refuses them in a study of 
   assert.throws(() => declarationOf({ default: el("study", { kind: "structural", part: "a.3d.tsx" }, el("probe", { id: "p1" })) }), /<probe> belongs to a probe-kind study, not to a structural one/);
   assert.throws(() => registerStudyKind("other", { fixture: { rule: { parents: ["study"] }, field: "holds", list: true } }), /fills holds, but it already fills fixtures/);
 });
+
+test("a step-response study in JSX: its steps by id, the gains to try by joint, the window; a criterion names its step", () => {
+  const file = el(
+    "study",
+    { kind: "step-response", part: "../worlds/arm-cell/world.tsx#arm", units: "rad-s" },
+    el("step", { id: "lift", joint: "shoulder_lift", from: 0.54, to: 0.84 }),
+    el("gains", { joint: "shoulder_lift", kp: 12, kv: 0.6 }),
+    el("response", { duration: 1, dt: 0.001, band: 0.02 }),
+    el("criterion", { id: "settle", quantity: "settlingTime", limit: 0.3, step: "lift" }),
+  );
+  const doc = declarationOf({ default: () => file }).document!.document as Record<string, unknown>;
+  assert.deepEqual(doc, {
+    kind: "step-response",
+    part: "../worlds/arm-cell/world.tsx#arm",
+    units: "rad-s",
+    steps: [{ id: "lift", joint: "shoulder_lift", from: 0.54, to: 0.84 }],
+    gains: [{ joint: "shoulder_lift", kp: 12, kv: 0.6 }],
+    response: { duration: 1, dt: 0.001, band: 0.02 },
+    criteria: [{ id: "settle", quantity: "settlingTime", limit: 0.3, step: "lift" }],
+  });
+  assert.deepEqual(STUDY.study.fromTree(STUDY.study.toTree(doc as never)), doc, "both ways");
+  assert.throws(() => declarationOf({ default: el("study", { kind: "step-response", part: "definition.tsx" }, el("mesh", { size: 2 })) }), /<mesh> belongs to a structural study, not to a step-response one/);
+  assert.throws(() => declarationOf({ default: el("study", { kind: "step-response", part: "definition.tsx" }, el("step", { id: "a", joint: "j", from: 0 })) }), /<step id="a"> needs to/);
+});

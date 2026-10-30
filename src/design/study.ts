@@ -20,7 +20,7 @@
  *   );
  *
  * One root, `<study kind part units>`, for every kind of study. A kind adds its own tags (`registerStudyKind`): this
- * file declares `structural` (FEA) and `flow` (CFD). `<criterion>` and `<revise>` are every kind's. The rule of the ontology's files: a
+ * file declares `structural` (FEA), `flow` (CFD) and `step-response` (a joint servo's tuning). `<criterion>` and `<revise>` are every kind's. The rule of the ontology's files: a
  * record is an element and its fields are its attributes, verbatim; a face pick is the 3D document's pick
  * (`{ kind: "face", select: { … } }`). Nothing adds a default: the runner says what it assumes, and a check fails on
  * what is missing.
@@ -28,7 +28,8 @@
  * The document a study declares (`fromTree`):
  *   { kind, part, units, material?, fixtures?: [{ id, type, faces, region?, stiffness?, axis? }], loadCases?: [{ id, loads: [{ type: "force" |
  *     "pressure", id, faces, total | value }] }], mesh?, solver?, criteria?: [{ id, quantity, limit, region?,
- *     loadCase? }], revise?: [{ parameter, min, max }] }
+ *     loadCase?, step? }], revise?: [{ parameter, min, max }], steps?: [{ id, joint, from, to }], gains?: [{ joint, kp?,
+ *     kv? }], response?: { duration, dt?, band? } }
  */
 import { registerVocabulary, type DocTree, type TagRule, type Vocabulary } from "./documents.js";
 
@@ -51,7 +52,7 @@ export interface StudyTag {
 
 const FACES = "faces";
 const tags: Record<string, StudyTag> = {
-  criterion: { rule: { parents: ["study"], key: "id", required: ["id", "quantity", "limit"], attrs: ["id", "quantity", "limit", "region", "loadCase", "note"] }, field: "criteria", list: true },
+  criterion: { rule: { parents: ["study"], key: "id", required: ["id", "quantity", "limit"], attrs: ["id", "quantity", "limit", "region", "loadCase", "step", "note"] }, field: "criteria", list: true },
   revise: { rule: { parents: ["study"], key: "parameter", required: ["parameter", "min", "max"], attrs: ["parameter", "min", "max"] }, field: "revise", list: true },
 };
 
@@ -110,6 +111,31 @@ registerStudyKind("flow", {
   inlet: { rule: { parents: ["study"], key: "id", required: ["id", FACES, "velocity"], attrs: ["id", FACES, "velocity"] }, field: "inlets", list: true },
   outlet: { rule: { parents: ["study"], key: "id", required: ["id", FACES], attrs: ["id", FACES] }, field: "outlets", list: true },
   flowMesh: { rule: { parents: ["study"], single: true, required: ["cells"], attrs: ["cells", "levels", "iterations", "wallModel"] }, field: "flowMesh" },
+});
+
+/**
+ * A step-response study (`kind="step-response"`, `units="rad-s"`): the tuning of a joint's position servo, run on the
+ * simulated machine a device definition declares (its `dynamics`: each joint's kp, kv, limits and the links it carries).
+ * `part` names the machine: a `definition.tsx`, or a unit of a world (`world.tsx#<uid>`), whose `.calibration.tsx`
+ * gains then apply. Each `<step>` moves one joint from `from` to `to` (radians, the chain's own angle) and is solved
+ * alone; `<gains>` are the gains to try on a joint, in place of the definition's or the calibration's; `<response>` is
+ * the window (`duration`, s), the sample period (`dt`, s) and the settling band (a fraction of the step). A criterion
+ * reads `overshoot` (%), `riseTime` (s, 10 to 90 %), `settlingTime` (s) or `steadyStateError` (rad), on every step or on
+ * the one its `step` names.
+ *
+ *   <study kind="step-response" part="../worlds/arm-cell/world.tsx#arm" units="rad-s">
+ *     <step id="lift" joint="shoulder_lift" from={0.54} to={0.84} />
+ *     <gains joint="shoulder_lift" kp={12} kv={0.6} />
+ *     <response duration={1} dt={0.001} band={0.02} />
+ *     <criterion id="overshoot" quantity="overshoot" limit={10} />
+ *     <criterion id="settle" quantity="settlingTime" limit={0.3} step="lift" />
+ *   </study>
+ */
+export const STEP_RESPONSE_UNITS = "rad-s";
+registerStudyKind("step-response", {
+  step: { rule: { parents: ["study"], key: "id", required: ["id", "joint", "from", "to"], attrs: ["id", "joint", "from", "to"] }, field: "steps", list: true },
+  gains: { rule: { parents: ["study"], key: "joint", required: ["joint"], attrs: ["joint", "kp", "kv"] }, field: "gains", list: true },
+  response: { rule: { parents: ["study"], single: true, required: ["duration"], attrs: ["duration", "dt", "band"] }, field: "response" },
 });
 
 export type StudyDocument = { kind: string; part: string; [field: string]: unknown };

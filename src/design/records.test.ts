@@ -104,3 +104,24 @@ test("a hardware release in JSX: its files, check verdicts and outputs in order,
   assert.equal(declarationOf({ default: el("release", { id: "r", rev: "A", of: "../..", frozen: "files/product" }) }).document!.document.frozen, "files/product");
   assert.throws(() => declarationOf({ default: el("release", { id: "r", rev: "A", of: ".", frozen: "../files" }) }), /frozen is a folder beside the record/);
 });
+
+test("a unit's calibration in JSX: its joints' zeros and gains, its re-zeros oldest first, each checked", () => {
+  const file = el(
+    "calibration",
+    { device: "../../devices/so101-follower-arm/definition.tsx", serial: "SO101-0007" },
+    el("joint", { name: "shoulder_lift", zero: 0.012, kp: 12, kv: 0.6, run: "runs/lift/run.json" }),
+    el("rezero", { joint: "shoulder_lift", zero: 0.015, at: 1793318400000, by: "person:owner", reason: "motor replaced" }),
+  );
+  const doc = declarationOf({ default: file }).document!.document;
+  assert.deepEqual(doc, {
+    device: "../../devices/so101-follower-arm/definition.tsx",
+    serial: "SO101-0007",
+    joints: [{ name: "shoulder_lift", zero: 0.012, kp: 12, kv: 0.6, run: "runs/lift/run.json" }],
+    rezeros: [{ joint: "shoulder_lift", zero: 0.015, at: 1793318400000, by: "person:owner", reason: "motor replaced" }],
+  });
+  assert.deepEqual(RECORDS.calibration.fromTree(RECORDS.calibration.toTree(doc as never)), doc, "both ways");
+  const cal = (...children: unknown[]) => el("calibration", { device: "d/definition.tsx" }, ...children);
+  assert.throws(() => declarationOf({ default: cal(el("joint", { name: "a", kp: 0 })) }), /kp is a positive number/);
+  assert.throws(() => declarationOf({ default: cal(el("rezero", { joint: "a", zero: 0.1, at: 1, by: "owner" })) }), /by is person:<id> or agent:<id>/);
+  assert.throws(() => declarationOf({ default: cal(el("rezero", { joint: "a", zero: 0.1, at: 2, by: "person:o" }), el("rezero", { joint: "a", zero: 0.2, at: 1, by: "person:o" })) }), /oldest first/);
+});

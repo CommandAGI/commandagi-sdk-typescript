@@ -178,7 +178,75 @@ export const releaseVocabulary: Vocabulary<ReleaseRecord> = {
   },
 };
 
-for (const v of [contractVocabulary, instanceVocabulary, releaseVocabulary]) registerVocabulary(v);
+/** The fields of a unit's calibration: the definition it calibrates (a ref), the unit's serial, a note. */
+export const CALIBRATION_FIELDS = ["device", "serial", "note"] as const;
+/** The fields of one calibrated joint: its zero (rad, what its encoder reads at the chain's zero), its servo's gains, the run that measured them. */
+export const CALIBRATION_JOINT_FIELDS = ["name", "zero", "kp", "kv", "run"] as const;
+/** The fields of one re-zero: the joint, its new zero (rad), when (epoch ms), who (person:<id> | agent:<id>), why. */
+export const REZERO_FIELDS = ["joint", "zero", "at", "by", "reason"] as const;
+
+export interface CalibrationRecord {
+  device: string;
+  serial?: string;
+  note?: string;
+  joints: { name: string; zero?: number; kp?: number; kv?: number; run?: string }[];
+  rezeros: { joint: string; zero: number; at: number; by: string; reason?: string }[];
+}
+
+const finiteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+
+/**
+ * A UNIT'S CALIBRATION (`<name>.calibration.tsx`): what one physical unit measures off its definition. A unit of a world
+ * names it (`<unit calibration="arm.calibration.tsx">`). Each `<joint>` holds the joint's zero and its servo's gains as
+ * this unit has them; each `<rezero>` is an event of the unit, oldest first: a replaced motor or a lost index re-zeroed,
+ * by whom and why. A joint's zero is its newest re-zero's, else its `<joint>`'s. A re-zero is appended, never edited.
+ *
+ *   <calibration device="../../devices/so101-follower-arm/definition.tsx" serial="SO101-0007">
+ *     <joint name="shoulder_lift" zero={0.012} kp={12} kv={0.6} run="runs/2026-10-30-lift/run.json" />
+ *     <rezero joint="shoulder_lift" zero={0.015} at={1793318400000} by="person:owner" reason="motor replaced" />
+ *   </calibration>
+ */
+export const calibrationVocabulary: Vocabulary<CalibrationRecord> = {
+  format: "calibration",
+  noun: "a unit's calibration",
+  root: "calibration",
+  tags: {
+    calibration: { parents: [], required: ["device"], attrs: CALIBRATION_FIELDS },
+    joint: { parents: ["calibration"], key: "name", required: ["name"], attrs: CALIBRATION_JOINT_FIELDS },
+    rezero: { parents: ["calibration"], required: ["joint", "zero", "at", "by"], attrs: REZERO_FIELDS },
+  },
+  fromTree(t: DocTree) {
+    const list = (tag: string) => t.children.filter((c) => c.tag === tag).map((c) => ({ ...c.attrs }));
+    const joints = list("joint") as CalibrationRecord["joints"];
+    for (const j of joints) {
+      if (j.zero !== undefined && !finiteNumber(j.zero)) throw new Error(`<joint name="${j.name}">: zero is radians, not ${JSON.stringify(j.zero)}`);
+      if (j.kp !== undefined && !(finiteNumber(j.kp) && j.kp > 0)) throw new Error(`<joint name="${j.name}">: kp is a positive number (N·m/rad), not ${JSON.stringify(j.kp)}`);
+      if (j.kv !== undefined && !(finiteNumber(j.kv) && j.kv >= 0)) throw new Error(`<joint name="${j.name}">: kv is a number of at least 0 (N·m·s/rad), not ${JSON.stringify(j.kv)}`);
+    }
+    const rezeros = list("rezero") as CalibrationRecord["rezeros"];
+    let last = -Infinity;
+    for (const r of rezeros) {
+      const at = `<rezero joint="${r.joint}">`;
+      if (!finiteNumber(r.zero)) throw new Error(`${at}: zero is radians, not ${JSON.stringify(r.zero)}`);
+      if (!Number.isInteger(r.at)) throw new Error(`${at}: at is epoch milliseconds, not ${JSON.stringify(r.at)}`);
+      if (typeof r.by !== "string" || !/^(person|agent):.+/.test(r.by)) throw new Error(`${at}: by is person:<id> or agent:<id>, not ${JSON.stringify(r.by)}`);
+      if (r.at < last) throw new Error(`${at}: the re-zeros are oldest first, and this one is older than the one before it`);
+      last = r.at;
+    }
+    return { ...(own(t.attrs, CALIBRATION_FIELDS) as { device: string }), joints, rezeros };
+  },
+  toTree(d) {
+    const leaf = (tag: string, o: Record<string, unknown>, keys: readonly string[]) => ({ tag, attrs: own(o, keys), children: [] });
+    return {
+      tag: "calibration",
+      attrs: own(d as unknown as Record<string, unknown>, CALIBRATION_FIELDS),
+      children: [...(d.joints ?? []).map((j) => leaf("joint", j, CALIBRATION_JOINT_FIELDS)), ...(d.rezeros ?? []).map((r) => leaf("rezero", r, REZERO_FIELDS))],
+    };
+  },
+  empty: () => ({ device: "", joints: [], rezeros: [] }),
+};
+
+for (const v of [contractVocabulary, instanceVocabulary, releaseVocabulary, calibrationVocabulary]) registerVocabulary(v);
 
 /** The vocabularies of the records, by format. */
-export const RECORDS = { contract: contractVocabulary, instance: instanceVocabulary, release: releaseVocabulary } as const;
+export const RECORDS = { contract: contractVocabulary, instance: instanceVocabulary, release: releaseVocabulary, calibration: calibrationVocabulary } as const;

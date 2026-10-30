@@ -8,6 +8,12 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- A study of kind `step-response` (`units="rad-s"`): `<step id joint from to>` (each solved alone), `<gains joint kp kv>`
+  (the gains to try on a joint), `<response duration dt band>`; a `<criterion>` names the `step` it reads. Its `part`
+  is a `definition.tsx` or a unit of a world (`world.tsx#<uid>`).
+- A unit's calibration (`<name>.calibration.tsx`): `<calibration device serial note>` with `<joint name zero kp kv run>`
+  and `<rezero joint zero at by reason>`, the unit's re-zeros oldest first. A world unit names it by `calibration`.
+
 - A painting's or a photo's `<mask of="Name" />` names a layer the stack shows, by its `name`, and wires the masked node to it; the element holds no layer of its own.
 - `schStyle`: a placement's De Morgan body style (`<unit … schStyle={2}>`), which selects the pins and body the library draws for it. 1 is the default and writes nothing.
 - A case's check may be a `document` (`check={{ document: { as: "world.tsx", expect: { … } } }}`): the answer is one of our documents in code, in the file the check names, read by that document's own reader and held to what it must say. The scouts' runner scores it in the code sandbox (`docs/scouts.md` § compare).
