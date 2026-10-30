@@ -5442,7 +5442,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "scaleXYZ": {
      "$ref": "#/$defs/Vec3",
-     "description": "Optional per-axis scale applied before scale. This is primarily used by linked interchange assets (KiCad WRL/STEP model records carry an XYZ scale). It is additive and backward-compatible: documents that omit it retain the historic uniform-scale placement."
+     "description": "Optional per-axis scale applied before scale. This is primarily used by linked interchange assets (KiCad WRL/STEP model records carry an XYZ scale). It is additive: documents that omit it retain the historic uniform-scale placement."
     }
    },
    "required": [
@@ -7058,7 +7058,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "type"
    ],
    "additionalProperties": false,
-   "description": "Universal uncompressed pixel data (for DataTexture and legacy Basis RGBA output)."
+   "description": "Universal uncompressed pixel data (for DataTexture and Basis RGBA output)."
   },
   "SourceImageTexture": {
    "type": "object",

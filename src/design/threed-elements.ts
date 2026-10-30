@@ -2622,7 +2622,7 @@ export type Placement = {
    */
   scale?: number;
   /**
-   * Optional per-axis scale applied before scale. This is primarily used by linked interchange assets (KiCad WRL/STEP model records carry an XYZ scale). It is additive and backward-compatible: documents that omit it retain the historic uniform-scale placement.
+   * Optional per-axis scale applied before scale. This is primarily used by linked interchange assets (KiCad WRL/STEP model records carry an XYZ scale). It is additive: documents that omit it retain the historic uniform-scale placement.
    */
   scaleXYZ?: Vec3;
 };
@@ -3265,7 +3265,7 @@ export type SourceCompressedTexture = {
   transform?: SourceTextureTransform;
 };
 
-/** Universal uncompressed pixel data (for DataTexture and legacy Basis RGBA output). */
+/** Universal uncompressed pixel data (for DataTexture and Basis RGBA output). */
 export type SourceDataTexture = {
   kind: "data";
   width: number;
