@@ -29,9 +29,10 @@
  *                                     an IC mask layout, flattened: each polygon { layer, datatype, points } with
  *                                     points in micrometres, the stream's units (micrometres per database unit) and
  *                                     the library the stream names.
- *   <graphic kind layer points width filled id kicad>
+ *   <graphic kind layer points width filled arcs id kicad>
  *                                     a board drawing (`line`, `arc`, `circle`, `rect`, `poly`) on a layer: the
- *                                     outline is graphics on Edge.Cuts when it is not the width × height rectangle.
+ *                                     outline is graphics on Edge.Cuts when it is not the width × height rectangle. A `poly`'s `arcs` are
+ *                                     the indices in `points` where an arc's start, mid and end begin.
  *   <text text|field at rotation layer size sizeX thickness kind id kicad>
  *   <dimension points height layer width textSize id kicad>
  *                                     board text, and an aligned dimension (its text is derived, never stored).
@@ -716,19 +717,28 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
           break;
         }
         case "graphic": {
-          refuseUnknown(el, ["kind", "layer", "points", "width", "filled", "id", "kicad"]);
+          refuseUnknown(el, ["kind", "layer", "points", "width", "filled", "arcs", "id", "kicad"]);
           const kind = text(el, "kind", true)!;
           if (!(kind in GRAPHICS)) throw new Error(`${where(el)}: kind is ${Object.keys(GRAPHICS).join(", ")}`);
           const filled = el.props.filled;
           if (filled !== undefined && typeof filled !== "boolean") throw new Error(`${where(el)}: filled is true or false`);
           if (filled !== undefined && (kind === "line" || kind === "arc")) throw new Error(`${where(el)}: a ${kind} is not filled`);
+          const gpoints = pointList(el, "points", kind === "poly" ? 2 : GRAPHICS[kind]!, GRAPHICS[kind]);
+          // A polygon's arcs: where each one's three points (start, mid, end) begin in `points`.
+          const arcs = el.props.arcs;
+          if (arcs !== undefined) {
+            let next = 0;
+            if (kind !== "poly" || !Array.isArray(arcs) || !arcs.length || !arcs.every((i) => { const ok = Number.isInteger(i) && i >= next && i + 3 <= gpoints.length; next = i + 3; return ok; }))
+              throw new Error(`${where(el)}: arcs is, on a poly, the increasing indices in points where an arc's start, mid and end begin (3 points each, not overlapping)`);
+          }
           s.add(
             BOARD_FACT,
             {
               fact: "graphic",
               ...(el.props.id !== undefined ? { id: text(el, "id") } : {}),
               kind,
-              points: pointList(el, "points", kind === "poly" ? 2 : GRAPHICS[kind]!, GRAPHICS[kind]),
+              points: gpoints,
+              ...(arcs !== undefined ? { arcStarts: arcs } : {}),
               widthMm: num(el, "width", true),
               layer: text(el, "layer", true),
               ...(kind === "line" || kind === "arc" ? {} : { filled: filled ?? false }),

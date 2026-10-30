@@ -131,6 +131,14 @@ test("a board says what a KiCad board holds: its layers, cross-section, drawings
   assert.deepEqual(g.nodes.cu_2!.inputs, { kind: "pour", points: [{ x: 0, y: 0 }, { x: 9, y: 0 }, { x: 9, y: 9 }], layers: ["In1.Cu"], terminals: [{ point: 0, via: "V1" }], net: "GND", kicad: "(min_thickness 0.25)" });
 });
 
+test("a board polygon says its arcs by where each begins in its points", () => {
+  const poly = (arcs: unknown) => board({ width: 10, height: 10 }, jsx("graphic", { kind: "poly", layer: "F.Mask", points: [[0, 0], [1, 0], [2, 1], [3, 0], [3, 3]], width: 0, filled: true, arcs }))();
+  const fact = Object.values(poly([1]).nodes).find((n) => n.type === "eda.boardfact")!.inputs;
+  assert.deepEqual(fact.arcStarts, [1]);
+  assert.throws(() => poly([3]), /arcs is, on a poly/);
+  assert.throws(() => board({ width: 10, height: 10 }, jsx("graphic", { kind: "line", layer: "F.SilkS", points: [[0, 0], [1, 0]], width: 0.1, arcs: [0] }))(), /arcs is, on a poly/);
+});
+
 test("a board on the faces of a CAD part: its surface, each component's face and the runs on it", () => {
   const surface = { cadRef: "../case.3d.tsx", domain: { charts: [{ id: "top" }] } };
   const g = board(
