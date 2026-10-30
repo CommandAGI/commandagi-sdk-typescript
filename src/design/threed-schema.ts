@@ -1169,7 +1169,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "bodyId": {
      "type": "string",
-     "description": "Source body id (positional, captured when the feature is created).",
+     "description": "The body to copy: its id, the feature that made it (`base`, `split:2`).",
      "x-pick": "body"
     },
     "translate": {

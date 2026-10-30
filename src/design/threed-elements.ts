@@ -482,7 +482,7 @@ export type CopperPourFeature = {
 
 export type CopyBodyFeature = {
   type: "copyBody";
-  /** Source body id (positional, captured when the feature is created). */
+  /** The body to copy: its id, the feature that made it (`base`, `split:2`). */
   bodyId: string;
   /**
    * Translation applied to the copy (mm).

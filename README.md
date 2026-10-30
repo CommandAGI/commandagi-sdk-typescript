@@ -268,7 +268,7 @@ computer is `local` and is never a cloud result. `kernel.call(op, doc, params)` 
 
 `observe(doc)`, `export(doc, "step" | "iges", { bodies })`, `measure(doc, "distance" | "angle" | "radius" | "closest",
 a, b)`, `measureAll(doc, [{ quantity, a, b }, …])` (many on one build), `interference(doc, { clearance, bodies })`,
-`drawing(doc, { direction, up, section })`, `tessellate(doc, deflection)`. An entity is `{ body: "body_0",
+`drawing(doc, { direction, up, section })`, `tessellate(doc, deflection)`. An entity is `{ body: "base",
 kind: "face" | "edge" | "vertex" | "body", index }`, with the index as `observe` lists it.
 
 - **A build in which a feature failed is not whole.** `observe` answers it with `status: "failed"` and `failures`.
