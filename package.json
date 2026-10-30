@@ -29,6 +29,7 @@
       "types": "./dist/design/jsx-runtime.d.ts",
       "default": "./dist/design/jsx-runtime.js"
     },
+    "./src/*": "./src/*.ts",
     "./threed/jsx-runtime": {
       "types": "./dist/design/threed-jsx-runtime.d.ts",
       "default": "./dist/design/threed-jsx-runtime.js"
