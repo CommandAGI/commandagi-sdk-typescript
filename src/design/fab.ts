@@ -7,7 +7,7 @@
  *     <cam>
  *       <stock materialId="plywood" thicknessMm={6} xMm={90} yMm={70} />
  *       <part footprintXMm={60} footprintYMm={40} atXMm={15} atYMm={15} />
- *       <machine post="grbl" maxSpindleRpm={10000} maxFeedMmPerMin={1000} spindlePowerKw={0.3} />
+ *       <machine post="grbl" maxSpindleRpm={10000} maxFeedMmPerMin={1000} spindlePowerKw={0.3} travelMm={[300, 180, 45]} />
  *       <fixture name="left clamp" xMm={-14} yMm={25} wMm={20} dMm={20} zMm={4} />
  *       <operation id="op-1" op="mill_adaptive" profile="adaptive_wood" params={{ toolDiameterMm: 3.175 }}
  *         region={{ boundary: [[27, 25], [63, 25], [63, 45], [27, 45]], depthMm: 3 }} />
@@ -41,7 +41,7 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 export const CAM_REF_FIELDS = ["fileId", "name"] as const;
 export const CAM_STOCK_FIELDS = ["materialId", "thicknessMm", "xMm", "yMm"] as const;
 export const CAM_PART_FIELDS = ["footprintXMm", "footprintYMm", "atXMm", "atYMm"] as const;
-export const CAM_MACHINE_FIELDS = ["post", "maxSpindleRpm", "maxFeedMmPerMin", "spindlePowerKw"] as const;
+export const CAM_MACHINE_FIELDS = ["post", "maxSpindleRpm", "maxFeedMmPerMin", "spindlePowerKw", "travelMm"] as const;
 export const CAM_FIXTURE_FIELDS = ["name", "xMm", "yMm", "wMm", "dMm", "zMm"] as const;
 export const CAM_OPERATION_FIELDS = ["id", "op", "profile", "enabled", "params", "tabs", "region"] as const;
 /** A unit's channel a job runs on (`runsOn` of a machining setup, `machine` of a slicing setup). */

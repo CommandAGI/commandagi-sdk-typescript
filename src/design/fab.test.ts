@@ -14,7 +14,7 @@ test("a machining setup in JSX is its setup: records are elements, operations in
     "cam",
     { __source: 0 },
     el("stock", { materialId: "plywood", thicknessMm: 6, xMm: 90, yMm: 70 }),
-    el("machine", { post: "grbl", maxSpindleRpm: 10000 }),
+    el("machine", { post: "grbl", maxSpindleRpm: 10000, travelMm: [300, 180, 45] }),
     el("fixture", { name: "clamp", xMm: -14, yMm: 25, wMm: 20, dMm: 20, zMm: 4 }),
     el("operation", { id: "op-2", op: "mill_contour", profile: "contour_wood", tabs: { count: 4, lengthMm: 5, heightMm: 1.5 }, __source: 3 }),
     el("operation", { id: "op-1", op: "mill_pocket", profile: "pocket_wood", enabled: false, params: { toolDiameterMm: 3.175 } }),
@@ -27,7 +27,7 @@ test("a machining setup in JSX is its setup: records are elements, operations in
   const doc = document!.document as Record<string, unknown>;
   assert.deepEqual(doc, {
     stock: { materialId: "plywood", thicknessMm: 6, xMm: 90, yMm: 70 },
-    machine: { post: "grbl", maxSpindleRpm: 10000 },
+    machine: { post: "grbl", maxSpindleRpm: 10000, travelMm: [300, 180, 45] },
     fixtures: [{ name: "clamp", xMm: -14, yMm: 25, wMm: 20, dMm: 20, zMm: 4 }],
     operations: [
       { id: "op-2", op: "mill_contour", profile: "contour_wood", tabs: { count: 4, lengthMm: 5, heightMm: 1.5 } },
@@ -36,7 +36,7 @@ test("a machining setup in JSX is its setup: records are elements, operations in
     runsOn: { unit: "cloud://global/worlds/fab-cell/world.tsx#cnc-1", channel: "gcode", name: "cnc" },
   });
   assert.deepEqual(FAB.cam.fromTree(FAB.cam.toTree(doc as never)), doc, "both ways");
-  const native = { source: null, design: null, stock: { materialId: "aluminium", thicknessMm: null, xMm: null, yMm: null }, part: null, machine: { post: "grbl", maxSpindleRpm: null, maxFeedMmPerMin: null, spindlePowerKw: null }, fixtures: [], operations: [{ id: "op-1", op: "face", profile: "p", enabled: true, params: {}, tabs: null, region: null }], runsOn: null };
+  const native = { source: null, design: null, stock: { materialId: "aluminium", thicknessMm: null, xMm: null, yMm: null }, part: null, machine: { post: "grbl", maxSpindleRpm: null, maxFeedMmPerMin: null, spindlePowerKw: null, travelMm: null }, fixtures: [], operations: [{ id: "op-1", op: "face", profile: "p", enabled: true, params: {}, tabs: null, region: null }], runsOn: null };
   assert.deepEqual(FAB.cam.toTree(native).children.map((c) => [c.tag, c.attrs]), [
     ["stock", { materialId: "aluminium" }],
     ["machine", { post: "grbl" }],
