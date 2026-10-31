@@ -21,6 +21,9 @@
  *       <budget id="mass" quantity="mass" limit={500} unit="g" />
  *       <budget id="cost-100" quantity="cost" per={100} currency="USD" limit={40} design="Rover.3d.tsx" />
  *       <budget id="drive-power" quantity="power" rail="vbat" mode="drive" limit={15} unit="W" margin={0.2} />
+ *       <contribution id="tx" quantity="rf-link" part="U4" end="tx" value={23} unit="dBm" source="modem datasheet" />
+ *       <contribution id="rx" quantity="rf-link" part="the cell" end="rx" value={-101.5} unit="dBm" source="3GPP TS 36.104" />
+ *       <budget id="lte" quantity="rf-link" limit={20} unit="dB" frequency={1.75e9} range={2000} />
  *       <check id="link" kind="interface" of="Link.interface.tsx" />
  *     </system>
  *   );
@@ -33,6 +36,7 @@
  *       <param id="baud" value={115200} unit="Bd" />
  *       <param id="framing" value="8N1" />
  *       <message id="hello" text="AT" />
+ *       <channel dir="duplex" medium="records" format="state" transport="serial" />
  *       <side id="main" ref="ee/main.circuit.ts" part="J1" origin={[30, 10]} rotation={90} face="back" />
  *       <side id="firmware" ref="firmware/config.h" defines={{ BOARD_MAIN: 1 }} params={{ LINK_BAUD: "baud", FRAMING: "framing" }} />
  *     </interface>
@@ -43,7 +47,12 @@
  * Every ref is a path relative to the file that holds it, with `#` and the id of one element of the file it names.
  * Nothing adds a default. A `<bom>` gives masses; a cost budget reads the logistics roll-up of the design it names
  * (`design`: a 3D document, a schematic or a board with a cost check), the one source of cost, so no contribution is a
- * cost. A `<param>` states a number with its unit, or a text a channel states (`"8N1"` for a framing) with no unit.
+ * cost. A link budget (`quantity="rf-link"`) keeps a margin of at least its limit, in dB: the transmitter's power
+ * (`end="tx"`, dBm), the gains (+) and losses (-) between in dB, the free-space path loss at its `range` (m) and
+ * `frequency` (Hz), less the receiver's sensitivity (`end="rx"`, dBm). A load that states no current or power names a
+ * circuit part (`part="ee/main.circuit.ts#U1"`), and the check reads the part's own `draw`.
+ * A `<param>` states a number with its unit, or a text (`"8N1"` for a framing) with no unit. An interface's
+ * `<channel>` states what a device definition's channel must be (`format`, `dir`, `medium`, `dialect`, `transport`).
  * A side's `origin`, `rotation` (degrees counter-clockwise) and `face` (`front`, or `back` for the side read from the
  * mating part, whose frame is mirrored) put the interface's frame in the side's. The checks (a requirement's trace, a
  * budget's roll-up, each side against its interface) are the host's: `commandagi check <file>`, `commandagi trace <folder>`.
@@ -53,7 +62,9 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 /** The verification methods: test and demonstration need a physical run; analysis and inspection a check. */
 export const VERIFICATION_METHODS = ["test", "analysis", "inspection", "demonstration"] as const;
 /** What a budget sums from the design's own records; any other quantity is declared by its contributions, with a unit. */
-export const BUDGET_QUANTITIES = ["mass", "power", "cost", "thermal"] as const;
+export const BUDGET_QUANTITIES = ["mass", "power", "cost", "thermal", "rf-link"] as const;
+/** The two ends of a link: a level in dBm is the power one end sends, or the least power the other end hears. */
+export const LINK_ENDS = ["tx", "rx"] as const;
 /** A declared quantity's name ("exhaust-flow", "floor-area"). */
 export const DECLARED_QUANTITY = /^[a-z][a-z0-9-]*$/;
 /** What a system's `<check>` runs. */
@@ -62,24 +73,28 @@ export const SYSTEM_CHECK_KINDS = ["interface", "trace"] as const;
 export const SIDE_KINDS = ["circuit", "3d", "firmware", "definition"] as const;
 /** The faces a side states: `front` (as drawn), or `back` (read from the mating part: the frame mirrored through its y axis). */
 export const SIDE_FACES = ["front", "back"] as const;
+/** A channel's direction, and what it carries: the channel vocabulary of a device definition (docs/devices.md). */
+export const CHANNEL_DIRS = ["in", "out", "duplex"] as const;
+export const CHANNEL_MEDIA = ["records", "video", "audio", "bytes"] as const;
 
 export const REQUIREMENT_FIELDS = ["id", "text", "rationale", "method", "verifiedBy", "design", "parent"] as const;
 export const MODE_FIELDS = ["id", "description"] as const;
 export const RAIL_FIELDS = ["id", "voltage", "description", "source"] as const;
 export const CONVERTER_FIELDS = ["id", "input", "output", "efficiency", "source"] as const;
 export const LOAD_FIELDS = ["id", "part", "rail", "mode", "current", "power", "voltage", "peakCurrent", "peakPower", "inrushCurrent", "duty", "source"] as const;
-export const CONTRIBUTION_FIELDS = ["id", "quantity", "part", "value", "unit", "qty", "mode", "rail", "source"] as const;
-export const BUDGET_FIELDS = ["id", "quantity", "limit", "unit", "mode", "rail", "peak", "per", "currency", "design", "resistance", "margin", "source", "description"] as const;
+export const CONTRIBUTION_FIELDS = ["id", "quantity", "part", "value", "unit", "qty", "mode", "rail", "end", "source"] as const;
+export const BUDGET_FIELDS = ["id", "quantity", "limit", "unit", "mode", "rail", "peak", "per", "currency", "design", "resistance", "margin", "frequency", "range", "source", "description"] as const;
 export const PIN_FIELDS = ["number", "signal", "dir", "voltage", "gpio", "at", "required", "description"] as const;
 export const HOLE_FIELDS = ["id", "at", "diameter", "description"] as const;
 export const MESSAGE_FIELDS = ["id", "text", "code", "define", "dir", "description"] as const;
 export const PARAM_FIELDS = ["id", "value", "unit", "description"] as const;
 export const SIDE_FIELDS = ["id", "ref", "kind", "part", "parts", "channel", "origin", "rotation", "face", "defines", "pins", "params", "files", "description"] as const;
+export const CHANNEL_FIELDS = ["format", "dir", "medium", "dialect", "transport", "description"] as const;
 
 type Rec = Record<string, unknown>;
 export interface RequirementsDoc { name?: string; description?: string; requirements?: Rec[] }
 export interface SystemDoc { name?: string; description?: string; modes?: Rec[]; rails?: Rec[]; converters?: Rec[]; loads?: Rec[]; contributions?: Rec[]; boms?: Rec[]; budgets?: Rec[]; checks?: Rec[] }
-export interface InterfaceDoc { name?: string; description?: string; frame?: Rec; pins?: Rec[]; holes?: Rec[]; messages?: Rec[]; params?: Rec[]; sides?: Rec[] }
+export interface InterfaceDoc { name?: string; description?: string; frame?: Rec; pins?: Rec[]; holes?: Rec[]; messages?: Rec[]; params?: Rec[]; channel?: Rec; sides?: Rec[] }
 
 const own = (o: Rec, keys: readonly string[]): Rec => {
   const out: Rec = {};
@@ -170,7 +185,8 @@ export const systemVocabulary: Vocabulary<SystemDoc> = {
       if (c.tag === "rail") check(isNum(a.voltage), `${at}: voltage is a number of volts`);
       if (c.tag === "converter") check(isNum(a.efficiency) && (a.efficiency as number) > 0 && (a.efficiency as number) <= 1, `${at}: efficiency is a number in (0, 1] (0.88 for 88 %)`);
       if (c.tag === "load") {
-        check(a.current !== undefined || a.power !== undefined, `${at}: a load states its current (A) or its power (W)`);
+        check(a.current !== undefined || a.power !== undefined || (typeof a.part === "string" && a.part.includes("#")),
+          `${at}: a load states its current (A) or its power (W), or names a circuit part whose draw it reads (part="ee/main.circuit.ts#U1")`);
         for (const k of ["current", "power", "voltage", "peakCurrent", "peakPower", "inrushCurrent"]) check(a[k] === undefined || isNum(a[k]), `${at}: ${k} is a number`);
         check(a.duty === undefined || (isNum(a.duty) && (a.duty as number) > 0 && (a.duty as number) <= 1), `${at}: duty is the share of time the load draws, a number in (0, 1] (0.25 for 25 %)`);
       }
@@ -179,6 +195,11 @@ export const systemVocabulary: Vocabulary<SystemDoc> = {
         check(a.quantity !== "cost", `${at}: a cost is stated in the design's logistics (a part's suppliers, a made part's rate), which a cost budget's design rolls up, not as a contribution`);
         check(isNum(a.value), `${at}: value is a number`);
         check(typeof a.source === "string" && a.source.trim(), `${at}: source says where the number was read (a datasheet, a measurement, "estimate: …")`);
+        if (a.quantity === "rf-link") {
+          check(a.unit === "dBm" || a.unit === "dB", `${at}: an rf-link contribution is a level in dBm (a transmitter's power, a receiver's sensitivity) or a gain (+) or a loss (-) in dB (got ${JSON.stringify(a.unit)})`);
+          check(a.unit !== "dBm" || (LINK_ENDS as readonly unknown[]).includes(a.end), `${at}: a level in dBm names its end of the link: end="tx" (the power sent) or end="rx" (the receiver's sensitivity)`);
+        }
+        check(a.end === undefined || (a.quantity === "rf-link" && (LINK_ENDS as readonly unknown[]).includes(a.end)), `${at}: end is tx or rx, on an rf-link contribution`);
       }
       if (c.tag === "budget") {
         checkQuantity(a, at);
@@ -188,6 +209,12 @@ export const systemVocabulary: Vocabulary<SystemDoc> = {
         check(a.peak === undefined || (typeof a.peak === "boolean" && a.quantity === "power"), `${at}: peak is true or false, on a power budget (each load at its peakCurrent or peakPower)`);
         if (a.quantity === "cost") check(typeof a.design === "string" && a.design.trim(), `${at}: a cost budget names the design whose logistics roll-up it reads (design="cad/Assembly.3d.tsx")`);
         if (a.quantity === "thermal") check(typeof a.mode === "string" && isNum(a.resistance), `${at}: a thermal budget names its mode and the thermal resistance to the ambient (resistance, K/W)`);
+        if (a.quantity === "rf-link") {
+          check(a.unit === undefined || a.unit === "dB", `${at}: an rf-link budget's limit is the least margin the link keeps, in dB (unit="dB")`);
+          check(a.margin === undefined, `${at}: an rf-link budget's limit is already its margin in dB; it takes no margin fraction`);
+          check((a.frequency === undefined) === (a.range === undefined), `${at}: frequency (Hz) and range (m) come together: the free-space path loss at that range`);
+        }
+        for (const k of ["frequency", "range"]) check(a[k] === undefined || (a.quantity === "rf-link" && isNum(a[k]) && (a[k] as number) > 0), `${at}: ${k} is a number over 0 (${k === "frequency" ? "Hz" : "m"}), on an rf-link budget`);
       }
       if (c.tag === "check") check((SYSTEM_CHECK_KINDS as readonly unknown[]).includes(a.kind), `${at}: kind must be one of ${SYSTEM_CHECK_KINDS.join(", ")} (got ${JSON.stringify(a.kind)})`);
     }
@@ -200,7 +227,7 @@ export const systemVocabulary: Vocabulary<SystemDoc> = {
 };
 
 const INTERFACE_LISTS = { pin: "pins", hole: "holes", message: "messages", param: "params", side: "sides" };
-const INTERFACE_TAG_FIELDS: Record<string, readonly string[]> = { pin: PIN_FIELDS, hole: HOLE_FIELDS, message: MESSAGE_FIELDS, param: PARAM_FIELDS, side: SIDE_FIELDS };
+const INTERFACE_TAG_FIELDS: Record<string, readonly string[]> = { pin: PIN_FIELDS, hole: HOLE_FIELDS, message: MESSAGE_FIELDS, param: PARAM_FIELDS, channel: CHANNEL_FIELDS, side: SIDE_FIELDS };
 export const interfaceVocabulary: Vocabulary<InterfaceDoc> = {
   format: "interface",
   noun: "an interface",
@@ -212,6 +239,7 @@ export const interfaceVocabulary: Vocabulary<InterfaceDoc> = {
     hole: { parents: ["interface"], key: "id", required: ["id", "at"], attrs: HOLE_FIELDS },
     message: { parents: ["interface"], key: "id", required: ["id"], attrs: MESSAGE_FIELDS },
     param: { parents: ["interface"], key: "id", required: ["id", "value"], attrs: PARAM_FIELDS },
+    channel: { parents: ["interface"], single: true, attrs: CHANNEL_FIELDS },
     side: { parents: ["interface"], key: "id", required: ["id", "ref"], attrs: SIDE_FIELDS },
   },
   fromTree(t) {
@@ -241,16 +269,22 @@ export const interfaceVocabulary: Vocabulary<InterfaceDoc> = {
         check(a.parts === undefined || (Array.isArray(a.parts) && a.parts.every((p) => typeof p === "string")), `${at}: parts is a list of part references, whose pins are the interface's in turn`);
         check(a.channel === undefined || typeof a.channel === "string", `${at}: channel is the id of a channel of the device definition`);
       }
+      if (c.tag === "channel") {
+        check(CHANNEL_FIELDS.some((k) => k !== "description" && a[k] !== undefined), `${at}: a channel states what a definition's channel must be: format, dir, medium, dialect or transport`);
+        check(a.dir === undefined || (CHANNEL_DIRS as readonly unknown[]).includes(a.dir), `${at}: dir must be one of ${CHANNEL_DIRS.join(", ")} (got ${JSON.stringify(a.dir)})`);
+        check(a.medium === undefined || (CHANNEL_MEDIA as readonly unknown[]).includes(a.medium), `${at}: medium must be one of ${CHANNEL_MEDIA.join(", ")} (got ${JSON.stringify(a.medium)})`);
+        for (const k of ["format", "dialect", "transport"]) check(a[k] === undefined || (typeof a[k] === "string" && !!(a[k] as string).trim()), `${at}: ${k} is a name (${k}="serial")`);
+      }
     }
-    const frame = t.children.find((c) => c.tag === "frame");
-    return { ...own(t.attrs, ["name", "description"]), ...(frame ? { frame: { ...frame.attrs } } : {}), ...lists({ ...t, children: t.children.filter((c) => c.tag !== "frame") }, INTERFACE_LISTS) };
+    const one = (tag: string) => { const c = t.children.find((x) => x.tag === tag); return c ? { [tag]: { ...c.attrs } } : {}; };
+    return { ...own(t.attrs, ["name", "description"]), ...one("frame"), ...one("channel"), ...lists({ ...t, children: t.children.filter((c) => c.tag !== "frame" && c.tag !== "channel") }, INTERFACE_LISTS) };
   },
   toTree(d) {
-    const frame = (d as Rec).frame as Rec | undefined;
+    const one = (tag: string, fields: readonly string[]) => { const r = (d as Rec)[tag] as Rec | undefined; return r ? [{ tag, attrs: own(r, fields), children: [] }] : []; };
     return {
       tag: "interface",
       attrs: own(d as Rec, ["name", "description"]),
-      children: [...(frame ? [{ tag: "frame", attrs: own(frame, ["description", "unit"]), children: [] }] : []), ...children(d as Rec, INTERFACE_LISTS, INTERFACE_TAG_FIELDS)],
+      children: [...one("frame", ["description", "unit"]), ...one("channel", CHANNEL_FIELDS), ...children(d as Rec, INTERFACE_LISTS, INTERFACE_TAG_FIELDS)],
     };
   },
   empty: (name) => ({ name }),

@@ -8,6 +8,13 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- A part states its steady `draw` (`draw="120 mA"` or `"1.2 W"`, a KiCad property `Draw`). A system's load that states
+  no current or power names a circuit part (`part="ee/main.circuit.ts#U1"`), and `commandagi check` reads the part's draw.
+- A link budget: `quantity="rf-link"` with `frequency` (Hz) and `range` (m) on the budget, and contributions in `dBm`
+  (with `end="tx"`, the power sent, or `end="rx"`, the receiver's sensitivity) and in `dB` (gains +, losses -). The
+  check adds the free-space path loss and passes when the margin is at least the limit (dB).
+- An interface states its `<channel format dir medium dialect transport>`; `commandagi check` holds a definition or a
+  unit side's channel to each field it states.
 - A video's `<clip>` takes `link`: two clips of one video file with the same `link` are its picture and its sound,
   patched to two tracks at once. A video file on an audio track is its sound (a clip of kind `audio`); a still there is
   refused.

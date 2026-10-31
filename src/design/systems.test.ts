@@ -59,7 +59,20 @@ test("a system is its modes, rails, converters, loads, contributions, boms, budg
   assert.deepEqual(SYSTEMS.system.fromTree(SYSTEMS.system.toTree(doc as never)), doc, "both ways");
   const bad = (props: Record<string, unknown>, tag = "budget") => () => declare(el("system", {}, el(tag, props)));
   // Any other quantity is declared by its contributions and names its family by its unit (LABS-09: an exhaust flow).
-  assert.throws(bad({ id: "b", quantity: "Exhaust flow", limit: 1, unit: "m3/h" }), /<budget id="b">: quantity must be one of mass, power, cost, thermal, or a quantity's name/);
+  assert.throws(bad({ id: "b", quantity: "Exhaust flow", limit: 1, unit: "m3/h" }), /<budget id="b">: quantity must be one of mass, power, cost, thermal, rf-link, or a quantity's name/);
+  // A link budget keeps a margin in dB: the power sent and the receiver's sensitivity in dBm, gains and losses in dB.
+  const c = (id: string, value: number, unit: string, end?: string) => el("contribution", { id, quantity: "rf-link", part: "U4", value, unit, ...(end ? { end } : {}), source: "datasheet" });
+  const link = declare(el("system", {}, c("tx", 23, "dBm", "tx"), c("antenna", 2.8, "dB"), c("rx", -101.5, "dBm", "rx"), el("budget", { id: "lte", quantity: "rf-link", limit: 30, unit: "dB", frequency: 1.7475e9, range: 2000 })));
+  assert.deepEqual((link.document as { budgets: unknown[] }).budgets[0], { id: "lte", quantity: "rf-link", limit: 30, unit: "dB", frequency: 1.7475e9, range: 2000 });
+  assert.equal((link.document as { contributions: Record<string, unknown>[] }).contributions[0]!.end, "tx");
+  assert.throws(bad({ id: "c", quantity: "rf-link", part: "U4", value: 23, unit: "W", source: "x" }, "contribution"), /<contribution id="c">: an rf-link contribution is a level in dBm .* or a gain \(\+\) or a loss \(-\) in dB \(got "W"\)/);
+  assert.throws(bad({ id: "c", quantity: "rf-link", part: "U4", value: 23, unit: "dBm", source: "x" }, "contribution"), /a level in dBm names its end of the link: end="tx" \(the power sent\) or end="rx"/);
+  assert.throws(bad({ id: "c", quantity: "mass", part: "U4", value: 2, unit: "g", end: "tx", source: "x" }, "contribution"), /end is tx or rx, on an rf-link contribution/);
+  assert.throws(bad({ id: "l", quantity: "rf-link", limit: 6, unit: "dB", frequency: 2.4e9 }), /<budget id="l">: frequency \(Hz\) and range \(m\) come together/);
+  assert.throws(bad({ id: "l", quantity: "rf-link", limit: 6, unit: "dB", margin: 0.2 }), /an rf-link budget's limit is already its margin in dB/);
+  assert.throws(bad({ id: "l", quantity: "rf-link", limit: 6, unit: "dBm" }), /an rf-link budget's limit is the least margin the link keeps, in dB/);
+  assert.throws(bad({ id: "l", quantity: "mass", limit: 6, range: 10 }), /range is a number over 0 \(m\), on an rf-link budget/);
+  assert.throws(bad({ id: "l", quantity: "rf-link", limit: 6, frequency: -1, range: 10 }), /frequency is a number over 0 \(Hz\)/);
   assert.throws(bad({ id: "b", quantity: "exhaust-flow", limit: 600 }), /<budget id="b">: a quantity of exhaust-flow states its unit/);
   assert.throws(bad({ id: "c", quantity: "exhaust-flow", part: "P", value: 35, source: "datasheet" }, "contribution"), /<contribution id="c">: a quantity of exhaust-flow states its unit/);
   assert.equal(declare(el("system", {}, el("contribution", { id: "c", quantity: "exhaust-flow", part: "collar", value: 35, qty: 14, unit: "m3/h", source: "hood datasheet" }), el("budget", { id: "b", quantity: "exhaust-flow", limit: 600, unit: "m3/h" }))).format, "system");
@@ -74,7 +87,9 @@ test("a system is its modes, rails, converters, loads, contributions, boms, budg
   assert.equal(declare(el("system", {}, el("budget", { id: "b", quantity: "cost", per: 100, limit: 30, design: "Rover.3d.tsx" }))).format, "system");
   assert.throws(bad({ id: "c", quantity: "cost", part: "P", value: 1, source: "a quote" }, "contribution"), /a cost is stated in the design's logistics/);
   assert.throws(bad({ id: "c", input: "a", output: "b", efficiency: 88 }, "converter"), /efficiency is a number in \(0, 1\]/);
-  assert.throws(bad({ id: "l", part: "U1", rail: "r", mode: "m" }, "load"), /a load states its current \(A\) or its power \(W\)/);
+  assert.throws(bad({ id: "l", part: "U1", rail: "r", mode: "m" }, "load"), /a load states its current \(A\) or its power \(W\), or names a circuit part whose draw it reads/);
+  // A load that names a circuit part states no current or power: the check reads the draw the part states.
+  assert.equal(declare(el("system", {}, el("mode", { id: "m" }), el("rail", { id: "r", voltage: 3.3 }), el("load", { id: "l", part: "ee/main.circuit.ts#U1", rail: "r", mode: "m" }))).format, "system");
   assert.throws(bad({ id: "c", quantity: "mass", part: "P", value: 1 }, "contribution"), /source says where the number was read/);
   assert.throws(bad({ id: "k", kind: "erc", of: "x" }, "check"), /kind must be one of interface, trace/);
   assert.throws(bad({ id: "m", watts: 3 }, "mode"), /watts is not read/);
@@ -92,6 +107,7 @@ test("an interface is its frame, pins, holes, messages, params and sides; a side
       el("message", { id: "lte-only", text: "AT+CNMP=38" }),
       el("param", { id: "baud", value: 115200, unit: "Bd" }),
       el("param", { id: "framing", value: "8N1" }),
+      el("channel", { dir: "duplex", medium: "records", format: "lines", dialect: "at", transport: "serial" }),
       el("side", { id: "base", ref: "ee/base.circuit.ts", parts: ["J1", "J2"], origin: [0, 1.4], rotation: 90, face: "back" }),
       el("side", { id: "firmware", ref: "fw/config.h", defines: { BOARD: 1 }, pins: { RX_PIN: 4 }, params: { BAUD: "baud" } }),
       el("side", { id: "host", ref: "devices/cam/definition.tsx", channel: "modem", params: { baud: "baud" } }),
@@ -100,6 +116,7 @@ test("an interface is its frame, pins, holes, messages, params and sides; a side
   assert.equal(d.format, "interface");
   const doc = d.document as Record<string, unknown>;
   assert.deepEqual(doc.frame, { description: "the base board's top, pin 1 at the origin", unit: "mm" });
+  assert.deepEqual(doc.channel, { dir: "duplex", medium: "records", format: "lines", dialect: "at", transport: "serial" }, "the link's own channel, one element");
   assert.deepEqual((doc.params as unknown[])[1], { id: "framing", value: "8N1" }, "a text a channel states has no unit");
   assert.deepEqual((doc.sides as unknown[])[0], { id: "base", ref: "ee/base.circuit.ts", parts: ["J1", "J2"], origin: [0, 1.4], rotation: 90, face: "back" });
   assert.deepEqual((doc.sides as unknown[])[1], { id: "firmware", ref: "fw/config.h", defines: { BOARD: 1 }, pins: { RX_PIN: 4 }, params: { BAUD: "baud" } });
@@ -118,4 +135,10 @@ test("an interface is its frame, pins, holes, messages, params and sides; a side
   assert.throws(bad("side", { id: "s", ref: "x", channel: 3 }), /channel is the id of a channel of the device definition/);
   assert.throws(bad("frame", { unit: "in" }), /positions are in mm/);
   assert.throws(() => declare(el("interface", {}, el("frame", {}), el("frame", {}))), /<interface> has one <frame>/);
+  // The link's channel: what a definition side's channel is held to.
+  assert.throws(bad("channel", { description: "x" }), /<channel>: a channel states what a definition's channel must be: format, dir, medium, dialect or transport/);
+  assert.throws(bad("channel", { format: "lines", dir: "sideways" }), /dir must be one of in, out, duplex \(got "sideways"\)/);
+  assert.throws(bad("channel", { format: "lines", medium: "light" }), /medium must be one of records, video, audio, bytes/);
+  assert.throws(bad("channel", { format: "lines", transport: 3 }), /transport is a name/);
+  assert.throws(() => declare(el("interface", {}, el("channel", { format: "lines" }), el("channel", { format: "state" }))), /<interface> has one <channel>/);
 });
