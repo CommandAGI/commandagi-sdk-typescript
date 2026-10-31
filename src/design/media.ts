@@ -56,7 +56,9 @@
  * with an `<override artboard="Vertical" …>` inside it: the properties it names replace the clip's own on that artboard
  * only (a title reframed for 9:16, another media file in a `<clip>`, a `<shape>`'s fill, an `<artboard>` clip's drawing
  * `inputs`, an effect's amount), and every other artboard keeps the clip's own. The `<keyframe property>`s inside an
- * `<override>` are that artboard's own keys: there the property follows them, not the clip's. Two `<clip>`s with the same `link` are one take's picture and sound, edited as a pair
+ * `<override>` are that artboard's own keys: there the property follows them, not the clip's. An `<override>` in an
+ * `<effect>` holds `<keyframe param>`s the same way, and `noKeys` on either names what has no keys on that artboard
+ * (`noKeys={["opacity"]}`: the clip's keys of it do not show there). Two `<clip>`s with the same `link` are one take's picture and sound, edited as a pair
  * (the editor's source patch writes them). Times on a
  * video's timeline are seconds; times in a song are beats (an audio clip's `in`, where it starts in its file, is
  * seconds, as on a video). Each node carries the element that declared it in
@@ -245,7 +247,8 @@ const CLIP_PROPS = ["name", "start", "duration", "in", "out", "speed", "opacity"
 /** What an `<override>` in a clip may set on one artboard: its look (not its sound), transform, colour and crop; a title's
  *  text fields; a `<clip>`'s media file (`src`, of the same kind); a `<shape>`'s fill, stroke and strokeWidth; an
  *  `<artboard>` clip's drawing `inputs`; and its own `<keyframe property>`s of the look and transform (on that artboard
- *  the property follows them, not the clip's). An `<override>` in an `<effect>` sets its params and `enabled`. */
+ *  the property follows them, not the clip's). `noKeys` names the properties with no keys on that artboard. An
+ *  `<override>` in an `<effect>` sets its params and `enabled`, holds `<keyframe param>`s and takes `noKeys` of params. */
 export const OVERRIDE_LOOK = ["opacity", "blendMode", "fitMode"] as const;
 /** The properties an `<override>`'s own keyframes animate: the picture's, not the sound's. */
 export const OVERRIDE_ANIMATABLE = ANIMATABLE.filter((p) => p !== "volume");
@@ -258,7 +261,7 @@ type ClipOverride = Record<string, unknown> & { src?: string };
 /** One `<override artboard>` in a clip: what the clip is on that artboard. */
 function clipOverride(el: DesignElement, clip: DesignElement, artboards: ReadonlySet<string>): { artboard: string; override: ClipOverride } {
   const own = clip.type === "title" ? Object.keys(TITLE_TEXT) : clip.type === "clip" ? ["src"] : clip.type === "shape" ? [...OVERRIDE_SHAPE] : clip.type === "artboard" ? ["inputs"] : [];
-  refuseUnknown(el, ["artboard", ...OVERRIDE_LOOK, ...Object.keys(CLIP_TRANSFORM), ...Object.keys(CLIP_COLOR), ...Object.keys(CLIP_CROP), ...own]);
+  refuseUnknown(el, ["artboard", "noKeys", ...OVERRIDE_LOOK, ...Object.keys(CLIP_TRANSFORM), ...Object.keys(CLIP_COLOR), ...Object.keys(CLIP_CROP), ...own]);
   const artboard = overrideArtboard(el, artboards);
   const o: ClipOverride = {};
   const opacity = num(el, "opacity", { min: 0, max: 1 });
@@ -304,8 +307,18 @@ function clipOverride(el: DesignElement, clip: DesignElement, artboards: Readonl
     const inputs = drawingInputs(el);
     if (inputs) o.inputs = inputs;
   }
-  if (!Object.keys(o).length && !childElements(el.props.children).length) throw new Error(`${where(el)} in ${where(clip)}: an override names what it sets on artboard "${artboard}"`);
+  if (!Object.keys(o).length && el.props.noKeys === undefined && !childElements(el.props.children).length) throw new Error(`${where(el)} in ${where(clip)}: an override names what it sets on artboard "${artboard}"`);
   return { artboard, override: o };
+}
+
+/** What an `<override>`'s `noKeys` names: each of `allowed` (absent: any name), and none its own keys also key. */
+function noKeysOf(el: DesignElement, keyed: readonly { property: string }[], name: (n: string) => string, allowed?: readonly string[]): string[] {
+  const v = el.props.noKeys;
+  if (v === undefined) return [];
+  if (!Array.isArray(v) || !v.length || v.some((n) => typeof n !== "string" || !n || (allowed && !allowed.includes(n)))) throw new Error(`${where(el)}: noKeys is a list of ${allowed ? allowed.join(", ") : "params"}, not ${JSON.stringify(v)}`);
+  const both = (v as string[]).find((n) => keyed.some((t) => t.property === name(n)));
+  if (both) throw new Error(`${where(el)}: noKeys names ${both}, which this override keys`);
+  return v as string[];
 }
 
 /** The artboard an `<override>` names: one the `<video>` declares. */
@@ -394,9 +407,10 @@ function clipChildren(clip: DesignElement, clipId: string, sources: Record<strin
   const anims: { animIn?: { preset: string; duration: number }; animOut?: { preset: string; duration: number } } = {};
   const notes: { id: string; pitch: number; start: number; duration: number; velocity: number }[] = [];
   const noteId = idMaker();
-  const effects: { id: string; type: string; enabled: boolean; params: Record<string, number>; colors?: Record<string, string>; src?: string; overrides?: Record<string, { enabled?: boolean; params?: Record<string, number> }> }[] = [];
-  const overrides: Record<string, ClipOverride> = {};
   type KeyTrack = { property: string; keys: { id: string; time: number; value: number; easing: string; bezier?: number[] }[] };
+  type EffectOverride = { enabled?: boolean; params?: Record<string, number>; keyframes?: KeyTrack[] };
+  const effects: { id: string; type: string; enabled: boolean; params: Record<string, number>; colors?: Record<string, string>; src?: string; overrides?: Record<string, EffectOverride> }[] = [];
+  const overrides: Record<string, ClipOverride> = {};
   const keyframes: KeyTrack[] = [];
   const fxId = idMaker();
   const kfId = idMaker();
@@ -478,21 +492,32 @@ function clipChildren(clip: DesignElement, clipId: string, sources: Record<strin
         const colors = el.props.colors;
         if (colors !== undefined && (typeof colors !== "object" || colors === null || Object.values(colors).some((c) => typeof c !== "string")))
           throw new Error(`<effect type="${type}">: colors is { name: "#rrggbb" }`);
-        const fxOverrides: Record<string, { enabled?: boolean; params?: Record<string, number> }> = {};
+        const fxOverrides: Record<string, EffectOverride> = {};
         effects.push({ id, type, enabled: bool(el, "enabled") ?? true, params, ...(colors ? { colors: { ...(colors as Record<string, string>) } } : {}), ...(src !== undefined ? { src } : {}) });
         sources[`effect:${id}`] = sourceMeta(el);
         for (const k of childElements(el.props.children)) {
           if (k.type === "override") {
             const artboard = overrideArtboard(k, artboards);
             if (fxOverrides[artboard]) throw new Error(`<effect type="${type}">: one <override> for artboard "${artboard}"`);
-            const o: { enabled?: boolean; params?: Record<string, number> } = {};
+            const o: EffectOverride = {};
             const on = bool(k, "enabled");
             if (on !== undefined) o.enabled = on;
             for (const [p, v] of Object.entries(k.props)) {
-              if (["children", "key", "artboard", "enabled"].includes(p)) continue;
+              if (["children", "key", "artboard", "enabled", "noKeys"].includes(p)) continue;
               if (typeof v !== "number" || !Number.isFinite(v)) throw new Error(`<override artboard="${artboard}"> in <effect type="${type}">: ${p} is a number, not ${JSON.stringify(v)}`);
               (o.params ??= {})[p] = v;
             }
+            // Its own keyframes: on this artboard the param follows them, not the clip's.
+            const keys: KeyTrack[] = [];
+            for (const kf of childElements(k.props.children)) {
+              if (kf.type !== "keyframe") throw new Error(`<${kf.type}> is not read in an <override> in an <effect> (it holds its artboard's <keyframe param time value>s)`);
+              refuseUnknown(kf, ["param", "time", "value", "easing", "bezier"]);
+              const param = str(kf, "param");
+              if (!param) throw new Error(`${where(kf)}: an effect's keyframe names its param`);
+              keyframe(kf, `effect.${id}.${param}`, keys, `kf_${clipId}_${artboard}`);
+            }
+            for (const p of noKeysOf(k, keys, (n) => `effect.${id}.${n}`)) keys.push({ property: `effect.${id}.${p}`, keys: [] });
+            if (keys.length) o.keyframes = keys;
             if (!Object.keys(o).length) throw new Error(`<override artboard="${artboard}"> in <effect type="${type}"> names what it sets`);
             fxOverrides[artboard] = o;
             sources[`effectOverride:${id}:${artboard}`] = sourceMeta(k);
@@ -521,6 +546,7 @@ function clipChildren(clip: DesignElement, clipId: string, sources: Record<strin
           if (!property) throw new Error(`${where(k)}: a keyframe names its property (${OVERRIDE_ANIMATABLE.join(", ")})`);
           keyframe(k, property, keys, `kf_${clipId}_${artboard}`);
         }
+        for (const property of noKeysOf(el, keys, (n) => n, OVERRIDE_ANIMATABLE)) keys.push({ property, keys: [] });
         if (keys.length) override.keyframes = keys;
         overrides[artboard] = override;
         sources[`override:${artboard}`] = sourceMeta(el);

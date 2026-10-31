@@ -354,4 +354,37 @@ test("an <override> sets a shape's look, an artboard clip's drawing inputs and i
   assert.throws(title([jsx("override", { artboard: "S", children: [jsx("keyframe", { property: "volume", time: 0, value: 1 })] })]), /property is one of opacity, transform.x.*not "volume"/);
   assert.throws(title([jsx("override", { artboard: "S", children: [jsx("note", {})] })]), /<note> is not read in an <override>/);
   assert.throws(title([jsx("override", { artboard: "S", fill: "#fff" })]), /prop fill is not read on a <override>/);
+  assert.throws(title([jsx("override", { artboard: "S", noKeys: ["volume"] })]), /noKeys is a list of opacity/);
+  assert.throws(title([jsx("override", { artboard: "S", noKeys: ["opacity"], children: [jsx("keyframe", { property: "opacity", time: 0, value: 1 })] })]), /noKeys names opacity, which this override keys/);
+});
+
+test("an <override> says what has no keys on its artboard, and one in an <effect> holds that param's keys", () => {
+  const g = declarationOf({
+    default: jsx("video", {
+      children: [
+        jsx("track", {
+          children: [
+            jsx("title", {
+              text: "T",
+              duration: 1,
+              children: [
+                jsx("effect", {
+                  type: "vignette",
+                  amount: 0.2,
+                  children: [jsx("keyframe", { param: "amount", time: 0, value: 0.1 }), jsx("override", { artboard: "S", children: [jsx("keyframe", { param: "amount", time: 0, value: 0.5 })] })],
+                }),
+                jsx("effect", { type: "vignette", amount: 0.2, children: [jsx("override", { artboard: "S", noKeys: ["amount"] })] }),
+                jsx("override", { artboard: "S", noKeys: ["opacity"] }),
+              ],
+            }),
+          ],
+        }),
+        jsx("artboard", { name: "S", width: 1, height: 1 }),
+      ],
+    }),
+  }).graph;
+  const said = g.nodes.clip_Title!.inputs as { overrides: unknown; effects: { overrides: unknown }[] };
+  assert.deepEqual(said.overrides, { S: { keyframes: [{ property: "opacity", keys: [] }] } });
+  assert.deepEqual(said.effects[0]!.overrides, { S: { keyframes: [{ property: "effect.fx_vignette.amount", keys: [{ id: "kf_clip_Title_S", time: 0, value: 0.5, easing: "linear" }] }] } });
+  assert.deepEqual(said.effects[1]!.overrides, { S: { keyframes: [{ property: "effect.fx_vignette_2.amount", keys: [] }] } });
 });
