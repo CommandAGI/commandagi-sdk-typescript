@@ -63,6 +63,11 @@ test("a world in JSX declares its world: units, space and a scene's bodies are e
   const posed = documentOf({ default: () => el("world", { name: "Press", kind: "physical", model: "press.3d.tsx", links }) }).document;
   assert.deepEqual(posed, { name: "Press", kind: "physical", model: "press.3d.tsx", links, units: [] });
   assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(posed as never)), posed, "a model's links both ways");
+  // A world's follow policies (docs/follow.md) are an attribute of <world>.
+  const policies = [{ id: "sim-control", kind: "follow", robot: "arm", reality: "physical", leader: { unit: "arm", run: "twin" }, hz: 30 }];
+  const followed = documentOf({ default: () => el("world", { name: "Cell", kind: "physical", policies }) }).document;
+  assert.deepEqual(followed, { name: "Cell", kind: "physical", policies, units: [] });
+  assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(followed as never)), followed, "a world's policies both ways");
 
   const world_ = (...children: unknown[]) => () => declarationOf({ default: el("world", { name: "W", kind: "physical" }, ...children) });
   assert.throws(() => declarationOf({ default: el("world", { name: "W" }) }), /<world> needs kind/);

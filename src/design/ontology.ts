@@ -13,7 +13,7 @@
  * children (`units` → `<unit>`, `channels` → `<channel>`, a scene's `bodies` → `<body>`). The tags:
  *
  *   <world name kind description? from? model?    world.tsx             <space origin_mm size_mm>, <group uid …>,
- *          links?>                                                       <unit uid …>, <view …>, <scene …> (<body id …>)
+ *          links? policies?>                                                     <unit uid …>, <view …>, <scene …> (<body id …>)
  *   <device name … firmware? revision?>           definition.tsx        <channel id dir medium format transport …>
  *   <dashboard name …>                            <name>.dashboard.tsx   <param id type …>, one layout: <split axis
  *                                                                        ratio> of two <split>|<pane id kind …>, or
@@ -58,13 +58,39 @@ export const GROUP_FIELDS = ["uid", "name", "description", "group", "size_mm", "
  * link grammar, with the unit named in each joint and emit: `links={[{ node: "ram", joint: { unit: "press-1",
  * channel: "axes", name: "z", type: "prismatic", axis: "z", origin_mm: [0, 0, 0], home: 0 } }]}`, `node` the id of
  * the model's feature that makes the part. A model with no links is drawn as it is.
+ *
+ * `policies`: the world's follow policies (docs/follow.md in the CommandAGI repository): one unit's robot (the follower)
+ * tracks another's joints (the leader), by angle. `reality` is where the follower is driven; `leader.run` which run
+ * leads (`twin`, `physical`, or a ref to a run folder: replay).
  */
-const WORLD_FIELDS = ["name", "kind", "description", "from", "model", "links"] as const;
+const WORLD_FIELDS = ["name", "kind", "description", "from", "model", "links", "policies"] as const;
+
+/** A follow policy of a world (`<world policies={[…]}>`; docs/follow.md). Units are rad, rad/s, rad/s², ms. */
+export interface FollowPolicy {
+  id: string;
+  kind: "follow";
+  /** The follower: a unit uid of this world. */
+  robot: string;
+  /** The follower's servo-bus channel; the unit's one servo-bus channel when absent. */
+  channel?: string;
+  reality: "physical" | "simulation";
+  leader: { unit: string; channel?: string; run: "twin" | "physical" | string };
+  /** `{ <follower joint>: <leader joint> }`; same-named joints when absent. */
+  map?: Record<string, string>;
+  hz?: number;
+  maxSpeed?: number;
+  maxAccel?: number;
+  divergence?: number;
+  divergenceMs?: number;
+  leaderTimeoutMs?: number;
+  onStop?: "hold" | "torque-off";
+}
 
 export interface WorldDoc {
   name: string;
   kind: "physical" | "simulation";
   units: Record<string, unknown>[];
+  policies?: FollowPolicy[];
   groups?: Record<string, unknown>[];
   [field: string]: unknown;
 }
