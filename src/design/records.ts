@@ -195,7 +195,7 @@ export const CALIBRATION_AXIS_FIELDS = ["name", "steps_per_mm", "inverted", "tra
  * the joint counts the other way than its definition says (`reversed`), and the servo id the joint has on this unit's
  * bus when it is not the definition's (`id`: a servo found by motion, docs/devices.md § a guided calibration).
  */
-export const CALIBRATION_JOINT_FIELDS = ["name", "id", "zero", "kp", "kv", "run", "min", "max", "reversed"] as const;
+export const CALIBRATION_JOINT_FIELDS = ["name", "id", "zero", "kp", "kv", "run", "min", "max", "wraps", "reversed"] as const;
 /** The fields of one re-zero: the joint, its new zero (rad), when (epoch ms), who (person:<id> | agent:<id>), why. */
 export const REZERO_FIELDS = ["joint", "zero", "at", "by", "reason"] as const;
 /**
@@ -212,7 +212,7 @@ export interface CalibrationRecord {
   note?: string;
   by?: string;
   at?: number;
-  joints: { name: string; zero?: number; kp?: number; kv?: number; run?: string; min?: number; max?: number; reversed?: boolean; id?: number }[];
+  joints: { name: string; zero?: number; kp?: number; kv?: number; run?: string; min?: number; max?: number; wraps?: boolean; reversed?: boolean; id?: number }[];
   rezeros: { joint: string; zero: number; at: number; by: string; reason?: string }[];
   /** A G-code machine: the work offset G54 (machine mm of the work zero), soft limits on ($20), homing ($22). */
   work_offset?: number[];
@@ -308,7 +308,9 @@ export const calibrationVocabulary: Vocabulary<CalibrationRecord> = {
       if (j.kp !== undefined && !(finiteNumber(j.kp) && j.kp > 0)) throw new Error(`<joint name="${j.name}">: kp is a positive number (N·m/rad), not ${JSON.stringify(j.kp)}`);
       if (j.kv !== undefined && !(finiteNumber(j.kv) && j.kv >= 0)) throw new Error(`<joint name="${j.name}">: kv is a number of at least 0 (N·m·s/rad), not ${JSON.stringify(j.kv)}`);
       if ((j.min === undefined) !== (j.max === undefined)) throw new Error(`<joint name="${j.name}">: a measured travel gives both min and max`);
-      if (j.min !== undefined && !(finiteNumber(j.min) && finiteNumber(j.max) && j.min < j.max)) throw new Error(`<joint name="${j.name}">: min and max are the bus's values with min < max, not ${JSON.stringify([j.min, j.max])}`);
+      if (j.wraps !== undefined && j.wraps !== true) throw new Error(`<joint name="${j.name}">: wraps is true (the travel crosses the seam where the count turns over) or absent, not ${JSON.stringify(j.wraps)}`);
+      // A travel that wraps goes from min up through the seam (4095 → 0) to max, so its min is above its max.
+      if (j.min !== undefined && !(finiteNumber(j.min) && finiteNumber(j.max) && (j.wraps ? j.min > j.max : j.min < j.max))) throw new Error(j.wraps ? `<joint name="${j.name}">: a travel that wraps goes from min up through the seam to max, so min > max, not ${JSON.stringify([j.min, j.max])}` : `<joint name="${j.name}">: min and max are the bus's values with min < max, not ${JSON.stringify([j.min, j.max])}`);
       if (j.reversed !== undefined && typeof j.reversed !== "boolean") throw new Error(`<joint name="${j.name}">: reversed is true or false, not ${JSON.stringify(j.reversed)}`);
       if (j.id !== undefined && !(Number.isInteger(j.id) && j.id >= 0 && j.id <= 252)) throw new Error(`<joint name="${j.name}">: id is the servo's id on this unit's bus (an integer 0..252), not ${JSON.stringify(j.id)}`);
       const twin = joints.find((o) => o !== j && o.id !== undefined && o.id === j.id);
