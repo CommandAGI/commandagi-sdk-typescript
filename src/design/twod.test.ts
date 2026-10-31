@@ -38,6 +38,15 @@ test("a drawing declares the composite, its layers as groups, shapes with their 
   assert.deepEqual(g.nodes.rect!.meta, { source: 2 });
 });
 
+test("a <compound> names one of the four operations, in the draw graph's words; with no op it is unite", () => {
+  const op = (props: Record<string, unknown>) => () => run(h("drawing", {}, h("layer", {}, h("compound", props, h("rect", { x: 0, y: 0, w: 1, h: 1 })))));
+  assert.throws(op({ op: "zork" }), { message: 'compound.op is unite, minus, intersect or exclude, not "zork"' });
+  assert.throws(op({ op: "toString" }), { message: 'compound.op is unite, minus, intersect or exclude, not "toString"' });
+  assert.throws(op({ op: 3 }), { message: "compound.op is unite, minus, intersect or exclude, not 3" });
+  for (const named of ["unite", "minus", "intersect", "exclude"]) assert.equal(op({ op: named })().nodes.compound!.inputs.op, named);
+  assert.equal(op({})().nodes.compound!.inputs.op, undefined);
+});
+
 test("a <compound> is one node that holds its shapes, back to front, with its operation and its own paint", () => {
   const g = run(
     h("drawing", {},

@@ -259,7 +259,11 @@ function declareDrawn(s: Scope, el: DesignElement, top: boolean): NodeRef {
     if (!input || rest.length) throw new Error(`${where(el)} wraps the one node it changes`);
     return add(s, el, t, { ...attrs(el), in: declareDrawn(s, input, false) });
   }
-  if (t === "compound") return add(s, el, t, { ...attrs(el), ...channels("children", kids(el).map((c) => declareDrawn(s, c, false))) });
+  if (t === "compound") {
+    const op = el.props.op;
+    if (op !== undefined && !COMPOUND_OPS.includes(op as string)) throw new Error(`compound.op is unite, minus, intersect or exclude, not ${JSON.stringify(op)}`);
+    return add(s, el, t, { ...attrs(el), ...channels("children", kids(el).map((c) => declareDrawn(s, c, false))) });
+  }
   if (t === "clip") {
     const [content, mask, ...rest] = kids(el);
     if (!content || !mask || rest.length) throw new Error(`${where(el)} takes its content, then its mask`);
@@ -268,6 +272,9 @@ function declareDrawn(s: Scope, el: DesignElement, top: boolean): NodeRef {
   if (DRAW_LATER.has(t)) throw new Error(`<${t}> is not declared in code yet (a drawing in code holds shapes, images, sketches, links, groups and modifiers)`);
   throw new Error(`<${t}> is not read in a drawing (see commandagi/design twod)`);
 }
+
+/** A compound's operations, the draw graph's: its refusal comes here, at declaration, in its words. */
+const COMPOUND_OPS: readonly string[] = ["unite", "minus", "intersect", "exclude"];
 
 /** An artboard's own fields, and a drawing's (the drawing is its first artboard). */
 const BOARD = ["name", "width", "height", "background"] as const;
