@@ -196,7 +196,7 @@ export const CALIBRATION_AXIS_FIELDS = ["name", "steps_per_mm", "inverted", "tra
  * bus when it is not the definition's (`id`: a servo found by motion, docs/devices.md § a guided calibration), and the
  * position offset a guided calibration wrote to the servo to move the seam out of the travel (`offset`).
  */
-export const CALIBRATION_JOINT_FIELDS = ["name", "id", "zero", "kp", "kv", "run", "min", "max", "wraps", "offset", "reversed"] as const;
+export const CALIBRATION_JOINT_FIELDS = ["name", "id", "zero", "kp", "kv", "run", "min", "max", "wraps", "offset", "reversed", "disabled", "at"] as const;
 /** The fields of one re-zero: the joint, its new zero (rad), when (epoch ms), who (person:<id> | agent:<id>), why. */
 export const REZERO_FIELDS = ["joint", "zero", "at", "by", "reason"] as const;
 /**
@@ -213,7 +213,7 @@ export interface CalibrationRecord {
   note?: string;
   by?: string;
   at?: number;
-  joints: { name: string; zero?: number; kp?: number; kv?: number; run?: string; min?: number; max?: number; wraps?: boolean; offset?: number; reversed?: boolean; id?: number }[];
+  joints: { name: string; zero?: number; kp?: number; kv?: number; run?: string; min?: number; max?: number; wraps?: boolean; offset?: number; reversed?: boolean; id?: number; disabled?: boolean; at?: number }[];
   rezeros: { joint: string; zero: number; at: number; by: string; reason?: string }[];
   /** A G-code machine: the work offset G54 (machine mm of the work zero), soft limits on ($20), homing ($22). */
   work_offset?: number[];
