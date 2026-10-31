@@ -453,3 +453,27 @@ test("a circuit's <check> and <accept> are kept in the graph's meta, not as node
   assert.throws(() => sheet(jsx("check", { id: "erc", kind: "erc", min: 1 })), /prop min is not read/);
   assert.throws(() => sheet(jsx("accept", { id: "a", check: "erc", rule: "x" })), /reason/);
 });
+
+test("a part's type is held for names the three SDKs could read differently", () => {
+  // The same list is in the Python and Rust SDKs' tests: a pin's name is free text, so the trim and the hash are held at their edges.
+  const cases: [[string, string?][], string][] = [
+    [[["1", "A"]], "eda.part.11d4e202"],
+    [[["1"]], "eda.part.4c80692d"],
+    [[["1", "1"]], "eda.part.4c80692d"],
+    [[["1", "~"]], "eda.part.4c80692d"],
+    [[["1", " 1 "]], "eda.part.4c80692d"],
+    [[["1", "  "]], "eda.part.4c80692d"],
+    [[["1", " VCC\t"], ["2", "GND"]], "eda.part.958542b7"],
+    [[["1", "\ufeffA"]], "eda.part.11d4e202"],
+    [[["1", "A\x85"]], "eda.part.99209a85"],
+    [[["1", "\x1fA"]], "eda.part.c19c17fb"],
+    [[["1", "\u3000A\xa0"]], "eda.part.11d4e202"],
+    [[["1", "\u{1f600}"]], "eda.part.6e272b5a"],
+    [[["1", "\xe9"], ["2", "\u{1d4b1}\u{1d49e}\u{1d49e}"]], "eda.part.86adcdfd"],
+  ];
+  for (const [pins, expected] of cases) {
+    const listed = pins.map(([number, name], i) => ({ id: `p${i + 1}`, number, ...(name === undefined ? {} : { name }) }));
+    assert.equal(partTypeFor(listed), expected, JSON.stringify(pins));
+  }
+  assert.equal(schSymbolTypeFor(["p1", "\u{1f600}"]), "sch.symbol.701cf2eb");
+});
