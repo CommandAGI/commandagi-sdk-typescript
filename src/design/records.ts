@@ -182,7 +182,13 @@ export const releaseVocabulary: Vocabulary<ReleaseRecord> = {
  * The fields of a unit's calibration: the definition it calibrates (a ref), the unit's serial, a note, and who measured
  * its joints and when (a guided calibration: `by` person:<id> | agent:<id>, `at` epoch ms).
  */
-export const CALIBRATION_FIELDS = ["device", "serial", "note", "by", "at"] as const;
+export const CALIBRATION_FIELDS = ["device", "serial", "note", "by", "at", "work_offset", "soft_limits", "homing"] as const;
+/**
+ * The fields of one axis of a G-code machine (a guided calibration of a G-code machine, docs/devices.md): the steps
+ * that make one millimetre ($100..$102 as applied, from a jog measured with a ruler), whether its direction is
+ * inverted (its bit of $3), and its travel in mm ($130..$132).
+ */
+export const CALIBRATION_AXIS_FIELDS = ["name", "steps_per_mm", "inverted", "travel_mm"] as const;
 /**
  * The fields of one calibrated joint: its zero (rad, what its encoder reads at the chain's zero), its servo's gains, the
  * run that measured them, the travel measured end to end (`min`, `max`: the bus's raw values, min < max), and whether
@@ -208,6 +214,12 @@ export interface CalibrationRecord {
   at?: number;
   joints: { name: string; zero?: number; kp?: number; kv?: number; run?: string; min?: number; max?: number; reversed?: boolean; id?: number }[];
   rezeros: { joint: string; zero: number; at: number; by: string; reason?: string }[];
+  /** A G-code machine: the work offset G54 (machine mm of the work zero), soft limits on ($20), homing ($22). */
+  work_offset?: number[];
+  soft_limits?: boolean;
+  homing?: boolean;
+  /** Only when the unit is a G-code machine that was calibrated: one per axis, x y z. */
+  axes?: { name: "x" | "y" | "z"; steps_per_mm?: number; inverted?: boolean; travel_mm?: number }[];
   /** Only when the unit is a camera that was calibrated. */
   cameras?: CameraCalibrationRecord[];
 }
@@ -257,6 +269,13 @@ function cameraChecked(c: Record<string, unknown>): asserts c is Record<string, 
  * A guided calibration measures each joint's travel end to end (`min`, `max`, the bus's values) and whether it counts
  * the other way than its definition (`reversed`), and says who measured it and when (`by`, `at` on `<calibration>`).
  * A joint found by motion on another servo than its definition says holds that servo's id on this unit's bus (`id`).
+ * A G-code machine's calibration holds an `<axis>` per axis it measured (steps per mm, direction, travel) and, on
+ * `<calibration>`, the work offset G54 it set, whether soft limits are on and whether it homes.
+ *
+ *   <calibration device="../../devices/cnc-3018-montaj/definition.tsx" by="person:owner" at={1793318400000} work_offset={[-20, 0, 10]} soft_limits>
+ *     <axis name="x" steps_per_mm={801.6} travel_mm={300} />
+ *     <axis name="y" steps_per_mm={800} inverted travel_mm={180} />
+ *   </calibration>
  *
  *   <calibration device="../../devices/so101-follower-arm/definition.tsx" serial="SO101-0007" by="person:owner" at={1793318400000}>
  *     <joint name="shoulder_pan" id={2} zero={0.031} min={712} max={3391} />
@@ -278,6 +297,7 @@ export const calibrationVocabulary: Vocabulary<CalibrationRecord> = {
     calibration: { parents: [], required: ["device"], attrs: CALIBRATION_FIELDS },
     joint: { parents: ["calibration"], key: "name", required: ["name"], attrs: CALIBRATION_JOINT_FIELDS },
     rezero: { parents: ["calibration"], required: ["joint", "zero", "at", "by"], attrs: REZERO_FIELDS },
+    axis: { parents: ["calibration"], key: "name", required: ["name"], attrs: CALIBRATION_AXIS_FIELDS },
     camera: { parents: ["calibration"], key: "channel", required: ["channel", "intrinsics", "extrinsics", "residual"], attrs: CALIBRATION_CAMERA_FIELDS },
   },
   fromTree(t: DocTree) {
@@ -307,12 +327,23 @@ export const calibrationVocabulary: Vocabulary<CalibrationRecord> = {
       if (r.at < last) throw new Error(`${at}: the re-zeros are oldest first, and this one is older than the one before it`);
       last = r.at;
     }
+    if (a.work_offset !== undefined && !(Array.isArray(a.work_offset) && a.work_offset.length === 3 && a.work_offset.every(finiteNumber))) throw new Error(`<calibration>: work_offset is [x, y, z] in mm, not ${JSON.stringify(a.work_offset)}`);
+    for (const k of ["soft_limits", "homing"]) if (a[k] !== undefined && typeof a[k] !== "boolean") throw new Error(`<calibration>: ${k} is true or false, not ${JSON.stringify(a[k])}`);
+    const axes = list("axis") as NonNullable<CalibrationRecord["axes"]>;
+    for (const x of axes) {
+      const at = `<axis name="${x.name}">`;
+      if (!["x", "y", "z"].includes(x.name)) throw new Error(`${at}: an axis is x, y or z`);
+      if (axes.filter((o) => o.name === x.name).length > 1) throw new Error(`${at}: an axis is calibrated once`);
+      if (x.steps_per_mm !== undefined && !(finiteNumber(x.steps_per_mm) && x.steps_per_mm > 0)) throw new Error(`${at}: steps_per_mm is a number above 0, not ${JSON.stringify(x.steps_per_mm)}`);
+      if (x.travel_mm !== undefined && !(finiteNumber(x.travel_mm) && x.travel_mm > 0)) throw new Error(`${at}: travel_mm is a number above 0, not ${JSON.stringify(x.travel_mm)}`);
+      if (x.inverted !== undefined && typeof x.inverted !== "boolean") throw new Error(`${at}: inverted is true or false, not ${JSON.stringify(x.inverted)}`);
+    }
     const cameras: CameraCalibrationRecord[] = [];
     for (const c of list("camera")) {
       cameraChecked(c);
       cameras.push(c);
     }
-    return { ...(own(t.attrs, CALIBRATION_FIELDS) as { device: string }), joints, rezeros, ...(cameras.length ? { cameras } : {}) };
+    return { ...(own(t.attrs, CALIBRATION_FIELDS) as { device: string }), joints, rezeros, ...(axes.length ? { axes } : {}), ...(cameras.length ? { cameras } : {}) };
   },
   toTree(d) {
     const leaf = (tag: string, o: Record<string, unknown>, keys: readonly string[]) => ({ tag, attrs: own(o, keys), children: [] });
@@ -322,6 +353,7 @@ export const calibrationVocabulary: Vocabulary<CalibrationRecord> = {
       children: [
         ...(d.joints ?? []).map((j) => leaf("joint", j, CALIBRATION_JOINT_FIELDS)),
         ...(d.rezeros ?? []).map((r) => leaf("rezero", r, REZERO_FIELDS)),
+        ...(d.axes ?? []).map((x) => leaf("axis", x, CALIBRATION_AXIS_FIELDS)),
         ...(d.cameras ?? []).map((c) => leaf("camera", c as unknown as Record<string, unknown>, CALIBRATION_CAMERA_FIELDS)),
       ],
     };

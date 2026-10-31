@@ -136,6 +136,10 @@ test("a unit's calibration in JSX: its joints' zeros and gains, its re-zeros old
   const guided = el("calibration", { device: "d/definition.tsx", by: "person:owner", at: 1793318400000 }, el("joint", { name: "pan", zero: 0.03, min: 712, max: 3391 }), el("joint", { name: "lift", zero: -0.1, min: 830, max: 3270, reversed: true }));
   const measured = declarationOf({ default: guided }).document!.document;
   assert.deepEqual(measured, { device: "d/definition.tsx", by: "person:owner", at: 1793318400000, joints: [{ name: "pan", zero: 0.03, min: 712, max: 3391 }, { name: "lift", zero: -0.1, min: 830, max: 3270, reversed: true }], rezeros: [] });
+  const cnc = el("calibration", { device: "d/definition.tsx", by: "person:owner", at: 1793318400000, work_offset: [-20, 0, 10], soft_limits: true, homing: false }, el("axis", { name: "x", steps_per_mm: 801.6, travel_mm: 300 }), el("axis", { name: "y", steps_per_mm: 800, inverted: true, travel_mm: 180 }));
+  assert.deepEqual((declarationOf({ default: cnc }).document!.document as { axes: unknown }).axes, [{ name: "x", steps_per_mm: 801.6, travel_mm: 300 }, { name: "y", steps_per_mm: 800, inverted: true, travel_mm: 180 }]);
+  assert.deepEqual((declarationOf({ default: cnc }).document!.document as { work_offset: unknown }).work_offset, [-20, 0, 10]);
+  assert.throws(() => declarationOf({ default: el("calibration", { device: "d" }, el("axis", { name: "x", steps_per_mm: 0 })) }), /steps_per_mm is a number above 0/);
   assert.deepEqual(RECORDS.calibration.fromTree(RECORDS.calibration.toTree(measured as never)), measured, "a guided calibration both ways");
   assert.throws(() => declarationOf({ default: cal(el("joint", { name: "a", min: 900 })) }), /both min and max/);
   assert.throws(() => declarationOf({ default: cal(el("joint", { name: "a", min: 900, max: 800 })) }), /min < max/);
