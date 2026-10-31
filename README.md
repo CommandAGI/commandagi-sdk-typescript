@@ -89,6 +89,8 @@ This package, the Python SDK (`pip install commandagi`) and the CLI all come fro
   `cagi.tasks.mounts()` lists them and `cagi.tasks.unmount(label)` removes one.
   A thread's mounts are also a file: `mounts.tsx` in its run folder, `<mounts><mount label=… /></mounts>`
   (`commandagi/design` `mountsVocabulary`; `mounts.py` and `mounts.rs` in the Python and Rust SDKs).
+- **Infrastructure files**: a VPN exit, a logged-in state and a vantage as `exit.tsx`, `session.tsx` and `vantage.tsx`
+  (`commandagi/design` `INFRA`; `commandagi.design.infra` and `commandagi::design::infra` in the Python and Rust SDKs).
 - **Control vocabularies** on a live `Session`: `session.desktop` for computers, `session.robot` for
   physical robots, and `session.sim` for simulated worlds. Each method sends one action. The platform
   checks it against what the embodiment currently declares, which `session.controls()` lists; for

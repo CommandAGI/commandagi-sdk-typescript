@@ -8,6 +8,8 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- The Python and Rust SDKs declare `<exit>`, `<session>` and `<vantage>`, the same elements and documents as `INFRA`
+  here. The CommandAGI platform runs only the TSX files.
 - A machining setup's `machine` states its own travel: `travelMm` (`travel_mm` in Python and Rust), `[x, y, z]` in mm. A
   stated travel holds a setup that names no unit, and the unit's definition does not replace it.
 - An `<override artboard>` takes `noKeys` (`noKeys={["opacity"]}`): the clip's keys of those properties do not show on
