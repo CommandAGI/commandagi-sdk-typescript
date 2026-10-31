@@ -186,9 +186,10 @@ export const CALIBRATION_FIELDS = ["device", "serial", "note", "by", "at"] as co
 /**
  * The fields of one calibrated joint: its zero (rad, what its encoder reads at the chain's zero), its servo's gains, the
  * run that measured them, the travel measured end to end (`min`, `max`: the bus's raw values, min < max), and whether
- * the joint counts the other way than its definition says (`reversed`).
+ * the joint counts the other way than its definition says (`reversed`), and the servo id the joint has on this unit's
+ * bus when it is not the definition's (`id`: a servo found by motion, docs/devices.md § a guided calibration).
  */
-export const CALIBRATION_JOINT_FIELDS = ["name", "zero", "kp", "kv", "run", "min", "max", "reversed"] as const;
+export const CALIBRATION_JOINT_FIELDS = ["name", "id", "zero", "kp", "kv", "run", "min", "max", "reversed"] as const;
 /** The fields of one re-zero: the joint, its new zero (rad), when (epoch ms), who (person:<id> | agent:<id>), why. */
 export const REZERO_FIELDS = ["joint", "zero", "at", "by", "reason"] as const;
 /**
@@ -205,7 +206,7 @@ export interface CalibrationRecord {
   note?: string;
   by?: string;
   at?: number;
-  joints: { name: string; zero?: number; kp?: number; kv?: number; run?: string; min?: number; max?: number; reversed?: boolean }[];
+  joints: { name: string; zero?: number; kp?: number; kv?: number; run?: string; min?: number; max?: number; reversed?: boolean; id?: number }[];
   rezeros: { joint: string; zero: number; at: number; by: string; reason?: string }[];
   /** Only when the unit is a camera that was calibrated. */
   cameras?: CameraCalibrationRecord[];
@@ -255,9 +256,10 @@ function cameraChecked(c: Record<string, unknown>): asserts c is Record<string, 
  * moved a marker through its view, with the residual that says how far to trust them; a new run replaces it.
  * A guided calibration measures each joint's travel end to end (`min`, `max`, the bus's values) and whether it counts
  * the other way than its definition (`reversed`), and says who measured it and when (`by`, `at` on `<calibration>`).
+ * A joint found by motion on another servo than its definition says holds that servo's id on this unit's bus (`id`).
  *
  *   <calibration device="../../devices/so101-follower-arm/definition.tsx" serial="SO101-0007" by="person:owner" at={1793318400000}>
- *     <joint name="shoulder_pan" zero={0.031} min={712} max={3391} />
+ *     <joint name="shoulder_pan" id={2} zero={0.031} min={712} max={3391} />
  *     <joint name="shoulder_lift" zero={0.012} kp={12} kv={0.6} run="runs/2026-10-30-lift/run.json" min={830} max={3270} reversed />
  *     <rezero joint="shoulder_lift" zero={0.015} at={1793318400000} by="person:owner" reason="motor replaced" />
  *   </calibration>
@@ -288,6 +290,9 @@ export const calibrationVocabulary: Vocabulary<CalibrationRecord> = {
       if ((j.min === undefined) !== (j.max === undefined)) throw new Error(`<joint name="${j.name}">: a measured travel gives both min and max`);
       if (j.min !== undefined && !(finiteNumber(j.min) && finiteNumber(j.max) && j.min < j.max)) throw new Error(`<joint name="${j.name}">: min and max are the bus's values with min < max, not ${JSON.stringify([j.min, j.max])}`);
       if (j.reversed !== undefined && typeof j.reversed !== "boolean") throw new Error(`<joint name="${j.name}">: reversed is true or false, not ${JSON.stringify(j.reversed)}`);
+      if (j.id !== undefined && !(Number.isInteger(j.id) && j.id >= 0 && j.id <= 252)) throw new Error(`<joint name="${j.name}">: id is the servo's id on this unit's bus (an integer 0..252), not ${JSON.stringify(j.id)}`);
+      const twin = joints.find((o) => o !== j && o.id !== undefined && o.id === j.id);
+      if (twin) throw new Error(`<joint name="${j.name}">: servo ${j.id} is also ${twin.name}: one servo is one joint`);
     }
     const a = t.attrs as Record<string, unknown>;
     if (a.by !== undefined && (typeof a.by !== "string" || !/^(person|agent):.+/.test(a.by))) throw new Error(`<calibration>: by is person:<id> or agent:<id>, not ${JSON.stringify(a.by)}`);

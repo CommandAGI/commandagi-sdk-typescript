@@ -140,4 +140,9 @@ test("a unit's calibration in JSX: its joints' zeros and gains, its re-zeros old
   assert.throws(() => declarationOf({ default: cal(el("joint", { name: "a", min: 900 })) }), /both min and max/);
   assert.throws(() => declarationOf({ default: cal(el("joint", { name: "a", min: 900, max: 800 })) }), /min < max/);
   assert.throws(() => declarationOf({ default: el("calibration", { device: "d", by: "owner" }) }), /by is person:<id> or agent:<id>/);
+  // A joint found by motion on another servo than its definition says: the servo id on this unit's bus.
+  const swapped = declarationOf({ default: cal(el("joint", { name: "pan", id: 2, min: 712, max: 3391 }), el("joint", { name: "lift", id: 1, min: 830, max: 3270 })) }).document!.document as { joints: { id?: number }[] };
+  assert.deepEqual(swapped.joints.map((j) => j.id), [2, 1]);
+  assert.throws(() => declarationOf({ default: cal(el("joint", { name: "a", id: 2 }), el("joint", { name: "b", id: 2 })) }), /one servo is one joint/);
+  assert.throws(() => declarationOf({ default: cal(el("joint", { name: "a", id: 1.5 })) }), /integer 0..252/);
 });
