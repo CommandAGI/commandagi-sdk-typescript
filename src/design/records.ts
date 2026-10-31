@@ -178,10 +178,17 @@ export const releaseVocabulary: Vocabulary<ReleaseRecord> = {
   },
 };
 
-/** The fields of a unit's calibration: the definition it calibrates (a ref), the unit's serial, a note. */
-export const CALIBRATION_FIELDS = ["device", "serial", "note"] as const;
-/** The fields of one calibrated joint: its zero (rad, what its encoder reads at the chain's zero), its servo's gains, the run that measured them. */
-export const CALIBRATION_JOINT_FIELDS = ["name", "zero", "kp", "kv", "run"] as const;
+/**
+ * The fields of a unit's calibration: the definition it calibrates (a ref), the unit's serial, a note, and who measured
+ * its joints and when (a guided calibration: `by` person:<id> | agent:<id>, `at` epoch ms).
+ */
+export const CALIBRATION_FIELDS = ["device", "serial", "note", "by", "at"] as const;
+/**
+ * The fields of one calibrated joint: its zero (rad, what its encoder reads at the chain's zero), its servo's gains, the
+ * run that measured them, the travel measured end to end (`min`, `max`: the bus's raw values, min < max), and whether
+ * the joint counts the other way than its definition says (`reversed`).
+ */
+export const CALIBRATION_JOINT_FIELDS = ["name", "zero", "kp", "kv", "run", "min", "max", "reversed"] as const;
 /** The fields of one re-zero: the joint, its new zero (rad), when (epoch ms), who (person:<id> | agent:<id>), why. */
 export const REZERO_FIELDS = ["joint", "zero", "at", "by", "reason"] as const;
 /**
@@ -196,7 +203,9 @@ export interface CalibrationRecord {
   device: string;
   serial?: string;
   note?: string;
-  joints: { name: string; zero?: number; kp?: number; kv?: number; run?: string }[];
+  by?: string;
+  at?: number;
+  joints: { name: string; zero?: number; kp?: number; kv?: number; run?: string; min?: number; max?: number; reversed?: boolean }[];
   rezeros: { joint: string; zero: number; at: number; by: string; reason?: string }[];
   /** Only when the unit is a camera that was calibrated. */
   cameras?: CameraCalibrationRecord[];
@@ -244,9 +253,12 @@ function cameraChecked(c: Record<string, unknown>): asserts c is Record<string, 
  * by whom and why. A joint's zero is its newest re-zero's, else its `<joint>`'s. A re-zero is appended, never edited.
  * A camera unit's calibration holds a `<camera>` per video channel: its lens and where it is, measured by a run that
  * moved a marker through its view, with the residual that says how far to trust them; a new run replaces it.
+ * A guided calibration measures each joint's travel end to end (`min`, `max`, the bus's values) and whether it counts
+ * the other way than its definition (`reversed`), and says who measured it and when (`by`, `at` on `<calibration>`).
  *
- *   <calibration device="../../devices/so101-follower-arm/definition.tsx" serial="SO101-0007">
- *     <joint name="shoulder_lift" zero={0.012} kp={12} kv={0.6} run="runs/2026-10-30-lift/run.json" />
+ *   <calibration device="../../devices/so101-follower-arm/definition.tsx" serial="SO101-0007" by="person:owner" at={1793318400000}>
+ *     <joint name="shoulder_pan" zero={0.031} min={712} max={3391} />
+ *     <joint name="shoulder_lift" zero={0.012} kp={12} kv={0.6} run="runs/2026-10-30-lift/run.json" min={830} max={3270} reversed />
  *     <rezero joint="shoulder_lift" zero={0.015} at={1793318400000} by="person:owner" reason="motor replaced" />
  *   </calibration>
  *
@@ -273,7 +285,13 @@ export const calibrationVocabulary: Vocabulary<CalibrationRecord> = {
       if (j.zero !== undefined && !finiteNumber(j.zero)) throw new Error(`<joint name="${j.name}">: zero is radians, not ${JSON.stringify(j.zero)}`);
       if (j.kp !== undefined && !(finiteNumber(j.kp) && j.kp > 0)) throw new Error(`<joint name="${j.name}">: kp is a positive number (N·m/rad), not ${JSON.stringify(j.kp)}`);
       if (j.kv !== undefined && !(finiteNumber(j.kv) && j.kv >= 0)) throw new Error(`<joint name="${j.name}">: kv is a number of at least 0 (N·m·s/rad), not ${JSON.stringify(j.kv)}`);
+      if ((j.min === undefined) !== (j.max === undefined)) throw new Error(`<joint name="${j.name}">: a measured travel gives both min and max`);
+      if (j.min !== undefined && !(finiteNumber(j.min) && finiteNumber(j.max) && j.min < j.max)) throw new Error(`<joint name="${j.name}">: min and max are the bus's values with min < max, not ${JSON.stringify([j.min, j.max])}`);
+      if (j.reversed !== undefined && typeof j.reversed !== "boolean") throw new Error(`<joint name="${j.name}">: reversed is true or false, not ${JSON.stringify(j.reversed)}`);
     }
+    const a = t.attrs as Record<string, unknown>;
+    if (a.by !== undefined && (typeof a.by !== "string" || !/^(person|agent):.+/.test(a.by))) throw new Error(`<calibration>: by is person:<id> or agent:<id>, not ${JSON.stringify(a.by)}`);
+    if (a.at !== undefined && !Number.isInteger(a.at)) throw new Error(`<calibration>: at is epoch milliseconds, not ${JSON.stringify(a.at)}`);
     const rezeros = list("rezero") as CalibrationRecord["rezeros"];
     let last = -Infinity;
     for (const r of rezeros) {

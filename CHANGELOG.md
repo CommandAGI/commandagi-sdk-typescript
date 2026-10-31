@@ -10,6 +10,7 @@ Added
 
 - A world declares its follow policies: `<world policies={[…]}>` (`FollowPolicy`), and in Python `world(policies=[…])`,
   in Rust `world([]).policies(…)`. One unit's robot follows another's joints by angle.
+- A calibration's `<joint>` may carry its measured travel `min`/`max` (the bus's raw values, min < max) and `reversed`; `<calibration>` takes `by` and `at` (who measured it and when): a guided calibration writes them.
 - The Python and Rust SDKs declare `<exit>`, `<session>` and `<vantage>`, the same elements and documents as `INFRA`
   here. The CommandAGI platform runs only the TSX files.
 - A machining setup's `machine` states its own travel: `travelMm` (`travel_mm` in Python and Rust), `[x, y, z]` in mm. A

@@ -132,4 +132,12 @@ test("a unit's calibration in JSX: its joints' zeros and gains, its re-zeros old
   assert.throws(() => declarationOf({ default: cal(el("camera", { ...camera, intrinsics: { ...camera.intrinsics, fx: 0 } })) }), /intrinsics are/);
   assert.throws(() => declarationOf({ default: cal(el("camera", { ...camera, reality: undefined })) }), /says its reality/);
   assert.throws(() => declarationOf({ default: cal(el("camera", camera), el("camera", camera)) }), /view/);
+  // A guided calibration: each joint's measured travel and its direction, who measured it and when.
+  const guided = el("calibration", { device: "d/definition.tsx", by: "person:owner", at: 1793318400000 }, el("joint", { name: "pan", zero: 0.03, min: 712, max: 3391 }), el("joint", { name: "lift", zero: -0.1, min: 830, max: 3270, reversed: true }));
+  const measured = declarationOf({ default: guided }).document!.document;
+  assert.deepEqual(measured, { device: "d/definition.tsx", by: "person:owner", at: 1793318400000, joints: [{ name: "pan", zero: 0.03, min: 712, max: 3391 }, { name: "lift", zero: -0.1, min: 830, max: 3270, reversed: true }], rezeros: [] });
+  assert.deepEqual(RECORDS.calibration.fromTree(RECORDS.calibration.toTree(measured as never)), measured, "a guided calibration both ways");
+  assert.throws(() => declarationOf({ default: cal(el("joint", { name: "a", min: 900 })) }), /both min and max/);
+  assert.throws(() => declarationOf({ default: cal(el("joint", { name: "a", min: 900, max: 800 })) }), /min < max/);
+  assert.throws(() => declarationOf({ default: el("calibration", { device: "d", by: "owner" }) }), /by is person:<id> or agent:<id>/);
 });
