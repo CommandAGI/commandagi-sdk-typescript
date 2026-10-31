@@ -59,6 +59,9 @@
  *                                     board with a `surface`, `chart` names the face it sits on.
  *   <trace name layer width points rule from to net surface uuid segmentUuids kicad>
  *                                     a copper run: its points ([[x, y], …]) on one copper layer, a finished width.
+ *                                     A trace, arc, via or pour names copper the board has: a copper layer
+ *                                     of its layer table (BOARD_LAYERS when it gives none) or a conductor of its
+ *                                     cross-section. Any other is refused by name.
  *                                     `rule` is its routing rule, "45", "90" or "any" (the default): the angles its
  *                                     legs take between its points, so a moved point re-routes the legs.
  *                                     `surface` (true) runs it on the board's surface: its points are in the unfolded
@@ -66,8 +69,8 @@
  *   <arc name layer width points from to net uuid kicad>
  *                                     a circular copper arc: start, a point on it, end.
  *   <via name pcbX pcbY drill diameter layers pads net uuid kicad>
- *                                     a plated barrel; `layers` defaults to ["F.Cu", "B.Cu"]; `pads` names the pads
- *                                     it is plated into (".R1 > .pin2").
+ *                                     a plated barrel; `layers` defaults to ["F.Cu", "B.Cu"], its ends the first and
+ *                                     the last, two layers; `pads` names the pads it is plated into (".R1 > .pin2").
  *   <pour name layers points terminals net uuid kicad>
  *                                     a copper pour: its boundary on its layers; `terminals` names what boundary
  *                                     points land on ([[0, ".J1 > .pin2"], …]); `kicad` its fill settings.
@@ -199,10 +202,16 @@ function at(el: DesignElement, prop: string): { x: number; y: number } {
   return { x: v[0] as number, y: v[1] as number };
 }
 
-function copperLayers(el: DesignElement, fallback?: string[]): string[] {
+/** Holds a layer to the copper the board has. A keep-out is not held here: a stale one is the DRC's `constraint` finding. */
+function onBoard(el: DesignElement, layer: string, copper?: string[]): void {
+  if (copper && !copper.includes(layer)) throw new Error(`${where(el)}: the board has no copper layer ${layer} (it has ${copper.join(", ") || "none"})`);
+}
+
+function copperLayers(el: DesignElement, copper?: string[], fallback?: string[]): string[] {
   const layers = el.props.layers ?? fallback;
   if (!Array.isArray(layers) || layers.length < 1 || !layers.every((l) => typeof l === "string" && COPPER.test(l)))
     throw new Error(`${where(el)}: layers is a list of copper layers ("F.Cu", "In1.Cu", "B.Cu")`);
+  for (const l of layers as string[]) onBoard(el, l, copper);
   return layers as string[];
 }
 
@@ -449,8 +458,17 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
     ) as { cadRef: string; domain: unknown } | undefined;
     const hasBoard = w !== undefined || thickness !== undefined || layers !== undefined || surface !== undefined || stacks.length > 0 || children.some((el) => el.type === "graphic" || el.type === "text" || el.type === "dimension" || el.type === "kicad");
 
+    // The copper the board has: its layer table's and its cross-section's conductors, in that order.
+    const boardCopper: string[] = [];
+    const hasCopper = (name: string) => {
+      if (COPPER.test(name) && !boardCopper.includes(name)) boardCopper.push(name);
+    };
+    for (const l of (layers ?? BOARD_LAYERS) as { name: string }[]) hasCopper(l.name);
+
     let stackThickness: number | undefined;
     if (core !== undefined && copper !== undefined) {
+      hasCopper("F.Cu");
+      hasCopper("B.Cu");
       stackThickness = core + 2 * copper;
       s.add(
         "eda.stack",
@@ -471,6 +489,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
       refuseUnknown(el, ["name", "label", "domain", "units", "process", "layers", "overallThickness"]);
       const stackLayers = plain(el, "layers", (v) => Array.isArray(v) && v.every((l) => isObject(l) && typeof (l as { name?: unknown }).name === "string" && typeof (l as { role?: unknown }).role === "string"), "the layers, top first: [{ name, role, thickness, … }, …]");
       if (stackLayers === undefined) throw new Error("<stack> needs layers");
+      for (const l of stackLayers as { name: string; role: string }[]) if (l.role === "conductor") hasCopper(l.name);
       const domain = text(el, "domain") ?? "pcb", units = text(el, "units") ?? "mm";
       if (!["pcb", "ic"].includes(domain)) throw new Error(`<stack>: domain is "pcb" or "ic"`);
       if (!["mm", "um", "nm"].includes(units)) throw new Error(`<stack>: units is "mm", "um" or "nm"`);
@@ -661,6 +680,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
           const pts = el.type === "arc" ? pointList(el, "points", 3, 3) : points(el);
           const layer = el.props.layer;
           if (typeof layer !== "string" || !COPPER.test(layer)) throw new Error(`${where(el)}: layer is a copper layer ("F.Cu", "In1.Cu", "B.Cu")`);
+          onBoard(el, layer, boardCopper);
           const terminals = ends(el, pts.length);
           const segmentUuids = plain(el, "segmentUuids", (v) => Array.isArray(v) && v.every((u) => typeof u === "string"), "a list of uuids, one per segment");
           s.add(
@@ -685,8 +705,9 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
         }
         case "via": {
           refuseUnknown(el, ["name", "pcbX", "pcbY", "drill", "diameter", "layers", "pads", "net", "uuid", "kicad"]);
-          const layers = copperLayers(el, ["F.Cu", "B.Cu"]);
+          const layers = copperLayers(el, boardCopper, ["F.Cu", "B.Cu"]);
           if (layers.length < 2) throw new Error(`${where(el)}: layers is two or more copper layers`);
+          if (layers[0] === layers[layers.length - 1]) throw new Error(`${where(el)}: the ends of a via are two layers, not ${layers[0]} twice`);
           const drill = positive(el, "drill", true)!, diameter = positive(el, "diameter", true)!;
           if (diameter <= drill) throw new Error(`${where(el)}: the diameter is more than the drill`);
           const pads = el.props.pads;
@@ -725,7 +746,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
           });
           s.add(
             CONDUCTOR,
-            { kind: "pour", points: pts, layers: copperLayers(el), ...(terminals.length ? { terminals } : {}), ...uuidOf(el), ...netOf(el), ...kicad(el) },
+            { kind: "pour", points: pts, layers: copperLayers(el, boardCopper), ...(terminals.length ? { terminals } : {}), ...uuidOf(el), ...netOf(el), ...kicad(el) },
             { id: idOf.get(el)!, label: "Pour", meta: meta(el) },
           );
           break;

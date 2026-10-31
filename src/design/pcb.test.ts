@@ -103,6 +103,33 @@ test("a board refuses, by name, what it cannot say", () => {
   assert.throws(() => declarationOf({ default: jsx("board", { schematic: "/abs.sch.tsx" }) }), /relative to this file/);
 });
 
+test("a board's copper is the copper it has: its layer table or its <stack>; a via's ends are two layers", () => {
+  const box = { points: [[0, 0], [9, 0], [9, 9]] };
+  const run = { width: 0.2, points: [[0, 0], [9, 0]] };
+  const curve = { width: 0.2, points: [[0, 0], [4, 4], [9, 0]] };
+  const barrel = { pcbX: 5, pcbY: 5, drill: 0.3, diameter: 0.6 };
+  const two = "the board has no copper layer X.Cu (it has F.Cu, B.Cu)";
+  assert.throws(board({}, jsx("trace", { layer: "X.Cu", ...run })), { message: `<trace>: ${two}` });
+  assert.throws(board({}, jsx("arc", { layer: "X.Cu", ...curve })), { message: `<arc>: ${two}` });
+  assert.throws(board({}, jsx("via", { layers: ["X.Cu", "B.Cu"], ...barrel })), { message: `<via>: ${two}` });
+  assert.throws(board({}, jsx("pour", { layers: ["X.Cu"], ...box })), { message: `<pour>: ${two}` });
+  // A keep-out on copper the board lacks declares: the DRC reports it, `constraint`, and the board still opens.
+  board({}, jsx("keepout", { layers: ["X.Cu"], ...box }))();
+  assert.throws(board({ width: 9, height: 9 }, jsx("trace", { layer: "In1.Cu", ...run })), { message: "<trace>: the board has no copper layer In1.Cu (it has F.Cu, B.Cu)" });
+  assert.throws(board({}, jsx("via", { layers: ["F.Cu", "F.Cu"], ...barrel })), { message: "<via>: the ends of a via are two layers, not F.Cu twice" });
+  assert.throws(board({}, jsx("via", { layers: ["F.Cu", "In1.Cu", "F.Cu"], ...barrel })), /the board has no copper layer In1\.Cu/);
+  assert.throws(board({ layers: [{ ordinal: 0, name: "F.Cu", type: "signal" }] }, jsx("via", barrel)), { message: "<via>: the board has no copper layer B.Cu (it has F.Cu)" });
+
+  const four = jsx("stack", { layers: ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"].map((name) => ({ name, role: "conductor", thickness: 0.035 })) });
+  const inner = [jsx("trace", { layer: "In1.Cu", ...run }), jsx("arc", { layer: "In2.Cu", ...curve }), jsx("via", { layers: ["F.Cu", "In1.Cu"], ...barrel }), jsx("pour", { layers: ["In2.Cu"], ...box }), jsx("keepout", { layers: ["In1.Cu"], ...box })];
+  board({}, four, ...inner)();
+  board({ layers: [{ ordinal: 0, name: "F.Cu" }, { ordinal: 1, name: "In1.Cu" }, { ordinal: 2, name: "In2.Cu" }, { ordinal: 31, name: "B.Cu" }] }, ...inner)();
+  assert.throws(board({}, four, jsx("trace", { layer: "In3.Cu", ...run })), { message: "<trace>: the board has no copper layer In3.Cu (it has F.Cu, B.Cu, In1.Cu, In2.Cu)" });
+  // A mask or a dielectric named like copper is no copper.
+  assert.throws(board({}, jsx("stack", { layers: [{ name: "F.Cu", role: "conductor" }, { name: "In1.Cu", role: "dielectric" }] }), jsx("trace", { layer: "In1.Cu", ...run })), /no copper layer In1\.Cu/);
+  assert.throws(board({ layers: [{ ordinal: 0, name: "F.Cu" }, { ordinal: 40, name: "Dwgs.User" }] }, jsx("trace", { layer: "Dwgs.User", ...run })), /layer is a copper layer/);
+});
+
 test("a board says what a KiCad board holds: its layers, cross-section, drawings, net codes and what each copper object carries", () => {
   const layers = [{ ordinal: 0, name: "F.Cu", type: "signal" }, { ordinal: 4, name: "In1.Cu", type: "signal" }, { ordinal: 2, name: "B.Cu", type: "signal" }, { ordinal: 25, name: "Edge.Cuts", type: "user" }];
   const g = board(
