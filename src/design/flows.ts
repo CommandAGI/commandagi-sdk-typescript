@@ -42,7 +42,7 @@ export const FLOW_SURPRISE = ["parent", "agent", "person"] as const;
 export const FLOW_FIELDS = ["name", "description", "of"] as const;
 export const FLOW_INPUT_FIELDS = ["name", "type", "private", "default", "required", "description"] as const;
 export const FLOW_TOOL_FIELDS = ["id", "ref", "name", "ratePerHour", "currency", "description"] as const;
-export const FLOW_STEP_FIELDS = ["id", "order", "kind", "tool", "fixture", "by", "minutes", "setupMinutes", "ratePerHour", "currency", "instruction", "note", "channel", "ref", "command", "after", "surprise", "surpriseTo"] as const;
+export const FLOW_STEP_FIELDS = ["id", "order", "kind", "tool", "fixture", "by", "minutes", "setupMinutes", "ratePerHour", "currency", "instruction", "note", "channel", "ref", "command", "skill", "after", "surprise", "surpriseTo"] as const;
 export const FLOW_PARAM_FIELDS = ["name", "value", "unit", "description"] as const;
 export const FLOW_MEASURE_FIELDS = ["id", "name", "nominal", "min", "max", "plus", "minus", "unit", "method", "sampling", "acceptance"] as const;
 /** One more tool a step goes to: its time there, and its rate when it is not the tool's. */
