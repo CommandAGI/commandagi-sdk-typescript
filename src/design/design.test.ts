@@ -209,6 +209,20 @@ test("a circuit's part on the bottom holds its pads as the board holds a flipped
   assert.deepEqual(pads("R2")[0]!.layers, ["F.Cu", "F.Paste", "F.Mask"]);
 });
 
+test("a footprint's courtyard is the part's F.CrtYd (B.CrtYd mirrored on the bottom); a bad one is refused", () => {
+  const fpc = { ...footprints.chip("0603", "R"), courtyard: [{ x: -2, y: -1 }, { x: 2, y: 1 }] };
+  const g = circuit("Courtyard", () => {
+    component({ ref: "R1", footprint: fpc, at: [5, 5] });
+    component({ ref: "R2", footprint: fpc, at: { x: 9, y: 5, side: "bottom" } });
+    component({ ref: "R3", footprint: footprints.chip("0603", "R"), at: [12, 5] });
+  }).ir;
+  const art = (ref: string) => (g.nodes[`part_${ref}`]!.inputs.boardArtwork as { graphics: { kind: string; layer: string; points: { x: number }[] }[] } | undefined)?.graphics[0];
+  assert.deepEqual([art("R1")!.kind, art("R1")!.layer, art("R1")!.points.map((q) => q.x)], ["rect", "F.CrtYd", [-2, 2]]);
+  assert.deepEqual([art("R2")!.layer, art("R2")!.points.map((q) => q.x)], ["B.CrtYd", [2, -2]]);
+  assert.equal(art("R3"), undefined);
+  assert.throws(() => circuit("X", () => void component({ ref: "R1", footprint: { ...fpc, courtyard: [{ x: 0, y: 0 }] } })), /R1: a courtyard is two corners/);
+});
+
 test("a circuit's part names the pins it leaves open on purpose (noConnect), by its own pin numbers", () => {
   const g = circuit("Open", () => void component({ ref: "J1", footprint: footprints.pinHeader(3), noConnect: ["3"] })).ir;
   assert.deepEqual(g.nodes.part_J1!.inputs.noConnect, ["3"]);

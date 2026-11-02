@@ -46,6 +46,11 @@ export interface Footprint {
   name: string;
   pads: { number: string; name?: string; pad: Pad }[];
   attr?: string[];
+  /**
+   * The courtyard (KiCad F.CrtYd, B.CrtYd on the bottom), in footprint-local millimetres: two corners are a
+   * rectangle, three or more points a polygon. Omitted, the layout check grows the pads' box by 0.25 mm.
+   */
+  courtyard?: { x: number; y: number }[];
 }
 
 const SMD_LAYERS = ["F.Cu", "F.Paste", "F.Mask"];
@@ -281,6 +286,16 @@ export function part(o: {
     at?.side === "bottom"
       ? { ...pad, at: { ...pad.at, x: 0 - pad.at.x, ...(pad.at.rot !== undefined ? { rot: 0 - pad.at.rot } : {}) }, layers: pad.layers.map(swap) }
       : pad;
+  const cy = o.footprint.courtyard;
+  if (cy !== undefined && (!Array.isArray(cy) || cy.length < 2 || cy.some((q) => !Number.isFinite(q?.x) || !Number.isFinite(q?.y))))
+    throw new Error(`${o.ref}: a courtyard is two corners or three or more points, each {x, y} in mm`);
+  const bottom = at?.side === "bottom";
+  const courtyard = cy
+    ? {
+        graphics: [{ id: "courtyard", kind: cy.length === 2 ? "rect" : "poly", points: cy.map((q) => ({ x: bottom ? 0 - q.x : q.x, y: q.y })), widthMm: 0.05, layer: bottom ? "B.CrtYd" : "F.CrtYd", filled: false }],
+        texts: [],
+      }
+    : undefined;
   const pins = o.footprint.pads.map((p) => {
     const name = o.pinNames?.[p.number] ?? p.name;
     return { id: `p${slug(p.number)}`, number: p.number, ...(name ? { name } : {}), pad: placed(p.pad) };
@@ -295,6 +310,7 @@ export function part(o: {
       pins,
       ...(at ? { placement: at } : {}),
       ...(o.footprint.attr ? { attr: o.footprint.attr } : {}),
+      ...(courtyard ? { boardArtwork: courtyard } : {}),
       ...(o.noConnect?.length ? { noConnect: o.noConnect.map(String) } : {}),
       ...(fields.length ? { foreign: fields } : {}),
     },
