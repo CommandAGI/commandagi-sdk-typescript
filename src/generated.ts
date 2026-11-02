@@ -547,7 +547,7 @@ export const SDK_SCHEMA = {
       },
       {
         name: "tasks",
-        doc: "Open work mounted to a thread: the thread's agent is prompted with it until it is done (runs/thread-<id>/mounts.tsx).",
+        doc: "Open work mounted to a thread: the thread's agent is prompted with it until it is done (mounts.tsx in its run folder).",
         factory: null,
         methods: [
           {
@@ -3173,7 +3173,7 @@ export interface TasksMountOptions {
   threadId?: string;
 }
 
-/** Open work mounted to a thread: the thread's agent is prompted with it until it is done (runs/thread-<id>/mounts.tsx). */
+/** Open work mounted to a thread: the thread's agent is prompted with it until it is done (mounts.tsx in its run folder). */
 export class Tasks {
   constructor(private readonly t: Transport) {}
   /** Mount a task, a task list (a folder or a query) or a project to this thread: the agent is prompted with its open work until it is done. */
@@ -3646,7 +3646,7 @@ export abstract class GeneratedClient implements Transport {
   readonly billing = new Billing(this);
   /** The agent's durable memory: markdown files under memories/ in the thread's drive. */
   readonly memory = new Memory(this);
-  /** Open work mounted to a thread: the thread's agent is prompted with it until it is done (runs/thread-<id>/mounts.tsx). */
+  /** Open work mounted to a thread: the thread's agent is prompted with it until it is done (mounts.tsx in its run folder). */
   readonly tasks = new Tasks(this);
   /** Connected third-party accounts. */
   readonly integrations = new Integrations(this);
