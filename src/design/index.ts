@@ -134,6 +134,7 @@ export * from "./study.js";
 export * from "./testplans.js";
 export * from "./firmware.js";
 export * from "./postal.js";
+export * from "./logistics.js";
 export * from "./market.js";
 export * from "./pdf.js";
 

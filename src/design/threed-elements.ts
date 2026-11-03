@@ -2614,25 +2614,6 @@ export type PermittedFinding = {
   reason: string;
 };
 
-/** A PLACE ON THE EARTH: a supplier's warehouse, a fab, a forwarder's hub, the builder's bench. */
-export type Place = {
-  name: string;
-  /**
-   * Degrees north.
-   * @minimum -90
-   * @maximum 90
-   */
-  lat: number;
-  /**
-   * Degrees east.
-   * @minimum -180
-   * @maximum 180
-   */
-  lon: number;
-  /** ISO 3166 alpha-2. */
-  country?: string;
-};
-
 /** One body of a placed 3D document moved in its file's frame (`<externalPart moves>`). */
 export type PlacedMove = {
   /**
@@ -3067,27 +3048,6 @@ export type Shipping = {
   packaged?: PackagedSize;
   /** How it is packed: "tape and reel", "tray", "bag of 100". */
   packaging?: string;
-};
-
-/** ONE LEG OF A PART'S TRIP: a carrier's service to a place, how long it takes and what it costs. */
-export type ShippingLeg = {
-  to: Place;
-  /** The carrier ("DHL", "UPS", "USPS", "a freight forwarder"). */
-  carrier: string;
-  /** The carrier's service ("Express Worldwide", "Ground"). */
-  service?: string;
-  /**
-   * Days in transit.
-   * @minimum 0
-   */
-  transitDays?: number;
-  /**
-   * What the leg costs for the order.
-   * @minimum 0
-   */
-  cost?: number;
-  /** ISO 4217 currency code of the cost. */
-  currency?: string;
 };
 
 /**
@@ -3601,12 +3561,10 @@ export type SupplierOffer = {
   source?: string;
   /** The day the terms were read, YYYY-MM-DD. */
   date?: string;
-  /** Where the part ships from: the supplier's warehouse or the fab that makes it. */
-  from?: Place;
   /**
-   * How the part travels from `from` to the builder, leg by leg: each leg starts where the one before it ended. The last leg's `to` is where the product is built. The roll-up carries them; their cost is not in its totals.
+   * The supplier's file (`suppliers/jlcpcb.supplier.tsx`), by this document's folder: where it ships from, its carriers and contacts. A logistics plan (`<name>.logistics.tsx`) routes the lines whose chosen offer names it.
    */
-  legs?: ShippingLeg[];
+  supplier?: string;
 };
 
 export type SweepFeature = {

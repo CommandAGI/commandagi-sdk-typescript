@@ -5432,39 +5432,6 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "A FINDING A PROCESS OR A PURPOSE PERMITS: `<permitted check body process edgeDir region diameter reason />`. A square edge of a laser-cut sheet, a hole that is there for a cable. It permits the findings of that check on the bodies it names, made by that process, along that direction and in that region (each given test must hold). A permitted finding stays in the report with the entry that permitted it."
   },
-  "Place": {
-   "type": "object",
-   "properties": {
-    "name": {
-     "type": "string",
-     "pattern": "\\S"
-    },
-    "lat": {
-     "type": "number",
-     "description": "Degrees north.",
-     "minimum": -90,
-     "maximum": 90
-    },
-    "lon": {
-     "type": "number",
-     "description": "Degrees east.",
-     "minimum": -180,
-     "maximum": 180
-    },
-    "country": {
-     "type": "string",
-     "description": "ISO 3166 alpha-2.",
-     "pattern": "^[A-Z]{2}$"
-    }
-   },
-   "required": [
-    "name",
-    "lat",
-    "lon"
-   ],
-   "additionalProperties": false,
-   "description": "A PLACE ON THE EARTH: a supplier's warehouse, a fab, a forwarder's hub, the builder's bench."
-  },
   "PlacedMove": {
    "type": "object",
    "properties": {
@@ -6310,44 +6277,6 @@ export const THREED_SCHEMA: SchemaDocument = {
    },
    "additionalProperties": false,
    "description": "WHAT CUSTOMS AND A CARRIER NEED OF A PART."
-  },
-  "ShippingLeg": {
-   "type": "object",
-   "properties": {
-    "to": {
-     "$ref": "#/$defs/Place"
-    },
-    "carrier": {
-     "type": "string",
-     "description": "The carrier (\"DHL\", \"UPS\", \"USPS\", \"a freight forwarder\").",
-     "pattern": "\\S"
-    },
-    "service": {
-     "type": "string",
-     "description": "The carrier's service (\"Express Worldwide\", \"Ground\")."
-    },
-    "transitDays": {
-     "type": "number",
-     "description": "Days in transit.",
-     "minimum": 0
-    },
-    "cost": {
-     "type": "number",
-     "description": "What the leg costs for the order.",
-     "minimum": 0
-    },
-    "currency": {
-     "type": "string",
-     "description": "ISO 4217 currency code of the cost.",
-     "pattern": "^[A-Z]{3}$"
-    }
-   },
-   "required": [
-    "to",
-    "carrier"
-   ],
-   "additionalProperties": false,
-   "description": "ONE LEG OF A PART'S TRIP: a carrier's service to a place, how long it takes and what it costs."
   },
   "SkeletonFeature": {
    "type": "object",
@@ -7765,16 +7694,9 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "The day the terms were read, YYYY-MM-DD.",
      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
     },
-    "from": {
-     "$ref": "#/$defs/Place",
-     "description": "Where the part ships from: the supplier's warehouse or the fab that makes it."
-    },
-    "legs": {
-     "type": "array",
-     "items": {
-      "$ref": "#/$defs/ShippingLeg"
-     },
-     "description": "How the part travels from `from` to the builder, leg by leg: each leg starts where the one before it ended. The last leg's `to` is where the product is built. The roll-up carries them; their cost is not in its totals."
+    "supplier": {
+     "type": "string",
+     "description": "The supplier's file (`suppliers/jlcpcb.supplier.tsx`), by this document's folder: where it ships from, its carriers and contacts. A logistics plan (`<name>.logistics.tsx`) routes the lines whose chosen offer names it."
     }
    },
    "required": [
