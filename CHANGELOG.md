@@ -6,6 +6,13 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 ## Unreleased
 
+Changed
+
+- `<check sweep>` names the joints it moves: `sweep={{ joints: ["X", "Z"], step: 10 }}` (was `joint`). Several joints
+  are swept as a grid of their values, a loop a swept joint closes is solved at each pose, and screw and cylindrical
+  joints sweep too (docs/formats.md § design checks, over the joints' ranges). A file that writes `joint` is refused
+  with `sweep/joint: is not one of its fields`.
+
 Added
 
 - A video's speaker track: `<track kind="audio" speaker="Cici" turns={passes.C} src="stems/take.voices.wav">` makes each

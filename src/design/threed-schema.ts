@@ -1867,7 +1867,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "sweep": {
      "$ref": "#/$defs/JointSweep",
-     "description": "interference, clearance: judge the pairs a joint's motion changes over the joint's limits, not only as drawn. The joint moves its `a` and every body a joint carries on it (a `fixed` joint whose `b` moves, and so on down a chain); a finding of such a pair names the joint value it is worst at and the values it holds over."
+     "description": "interference, clearance: judge the pairs the motion of one or more joints changes, over a grid of their values within their limits, not only as drawn. A joint moves its `a` and every body a joint carries on it; a loop that a swept joint moves (a joint whose `a` another chain already carries) is solved closed at each pose. A finding names the pose it is worst at, the first pose it holds at, and the values it holds over along each joint."
     },
     "options": {
      "type": "object",
@@ -3708,29 +3708,32 @@ export const THREED_SCHEMA: SchemaDocument = {
   "JointSweep": {
    "type": "object",
    "properties": {
-    "joint": {
-     "type": "string",
-     "description": "The joint (its id; a placed file's joint is `<placement id>/<its id>`, `dock_a/palletLift`, at any depth): a prismatic or a revolute joint with `limits`.",
-     "pattern": "\\S"
+    "joints": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "The joints (their ids; a placed file's joint is `<placement id>/<its id>`, `dock_a/palletLift`, at any depth): prismatic, revolute, screw or cylindrical joints with `limits` (and a cylindrical joint's `travel`).",
+     "minItems": 1
     },
     "samples": {
      "type": "integer",
-     "description": "How many values are judged, both limits included.",
+     "description": "How many values are judged along each joint, both limits included.",
      "minimum": 2,
      "maximum": 1000,
      "default": 11
     },
     "step": {
      "type": "number",
-     "description": "The largest distance between two values judged, in the joint's unit (mm, or rad), in place of `samples`.",
+     "description": "The largest distance between two values judged along each joint, in its unit (mm, or rad), in place of `samples`.",
      "exclusiveMinimum": 0
     }
    },
    "required": [
-    "joint"
+    "joints"
    ],
    "additionalProperties": false,
-   "description": "HOW A CHECK MOVES A JOINT: `sweep={{ joint: \"ramJ\", step: 10 }}`. The values are spread evenly over the joint's `limits`, both ends included; where a pair starts or stops clashing (or being too near) between two values, the value is found to 0.1 mm or 0.1°. A value is the joint's displacement from the pose the document draws: millimetres along a prismatic joint's axis, radians about a revolute joint's axis through its anchor."
+   "description": "HOW A CHECK MOVES ITS JOINTS: `sweep={{ joints: [\"X\", \"Z\"], step: 5 }}`. Each joint's values are spread evenly over its `limits` (a cylindrical joint's slide over its `travel`, as the axis `<id>:slide`), both ends included, and every combination is a pose. Where a pair starts or stops clashing (or being too near) between two values, the value is found to 0.1 mm or 0.1°; between poses, the kernel proves the pair apart or splits the cell (docs/formats.md § design checks, over the joints' ranges). A value is the joint's own: millimetres along a prismatic joint's axis, radians about a revolute, screw or cylindrical joint's axis through its anchor."
   },
   "LibraryData": {
    "type": "object",
