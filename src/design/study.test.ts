@@ -84,6 +84,33 @@ test("a kind registered later reads its own tags and refuses them in a study of 
   assert.throws(() => registerStudyKind("other", { fixture: { rule: { parents: ["study"] }, field: "holds", list: true } }), /fills holds, but it already fills fixtures/);
 });
 
+test("an arm-design study in JSX: its varied links by id, the workspace, the payload, the objectives in order", () => {
+  const file = el(
+    "study",
+    { kind: "arm-design", part: "devices/so101-reach/definition.tsx", units: "mm-kg-s" },
+    el("vary", { id: "upper", joint: "elbow_flex", axis: "x", values: [-112.57, -125] }),
+    el("vary", { id: "forearm", joint: "wrist_flex", axis: "x", values: [-134.9, -150] }),
+    el("workspace", { min: [-100, -100, 20], max: [100, 50, 100], step: 25, down: true }),
+    el("payload", { mass: 0.5, gravity: [0, 0, -9.81] }),
+    el("criterion", { id: "covers", quantity: "coverage", limit: 0.9 }),
+    el("objective", { quantity: "coverage", goal: "max" }),
+    el("objective", { quantity: "manipulability.min", goal: "max" }),
+  );
+  const doc = declarationOf({ default: () => file }).document!.document as Record<string, unknown>;
+  assert.deepEqual(doc, {
+    kind: "arm-design",
+    part: "devices/so101-reach/definition.tsx",
+    units: "mm-kg-s",
+    vary: [{ id: "upper", joint: "elbow_flex", axis: "x", values: [-112.57, -125] }, { id: "forearm", joint: "wrist_flex", axis: "x", values: [-134.9, -150] }],
+    workspace: { min: [-100, -100, 20], max: [100, 50, 100], step: 25, down: true },
+    payload: { mass: 0.5, gravity: [0, 0, -9.81] },
+    criteria: [{ id: "covers", quantity: "coverage", limit: 0.9 }],
+    objectives: [{ quantity: "coverage", goal: "max" }, { quantity: "manipulability.min", goal: "max" }],
+  });
+  assert.deepEqual(STUDY.study.fromTree(STUDY.study.toTree(doc as never)), doc, "both ways");
+  assert.throws(() => declarationOf({ default: el("study", { kind: "arm-design", part: "definition.tsx" }, el("step", { id: "a", joint: "j", from: 0, to: 1 })) }), /<step> belongs to a step-response study, not to a arm-design one/);
+});
+
 test("a step-response study in JSX: its steps by id, the gains to try by joint, the window; a criterion names its step", () => {
   const file = el(
     "study",
