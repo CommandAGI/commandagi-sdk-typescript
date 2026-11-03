@@ -81,7 +81,10 @@ test("a trace names its routing rule (45, 90 or any): the angles its legs take; 
 test("a library footprint is its ref and the .pretty folder that holds it; its pads are the library's", () => {
   const g = board({}, jsx("component", { name: "U1", footprint: "Package_SO:SOIC-8", library: "footprints.pretty", pcbX: 12, pcbY: 8, pcbRotation: 90 }))();
   assert.deepEqual(g.nodes.fp_U1!.inputs, { ref: "U1", footprint: "Package_SO:SOIC-8", library: "footprints.pretty", placement: { x: 12, y: 8, rot: 90, side: "top" } });
-  assert.throws(board({}, jsx("component", { name: "U1", footprint: "SOIC-8", library: "footprints.pretty" })), /its ref, "Library:Footprint"/);
+  assert.throws(board({}, jsx("component", { name: "U1", footprint: "Package_SO/SOIC-8", library: "footprints.pretty" })), /its ref, "Library:Footprint"/);
+  // A footprint id KiCad gave no library nickname is its bare name: the library names the file.
+  const bare = board({}, jsx("component", { name: "POLY", footprint: "POLY", library: "board.pretty", pcbX: 1, pcbY: 2 }))();
+  assert.equal(bare.nodes.fp_POLY!.inputs.footprint, "POLY");
   assert.throws(board({}, jsx("component", { name: "U1", footprint: "Package_SO:SOIC-8", library: "SOIC-8.kicad_mod" })), /a footprint library folder \(a \.pretty\)/);
   // A second variant of one footprint is its own file in the folder; the part still names the footprint it is.
   const v = board({}, jsx("component", { name: "U2", footprint: "Package_SO:SOIC-8", library: "footprints.pretty/SOIC-8 2.kicad_mod", pcbX: 1, pcbY: 2 }))();

@@ -15,6 +15,9 @@ Changed
 
 Added
 
+- A part says KiCad's reference when another part has it too: `<part name="POLY_2" reference="POLY" …>` (on any part
+  tag; said only when it is not the name). A `<component library>` takes a footprint id with no library nickname as
+  KiCad wrote it, `footprint="POLY"`. Python: `reference=`; Rust: `.reference(…)`.
 - A video's speaker track: `<track kind="audio" speaker="Cici" turns={passes.C} src="stems/take.voices.wav">` makes each
   of that speaker's turns in the pass (`{ take, in, out, turns: [{ who, from, to, says }], by }`, what
   `scripts/media/voices.py turns` writes) a clip of `src`; the track's `volume` is the speaker's fader. Two audio

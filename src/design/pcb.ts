@@ -48,7 +48,9 @@
  *                                     own land patterns, BOARD_FOOTPRINTS, or a library footprint by its ref,
  *                                     "Package_SO:SOIC-8", in the `.pretty` folder `library` names: its
  *                                     `SOIC-8.kicad_mod`; or one `.kicad_mod` in a `.pretty` folder, the file of a
- *                                     second variant of one footprint: "board.pretty/SOIC-8 2.kicad_mod"), where it sits, its rotation (degrees), its side ("top" or
+ *                                     second variant of one footprint: "board.pretty/SOIC-8 2.kicad_mod"; with a
+ *                                     library, a footprint id KiCad gave no library nickname is its bare name,
+ *                                     "POLY", as KiCad wrote it), where it sits, its rotation (degrees), its side ("top" or
  *                                     "bottom"), where its reference text sits (`refAt`, [x, y] mm in the footprint's
  *                                     frame) and how far it is turned there (`refRot`, degrees), where its value text
  *                                     sits (`valueAt`, the same frame), `locked` (KiCad's lock: a mouse does not
@@ -622,7 +624,8 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
           if (library !== undefined) {
             if (typeof library !== "string" || !/\.pretty(\/|\/[^/]+\.kicad_mod)?$/i.test(library))
               throw new Error(`${where(el)}: library names a footprint library folder (a .pretty) or one .kicad_mod in it, not ${JSON.stringify(library)}`);
-            if (typeof fp !== "string" || !/^[^:]+:[^:/]+$/.test(fp)) throw new Error(`${where(el)}: a library footprint is its ref, "Library:Footprint" ("Package_SO:SOIC-8"), not ${JSON.stringify(fp)}`);
+            // A footprint id with no library nickname (KiCad wrote `(footprint "POLY")`) is its bare name: the library names the file.
+            if (typeof fp !== "string" || !/^([^:]+:)?[^:/]+$/.test(fp)) throw new Error(`${where(el)}: a library footprint is its ref, "Library:Footprint" ("Package_SO:SOIC-8"), or the bare name KiCad gave it ("POLY"), not ${JSON.stringify(fp)}`);
           } else if (typeof fp !== "string" || (!(BOARD_FOOTPRINTS as readonly string[]).includes(fp) && !/^[^:]+:[^:/]+$/.test(fp)))
             throw new Error(`${where(el)}: footprint is one of ${BOARD_FOOTPRINTS.join(", ")}, or a library footprint by its ref ("Package_SO:SOIC-8") with its library, not ${JSON.stringify(fp)}`);
           // A library footprint named with no library is named only: its pads are not on the board yet, so it is not placed.

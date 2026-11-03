@@ -334,6 +334,12 @@ test("a netlist circuit lists each part's pins and names the pins on each net; i
   assert.throws(sheet(jsx("part", { name: "U1", pins: ["1"], schX: 0, schY: 0 })), /netlist circuit's; it has no place on the sheet/);
   // A board-only footprint (a logo) is a part with no pins.
   assert.deepEqual(sheet(jsx("part", { name: "G1", value: "LOGO", pins: [] }))().graph.nodes.G1!.inputs, { ref: "G1", value: "LOGO", pins: [] });
+  // Two parts KiCad calls POLY: the second has a name of its own and says KiCad's reference.
+  const poly = sheet(jsx("part", { name: "POLY", pins: ["1"] }), jsx("part", { name: "POLY_2", reference: "POLY", pins: ["1"] }))().graph.nodes;
+  assert.equal(poly.POLY_2!.inputs.reference, "POLY");
+  assert.equal(poly.POLY!.inputs.reference, undefined);
+  assert.throws(sheet(jsx("part", { name: "POLY", reference: "POLY", pins: ["1"] })), /reference is said only when it is not the name/);
+  assert.throws(sheet(jsx("part", { name: "POLY", pins: ["1"] }), jsx("part", { name: "POLY", pins: ["1"] })), /two parts are called POLY/);
   assert.throws(sheet(jsx("part", { name: "U1", pins: ["1"] }), jsx("net", { name: "N", pins: [".U1 > .pin2"] })), /U1 has no pin 2/);
   assert.throws(sheet(jsx("resistor", { name: "R1", schX: 0, schY: 0 }), jsx("net", { name: "N", pins: [".R1 > .pin1"] })), /a net names pins of a netlist circuit's parts/);
 });
