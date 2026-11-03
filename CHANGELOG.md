@@ -15,6 +15,11 @@ Changed
 
 Added
 
+- A scout's case may be checked by the kernel: `check={{ kernel: { as: "plate.3d.tsx", expect: { volume: 13928.8, bbox:
+  [60, 40, 6], bodies: 1, holes: 4 } } }}` builds the answer as a solid and holds its measures (`tolerance`, a share,
+  1% when not said; `oriented` keeps the box's sides in x, y, z order); `as: "divider.sch.tsx"` reads it into its
+  netlist and holds `parts`, `nets` and `connections` (`[["R1.2", "R2.1"]]`, each group on one net). A measure the
+  file's kind has not is refused (docs/scouts.md § a kernel check).
 - A joint moves only while other joints sit at a pose: `<joint id="j_lift" … requires={{ j_lid: 100 }} />` (a value, or a
   range `[from, to]`, in each joint's own unit), and a sweep holds other joints at a value: `sweep={{ joints: ["j_lift"],
   with: { guard: 60 } }}`. A sweep of a joint holds the joints it requires; a value outside a joint's limits, or a

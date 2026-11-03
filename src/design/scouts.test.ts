@@ -82,6 +82,17 @@ test("a tool case offers its tools and their answers", () => {
   assert.deepEqual((code.document as { workloads: { cases: { check: unknown }[] }[] }).workloads[0]!.cases[0]!.check, docCheck);
   assert.throws(() => one({ check: { document: { as: "result.txt" } } }), /the file a document's own reader knows by its extension/);
   assert.throws(() => one({ check: { document: { as: "world.tsx", expect: [] } } }), /document expect is the object the document must hold/);
+  // A `kernel` check measures a solid or a schematic: each kind has its own measures.
+  const solid = { kernel: { as: "plate.3d.tsx", expect: { volume: 3858.6, bbox: [40, 20, 5], bodies: 1, holes: 1 }, tolerance: 0.01 } };
+  const circuit = { kernel: { as: "divider.sch.tsx", expect: { parts: 3, nets: 3, connections: [["R1.2", "R2.1"]] } } };
+  for (const check of [solid, circuit]) {
+    const k = declare(el("scout", { budget: 1 }, el("workload", { id: "w" }, el("case", { id: "c", from: "synthetic", prompt: "p", check }))));
+    assert.deepEqual((k.document as { workloads: { cases: { check: unknown }[] }[] }).workloads[0]!.cases[0]!.check, check);
+  }
+  assert.throws(() => one({ check: { kernel: { as: "world.tsx", expect: { parts: 1 } } } }), /a solid or a schematic, one file/);
+  assert.throws(() => one({ check: { kernel: { as: "plate.3d.tsx", expect: { nets: 2 } } } }), /a solid has no measure nets/);
+  assert.throws(() => one({ check: { kernel: { as: "divider.sch.tsx", expect: { connections: [["R1"]] } } } }), /connections is a list of pin groups/);
+  assert.throws(() => one({ check: { kernel: { as: "plate.3d.tsx", expect: {} } } }), /names at least one of volume, bbox, bodies, holes/);
 });
 
 test("a replacement analysis declares its layers, capabilities with evidence, and its decision; and both ways", () => {

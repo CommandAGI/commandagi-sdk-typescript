@@ -53,12 +53,18 @@ export const WORKLOAD_NEEDS = ["tools", "structured", "image"] as const;
  * The checks a case may name, cheapest first (a judge's rubric only where no check exists): the answer's text equal to
  * one (`exact`, `oneOf`), a number within `tolerance`, phrases it holds, a pattern, a JSON object it holds, a
  * multiple-choice `letter`, a Python `literal` (spaces and quotes aside), the first `tool` the model called, a
- * `program` (an arithmetic expression in `x` that maps each input to its output), or a `document` (the answer is one of
- * our documents in code, read by that document's own reader).
+ * `program` (an arithmetic expression in `x` that maps each input to its output), a `document` (the answer is one of
+ * our documents in code, read by that document's own reader), or a `kernel` (the answer is a solid or a schematic in
+ * code, built by the 3D kernel or read into its netlist, and measured).
  */
-export const CHECK_KINDS = ["exact", "oneOf", "number", "contains", "regex", "json", "letter", "literal", "tool", "program", "document"] as const;
+export const CHECK_KINDS = ["exact", "oneOf", "number", "contains", "regex", "json", "letter", "literal", "tool", "program", "document", "kernel"] as const;
 /** The file names a `document` check reads: one our reader knows by its extension (`world.tsx`, `definition.py` …). */
 export const DOCUMENT_FILE = /\.(?:[jt]sx|py|rs)$/i;
+/** The file names a `kernel` check measures: a solid (`bracket.3d.tsx`) or a schematic (`divider.sch.tsx`), alone. */
+export const KERNEL_FILE = /^[^/]+\.(?:3d|sch)\.(?:[jt]sx|py|rs)$/i;
+/** What a `kernel` check may expect of a solid, and of a schematic. */
+export const SOLID_MEASURES = ["volume", "bbox", "bodies", "holes"] as const;
+export const CIRCUIT_MEASURES = ["parts", "nets", "connections"] as const;
 
 export interface ScoutConfiguration {
   id: string;
@@ -92,6 +98,19 @@ export interface ScoutCheck {
    * matches by its fields, and a list of objects that each have an `id` matches by id in any order.
    */
   document?: { as: string; expect?: Record<string, unknown> };
+  /**
+   * The answer is a solid (`<name>.3d.tsx`) the 3D kernel builds, or a schematic (`<name>.sch.tsx`) read into its
+   * netlist, and its measures must be what `expect` says. A solid: `volume` (mm³) and `bbox` (its sides, mm, in any
+   * order unless `oriented`) within `tolerance` (a share of each; 1% when not said), `bodies` and through `holes`
+   * exactly. A schematic: `parts` (power symbols aside) and `nets` exactly, and each group of `connections` (pins as
+   * `R1.2`) on one net of its own.
+   */
+  kernel?: {
+    as: string;
+    expect: { volume?: number; bbox?: [number, number, number]; bodies?: number; holes?: number; parts?: number; nets?: number; connections?: string[][] };
+    tolerance?: number;
+    oriented?: boolean;
+  };
 }
 /**
  * A tool a case offers the model. Its answers are the case's own: the first of `results` whose `when` holds of the
@@ -271,6 +290,29 @@ function checkOf(t: DocTree): void {
       throw new Error(`${where(t)} check: document is { as: "world.tsx", expect? } — the file a document's own reader knows by its extension`);
     if (d.expect !== undefined && (!d.expect || typeof d.expect !== "object" || Array.isArray(d.expect))) throw new Error(`${where(t)} check: document expect is the object the document must hold`);
   }
+  if (x.kernel !== undefined) kernelCheck(t, x.kernel);
+}
+
+/** A `kernel` check: the file it measures, and only the measures that file's kind has. */
+function kernelCheck(t: DocTree, k: NonNullable<ScoutCheck["kernel"]>): void {
+  if (!k || typeof k !== "object" || typeof k.as !== "string" || !KERNEL_FILE.test(k.as))
+    throw new Error(`${where(t)} check: kernel is { as: "bracket.3d.tsx" | "divider.sch.tsx", expect } — a solid or a schematic, one file`);
+  for (const key of Object.keys(k)) if (!["as", "expect", "tolerance", "oriented"].includes(key)) throw new Error(`${where(t)} check: kernel has no ${key}`);
+  const solid = /\.3d\./i.test(k.as);
+  const allowed: readonly string[] = solid ? SOLID_MEASURES : CIRCUIT_MEASURES;
+  const e = k.expect as Record<string, unknown>;
+  if (!e || typeof e !== "object" || Array.isArray(e) || !Object.keys(e).length) throw new Error(`${where(t)} check: kernel expect names at least one of ${allowed.join(", ")}`);
+  for (const [key, v] of Object.entries(e)) {
+    if (!allowed.includes(key)) throw new Error(`${where(t)} check: a ${solid ? "solid" : "schematic"} has no measure ${key} (${allowed.join(", ")})`);
+    const count = typeof v === "number" && Number.isInteger(v) && v >= 0;
+    if (["bodies", "holes", "parts", "nets"].includes(key) && !count) throw new Error(`${where(t)} check: kernel ${key} is a count`);
+    if (key === "volume" && !(typeof v === "number" && v > 0)) throw new Error(`${where(t)} check: kernel volume is mm³, more than 0`);
+    if (key === "bbox" && !(Array.isArray(v) && v.length === 3 && v.every((n) => typeof n === "number" && n >= 0))) throw new Error(`${where(t)} check: kernel bbox is [x, y, z] mm`);
+    if (key === "connections" && !(Array.isArray(v) && v.length && v.every((g) => Array.isArray(g) && g.length >= 2 && g.every((p) => typeof p === "string" && /^[^.\s]+\.[^.\s]+$/.test(p)))))
+      throw new Error(`${where(t)} check: kernel connections is a list of pin groups ([["R1.2", "R2.1"]]), each on one net`);
+  }
+  if (k.tolerance !== undefined && !(typeof k.tolerance === "number" && k.tolerance >= 0 && k.tolerance < 1)) throw new Error(`${where(t)} check: kernel tolerance is a share, 0 to under 1`);
+  if (k.oriented !== undefined && (typeof k.oriented !== "boolean" || !solid)) throw new Error(`${where(t)} check: kernel oriented is true or false, on a solid`);
 }
 
 function toolsOf(t: DocTree): void {
