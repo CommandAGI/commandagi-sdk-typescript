@@ -8,6 +8,11 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- A video's speaker track: `<track kind="audio" speaker="Cici" turns={passes.C} src="stems/take.voices.wav">` makes each
+  of that speaker's turns in the pass (`{ take, in, out, turns: [{ who, from, to, says }], by }`, what
+  `scripts/media/voices.py turns` writes) a clip of `src`; the track's `volume` is the speaker's fader. Two audio
+  effects: `<denoise reduction floor>` (dB of noise reduction, the noise floor in dBFS) and `<loudness target peak>`
+  (LUFS, dBFS), run by the headless renderer. Python: `track(speaker=…, turns=…, src=…)`, `denoise()`, `loudness()`.
 - A sketch's builder draws `s.point([x, y])` (a point by itself) and `s.line([[x, y], …])` (an open polyline), and `sketch()`
   takes a sketch that draws nothing yet (`(s) => s`): the 3D editor's Sketch tool and line tool write these into a part of
   calls. Python: `point`, `line`, `lambda s: s`.

@@ -388,3 +388,21 @@ test("an <override> says what has no keys on its artboard, and one in an <effect
   assert.deepEqual(said.effects[0]!.overrides, { S: { keyframes: [{ property: "effect.fx_vignette.amount", keys: [{ id: "kf_clip_Title_S", time: 0, value: 0.5, easing: "linear" }] }] } });
   assert.deepEqual(said.effects[1]!.overrides, { S: { keyframes: [{ property: "effect.fx_vignette_2.amount", keys: [] }] } });
 });
+
+test("a speaker track makes the speaker's turns its clips, and denoise and loudness are audio effects", () => {
+  const pass = { take: "IMG_1", in: 10, out: 16, by: "voices.py turns", turns: [{ who: "Ann", from: 10, to: 12, says: "Hi" }, { who: "Bo", from: 12, to: 14, says: "Yo" }, { who: "Ann", from: 14, to: 17, says: "Bye" }] };
+  const g = declarationOf({
+    default: jsx("video", { children: [jsx("track", { name: "A1", kind: "audio", speaker: "Ann", turns: pass, src: "stems/IMG_1.wav", volume: 1.5, children: [jsx("denoise", { reduction: 20 })] }), jsx("loudness", { target: -16 })] }),
+  }).graph;
+  const t = g.nodes.track_A1!.inputs;
+  assert.equal(t.speaker, "Ann");
+  assert.deepEqual(t.turns, { take: "IMG_1", in: 10, out: 16, src: "stems/IMG_1.wav", count: 2, by: "voices.py turns" });
+  assert.deepEqual(t.audioEffects, [{ id: "afx_denoise", type: "denoise", enabled: true, params: { reduction: 20, floor: -50 } }]);
+  const clips = Object.values(g.nodes).filter((n) => n.type === "video.clip").map((n) => [n.inputs.start, n.inputs.inPoint, n.inputs.duration, n.inputs.turn]);
+  assert.deepEqual(clips, [[0, 10, 2, { who: "Ann", says: "Hi" }], [4, 14, 2, { who: "Ann", says: "Bye" }]], "a turn past the pass's out ends there");
+  assert.deepEqual(g.nodes.composite!.inputs.masterEffects, [{ id: "afx_loudness", type: "loudness", enabled: true, params: { target: -16, peak: -1 } }]);
+  const track = (props: Record<string, unknown>) => () => declarationOf({ default: jsx("video", { children: [jsx("track", props)] }) });
+  assert.throws(track({ kind: "audio", speaker: "Ann", src: "a.wav" }), /names the speaker, its turns/);
+  assert.throws(track({ speaker: "Ann", turns: pass, src: "a.wav" }), /a speaker's track is an audio track/);
+  assert.throws(track({ kind: "audio", speaker: "Ann", turns: { in: 0, out: 1, turns: [{ who: "Ann", from: 1, to: 0 }] }, src: "a.wav" }), /from before to/);
+});

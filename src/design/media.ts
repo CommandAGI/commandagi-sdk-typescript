@@ -51,6 +51,12 @@
  * the values it gives the drawing's parameters, so two artboards of one drawing can say two things). A video file
  * on an audio track is its sound.
  *
+ * A speaker's track (`<track kind="audio" speaker="Cici" turns={passes.C} src="stems/take.voices.wav">`) is speaker
+ * segmentation in the edit: its clips are that speaker's turns in one pass of a take (what `scripts/media/voices.py
+ * turns` writes to a `passes.json`), cut from `src`, and its `volume` is the speaker's fader. `<denoise>` takes the
+ * room out (ffmpeg's afftdn) and `<loudness>` sets the level a format asks for (EBU R128); the headless renderer runs
+ * both, and the editor's live preview plays the sound without them.
+ *
  * A video's own artboards are other frames of it at other sizes (`<artboard name="Vertical" width={1080} height={1920} />`
  * in the `<video>`, with no `src`; the video itself is the first). A clip, title or effect says what it is on one of them
  * with an `<override artboard="Vertical" …>` inside it: the properties it names replace the clip's own on that artboard
@@ -185,6 +191,12 @@ export const VIDEO_AUDIO_EFFECTS: Readonly<Record<string, Readonly<Record<string
   reverb: { decay: 2, mix: 0.35 },
   compressor: { threshold: -24, ratio: 4, attack: 0.003, release: 0.25 },
   distortion: { amount: 0.4, mix: 1 },
+  // The room taken out: ffmpeg's afftdn (`reduction` dB of noise reduction, the noise `floor` in dBFS). The headless
+  // renderer runs it; the editor's preview plays the sound without it.
+  denoise: { reduction: 12, floor: -50 },
+  // The level a format asks for: the mix measured by EBU R128 (BS.1770), one gain to `target` LUFS, the peaks held
+  // under `peak` dBFS. The headless renderer runs it; the preview plays the sound without it.
+  loudness: { target: -14, peak: -1 },
 };
 export const FILTER_MODES = ["lowpass", "highpass", "bandpass"] as const;
 /** A filter's frequency and Q when not written, by mode (the editor's defaults for a new one). */
@@ -197,7 +209,7 @@ export const FILTER_DEFAULTS: Readonly<Record<string, { frequency: number; q: nu
 const AUDIO_BOUNDS: Readonly<Record<string, readonly [number, number]>> = {
   gain: [0, 16], lowGain: [-40, 40], midGain: [-40, 40], highGain: [-40, 40], freq: [10, 24000], q: [0.0001, 100],
   time: [0, 2], feedback: [0, 0.95], mix: [0, 1], decay: [0.01, 20], threshold: [-100, 0], ratio: [1, 20], attack: [0, 1],
-  release: [0, 1], amount: [0, 1],
+  release: [0, 1], amount: [0, 1], reduction: [0.01, 97], floor: [-80, -20], target: [-70, -5], peak: [-9, 0],
 };
 /** One audio effect element as the editor's effect: the tag's engine type (a filter is its mode) and its params. */
 function audioEffect(el: DesignElement, makeId: (base: string) => string): { id: string; type: string; enabled: boolean; params: Record<string, number> } {
@@ -574,6 +586,41 @@ function clipChildren(clip: DesignElement, clipId: string, sources: Record<strin
   return { transitionIn, ...anims, effects, audioEffects, keyframes, notes, overrides };
 }
 
+/** A speaker's track: who it is, the pass of a take their turns are in, and the sound those turns are cut from. */
+const SPEAKER_PROPS = ["speaker", "turns", "src"] as const;
+/** The prop a clip made from a turn carries to its node (`turn`: who said it and the words); code never writes it. */
+const TURN = "\u0000turn";
+/**
+ * `<track kind="audio" speaker="Cici" turns={passes.C} src="stems/IMG_2781.voices.wav">`: speaker segmentation as a
+ * track. `turns` is one pass of a `passes.json` (scripts/media/voices.py turns writes it: `take`, `in`, `out`, `turns`
+ * [{ who, from, to, says }], `by`); each of the speaker's turns is a clip of `src` at its time in the pass. The track's
+ * own `volume` is the speaker's fader. → null for a track that names no speaker.
+ */
+function speakerTrack(tr: DesignElement, kind: string): { name: string; turns: Record<string, unknown>; clips: DesignElement[] } | null {
+  if (SPEAKER_PROPS.every((k) => tr.props[k] === undefined)) return null;
+  const name = str(tr, "speaker"), src = str(tr, "src");
+  const pass = tr.props.turns as Record<string, unknown> | undefined;
+  if (kind !== "audio") throw new Error(`${where(tr)}: a speaker's track is an audio track (kind="audio")`);
+  if (!name || !src || !pass || typeof pass !== "object") throw new Error(`${where(tr)}: a speaker's track names the speaker, its turns (one pass of a passes.json) and the sound (src)`);
+  if (/^[a-z]+:|^\//i.test(src)) throw new Error(`${where(tr)}: src is a path relative to this file, not ${src}`);
+  const mk = mediaKind(src);
+  if (!mk || mk === "image") throw new Error(`${where(tr)}: ${src} is not a sound or a video this editor reads`);
+  const t0 = pass.in, t1 = pass.out, list = pass.turns;
+  if (typeof t0 !== "number" || typeof t1 !== "number" || !(t1 > t0) || !Array.isArray(list))
+    throw new Error(`${where(tr)}: turns is one pass of a passes.json: { take, in, out, turns: [{ who, from, to, says }] }`);
+  const clips: DesignElement[] = [];
+  for (const t of list as Record<string, unknown>[]) {
+    if (typeof t?.who !== "string" || typeof t.from !== "number" || typeof t.to !== "number" || !(t.to > t.from))
+      throw new Error(`${where(tr)}: a turn is { who, from, to, says } with from before to`);
+    if (t.who !== name || t.to <= t0 || t.from >= t1) continue;
+    const from = Math.max(t.from, t0), to = Math.min(t.to, t1);
+    const says = typeof t.says === "string" ? t.says : "";
+    clips.push({ $$design: "element", type: "clip", props: { src, name: says.slice(0, 40) || name, start: from - t0, in: from, out: to, [TURN]: { who: name, says } } });
+  }
+  const text = (k: string) => (typeof pass[k] === "string" ? { [k]: pass[k] as string } : {});
+  return { name, turns: { ...text("take"), in: t0, out: t1, src, count: clips.length, ...text("by"), ...text("note") }, clips };
+}
+
 /** Declare a video (`<video>` and its tracks) as the video editor's own op graph. */
 export function declareVideo(root: DesignElement): Declaration {
   refuseUnknown(root, ["name", ...Object.keys(VIDEO_SETTINGS)]);
@@ -626,15 +673,16 @@ export function declareVideo(root: DesignElement): Declaration {
       continue;
     }
     if (tr.type !== "track") throw new Error(`<${tr.type}> is not read in a <video> (it holds <track>, <artboard>, <marker> and the master's audio effects)`);
-    refuseUnknown(tr, ["name", "kind", "muted", "hidden", "locked", "volume", "height"]);
+    refuseUnknown(tr, ["name", "kind", "muted", "hidden", "locked", "volume", "height", ...SPEAKER_PROPS]);
     const kind = (str(tr, "kind", VIDEO_TRACK_KINDS) ?? "video") as (typeof VIDEO_TRACK_KINDS)[number];
     const trackName = str(tr, "name") ?? (kind === "audio" ? "A" : kind === "midi" ? "M" : "V");
+    const speaker = speakerTrack(tr, kind);
     const trackId = id(`track_${trackName}`);
     const clipWires: unknown[] = [];
     const trackEffects: ReturnType<typeof audioEffect>[] = [];
     const trackSources: Record<string, unknown> = {};
     const trackFxId = idMaker();
-    for (const c of childElements(tr.props.children)) {
+    for (const c of [...(speaker?.clips ?? []), ...childElements(tr.props.children)]) {
       if (VIDEO_AUDIO_EFFECTS[c.type]) {
         const fx = audioEffect(c, trackFxId);
         trackEffects.push(fx);
@@ -646,7 +694,7 @@ export function declareVideo(root: DesignElement): Declaration {
       let clipName: string;
       let nested: { src: string; values: Record<string, number>; artboard?: string } | null = null;
       if (c.type === "clip") {
-        refuseUnknown(c, ["src", "link", ...CLIP_PROPS]);
+        refuseUnknown(c, ["src", "link", TURN, ...CLIP_PROPS]);
         const src = str(c, "src");
         if (!src) throw new Error(`<clip> names its media file (src="media/take-1.mp4", relative to this file)`);
         if (/^[a-z]+:|^\//i.test(src)) throw new Error(`${where(c)}: src is a path relative to this file, not ${src}`);
@@ -786,6 +834,7 @@ export function declareVideo(root: DesignElement): Declaration {
       }
       if (c.type === "midi")
         inputs.midi = { notes: kids.notes, instrument: str(c, "instrument", MIDI_INSTRUMENTS) ?? MIDI_CLIP.instrument, gain: num(c, "gain", { min: 0 }) ?? MIDI_CLIP.gain };
+      if (c.props[TURN] !== undefined) inputs.turn = c.props[TURN];
       const { source, ...rest } = inputs;
       nodes[clipId] = node(clipId, "video.clip", { ...rest, source }, clipName, metaOf(c, sources));
       clipWires.push(wire(clipId, "frames"));
@@ -800,6 +849,7 @@ export function declareVideo(root: DesignElement): Declaration {
       volume: num(tr, "volume", { min: 0 }) ?? 1,
     };
     if (trackEffects.length) trackInputs.audioEffects = trackEffects;
+    if (speaker) Object.assign(trackInputs, { speaker: speaker.name, turns: speaker.turns });
     clipWires.forEach((w, i) => (trackInputs[`clips.${i + 1}`] = w));
     nodes[trackId] = node(trackId, "video.track", trackInputs, trackName, metaOf(tr, trackSources));
     trackWires.push(wire(trackId, "frames"));
