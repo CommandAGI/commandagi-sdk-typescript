@@ -15,6 +15,12 @@ Changed
 
 Added
 
+- A joint moves only while other joints sit at a pose: `<joint id="j_lift" … requires={{ j_lid: 100 }} />` (a value, or a
+  range `[from, to]`, in each joint's own unit), and a sweep holds other joints at a value: `sweep={{ joints: ["j_lift"],
+  with: { guard: 60 } }}`. A sweep of a joint holds the joints it requires; a value outside a joint's limits, or a
+  sweep that moves a joint another requires, is refused (docs/formats.md § design checks, held joints). For microfab:
+  IC1-22 and PCBC-24 are closed. ROUTER-12 (the whole machine's check at fine sweep steps) does not reproduce: the
+  router at steps 5 / 5 / 2 runs whole in 107 s with the same verdicts as at 20 / 10 / 5.
 - A part says KiCad's reference when another part has it too: `<part name="POLY_2" reference="POLY" …>` (on any part
   tag; said only when it is not the name). A `<component library>` takes a footprint id with no library nickname as
   KiCad wrote it, `footprint="POLY"`. Python: `reference=`; Rust: `.reference(…)`.

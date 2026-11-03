@@ -2387,6 +2387,26 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "Where a cylindrical joint's slide sits when the design is assembled. Within `travel`. Absent: 0.",
      "x-unit": "mm"
     },
+    "requires": {
+     "type": "object",
+     "properties": {},
+     "additionalProperties": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "array",
+        "items": {
+         "type": "number"
+        },
+        "minItems": 2,
+        "maxItems": 2
+       }
+      ]
+     },
+     "description": "The poses of other joints this joint moves only in: each joint's id and the value it sits at, or its range `[lower, upper]`, in that joint's own unit (mm, or rad). `requires={{ lid: 100 }}`: a lift that moves only with its lid open. A value lies within that joint's limits. A swept check that moves this joint holds each one there (at its home when the range holds it, else at the range's end nearer it; a sweep's `with` chooses another value in the range), and refuses a sweep that moves one of them too or holds it outside (docs/formats.md § design checks)."
+    },
     "actuator": {
      "type": "object",
      "properties": {
@@ -3727,6 +3747,14 @@ export const THREED_SCHEMA: SchemaDocument = {
      "type": "number",
      "description": "The largest distance between two values judged along each joint, in its unit (mm, or rad), in place of `samples`.",
      "exclusiveMinimum": 0
+    },
+    "with": {
+     "type": "object",
+     "properties": {},
+     "additionalProperties": {
+      "type": "number"
+     },
+     "description": "Other joints held at a value for the whole sweep, in each one's own unit: `with: { lid: 100 }` sweeps a lift with its lid open. Each is a prismatic, revolute or screw joint the sweep does not move, and the value lies within its limits and within what a swept joint `requires` of it. The joints a held joint `requires` are held too."
     }
    },
    "required": [

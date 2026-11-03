@@ -1170,6 +1170,10 @@ export type DynamicsJoint = {
    * @unit mm
    */
   homeTravel?: number;
+  /**
+   * The poses of other joints this joint moves only in: each joint's id and the value it sits at, or its range `[lower, upper]`, in that joint's own unit (mm, or rad). `requires={{ lid: 100 }}`: a lift that moves only with its lid open. A value lies within that joint's limits. A swept check that moves this joint holds each one there (at its home when the range holds it, else at the range's end nearer it; a sweep's `with` chooses another value in the range), and refuses a sweep that moves one of them too or holds it outside (docs/formats.md § design checks).
+   */
+  requires?: { [key: string]: number | [number, number] };
   /** An actuator driving this joint → the mechanism becomes a robot. */
   actuator?: {
     mode: "position" | "velocity" | "torque";
@@ -1821,6 +1825,10 @@ export type JointSweep = {
    * @exclusiveMinimum 0
    */
   step?: number;
+  /**
+   * Other joints held at a value for the whole sweep, in each one's own unit: `with: { lid: 100 }` sweeps a lift with its lid open. Each is a prismatic, revolute or screw joint the sweep does not move, and the value lies within its limits and within what a swept joint `requires` of it. The joints a held joint `requires` are held too.
+   */
+  with?: { [key: string]: number };
 };
 
 /**
