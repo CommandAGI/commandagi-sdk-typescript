@@ -36,7 +36,8 @@
  *                                                                          declares nothing
  *   <part name value symbol pins>                                          a part of a netlist circuit (no sheet): its
  *                                                                          pins by number (["1", "2"], or
- *                                                                          [{ number: "1", name: "VBAT" }, …])
+ *                                                                          [{ number: "1", name: "VBAT" }, …]; [] for a
+ *                                                                          board-only footprint, a logo)
  *   <net name pins>                                                        a stored net of a netlist circuit: the pins
  *                                                                          on it ([".C1 > .pin1", ".U1 > .pin6"])
  *   … noConnect={["3", "4"]}                                               on any part: the pins it leaves open on
@@ -462,7 +463,8 @@ function netlistPart(s: Scope, el: DesignElement, ref: string): Placed {
   for (const p of [...PLACE_PROPS, "library"])
     if (el.props[p] !== undefined) throw new Error(`${where(el)}: a part that lists its pins is a netlist circuit's; it has no ${p === "library" ? "library" : "place on the sheet"}`);
   const raw = el.props.pins;
-  if (!Array.isArray(raw) || !raw.length) throw new Error(`${where(el)}: pins is a list of pin numbers (["1", "2"]) or of { number, name }`);
+  // A part with no pins is a board-only footprint (a logo, a mounting mark: KiCad's `board_only`): `pins={[]}`.
+  if (!Array.isArray(raw)) throw new Error(`${where(el)}: pins is a list of pin numbers (["1", "2"]) or of { number, name }`);
   const numbers = new Set<string>();
   const pins = raw.map((p, i) => {
     const pin = typeof p === "string" ? { number: p } : p && typeof p === "object" && !Array.isArray(p) ? (p as { number?: unknown; name?: unknown }) : null;

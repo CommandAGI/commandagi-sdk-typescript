@@ -83,6 +83,9 @@ test("a library footprint is its ref and the .pretty folder that holds it; its p
   assert.deepEqual(g.nodes.fp_U1!.inputs, { ref: "U1", footprint: "Package_SO:SOIC-8", library: "footprints.pretty", placement: { x: 12, y: 8, rot: 90, side: "top" } });
   assert.throws(board({}, jsx("component", { name: "U1", footprint: "SOIC-8", library: "footprints.pretty" })), /its ref, "Library:Footprint"/);
   assert.throws(board({}, jsx("component", { name: "U1", footprint: "Package_SO:SOIC-8", library: "SOIC-8.kicad_mod" })), /a footprint library folder \(a \.pretty\)/);
+  // A second variant of one footprint is its own file in the folder; the part still names the footprint it is.
+  const v = board({}, jsx("component", { name: "U2", footprint: "Package_SO:SOIC-8", library: "footprints.pretty/SOIC-8 2.kicad_mod", pcbX: 1, pcbY: 2 }))();
+  assert.equal(v.nodes.fp_U2!.inputs.library, "footprints.pretty/SOIC-8 2.kicad_mod");
 });
 
 test("a board refuses, by name, what it cannot say", () => {
