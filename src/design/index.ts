@@ -113,6 +113,7 @@ export { jscadModeling, fromJscad, jscadParams } from "./jscad.js";
 export { replicadModule, fromReplicad } from "./replicad.js";
 export { jsx, jsxs, Fragment, isElement, type DesignElement } from "./jsx-runtime.js";
 export { declareVideo, declareSong, fromMedia, mediaKind, pitchOf, pitchName, tempoOf, timeSignatureOf, MEDIA_ROOTS } from "./media.js";
+export * from "./footage.js";
 export { readWorkbook, readPage, readDeck, readOffice, isOfficeRoot, inlineHtml, richText, OFFICE_ROOTS, DECK_TYPES } from "./office.js";
 export * from "./documents.js";
 export * from "./ontology.js";

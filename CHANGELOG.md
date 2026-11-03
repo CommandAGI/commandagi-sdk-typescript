@@ -15,6 +15,11 @@ Changed
 
 Added
 
+- A film compiled from a shot list (`footage.ts`): each shot's footage comes from a source slot, `synth3d`,
+  `diffusion` or `real`, switched per shot or for all. `compileFilm` writes the `<video>` timed by its voices, the jobs
+  that make the footage, and a `.task.tsx` for each real take not yet uploaded; `diffusionKey` names a generated clip
+  by the hash of its inputs, so it is generated again only when one changes (docs/formats.md § a film compiled from a
+  shot list). TypeScript only for now.
 - A tactile skin on a face of a body: `<tactile id="pad" body="Jaw" at={[-20, 0, 20]} normal={[1, 0, 0]} along={[0, 1,
   0]} rows={4} cols={4} pitch={5} />` (the document's `tactile` list; `thickness` in mm, `saturation` in kPa, `face`
   as the editor picked it). A device definition declares the same grid as a `tactile` channel, whose stream a
