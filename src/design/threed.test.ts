@@ -264,6 +264,16 @@ test("<check>, <accept>, <permitted> and <fastener> are the document's lists, ea
   assert.throws(() => doc(jsx("slot", { name: "checks", value: [] })), /checks is not a slot/);
 });
 
+test("<tactile> places a grid of taxels on a face of a body: the document's tactile list, checked against its schema", () => {
+  const doc = (...children: unknown[]) => declarationOf({ default: () => jsx("part", { name: "Jaw", children }) }).graph;
+  const skin = { id: "pad", body: "Jaw", at: [-20, 0, 20], normal: [1, 0, 0], along: [0, 1, 0], rows: 4, cols: 4, pitch: 5 };
+  const g = doc(jsx("box", { id: "jaw", name: "Jaw", center: [-22, 0, 21], size: [4, 24, 38], operation: "new" }), jsx("tactile", skin));
+  assert.deepEqual(g.nodes.tactile!.inputs.value, [skin]);
+  assert.throws(() => doc(jsx("tactile", { ...skin, rows: 0 })), /rows/);
+  assert.throws(() => doc(jsx("tactile", { ...skin, pitch: -1 })), /pitch/);
+  assert.throws(() => doc(jsx("slot", { name: "tactile", value: [] })), /tactile is not a slot/);
+});
+
 // sdk/python tests/test_threed.py reads the same elements to the same inputs.
 test("a curve in space is a sweep's path and, under its own id, the plane its profile is drawn on", () => {
   const g = declarationOf({

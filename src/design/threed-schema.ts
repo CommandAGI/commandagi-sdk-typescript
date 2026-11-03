@@ -7805,6 +7805,81 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "description": "What a sweep follows: a sketch's open or closed chain on its plane, or a curve in space."
   },
+  "TactileSkin": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "The skin's id: the channel a definition names it by.",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "body": {
+     "type": "string",
+     "description": "The body the skin is on, by its id or name.",
+     "x-pick": "body",
+     "pattern": "\\S"
+    },
+    "face": {
+     "$ref": "#/$defs/TopoTarget",
+     "description": "The face the taxels lie on, as the editor picked it. The grid's place is `at`, `normal` and `along`.",
+     "x-pick": "face"
+    },
+    "at": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The grid's centre, on the face, in the body's frame.",
+     "x-unit": "mm"
+    },
+    "normal": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The face's outward normal at `at`: the side a contact presses from."
+    },
+    "along": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The direction each row runs along the face (square to `normal`); the rows step along normal × along."
+    },
+    "rows": {
+     "type": "integer",
+     "description": "Taxels across the rows.",
+     "minimum": 1,
+     "maximum": 64
+    },
+    "cols": {
+     "type": "integer",
+     "description": "Taxels along each row.",
+     "minimum": 1,
+     "maximum": 64
+    },
+    "pitch": {
+     "type": "number",
+     "description": "The distance between two taxels' centres, in both directions.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "thickness": {
+     "type": "number",
+     "description": "The elastomer over the taxels.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0,
+     "default": 1
+    },
+    "saturation": {
+     "type": "number",
+     "description": "The most pressure a taxel reads, in kPa; above it the taxel reads this. Absent: no limit.",
+     "exclusiveMinimum": 0
+    }
+   },
+   "required": [
+    "id",
+    "body",
+    "at",
+    "normal",
+    "along",
+    "rows",
+    "cols",
+    "pitch"
+   ],
+   "additionalProperties": false
+  },
   "TerminalBinding": {
    "type": "object",
    "properties": {

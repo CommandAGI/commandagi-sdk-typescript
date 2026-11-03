@@ -3611,6 +3611,58 @@ export type SweepFeature = {
 /** What a sweep follows: a sketch's open or closed chain on its plane, or a curve in space. */
 export type SweepPath = ProfileRef | CurveRef;
 
+export type TactileSkin = {
+  /** The skin's id: the channel a definition names it by. */
+  id: string;
+  /** The body the skin is on, by its id or name. */
+  body: string;
+  /**
+   * The face the taxels lie on, as the editor picked it. The grid's place is `at`, `normal` and `along`.
+   */
+  face?: TopoTarget;
+  /**
+   * The grid's centre, on the face, in the body's frame.
+   * @unit mm
+   */
+  at: Vec3;
+  /** The face's outward normal at `at`: the side a contact presses from. */
+  normal: Vec3;
+  /**
+   * The direction each row runs along the face (square to `normal`); the rows step along normal × along.
+   */
+  along: Vec3;
+  /**
+   * Taxels across the rows.
+   * @minimum 1
+   * @maximum 64
+   */
+  rows: number;
+  /**
+   * Taxels along each row.
+   * @minimum 1
+   * @maximum 64
+   */
+  cols: number;
+  /**
+   * The distance between two taxels' centres, in both directions.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  pitch: number;
+  /**
+   * The elastomer over the taxels.
+   * @unit mm
+   * @exclusiveMinimum 0
+   * @default 1
+   */
+  thickness?: number;
+  /**
+   * The most pressure a taxel reads, in kPa; above it the taxel reads this. Absent: no limit.
+   * @exclusiveMinimum 0
+   */
+  saturation?: number;
+};
+
 /** A BINDING: this conductor is electrically joined to that pad. L3, and L2. */
 export type TerminalBinding = {
   /**
