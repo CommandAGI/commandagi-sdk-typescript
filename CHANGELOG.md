@@ -8,6 +8,9 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- A sketch's builder draws `s.point([x, y])` (a point by itself) and `s.line([[x, y], …])` (an open polyline), and `sketch()`
+  takes a sketch that draws nothing yet (`(s) => s`): the 3D editor's Sketch tool and line tool write these into a part of
+  calls. Python: `point`, `line`, `lambda s: s`.
 - A `Footprint` takes a `courtyard` (two corners or a polygon, in footprint mm): the part's F.CrtYd (B.CrtYd on the
   bottom), which the KiCad export writes and the layout check reads. Python: `footprint["courtyard"]`.
 - A world declares its follow policies: `<world policies={[…]}>` (`FollowPolicy`), and in Python `world(policies=[…])`,

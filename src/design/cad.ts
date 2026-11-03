@@ -176,7 +176,7 @@ export class SketchBuilder {
   readonly points: Record<string, SketchPoint> = {};
   readonly segments: Record<string, SketchSegment> = {};
   private n = 0;
-  private point(x: number, y: number): string {
+  private at(x: number, y: number): string {
     const id = `p${++this.n}`;
     this.points[id] = { id, x, y };
     return id;
@@ -185,10 +185,22 @@ export class SketchBuilder {
     const id = `s${++this.n}`;
     this.segments[id] = { ...s, id } as SketchSegment;
   }
+  /** A point by itself: where a line the editor draws starts. */
+  point(at: Vec2): this {
+    this.at(at[0], at[1]);
+    return this;
+  }
+  /** An open polyline through these points. */
+  line(points: Vec2[]): this {
+    if (points.length < 2) throw new Error("a line needs at least two points");
+    const ids = points.map(([x, y]) => this.at(x, y));
+    ids.slice(1).forEach((b, i) => this.seg({ type: "line", a: ids[i]!, b }));
+    return this;
+  }
   /** A closed polyline through these points. */
   polygon(points: Vec2[]): this {
     if (points.length < 3) throw new Error("a polygon needs at least three points");
-    const ids = points.map(([x, y]) => this.point(x, y));
+    const ids = points.map(([x, y]) => this.at(x, y));
     ids.forEach((a, i) => this.seg({ type: "line", a, b: ids[(i + 1) % ids.length]! }));
     return this;
   }
@@ -206,7 +218,7 @@ export class SketchBuilder {
   /** A circle. */
   circle(o: { radius: number; center?: Vec2 }): this {
     const [x, y] = o.center ?? [0, 0];
-    this.seg({ type: "circle", center: this.point(x, y), radius: o.radius });
+    this.seg({ type: "circle", center: this.at(x, y), radius: o.radius });
     return this;
   }
   /** A slot: two semicircles joined by straight sides, from `a` to `b`, `width` across. */
@@ -215,9 +227,9 @@ export class SketchBuilder {
     const len = Math.hypot(bx - ax, by - ay);
     if (!(len > 0)) throw new Error("a slot's ends must differ");
     const nx = (-(by - ay) / len) * r, ny = ((bx - ax) / len) * r;
-    const a1 = this.point(ax + nx, ay + ny), b1 = this.point(bx + nx, by + ny);
-    const b2 = this.point(bx - nx, by - ny), a2 = this.point(ax - nx, ay - ny);
-    const ca = this.point(ax, ay), cb = this.point(bx, by);
+    const a1 = this.at(ax + nx, ay + ny), b1 = this.at(bx + nx, by + ny);
+    const b2 = this.at(bx - nx, by - ny), a2 = this.at(ax - nx, ay - ny);
+    const ca = this.at(ax, ay), cb = this.at(bx, by);
     this.seg({ type: "line", a: a1, b: b1 });
     this.seg({ type: "arc", center: cb, start: b1, end: b2, radius: r });
     this.seg({ type: "line", a: b2, b: a2 });
@@ -247,8 +259,8 @@ export function sketch(
 ): SketchRef {
   const s = scope("sketch()");
   const b = new SketchBuilder();
+  // An empty sketch is where the editor's Sketch tool starts: it draws nothing until its first point.
   draw(b);
-  if (!Object.keys(b.segments).length) throw new Error("this sketch draws nothing");
   let on: PortValue;
   if (typeof plane === "string" || !plane.offset) on = planeRef(typeof plane === "string" ? plane : plane.plane);
   else on = s.add("datumPlane", { base: PLANES[plane.plane], offset: plane.offset }, { label: `${plane.plane} + ${plane.offset}` });
