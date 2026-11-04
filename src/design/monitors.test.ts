@@ -34,6 +34,7 @@ test("a monitor in JSX: a class is a component, an instance is one element, and 
     derives: [],
     wakes: [{ match: "sec.filing.8-k*", prompt: "Say what the report changes." }],
     discovers: [],
+    judges: [],
   });
   assert.deepEqual(MONITORS.monitor.fromTree(MONITORS.monitor.toTree(doc as never)), doc, "both ways");
   assert.deepEqual(monitorWithDefaults(doc as never), {
@@ -47,13 +48,14 @@ test("a monitor in JSX: a class is a component, an instance is one element, and 
     derives: [],
     wakes: [{ match: "sec.filing.8-k*", every: null, prompt: "Say what the report changes." }],
     discovers: [],
+    judges: [],
   });
 });
 
 test("an empty monitor and the empty file's first form", () => {
   const { document } = declarationOf({ default: el("monitor") });
-  assert.deepEqual(document!.document, { sources: [], follows: [], derives: [], wakes: [], discovers: [] });
-  assert.deepEqual(MONITORS.monitor.empty!("monitor"), { sources: [], follows: [], derives: [], wakes: [], discovers: [] });
+  assert.deepEqual(document!.document, { sources: [], follows: [], derives: [], wakes: [], discovers: [], judges: [] });
+  assert.deepEqual(MONITORS.monitor.empty!("monitor"), { sources: [], follows: [], derives: [], wakes: [], discovers: [], judges: [] });
 });
 
 test("a monitor refuses by name what it has no words for, and values out of range", () => {
@@ -93,6 +95,22 @@ test("a monitor refuses by name what it has no words for, and values out of rang
   assert.throws(() => declarationOf({ default: el("monitor", { visibility: "public" }) }), /<monitor>: visibility is not read/);
   assert.equal(durationSeconds("6h"), 21600);
   assert.equal(durationSeconds("0m"), null);
+});
+
+test("a judge names what it judges, its rubric and its model; both ways, and refused by name when out of range", () => {
+  const { document } = declarationOf({
+    default: el("monitor", { title: "Backlog" }, el("judge", { id: "claims", of: "task", rubric: "./rubric.md", model: "fireworks/glm-5p3", __source: 4 })),
+  });
+  const doc = document!.document as { judges: unknown[] };
+  assert.deepEqual(doc.judges, [{ id: "claims", of: "task", rubric: "./rubric.md", model: "fireworks/glm-5p3" }]);
+  assert.equal(document!.sources["judge#claims"], 4);
+  assert.deepEqual(MONITORS.monitor.fromTree(MONITORS.monitor.toTree(doc as never)), doc, "both ways");
+  assert.deepEqual(monitorWithDefaults(doc as never).judges, doc.judges);
+  const one = (props: Record<string, unknown>) => () => declarationOf({ default: el("monitor", {}, el("judge", { id: "j", of: "turn", rubric: "r.md", model: "m", ...props })) });
+  assert.throws(one({ of: "thread" }), /of is "turn", "task"/);
+  assert.throws(one({ rubric: "rubric.txt" }), /rubric is a .md file/);
+  assert.throws(one({ id: "two words" }), /id is a word/);
+  assert.throws(one({ model: undefined }), /<judge id="j"> needs model/);
 });
 
 test("a derive names an operator, each port's input monitor by folder, its params and since; both ways and with defaults", () => {

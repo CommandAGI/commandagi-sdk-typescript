@@ -24,7 +24,7 @@
  * Nothing adds a default: what the file does not say, the document does not have (`via`, `readme`, `exit`, `host`,
  * `mode`, `retain`, `since`, `session`, `snapshot`, `profile`, `keep`, `maxCostPerDay`, `unit`). `monitorWithDefaults`
  * gives the document as the platform reads it (`via: "worker"`, `mode: "poll"`, the others null; a stream's `retain`
- * "derived", a poll's null). A monitor's lists (`sameAs`, `sources`, `follows`, `derives`, `wakes`) are always there,
+ * "derived", a poll's null). A monitor's lists (`sameAs`, `sources`, `follows`, `derives`, `wakes`, `discovers`, `judges`) are always there,
  * empty when the file has none. Who may read the
  * thread is the file's own Drive visibility, not a word of the file.
  */
@@ -43,6 +43,9 @@ export const DISCOVER_MAX = 50;
 export const VISIBILITIES = ["private", "unlisted", "public"] as const;
 export type Visibility = (typeof VISIBILITIES)[number];
 export const WAKE_FIELDS = ["match", "every", "prompt"] as const;
+export const MONITOR_JUDGE_FIELDS = ["id", "of", "rubric", "model"] as const;
+/** What a judge judges: each turn of the thread's agents, or each turn on a mounted task. */
+export const MONITOR_JUDGE_OF = ["turn", "task"] as const;
 export const DERIVE_FIELDS = ["id", "op", "inputs", "params", "since"] as const;
 
 /**
@@ -164,6 +167,21 @@ export interface MonitorWake {
   every?: string;
   prompt: string;
 }
+/**
+ * A judge of the monitor's thread (docs/monitors.md § a cloud thread's judge): when a span of the thread's trace ends,
+ * the model reads it with the rubric and its verdict is a record of the thread that cites the events. A verdict is an
+ * opinion: it never changes the trace and never counts as physical or engine evidence.
+ */
+export interface MonitorJudge {
+  /** The judge's id in its monitor (a word). */
+  id: string;
+  /** What is judged: each turn of the thread's agents (`turn`), or each turn on a mounted task (`task`). */
+  of: (typeof MONITOR_JUDGE_OF)[number];
+  /** The rubric: a `.md`, a ref relative to the monitor's folder. */
+  rubric: string;
+  /** A model of the catalog (`fireworks/glm-5p3`). */
+  model: string;
+}
 /** What a `monitor.tsx` declares: one monitor. */
 export interface MonitorDoc {
   title?: string;
@@ -177,6 +195,7 @@ export interface MonitorDoc {
   derives: MonitorDerive[];
   wakes: MonitorWake[];
   discovers: MonitorDiscover[];
+  judges: MonitorJudge[];
 }
 
 const UNIT_SECONDS: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };
@@ -353,7 +372,14 @@ function monitorOf(t: DocTree): MonitorDoc {
     }
     return said(c.attrs, WAKE_FIELDS) as unknown as MonitorWake;
   });
-  return { ...said(t.attrs, MONITOR_FIELDS), sources: parts("source").map(sourceOf), follows, derives, wakes, discovers: parts("discover").map(discoverOf) };
+  const judges = parts("judge").map((c) => {
+    for (const k of ["id", "rubric", "model"]) text(c, k);
+    if (!WORD.test(c.attrs.id as string)) throw new Error(`${where(c)} id is a word (letters, digits, _ and -)`);
+    oneOf(c, "of", MONITOR_JUDGE_OF);
+    if (!/\.md$/i.test(c.attrs.rubric as string)) throw new Error(`${where(c)} rubric is a .md file ("./rubric.md"), not ${JSON.stringify(c.attrs.rubric)}`);
+    return said(c.attrs, MONITOR_JUDGE_FIELDS) as unknown as MonitorJudge;
+  });
+  return { ...said(t.attrs, MONITOR_FIELDS), sources: parts("source").map(sourceOf), follows, derives, wakes, discovers: parts("discover").map(discoverOf), judges };
 }
 
 export const monitorVocabulary: Vocabulary<MonitorDoc> = {
@@ -367,6 +393,7 @@ export const monitorVocabulary: Vocabulary<MonitorDoc> = {
     derive: { parents: ["monitor"], key: "id", required: ["id", "op", "inputs"], attrs: DERIVE_FIELDS },
     wake: { parents: ["monitor"], required: ["prompt"], attrs: WAKE_FIELDS },
     discover: { parents: ["monitor"], required: ["slug", "class"], attrs: DISCOVER_FIELDS },
+    judge: { parents: ["monitor"], key: "id", required: ["id", "of", "rubric", "model"], attrs: MONITOR_JUDGE_FIELDS },
   },
   // A follow names a monitor by its folder: the platform checks that one is there, not the file.
   fromTree: monitorOf,
@@ -380,10 +407,11 @@ export const monitorVocabulary: Vocabulary<MonitorDoc> = {
         ...(m.derives ?? []).map((d) => ({ tag: "derive", attrs: attrsOf(d, DERIVE_FIELDS), children: [] })),
         ...(m.wakes ?? []).map((w) => ({ tag: "wake", attrs: attrsOf(w, WAKE_FIELDS), children: [] })),
         ...(m.discovers ?? []).map((d) => ({ tag: "discover", attrs: attrsOf(d, DISCOVER_FIELDS), children: [] })),
+        ...(m.judges ?? []).map((j) => ({ tag: "judge", attrs: attrsOf(j, MONITOR_JUDGE_FIELDS), children: [] })),
       ],
     };
   },
-  empty: () => ({ sources: [], follows: [], derives: [], wakes: [], discovers: [] }),
+  empty: () => ({ sources: [], follows: [], derives: [], wakes: [], discovers: [], judges: [] }),
 };
 
 registerVocabulary(monitorVocabulary);
@@ -404,5 +432,6 @@ export function monitorWithDefaults(m: MonitorDoc) {
     derives: (m.derives ?? []).map((d) => ({ id: d.id, op: d.op, inputs: d.inputs, params: d.params ?? {}, since: d.since ?? null })),
     wakes: m.wakes.map((w) => ({ match: w.match ?? null, every: w.every ?? null, prompt: w.prompt })),
     discovers: (m.discovers ?? []).map((d) => ({ into: d.into ?? "./", of: d.of === undefined ? [] : typeof d.of === "string" ? [d.of] : d.of, when: d.when ?? null, slug: d.slug, class: d.class, props: d.props ?? {}, name: d.name ?? null, max: d.max ?? 10, visibility: d.visibility ?? null })),
+    judges: (m.judges ?? []).map((j) => ({ id: j.id, of: j.of, rubric: j.rubric, model: j.model })),
   };
 }
