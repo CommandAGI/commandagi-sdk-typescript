@@ -123,6 +123,10 @@ test("a shared stock, a pre-order count, an offer through another supplier's ser
   assert.throws(sheet({ need: { spares: 1.5 } }), /need.spares is a whole number/);
   assert.throws(sheet({ need: { attrition: 5 } }), /need.attrition is a rate/);
   assert.throws(sheet({ need: { panel: 3 } }), /need.panel is not read/);
+  // A pack (a bag of 100 sold as one) is a term of the offer, written after the multiple.
+  const { graph: bag } = declarationOf({ default: () => jsx("group", { name: "L", children: [jsx("part", { name: "R1", pins: ["1"], suppliers: [{ name: "Bossard", currency: "USD", priceBreaks: [{ quantity: 1, unitPrice: 4.5 }], orderMultiple: 2, pack: 100 }] })] }) });
+  assert.deepEqual(props(bag.nodes.R1!.inputs).at(-1), ["Bossard Terms", '{"currency":"USD","priceBreaks":[[1,4.5]],"orderMultiple":2,"pack":100}']);
+  assert.throws(sheet({ suppliers: [{ name: "X", pack: 0 }] }), /pack is what one unit sold holds/);
 });
 
 test("a circuit's logistics <check> keeps its options; a board's <fab> is one board fact, checked by name", () => {
@@ -164,6 +168,12 @@ test("a 3D document's <item> and <assemble> are lists of the document; <body eng
   assert.doesNotThrow(bad(jsx("item", { id: "pin", name: "Pin", qty: 1128, engineering: pin })));
   assert.throws(bad(jsx("item", { id: "pin", name: "Pin", engineering: { need: { multiple: 0 } } })), /multiple/);
   assert.throws(bad(jsx("item", { id: "pin", name: "Pin", engineering: { need: { panels: 2 } } })), /panels/);
+  // A bulk quantity: 0.64 m of webbing a product, a third of a strip, an offer that sells it in 2 m strips.
+  const strip = { process: "purchased", need: { attrition: 0.05, spares: 0.5 }, suppliers: [{ name: "eBay", pack: 2, currency: "USD", priceBreaks: [{ quantity: 1, unitPrice: 2.23 }] }] };
+  assert.doesNotThrow(bad(jsx("item", { id: "web", name: "Webbing", qty: 0.64, unit: "m", engineering: strip })));
+  assert.doesNotThrow(bad(jsx("item", { id: "foam", name: "Foam strip", qty: 0.3333 })));
+  assert.throws(bad(jsx("item", { id: "web", name: "Webbing", qty: 0.64, unit: "yd" })), /unit/);
+  assert.throws(bad(jsx("item", { id: "web", name: "Webbing", engineering: { suppliers: [{ name: "eBay", pack: 0 }] } })), /pack/);
 });
 
 test("a 3D document's <product> is a list of the document; a made part's stock and a gas's shutoff are engineering fields", () => {
@@ -184,4 +194,7 @@ test("a 3D document's <product> is a list of the document; a made part's stock a
   const bad = (el: unknown) => () => declarationOf({ default: () => jsx("part", { name: "P", children: [el] }) });
   assert.throws(bad(jsx("product", { id: "kit" })), /name/);
   assert.throws(bad(jsx("item", { id: "b", name: "B", engineering: { make: { stock: { name: "S", perPart: 0 } } } })), /perPart/);
+  // A stock in grams: 88 g of PETG a part, sold in 1 kg spools.
+  assert.doesNotThrow(bad(jsx("item", { id: "b", name: "B", engineering: { process: "fdm-printing", make: { shop: "S", stock: { name: "PETG", perPart: 88, unit: "g", suppliers: [{ name: "Prusa", pack: 1000 }] } } } })));
+  assert.throws(bad(jsx("item", { id: "b", name: "B", engineering: { make: { stock: { name: "S", perPart: 88, unit: "lb" } } } })), /unit/);
 });

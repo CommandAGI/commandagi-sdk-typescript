@@ -5318,8 +5318,8 @@ export const THREED_SCHEMA: SchemaDocument = {
    "type": "object",
    "properties": {
     "spares": {
-     "type": "integer",
-     "description": "A fixed count per order: a second set of boards made at any quantity, a setup's first parts.",
+     "type": "number",
+     "description": "A fixed amount per order, in the part's unit: a second set of boards made at any quantity, a setup's first parts.",
      "minimum": 0
     },
     "attrition": {
@@ -5329,18 +5329,18 @@ export const THREED_SCHEMA: SchemaDocument = {
      "maximum": 0.99
     },
     "attritionMin": {
-     "type": "integer",
-     "description": "At least this many extra for attrition.",
+     "type": "number",
+     "description": "At least this much extra for attrition, in the part's unit.",
      "minimum": 0
     },
     "multiple": {
-     "type": "integer",
+     "type": "number",
      "description": "The order rounds up to a multiple of this: the boards a panel holds, the parts on that many boards.",
-     "minimum": 1
+     "exclusiveMinimum": 0
     }
    },
    "additionalProperties": false,
-   "description": "WHAT ONE ORDER NEEDS OF A PART BEYOND `qty × N` (docs/formats.md § logistics, the need): true of the part whatever the order, so the design states it. need(N) = (qty × N + spares) plus attrition, rounded up to `multiple`."
+   "description": "WHAT ONE ORDER NEEDS OF A PART BEYOND `qty × N` (docs/formats.md § logistics, the need): true of the part whatever the order, so the design states it. need(N) = (qty × N + spares) plus attrition, rounded up to `multiple`. A count loses whole parts (its attrition rounds up to one); a measure (a unit other than `each`, or a share) loses its share."
   },
   "PathPatternFeature": {
    "type": "object",
@@ -6065,10 +6065,15 @@ export const THREED_SCHEMA: SchemaDocument = {
      "pattern": "\\S"
     },
     "qty": {
-     "type": "integer",
-     "description": "How many one product holds.",
-     "minimum": 1,
+     "type": "number",
+     "description": "How much one product holds, in `unit`: 2 (each), 530 (g), 0.64 (m). It may be a share of one unit (a third of a strip: 0.3333). An offer's `pack` says what one unit sold holds; an order buys whole ones.",
+     "exclusiveMinimum": 0,
      "default": 1
+    },
+    "unit": {
+     "$ref": "#/$defs/QuantityUnit",
+     "description": "The unit of `qty`, of the need's spares and of the offers' `pack`.",
+     "default": "each"
     },
     "ref": {
      "type": "string",
@@ -6104,6 +6109,18 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A profile drawn from a sketch's solved closed regions."
+  },
+  "QuantityUnit": {
+   "type": "string",
+   "enum": [
+    "mm",
+    "each",
+    "g",
+    "kg",
+    "m",
+    "ml"
+   ],
+   "description": "What a quantity is counted in: parts (`each`), grams, kilograms, metres, millimetres or millilitres."
   },
   "RevolveFeature": {
    "type": "object",
@@ -7977,8 +7994,13 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "perPart": {
      "type": "number",
-     "description": "How much of one unit as sold one part uses (0.03: 30 g of a 1 kg spool). An order rounds up to whole units.",
+     "description": "How much one part uses, in `unit` (88 g of filament), or with no unit the share of one unit as sold (0.088 of a spool). The part's `need` holds for it too. An offer's `pack` says what one unit as sold holds, and an order buys whole ones.",
      "exclusiveMinimum": 0
+    },
+    "unit": {
+     "$ref": "#/$defs/QuantityUnit",
+     "description": "The unit of `perPart` and of the offers' `pack`.",
+     "default": "each"
     },
     "suppliers": {
      "type": "array",
@@ -8100,6 +8122,11 @@ export const THREED_SCHEMA: SchemaDocument = {
      "type": "integer",
      "description": "An order is a multiple of this (a reel, a tray).",
      "minimum": 1
+    },
+    "pack": {
+     "type": "number",
+     "description": "What one unit sold holds, in the part's unit: a 1 kg spool of a part stated in grams is 1000, a 2 m strip of one in metres is 2, a bag of 100 screws is 100. The offer's price breaks, `moq`, `orderMultiple`, `stock`, `preorder` and `incoming` count these units; the part's quantity and need count its own, and an order buys whole packs. Absent: 1.",
+     "exclusiveMinimum": 0
     },
     "leadTimeDays": {
      "type": "number",

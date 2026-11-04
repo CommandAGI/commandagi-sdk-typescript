@@ -12,7 +12,7 @@
  *                                                                           <YYYY-MM-DD>" or "measured <YYYY-MM-DD>[, <how>]"
  *   packageDimensions                                                       the datasheet's package: "<n> pins, pitch
  *                                                                           <mm> mm, body <l> x <w> mm"
- *   suppliers={[{ name, sku, url, currency, priceBreaks, moq, orderMultiple, leadTimeDays, leadTimeDaysHigh, stock,
+ *   suppliers={[{ name, sku, url, currency, priceBreaks, moq, orderMultiple, pack, leadTimeDays, leadTimeDaysHigh, stock,
  *                 preorder, pool, incoming, kind, confidence, samplesDays, tooling, service, via, supplier, source,
  *                 date, dates }]}
  *   alternates={[{ manufacturer, mpn, note, approved, differences, datasheet, suppliers }]}  datasheet="https://…"
@@ -77,7 +77,7 @@ const CHOICES: Record<string, readonly string[]> = {
 };
 const COUNTS = new Set(["lifecycle.onHand", "lifecycle.reorderPoint"]);
 const DATES = new Set(["lifecycle.lastTimeBuy", "lifecycle.date"]);
-const OFFER_TERMS = ["currency", "priceBreaks", "moq", "orderMultiple", "leadTimeDays", "leadTimeDaysHigh", "stock", "preorder", "pool", "incoming", "kind", "confidence", "samplesDays", "tooling", "service", "via", "supplier", "url", "source", "date", "dates"] as const;
+const OFFER_TERMS = ["currency", "priceBreaks", "moq", "orderMultiple", "pack", "leadTimeDays", "leadTimeDaysHigh", "stock", "preorder", "pool", "incoming", "kind", "confidence", "samplesDays", "tooling", "service", "via", "supplier", "url", "source", "date", "dates"] as const;
 const NEED_KEYS = ["spares", "attrition", "attritionMin", "multiple"];
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const OFFER_KINDS = ["stock", "quote", "listing", "broker"];
@@ -100,6 +100,8 @@ export interface SupplierOffer {
   priceBreaks?: { quantity?: number; unitPrice: number; unitPriceHigh?: number }[];
   moq?: number;
   orderMultiple?: number;
+  /** What one unit sold holds, in the part's units (a bag of 100): the price breaks, moq, multiple and stock count these. */
+  pack?: number;
   leadTimeDays?: number;
   /** The high end of a lead-time range. */
   leadTimeDaysHigh?: number;
@@ -214,6 +216,7 @@ export function checkOffers(where: string, v: unknown): SupplierOffer[] {
     if (s.date !== undefined && !(typeof s.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s.date))) throw new Error(`${at}: date is YYYY-MM-DD`);
     if (s.moq !== undefined && !whole(s.moq, 1)) throw new Error(`${at}: moq is a whole number, 1 or more`);
     if (s.orderMultiple !== undefined && !whole(s.orderMultiple, 1)) throw new Error(`${at}: orderMultiple is a whole number, 1 or more`);
+    if (s.pack !== undefined && !(typeof s.pack === "number" && s.pack > 0)) throw new Error(`${at}: pack is what one unit sold holds, more than 0`);
     if (s.stock !== undefined && !whole(s.stock, 0)) throw new Error(`${at}: stock is a whole number`);
     if (s.leadTimeDays !== undefined && !(typeof s.leadTimeDays === "number" && s.leadTimeDays >= 0)) throw new Error(`${at}: leadTimeDays is a number of days`);
     if (s.leadTimeDaysHigh !== undefined && !(typeof s.leadTimeDaysHigh === "number" && s.leadTimeDaysHigh >= ((s.leadTimeDays as number | undefined) ?? 0))) throw new Error(`${at}: leadTimeDaysHigh is a number of days, not under leadTimeDays`);
