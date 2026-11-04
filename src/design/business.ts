@@ -3,7 +3,7 @@
  * as code (`<Name>.company.tsx`, `<name>.rfc.tsx`, `<name>.case.tsx`). The reader gives back the document the apps
  * use: no second model.
  *
- *   import { Company, Entity, Registration, Books, CapTable, People, Calendar, Matters } from "commandagi/design";
+ *   import { Company, Entity, Registration, Books, CapTable, People, Calendar, Matters, Subsidiary, Paper } from "commandagi/design";
  *
  *   export default () => (
  *     <Company name="Northwind Survey" about="Drone surveys." files={["Northwind Survey/"]}>
@@ -18,6 +18,11 @@
  * The standard's parts REF their files: the books stay an hledger journal and the cap table an Open Cap Table Format
  * folder, because those open formats are the faithful records. The company is on the standard when it names any of
  * its parts (`<Books>`, `<CapTable>`, `<People>`, `<Calendar>`, `<Matters>`, `<Registration>`).
+ *
+ *   <Subsidiary file ownership since method/>                          a subsidiary: its own company file, by ref
+ *   <Paper kind title file status parties jurisdiction effective expires renewal noticeDays>
+ *     <Signature party signer capacity date method evidence/>  <Version file date note/>
+ *                                                                      a typed document (docs/company-substrate.md)
  *
  *   <Rfc title target procedure body engineJson id>                     an RFC draft; `id` once the contract opened it
  *     <Option title summary>                                             one option
@@ -41,6 +46,10 @@ export const CapTable = "CapTable";
 export const People = "People";
 export const Calendar = "Calendar";
 export const Matters = "Matters";
+export const Subsidiary = "Subsidiary";
+export const Paper = "Paper";
+export const Signature = "Signature";
+export const Version = "Version";
 export const Rfc = "Rfc";
 export const Option = "Option";
 export const Change = "Change";
@@ -64,7 +73,7 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
     props: { name: "text", about: "text", postalAddress: "text", files: "texts", dashboard: "text" },
     required: ["name"],
     one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters" },
-    many: { registrations: "Registration" },
+    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper" },
   },
   Entity: {
     props: { jurisdiction: "text", form: "text", taxClassification: "text", name: "text", formed: "text", fiscalYearEnd: "text", ids: "record", operatesIn: "texts", conditions: "record" },
@@ -76,6 +85,19 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   People: { props: { folder: "text" }, required: ["folder"] },
   Calendar: { props: { folder: "text" }, required: ["folder"] },
   Matters: { props: { folder: "text" }, required: ["folder"] },
+  // A group's subsidiary: its own company file, by ref (docs/company-substrate.md § entities).
+  Subsidiary: { props: { file: "text", ownership: "amount", since: "text", method: "text" }, required: ["file", "ownership"] },
+  // A typed document: a file of the company it describes (docs/company-substrate.md § documents).
+  Paper: {
+    props: {
+      kind: "text", title: "text", file: "text", status: "text", parties: "texts", jurisdiction: "text",
+      effective: "text", expires: "text", renewal: "text", noticeDays: "amount",
+    },
+    required: ["kind", "file"],
+    many: { signatures: "Signature", versions: "Version" },
+  },
+  Signature: { props: { party: "text", signer: "text", capacity: "text", date: "text", method: "text", evidence: "text" }, required: ["party"] },
+  Version: { props: { file: "text", date: "text", note: "text" }, required: ["file"] },
   Rfc: {
     props: { id: "text", procedure: "text", title: "text", body: "text", target: "text", engineJson: "text" },
     many: { options: "Option" },
@@ -205,6 +227,12 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
   const ref = (f: string, prop: string) => (one[f]?.props[prop] as string | undefined) ?? null;
   const registrations = node.many.registrations!.map((r) => ({ ...r.props }));
   const on = ["books", "captable", "people", "calendar", "matters"].some((f) => one[f]) || registrations.length > 0;
+  const subsidiaries = node.many.subsidiaries!.map((x) => ({ ...x.props }));
+  const papers = node.many.papers!.map((x) => ({
+    ...x.props,
+    ...(x.many.signatures!.length ? { signatures: x.many.signatures!.map((n) => ({ ...n.props })) } : {}),
+    ...(x.many.versions!.length ? { versions: x.many.versions!.map((n) => ({ ...n.props })) } : {}),
+  }));
   return {
     format: "commandagi-company",
     name: p.name,
@@ -216,6 +244,9 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     standard: on
       ? { enabled: true, books: ref("books", "journal"), captable: ref("captable", "ocf"), people: ref("people", "folder"), calendar: ref("calendar", "folder"), registrations, matters: ref("matters", "folder") }
       : { enabled: false },
+    // Each area's field is absent when the file names none of it (docs/company-substrate.md § how an area joins).
+    ...(subsidiaries.length ? { subsidiaries } : {}),
+    ...(papers.length ? { papers } : {}),
   };
 }
 

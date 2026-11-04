@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { Books, CapTable, Case, Change, Company, Entity, Harm, Option, Registration, Relief, Rfc, declarationOf, documentOf, jsx } from "./index.js";
+import { Books, CapTable, Case, Change, Company, Entity, Harm, Option, Paper, Registration, Relief, Rfc, Signature, Subsidiary, Version, declarationOf, documentOf, jsx } from "./index.js";
 
 /** What a module declares, as a run reads it: the document beside an empty graph. */
 const declaredDocument = (mod: Record<string, unknown>) => declarationOf(mod).document!;
@@ -65,4 +65,25 @@ test("what the vocabulary does not say is refused by name", () => {
   assert.throws(run(jsx(Company, {})), /<Company> needs name/);
   assert.throws(run(jsx(Company, { name: "X", files: "X/" })), /files is a list of text/);
   assert.equal(documentOf(jsx("group", { name: "X" })), null);
+});
+
+test("a group names its subsidiaries by ref and its papers with their signatures and versions (docs/company-substrate.md)", () => {
+  const tree = jsx(Company, {
+    name: "Acme",
+    children: [
+      jsx(Subsidiary, { file: "Acme UK.company.tsx", ownership: "100", since: "2026-01-10" }),
+      jsx(Paper, {
+        kind: "agreement", file: "Acme/Lease.pdf", status: "signed", parties: ["Acme Inc.", "Pier 9 LLC"], expires: "2027-01-31", renewal: "1 year", noticeDays: "90",
+        children: [jsx(Signature, { party: "Acme Inc.", signer: "Ada Park", date: "2026-01-20", method: "wet" }), jsx(Version, { file: "Acme/Lease v1.pdf", date: "2026-01-02" })],
+      }),
+    ],
+  });
+  assert.deepEqual(declaredDocument({ default: () => tree }).document, {"format": "commandagi-company", "name": "Acme", "about": "", "files": [], "dashboard": null, "entity": null,
+  "standard": {"enabled": false},
+  "subsidiaries": [{"file": "Acme UK.company.tsx", "ownership": "100", "since": "2026-01-10"}],
+  "papers": [{"kind": "agreement", "file": "Acme/Lease.pdf", "status": "signed", "parties": ["Acme Inc.", "Pier 9 LLC"], "expires": "2027-01-31", "renewal": "1 year", "noticeDays": "90",
+              "signatures": [{"party": "Acme Inc.", "signer": "Ada Park", "date": "2026-01-20", "method": "wet"}],
+              "versions": [{"file": "Acme/Lease v1.pdf", "date": "2026-01-02"}]}]});
+  assert.throws(() => declaredDocument({ default: jsx(Company, { name: "X", children: jsx(Subsidiary, { file: "B.company.tsx" }) }) }), /<Subsidiary> needs ownership/);
+  assert.equal("subsidiaries" in (declaredDocument({ default: jsx(Company, { name: "X" }) }).document as object), false, "a field the file names none of is absent");
 });
