@@ -42,7 +42,7 @@ export const DISCOVER_MAX = 50;
 /** Who may read a file a discover writes (docs/monitors.md § own thread or record). */
 export const VISIBILITIES = ["private", "unlisted", "public"] as const;
 export type Visibility = (typeof VISIBILITIES)[number];
-export const WAKE_FIELDS = ["match", "every", "prompt"] as const;
+export const WAKE_FIELDS = ["match", "every", "prompt", "agent", "maxSpend"] as const;
 export const MONITOR_JUDGE_FIELDS = ["id", "of", "rubric", "model"] as const;
 /** What a judge judges: each turn of the thread's agents, or each turn on a mounted task. */
 export const MONITOR_JUDGE_OF = ["turn", "task"] as const;
@@ -166,6 +166,10 @@ export interface MonitorWake {
   match?: string;
   every?: string;
   prompt: string;
+  /** A named agent of the account (its name): the thread seats it and the wake goes to it; absent: the account's default agent. */
+  agent?: string;
+  /** The most one wake may spend on model calls, in US dollars: the wake stops before the call that would pass it. */
+  maxSpend?: number;
 }
 /**
  * A judge of the monitor's thread (docs/monitors.md § a cloud thread's judge): when a span of the thread's trace ends,
@@ -364,6 +368,10 @@ function monitorOf(t: DocTree): MonitorDoc {
   const wakes = parts("wake").map((c) => {
     text(c, "match", "match");
     text(c, "prompt", "match");
+    text(c, "agent", "match");
+    const spend = c.attrs.maxSpend;
+    if (spend !== undefined && !(typeof spend === "number" && Number.isFinite(spend) && spend > 0))
+      throw new Error(`${where(c, "match")} maxSpend is a price in USD (0.5), not ${JSON.stringify(spend)}`);
     if (c.attrs.every !== undefined) {
       if (c.attrs.match !== undefined) throw new Error(`<wake match="${c.attrs.match as string}"> wakes on records (match) or on a clock (every), not both`);
       const s = durationSeconds(c.attrs.every);
@@ -430,7 +438,7 @@ export function monitorWithDefaults(m: MonitorDoc) {
     sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null, host: s.host ?? null, mode: s.mode ?? "poll", retain: s.mode === "stream" ? (s.retain ?? "derived") : null, since: s.since ?? null, session: s.session ?? null, snapshot: s.snapshot ?? null, profile: s.profile ?? null, keep: s.keep ?? null, maxCostPerDay: s.maxCostPerDay ?? null, unit: s.unit ?? null, vantage: s.vantage ?? null, connection: s.connection ?? null })),
     follows: m.follows.map((f) => ({ monitor: f.monitor, when: f.when ?? null })),
     derives: (m.derives ?? []).map((d) => ({ id: d.id, op: d.op, inputs: d.inputs, params: d.params ?? {}, since: d.since ?? null })),
-    wakes: m.wakes.map((w) => ({ match: w.match ?? null, every: w.every ?? null, prompt: w.prompt })),
+    wakes: m.wakes.map((w) => ({ match: w.match ?? null, every: w.every ?? null, prompt: w.prompt, agent: w.agent ?? null, maxSpend: w.maxSpend ?? null })),
     discovers: (m.discovers ?? []).map((d) => ({ into: d.into ?? "./", of: d.of === undefined ? [] : typeof d.of === "string" ? [d.of] : d.of, when: d.when ?? null, slug: d.slug, class: d.class, props: d.props ?? {}, name: d.name ?? null, max: d.max ?? 10, visibility: d.visibility ?? null })),
     judges: (m.judges ?? []).map((j) => ({ id: j.id, of: j.of, rubric: j.rubric, model: j.model })),
   };

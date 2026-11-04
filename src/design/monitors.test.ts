@@ -3,6 +3,7 @@
 // the file does not say stays absent, and `monitorWithDefaults` fills it as the platform reads it; what the vocabulary
 // has no words for, or a value out of its range, is refused by name.
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { declarationOf, jsx, MONITORS, monitorWithDefaults, durationSeconds } from "./index.js";
@@ -46,7 +47,7 @@ test("a monitor in JSX: a class is a component, an instance is one element, and 
     sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m", via: "worker", exit: null, host: null, mode: "poll", retain: null, since: null, session: null, snapshot: null, profile: null, keep: null, maxCostPerDay: null, unit: null, vantage: null, connection: null }],
     follows: [{ monitor: "../../central-banks/fed", when: { class: "fomc.*" } }],
     derives: [],
-    wakes: [{ match: "sec.filing.8-k*", every: null, prompt: "Say what the report changes." }],
+    wakes: [{ match: "sec.filing.8-k*", every: null, prompt: "Say what the report changes.", agent: null, maxSpend: null }],
     discovers: [],
     judges: [],
   });
@@ -87,7 +88,7 @@ test("a monitor refuses by name what it has no words for, and values out of rang
   assert.throws(one(el("wake", { match: "x.*" })), /<wake> needs prompt/);
   // A wake on a clock: a weekly brief. It says match or every, never both.
   const weekly = declarationOf({ default: el("monitor", {}, el("wake", { every: "7d", prompt: "Write the week's brief." })) });
-  assert.deepEqual(monitorWithDefaults(weekly.document!.document as never).wakes, [{ match: null, every: "7d", prompt: "Write the week's brief." }]);
+  assert.deepEqual(monitorWithDefaults(weekly.document!.document as never).wakes, [{ match: null, every: "7d", prompt: "Write the week's brief.", agent: null, maxSpend: null }]);
   assert.throws(one(el("wake", { every: "8d", prompt: "p" })), /every is a duration from 30s to 7d/);
   assert.throws(one(el("wake", { match: "x.*", every: "1d", prompt: "p" })), /not both/);
   // The id is the folder's path, and who reads the thread is the file's Drive visibility: neither is a word of the file.
@@ -217,4 +218,18 @@ test("a mirror discovers its conversations: a source names its vantage, a follow
   assert.throws(refuse({ delete: true }), /delete is not read/);
   assert.throws(refuse({ by: "conversation" }), /by is not read/);
   assert.throws(() => declarationOf({ default: el("monitor", {}, el("follows", { monitor: "../x", when: { "data.conversation": { above: 1 } } })) }), /when: data\.conversation: above is not an operator/);
+});
+
+// monitor-wake.golden.json is the golden of the three SDKs (sdk/python/tests/monitor_wake.json, sdk/rust/tests/monitor_wake.json).
+test("a wake names its agent and bounds its spend, as the Python and Rust SDKs read it", () => {
+  const golden = JSON.parse(readFileSync(new URL("./monitor-wake.golden.json", import.meta.url), "utf8")) as {
+    valid: { attrs: Record<string, unknown>; document: unknown }[];
+    invalid: { attrs: Record<string, unknown>; error: string }[];
+  };
+  for (const row of golden.valid) {
+    const d = declarationOf({ default: el("monitor", {}, el("wake", row.attrs)) });
+    assert.deepEqual(monitorWithDefaults(d.document!.document as never).wakes, [row.document]);
+  }
+  for (const row of golden.invalid)
+    assert.throws(() => declarationOf({ default: el("monitor", {}, el("wake", row.attrs)) }), new RegExp(row.error));
 });

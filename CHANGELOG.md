@@ -8,6 +8,8 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- `<wake agent maxSpend>`: a wake names an agent of the account (the thread seats it and the wake goes to it) and bounds what
+  one wake may spend on model calls, in US dollars. The same in the TypeScript, Python and Rust SDKs (one golden fixture).
 - `<contact>`: a contact pair of a 3D document (`dynamics.contacts`), the same in the TypeScript, Python and Rust SDKs
   (one golden fixture): its sides named as a check names bodies (no `b`: the floor), `collide`, its own `friction` and
   `restitution`, and what a run records of it (`report`: `count`, `normal`, `slip`, `point`).
