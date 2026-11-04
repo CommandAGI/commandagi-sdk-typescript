@@ -94,6 +94,65 @@ export type AxisRef = {
   b: Vec3;
 };
 
+/**
+ * A `<body material>` as a document writes it: a preset and the fields it changes, or only a colour. What it leaves out is its preset's (`resolveMaterial`).
+ */
+export type BodyMaterial = {
+  preset?: MaterialPreset;
+  /** Hex color string, e.g. "#9aa6b4". */
+  color?: string;
+  /**
+   * @minimum 0
+   * @maximum 1
+   */
+  metalness?: number;
+  /**
+   * @minimum 0
+   * @maximum 1
+   */
+  roughness?: number;
+  envIntensity?: number;
+  /**
+   * @minimum 0
+   * @maximum 1
+   */
+  opacity?: number;
+  /**
+   * @minimum 1
+   * @maximum 3
+   */
+  ior?: number;
+  /**
+   * @minimum 0
+   * @maximum 1
+   */
+  transmission?: number;
+  /**
+   * @unit mm
+   * @minimum 0
+   */
+  thickness?: number;
+  /**
+   * @minimum 0
+   * @maximum 1
+   */
+  clearcoat?: number;
+  /**
+   * @minimum 0
+   * @maximum 1
+   */
+  clearcoatRoughness?: number;
+  /**
+   * @minimum 0
+   * @maximum 1
+   */
+  anisotropy?: number;
+  emissive?: string;
+  /** @minimum 0 */
+  emissiveIntensity?: number;
+  texture?: SurfaceTexture;
+};
+
 /** How a solid feature combines with existing bodies. */
 export type BooleanMode = "new" | "add" | "cut" | "intersect";
 
@@ -2204,16 +2263,77 @@ export type MateKind = "coincident" | "offset" | "parallel" | "perpendicular" | 
 
 export type MaterialDef = {
   preset: MaterialPreset;
-  /** Hex color string, e.g. "#9aa6b4". */
+  /**
+   * Hex color string, e.g. "#9aa6b4": the base colour (a metal's reflectance, a plastic's diffuse colour).
+   */
   color: string;
+  /**
+   * @minimum 0
+   * @maximum 1
+   */
   metalness: number;
+  /**
+   * The microfacet roughness, 0 a mirror.
+   * @minimum 0
+   * @maximum 1
+   */
   roughness: number;
+  /** environment map intensity */
   envIntensity: number;
   /** Surface opacity 0..1 (1 = fully opaque; <1 renders the body translucent). Optional/defaulted. */
   opacity?: number;
+  /**
+   * The index of refraction of a dielectric (1.5 for most plastics and glass).
+   * @minimum 1
+   * @maximum 3
+   * @default 1.5
+   */
+  ior?: number;
+  /**
+   * The share of light that passes through (glass 1, an opal diffuser between).
+   * @minimum 0
+   * @maximum 1
+   * @default 0
+   */
+  transmission?: number;
+  /**
+   * The thickness a transmissive body's light passes through.
+   * @unit mm
+   * @minimum 0
+   */
+  thickness?: number;
+  /**
+   * A clear lacquer over the base (a solder mask's gloss, a car's clear coat).
+   * @minimum 0
+   * @maximum 1
+   * @default 0
+   */
+  clearcoat?: number;
+  /**
+   * @minimum 0
+   * @maximum 1
+   * @default 0
+   */
+  clearcoatRoughness?: number;
+  /**
+   * Anisotropy of the highlight along the texture's direction (a brushed metal).
+   * @minimum 0
+   * @maximum 1
+   * @default 0
+   */
+  anisotropy?: number;
+  /** Hex colour of the light the surface gives off (an LED, a screen). */
+  emissive?: string;
+  /**
+   * @minimum 0
+   * @default 0
+   */
+  emissiveIntensity?: number;
+  /** The surface's small relief. */
+  texture?: SurfaceTexture;
 };
 
-export type MaterialPreset = "aluminum" | "steel" | "plastic" | "brass" | "copper" | "chrome" | "rubber" | "custom";
+export type MaterialPreset = "aluminum" | "anodized-aluminum" | "steel" | "stainless-steel" | "plastic" | "abs" | "pbt" | "pc" | "petg" | "pla" | "brass" | "copper" | "chrome" | "rubber" | "glass" | "pcb" | "custom";
 
 export type MeshBodyFeature = {
   type: "meshBody";
@@ -3949,6 +4069,32 @@ export type SupplierOffer = {
    * The supplier's file (`suppliers/jlcpcb.supplier.tsx`), by this document's folder: where it ships from, its carriers and contacts. A logistics plan (`<name>.logistics.tsx`) routes the lines whose chosen offer names it.
    */
   supplier?: string;
+};
+
+/**
+ * A surface's small relief, drawn as a bump and never built as geometry: moulded grain (a VDI 3400 texture), bead blasting, a brushed finish, a printer's layer lines.
+ */
+export type SurfaceTexture = {
+  kind: "grain" | "bead-blast" | "brushed" | "layer-lines";
+  /**
+   * The relief's period: a grain's cell, a layer's height, a brush stroke's width.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  scale: number;
+  /**
+   * The relief's height, peak to valley.
+   * @unit mm
+   * @minimum 0
+   */
+  depth: number;
+  /**
+   * The direction of the brush strokes or the build direction of the layers (a unit vector, the body's frame).
+   * @minItems 3
+   * @maxItems 3
+   * @default [0,0,1]
+   */
+  direction?: [number, number, number];
 };
 
 export type SweepFeature = {

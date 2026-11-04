@@ -301,6 +301,78 @@ export const THREED_SCHEMA: SchemaDocument = {
     }
    ]
   },
+  "BodyMaterial": {
+   "type": "object",
+   "properties": {
+    "preset": {
+     "$ref": "#/$defs/MaterialPreset"
+    },
+    "color": {
+     "type": "string",
+     "description": "Hex color string, e.g. \"#9aa6b4\"."
+    },
+    "metalness": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 1
+    },
+    "roughness": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 1
+    },
+    "envIntensity": {
+     "type": "number"
+    },
+    "opacity": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 1
+    },
+    "ior": {
+     "type": "number",
+     "minimum": 1,
+     "maximum": 3
+    },
+    "transmission": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 1
+    },
+    "thickness": {
+     "type": "number",
+     "x-unit": "mm",
+     "minimum": 0
+    },
+    "clearcoat": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 1
+    },
+    "clearcoatRoughness": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 1
+    },
+    "anisotropy": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 1
+    },
+    "emissive": {
+     "type": "string"
+    },
+    "emissiveIntensity": {
+     "type": "number",
+     "minimum": 0
+    },
+    "texture": {
+     "$ref": "#/$defs/SurfaceTexture"
+    }
+   },
+   "additionalProperties": false,
+   "description": "A `<body material>` as a document writes it: a preset and the fields it changes, or only a colour. What it leaves out is its preset's (`resolveMaterial`)."
+  },
   "BooleanMode": {
    "type": "string",
    "enum": [
@@ -4470,20 +4542,79 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "color": {
      "type": "string",
-     "description": "Hex color string, e.g. \"#9aa6b4\"."
+     "description": "Hex color string, e.g. \"#9aa6b4\": the base colour (a metal's reflectance, a plastic's diffuse colour)."
     },
     "metalness": {
-     "type": "number"
+     "type": "number",
+     "minimum": 0,
+     "maximum": 1
     },
     "roughness": {
-     "type": "number"
+     "type": "number",
+     "description": "The microfacet roughness, 0 a mirror.",
+     "minimum": 0,
+     "maximum": 1
     },
     "envIntensity": {
-     "type": "number"
+     "type": "number",
+     "description": "environment map intensity"
     },
     "opacity": {
      "type": "number",
      "description": "Surface opacity 0..1 (1 = fully opaque; <1 renders the body translucent). Optional/defaulted."
+    },
+    "ior": {
+     "type": "number",
+     "description": "The index of refraction of a dielectric (1.5 for most plastics and glass).",
+     "minimum": 1,
+     "maximum": 3,
+     "default": 1.5
+    },
+    "transmission": {
+     "type": "number",
+     "description": "The share of light that passes through (glass 1, an opal diffuser between).",
+     "minimum": 0,
+     "maximum": 1,
+     "default": 0
+    },
+    "thickness": {
+     "type": "number",
+     "description": "The thickness a transmissive body's light passes through.",
+     "x-unit": "mm",
+     "minimum": 0
+    },
+    "clearcoat": {
+     "type": "number",
+     "description": "A clear lacquer over the base (a solder mask's gloss, a car's clear coat).",
+     "minimum": 0,
+     "maximum": 1,
+     "default": 0
+    },
+    "clearcoatRoughness": {
+     "type": "number",
+     "minimum": 0,
+     "maximum": 1,
+     "default": 0
+    },
+    "anisotropy": {
+     "type": "number",
+     "description": "Anisotropy of the highlight along the texture's direction (a brushed metal).",
+     "minimum": 0,
+     "maximum": 1,
+     "default": 0
+    },
+    "emissive": {
+     "type": "string",
+     "description": "Hex colour of the light the surface gives off (an LED, a screen)."
+    },
+    "emissiveIntensity": {
+     "type": "number",
+     "minimum": 0,
+     "default": 0
+    },
+    "texture": {
+     "$ref": "#/$defs/SurfaceTexture",
+     "description": "The surface's small relief."
     }
    },
    "required": [
@@ -4499,12 +4630,21 @@ export const THREED_SCHEMA: SchemaDocument = {
    "type": "string",
    "enum": [
     "aluminum",
+    "anodized-aluminum",
     "steel",
+    "stainless-steel",
     "plastic",
+    "abs",
+    "pbt",
+    "pc",
+    "petg",
+    "pla",
     "brass",
     "copper",
     "chrome",
     "rubber",
+    "glass",
+    "pcb",
     "custom"
    ]
   },
@@ -8281,6 +8421,53 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "WHO SELLS A PART, AND ON WHAT TERMS: one supplier's offer (docs/formats.md § logistics). The quantity terms (`stock`, `moq`, `orderMultiple`, `leadTimeDays`, `priceBreaks`) are the ones a component catalog's offer states. A price or a stock says where and when it was read (`source`, `date`)."
+  },
+  "SurfaceTexture": {
+   "type": "object",
+   "properties": {
+    "kind": {
+     "type": "string",
+     "enum": [
+      "grain",
+      "bead-blast",
+      "brushed",
+      "layer-lines"
+     ]
+    },
+    "scale": {
+     "type": "number",
+     "description": "The relief's period: a grain's cell, a layer's height, a brush stroke's width.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "depth": {
+     "type": "number",
+     "description": "The relief's height, peak to valley.",
+     "x-unit": "mm",
+     "minimum": 0
+    },
+    "direction": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 3,
+     "maxItems": 3,
+     "description": "The direction of the brush strokes or the build direction of the layers (a unit vector, the body's frame).",
+     "default": [
+      0,
+      0,
+      1
+     ]
+    }
+   },
+   "required": [
+    "kind",
+    "scale",
+    "depth"
+   ],
+   "additionalProperties": false,
+   "description": "A surface's small relief, drawn as a bump and never built as geometry: moulded grain (a VDI 3400 texture), bead blasting, a brushed finish, a printer's layer lines."
   },
   "SweepFeature": {
    "type": "object",

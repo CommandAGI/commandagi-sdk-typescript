@@ -322,6 +322,7 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
       if (bodies[id]) throw new Error(`two <body> elements are called ${id}`);
       const body = fields(el, ["id"]);
       if (body.engineering !== undefined) body.engineering = checkValue(el, "PartEngineering", body.engineering, "engineering");
+      if (body.material !== undefined) body.material = checkValue(el, "BodyMaterial", body.material, "material");
       bodies[id] = body;
       if (el.source !== undefined) bodySources[id] = el.source;
     } else if (THREED_LISTS[el.type]) {

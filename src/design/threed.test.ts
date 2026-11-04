@@ -29,7 +29,7 @@ const plate = () =>
       }),
       jsx("extrude", { id: "extrude1", name: "Extrude1", profile: { sketch: "sketch1" }, distance: 6, operation: "new", __source: 7 }),
       jsx("fillet", { id: "fillet1", name: "Fillet1", radius: 1, edges: [{ kind: "edge", signature: { point: [20, 0, 6] } }], consumes: ["extrude1"], suppressed: true }),
-      jsx("body", { id: "extrude1", material: "aluminium-6061", __source: 8 }),
+      jsx("body", { id: "extrude1", material: { preset: "aluminum" }, __source: 8 }),
       jsx("slot", { name: "environment", value: { gravity: [0, 0, -9.81] } }),
     ],
   });
@@ -48,7 +48,7 @@ test("a <part> declares the document's graph: features, a sketch's entities, par
   assert.deepEqual((sketch.constraints as Record<string, unknown>).c1, { id: "c1", kind: "horizontal", entities: ["l1"] });
   assert.deepEqual(n.sketch1!.meta, { source: 2, sources: { "point:p1": 3, "point:p2": 4, "segment:l1": 5, "constraint:c1": 6 } });
   assert.deepEqual(n.plane_xy!.inputs, { origin: [0, 0, 0], normal: [0, 0, 1], xAxis: [1, 0, 0], builtin: "XY" });
-  assert.deepEqual(n.bodyMeta, { id: "bodyMeta", type: "3d.bodyMeta", inputs: { extrude1: { material: "aluminium-6061" } }, meta: { sources: { extrude1: 8 } } });
+  assert.deepEqual(n.bodyMeta, { id: "bodyMeta", type: "3d.bodyMeta", inputs: { extrude1: { material: { preset: "aluminum" } } }, meta: { sources: { extrude1: 8 } } });
   assert.deepEqual(n.environment!.inputs, { gravity: [0, 0, -9.81] });
 });
 
@@ -371,4 +371,25 @@ test("<contact> is the dynamics' contacts list: the twin document reads as the g
   assert.deepEqual(twin({}).nodes.dynamics!.inputs.contacts, golden.contacts);
   assert.throws(() => twin({ friction: golden.refused.friction }), new RegExp(golden.refused.says));
   assert.throws(() => twin({ report: ["torque"] }), /report/);
+});
+
+// materials.golden.json is the golden of the three SDKs (materials.json in the Python and Rust SDKs' tests): the
+// physically based materials a `<body material>` declares, read as the bodies' meta, and a value out of range refused.
+test("<body material> declares a physically based material: the golden's bodies read back whole, and a wrong value is refused by name", async () => {
+  const { readFileSync } = await import("node:fs");
+  const golden = JSON.parse(readFileSync(new URL("./materials.golden.json", import.meta.url), "utf8")) as { bodies: Record<string, { name: string; material: Record<string, unknown> }>; refused: { roughness: number; says: string } };
+  const part = (change: Record<string, unknown> = {}) =>
+    declarationOf({
+      default: () =>
+        jsx("part", {
+          name: "Materials",
+          children: Object.entries(golden.bodies).flatMap(([id, b], i) => [
+            jsx("box", { id, name: b.name, center: [i * 20, 0, 5], size: [10, 10, 10], operation: "new" }),
+            jsx("body", { id, name: b.name, material: id === "case" ? { ...b.material, ...change } : b.material }),
+          ]),
+        }),
+    }).graph;
+  assert.deepEqual(part().nodes.bodyMeta!.inputs, golden.bodies);
+  assert.throws(() => part({ roughness: golden.refused.roughness }), new RegExp(golden.refused.says));
+  assert.throws(() => part({ texture: { kind: "knurl", scale: 1, depth: 0.1 } }), /kind/);
 });
