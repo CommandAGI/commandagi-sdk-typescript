@@ -6333,6 +6333,22 @@ export const THREED_SCHEMA: SchemaDocument = {
      "x-unit": "mm",
      "exclusiveMinimum": 0
     },
+    "file": {
+     "type": "string",
+     "description": "Its strands from a file: an OBJ's polylines (its `l` records), in mm, each from its root (its first point, where `from` holds it) to its tip. A path from this file's folder. A head of hair's guide strands."
+    },
+    "pins": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/RodPin"
+     },
+     "description": "Points of it held still where they are (a middle point a force drag let go of with Shift)."
+    },
+    "guides": {
+     "type": "boolean",
+     "description": "Its strands are guides, each standing for many (a head of hair): they pass through each other (they still meet bodies, cloths and other rods), and each is stepped once a step, which the direct solve keeps within 0.01 mm of its static answer. 800 guides of 8 points then run in the editor.",
+     "default": false
+    },
     "id": {
      "type": "string"
     },
@@ -6375,6 +6391,34 @@ export const THREED_SCHEMA: SchemaDocument = {
     "pin"
    ],
    "description": "How an end is held: soldered to a pad or a joint, crimped, inserted in a socket, or pinned at a point (free to turn)."
+  },
+  "RodPin": {
+   "type": "object",
+   "properties": {
+    "strand": {
+     "type": "integer",
+     "description": "Which strand (its index).",
+     "minimum": 0,
+     "default": 0
+    },
+    "along": {
+     "type": "number",
+     "description": "How far along the strand from its first point.",
+     "x-unit": "mm",
+     "minimum": 0
+    },
+    "at": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Where it is held.",
+     "x-unit": "mm"
+    }
+   },
+   "required": [
+    "along",
+    "at"
+   ],
+   "additionalProperties": false,
+   "description": "A point of a rod held still: the point `along` its strand from its first point, held at `at`."
   },
   "RodRibbon": {
    "type": "object",

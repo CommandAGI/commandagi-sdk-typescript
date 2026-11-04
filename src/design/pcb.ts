@@ -77,6 +77,14 @@
  *   <pour name layers points terminals net uuid kicad>
  *                                     a copper pour: its boundary on its layers; `terminals` names what boundary
  *                                     points land on ([[0, ".J1 > .pin2"], …]); `kicad` its fill settings.
+ *   <wire name from to material points slack net>
+ *                                     a wire soldered by hand from one pad to another (a jumper, a bodge wire): not
+ *                                     copper of the board but a rod (docs/formats.md § a 3D document's rods), drawn
+ *                                     in the 3D view with its section along its shape. `from` and `to` are pins
+ *                                     (".R1 > .pin2"); `material` a row of the rods tables (a wire, its conductor and
+ *                                     insulation; the tables' 22 AWG hook-up wire, "WIRE-22AWG-SOLID-PVC", when absent); `points` its shape
+ *                                     ([[x, y, z], …], the board's mm, z up from the top face), else it is laid from pad
+ *                                     to pad off their faces, `slack` longer than their distance (default 0.15).
  *
  * The layout's constraints (the board's design intent, which the placer, the router, the layout score and the checks
  * read; each element is one fact, written back by the editor and the layout operations):
@@ -135,6 +143,8 @@ export const BOARD_PART = "eda.footprint";
 export const CONDUCTOR = "eda.conductor";
 /** A board fact a `<graphic>`, `<text>`, `<dimension>`, `<kicad>` or `<net>` declares; the editor folds it into the circuit. */
 export const BOARD_FACT = "eda.boardfact";
+/** A hand-soldered wire between two pads (`<wire>`): not copper of the board, a rod the 3D view draws. */
+export const BOARD_WIRE = "eda.wire";
 /** The editor's own land patterns, by the name a `<component footprint>` gives (the circuit's id is `Authored:<name>`). */
 export const BOARD_FOOTPRINTS = ["smd-0805", "axial-7.62", "header-2.54"] as const;
 /** A new board's layer table (the circuit editor's blank board). */
@@ -524,7 +534,7 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
     const components = new Set<string>();
     const conductors = new Map<string, { el: DesignElement; id: string }>();
     const nets = new Set<string>();
-    const constraintNames = new Set<string>();
+    const constraintNames = new Set<string>(), wireNames = new Set<string>();
     let kicadForms = 0;
     let fabs = 0;
     let n = 0;
@@ -557,6 +567,9 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
         const key = el.type === "objective" ? "objective" : typeof nm === "string" ? `${el.type}:${nm}` : null;
         if (key && constraintNames.has(key)) throw new Error(el.type === "objective" ? "a board has one <objective>" : `two <${el.type}> elements are called ${nm}`);
         if (key) constraintNames.add(key);
+      } else if (el.type === "wire") {
+        if (typeof nm === "string" && wireNames.has(nm)) throw new Error(`two <wire> elements are called ${nm}`);
+        if (typeof nm === "string") wireNames.add(nm);
       } else if (el.type !== "stack" && el.type !== "masks" && !FACTS.has(el.type)) throw new Error(`<${el.type}> is not read on a board (see commandagi/design pcb)`);
     }
     const idOf = new Map<DesignElement, string>([...conductors.values()].map((c) => [c.el, c.id]));
@@ -736,6 +749,34 @@ export function declareBoardFile(root: DesignElement, name?: string): Declaratio
               ...kicad(el),
             },
             { id: idOf.get(el)!, label: "Via", meta: meta(el) },
+          );
+          break;
+        }
+        case "wire": {
+          refuseUnknown(el, ["name", "from", "to", "material", "points", "slack", "net"]);
+          const pin = (key: "from" | "to") => {
+            const t = end(el.props[key], el, 0);
+            if (!("ref" in t)) throw new Error(`${where(el)}: a wire is soldered to a pin (".R1 > .pin2"), not ${JSON.stringify(el.props[key])}`);
+            return { ref: t.ref, number: t.number };
+          };
+          const shape = el.props.points;
+          if (shape !== undefined && !(Array.isArray(shape) && shape.length >= 2 && shape.every((p) => Array.isArray(p) && p.length === 3 && p.every((v) => typeof v === "number" && Number.isFinite(v)))))
+            throw new Error(`${where(el)}: points is the wire's shape, [[x, y, z], …] in mm (two or more)`);
+          const slack = num(el, "slack");
+          if (slack !== undefined && slack < 0) throw new Error(`${where(el)}: slack is 0 or more`);
+          const material = text(el, "material");
+          s.add(
+            BOARD_WIRE,
+            {
+              from: pin("from"),
+              to: pin("to"),
+              ...(material !== undefined ? { material } : {}),
+              ...(shape !== undefined ? { points: (shape as number[][]).map((p) => [...p]) } : {}),
+              ...(slack !== undefined ? { slack } : {}),
+              ...netOf(el),
+            },
+            // Its node is its name, else its place among the board's wires (`wire_1` …).
+            { id: text(el, "name") ?? `wire_${children.filter((c) => c.type === "wire").indexOf(el) + 1}`, label: "Wire", meta: meta(el) },
           );
           break;
         }

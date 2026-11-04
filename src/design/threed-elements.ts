@@ -3120,6 +3120,17 @@ export type RodFeature = {
    * @exclusiveMinimum 0
    */
   segment?: number;
+  /**
+   * Its strands from a file: an OBJ's polylines (its `l` records), in mm, each from its root (its first point, where `from` holds it) to its tip. A path from this file's folder. A head of hair's guide strands.
+   */
+  file?: string;
+  /** Points of it held still where they are (a middle point a force drag let go of with Shift). */
+  pins?: RodPin[];
+  /**
+   * Its strands are guides, each standing for many (a head of hair): they pass through each other (they still meet bodies, cloths and other rods), and each is stepped once a step, which the direct solve keeps within 0.01 mm of its static answer. 800 guides of 8 points then run in the editor.
+   * @default false
+   */
+  guides?: boolean;
   id: string;
   name: string;
   suppressed?: boolean;
@@ -3139,6 +3150,27 @@ export type RodFeature = {
  * How an end is held: soldered to a pad or a joint, crimped, inserted in a socket, or pinned at a point (free to turn).
  */
 export type RodHold = "solder" | "crimp" | "insert" | "pin";
+
+/** A point of a rod held still: the point `along` its strand from its first point, held at `at`. */
+export type RodPin = {
+  /**
+   * Which strand (its index).
+   * @minimum 0
+   * @default 0
+   */
+  strand?: number;
+  /**
+   * How far along the strand from its first point.
+   * @unit mm
+   * @minimum 0
+   */
+  along: number;
+  /**
+   * Where it is held.
+   * @unit mm
+   */
+  at: Vec3;
+};
 
 /** A rectangular section: a ribbon, a strip, a flat flex. */
 export type RodRibbon = {

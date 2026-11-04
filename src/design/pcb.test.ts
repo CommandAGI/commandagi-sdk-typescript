@@ -255,3 +255,17 @@ test("the layout's constraints are board facts: net classes, pairs, groups, keep
   assert.throws(() => board({}, jsx("group", { name: "g", parts: ["R1"] }), jsx("group", { name: "g", parts: ["R2"] }))(), /two <group> elements are called g/);
   assert.throws(() => board({}, jsx("component", { name: "R1", footprint: "smd-0805", valueAt: [0, 1] }))(), /valueAt needs pcbX and pcbY/);
 });
+
+test("a <wire> is a hand-soldered wire from pin to pin: its node names its two pins, its material, its shape or slack", () => {
+  const g = board(
+    {},
+    jsx("component", { name: "R1", footprint: "smd-0805", pcbX: 10, pcbY: 10 }),
+    jsx("component", { name: "R2", footprint: "smd-0805", pcbX: 25, pcbY: 10 }),
+    jsx("wire", { name: "W1", from: ".R1 > .pin1", to: ".R2 > .pin2", material: "WIRE-22AWG-SOLID-PVC", points: [[9, 10, 0], [17, 4, 3], [26, 10, 0]] }),
+    jsx("wire", { from: ".R1 > .pin2", to: ".R2 > .1", slack: 0.3 }),
+  )();
+  assert.deepEqual(g.nodes.W1!.inputs, { from: { ref: "R1", number: "1" }, to: { ref: "R2", number: "2" }, material: "WIRE-22AWG-SOLID-PVC", points: [[9, 10, 0], [17, 4, 3], [26, 10, 0]] });
+  assert.equal(g.nodes.W1!.type, "eda.wire");
+  assert.deepEqual(g.nodes.wire_2!.inputs, { from: { ref: "R1", number: "2" }, to: { ref: "R2", number: "1" }, slack: 0.3 });
+  assert.throws(board({}, jsx("component", { name: "R1", footprint: "smd-0805" }), jsx("wire", { from: ".R1 > .pin1", to: ".R1 > .pin2", points: [[0, 0]] })), /points is the wire's shape/);
+});
