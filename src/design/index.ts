@@ -84,6 +84,7 @@ export { fromTscircuit } from "./tscircuit.js";
 export { schSymbolTypeFor, SHEET_PARTS } from "./sheet.js";
 export { PART_FIELDS, FACET_FIELDS, partFields, type PartFields, type SupplierOffer as PartSupplierOffer } from "./part-fields.js";
 export * from "./business.js";
+export * from "./people-ops.js";
 export { declareThreeD, isThreeD, THREED_FEATURES, THREED_LISTS, SKETCH_SEGMENTS, BUILTIN_PLANES } from "./threed.js";
 export {
   material,

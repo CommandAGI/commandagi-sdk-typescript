@@ -40,6 +40,7 @@ import type { DeclaredDocument } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
 import { COMPANY_FINANCE_MANY, COMPANY_FINANCE_ONE, FINANCE_TAGS, financeOf } from "./business-finance.js";
 import { FILING_PAPER_PROPS, FORMATION_LISTS, FORMATION_TAGS, formationOf } from "./company-formation.js";
+import { PEOPLE_OPS_TAGS, teamOf } from "./people-ops.js";
 
 export * from "./business-finance.js";
 export { RegisteredAgent } from "./company-formation.js";
@@ -82,7 +83,7 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   Company: {
     props: { name: "text", about: "text", postalAddress: "text", files: "texts", dashboard: "text" },
     required: ["name"],
-    one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE },
+    one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE, team: "Team" },
     many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", rounds: "Round", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS },
   },
   ...EQUITY_TAGS,
@@ -133,6 +134,7 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   Harm: { props: { id: "text", interest: "text", description: "text", amount: "amount" }, required: ["id"] },
   Relief: { props: { kind: "text", description: "text", harmIds: "texts", amount: "amount", days: "amount" }, required: ["kind"] },
   ...FINANCE_TAGS,
+  ...PEOPLE_OPS_TAGS,
 };
 
 /** One element as read: its attributes, its children by field, and where it was written. */
@@ -267,6 +269,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     ...(finance ? { finance } : {}),
     ...formationOf(node),
     ...(rounds.length ? { rounds } : {}),
+    ...(one.team ? { team: teamOf(one.team) } : {}),
   };
 }
 
