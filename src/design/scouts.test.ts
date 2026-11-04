@@ -3,6 +3,7 @@
 // document, and what would make a run dishonest is refused by name (a customer's case, a case with two scorers, two
 // incumbents, a check with no kind).
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import { SCOUTS, declarationOf, jsx } from "./index.js";
@@ -129,4 +130,21 @@ test("a replacement analysis refuses a value its sums cannot read", () => {
   assert.throws(() => declare(el("replacement", { product: "p", asOf: "October" })), /asOf is a day/);
   assert.throws(() => declare(el("replacement", { product: "p", asOf: "2026-10-14" }, el("layer", { kind: "hidden", title: "H" }))), /kind is one of visible, invisible/);
   assert.throws(() => declare(el("replacement", { product: "p", asOf: "2026-10-14" }, el("decision", { choice: "maybe", because: "x" }))), /choice is one of build, buy, integrate, skip/);
+});
+
+// The golden the Python and Rust SDKs hold as well (kernel_specs.json there): the ten hand-checked parts of the spec
+// grader as a <scout> reads them, a face distance, an ISO 286 class by name and a gap by body pair, and what is refused.
+test("a kernel check takes the spec grader's fields, the same in the three SDKs", () => {
+  const golden = JSON.parse(readFileSync(new URL("./kernel-specs.golden.json", import.meta.url), "utf8")) as {
+    valid: { name: string; kernel: unknown }[];
+    invalid: { name: string; kernel: unknown; error: string }[];
+  };
+  const scoutOf = (check: unknown) =>
+    declare(el("scout", { budget: 1 }, el("workload", { id: "w" }, el("case", { id: "c", from: "synthetic", prompt: "p", check: { kernel: check } }))));
+  assert.equal(golden.valid.length, 13);
+  for (const { name, kernel } of golden.valid) {
+    const doc = scoutOf(kernel).document as { workloads: { cases: { check: { kernel: unknown } }[] }[] };
+    assert.deepEqual(doc.workloads[0]!.cases[0]!.check.kernel, kernel, name);
+  }
+  for (const { name, kernel, error } of golden.invalid) assert.throws(() => scoutOf(kernel), (e: Error) => e.message.includes(error), name);
 });

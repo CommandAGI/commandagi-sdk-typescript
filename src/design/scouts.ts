@@ -38,6 +38,7 @@
  * and enums are checked here; the meaning (a model the catalog lists, a ref that resolves, the sums) is the reader's.
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
+import { toleranceLimits } from "./tolerances.js";
 
 export const SCOUT_FIELDS = ["title", "budget", "repeats", "margin", "relativeMargin", "errorFloor", "minCalls", "minCases", "resamples", "alpha", "seed", "maxCases", "readme"] as const;
 export const CONFIGURATION_FIELDS = ["id", "model", "harness", "effort", "instructions", "maxTokens", "incumbent"] as const;
@@ -63,7 +64,7 @@ export const DOCUMENT_FILE = /\.(?:[jt]sx|py|rs)$/i;
 /** The file names a `kernel` check measures: a solid (`bracket.3d.tsx`) or a schematic (`divider.sch.tsx`), alone. */
 export const KERNEL_FILE = /^[^/]+\.(?:3d|sch)\.(?:[jt]sx|py|rs)$/i;
 /** What a `kernel` check may expect of a solid, and of a schematic. */
-export const SOLID_MEASURES = ["volume", "bbox", "bodies", "holes"] as const;
+export const SOLID_MEASURES = ["volume", "bbox", "bodies", "holes", "mass", "gap", "gaps", "faces"] as const;
 export const CIRCUIT_MEASURES = ["parts", "nets", "connections"] as const;
 
 export interface ScoutConfiguration {
@@ -100,17 +101,56 @@ export interface ScoutCheck {
   document?: { as: string; expect?: Record<string, unknown> };
   /**
    * The answer is a solid (`<name>.3d.tsx`) the 3D kernel builds, or a schematic (`<name>.sch.tsx`) read into its
-   * netlist, and its measures must be what `expect` says. A solid: `volume` (mm³) and `bbox` (its sides, mm, in any
-   * order unless `oriented`) within `tolerance` (a share of each; 1% when not said), `bodies` and through `holes`
-   * exactly. A schematic: `parts` (power symbols aside) and `nets` exactly, and each group of `connections` (pins as
-   * `R1.2`) on one net of its own.
+   * netlist, and its measures must be what `expect` says. A solid: `volume` (mm³), `bbox` (its sides, mm, in any
+   * order unless `oriented`), `mass`, `holes` as groups, `gap`, `gaps` (one gap per named pair of bodies) and `faces`
+   * (the distance between two named faces) within `tolerance` (a share of each; 1% when not said) or the deviations a
+   * size states; `bodies` and a count of through `holes` exactly. A schematic: `parts` (power symbols aside) and `nets`
+   * exactly, and each group of `connections` (pins as `R1.2`) on one net of its own. Every size is a {@link KernelSize}.
    */
   kernel?: {
     as: string;
-    expect: { volume?: number; bbox?: [number, number, number]; bodies?: number; holes?: number; parts?: number; nets?: number; connections?: string[][] };
+    expect: {
+      volume?: number | KernelSize;
+      bbox?: [KernelSize, KernelSize, KernelSize];
+      bodies?: number;
+      holes?: number | KernelHoles[];
+      mass?: { nominal: number; upper?: number; lower?: number; density: number };
+      gap?: KernelSize;
+      gaps?: { between: [string, string]; gap: KernelSize }[];
+      faces?: { name?: string; between: [KernelFace, KernelFace]; distance: KernelSize }[];
+      parts?: number;
+      nets?: number;
+      connections?: string[][];
+    };
     tolerance?: number;
     oriented?: boolean;
   };
+}
+/**
+ * A size a spec states: a number (held within the check's `tolerance`), its deviations (signed mm, as a
+ * `DimensionTolerance` writes them), an ISO 286 class by name (`{ nominal: 30, class: "H7" }`, resolved at the
+ * nominal), or a range.
+ */
+export type KernelSize = number | { nominal: number; upper?: number; lower?: number; class?: string } | { min?: number; max?: number };
+/** Round holes of one diameter: how many, through or blind, how deep, along which axis, and the points their axes pass. */
+export interface KernelHoles {
+  count: number;
+  diameter: KernelSize;
+  through?: boolean;
+  depth?: KernelSize;
+  axis?: [number, number, number];
+  at?: [number, number, number][];
+  /** How far an axis may be from an `at` point. @unit mm */
+  position?: number;
+}
+/**
+ * One flat face of a solid, named as a PMI anchor names it: the face of `body` (any body when not said) whose plane the
+ * point `at` lies within 1 mm of, the nearest of them (with the outward `normal`, when said).
+ */
+export interface KernelFace {
+  body?: string;
+  at: [number, number, number];
+  normal?: [number, number, number];
 }
 /**
  * A tool a case offers the model. Its answers are the case's own: the first of `results` whose `when` holds of the
@@ -293,6 +333,44 @@ function checkOf(t: DocTree): void {
   if (x.kernel !== undefined) kernelCheck(t, x.kernel);
 }
 
+const isNum = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
+const isPoint = (p: unknown): p is number[] => Array.isArray(p) && p.length === 3 && p.every(isNum);
+const isObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+const isCount = (v: unknown) => typeof v === "number" && Number.isInteger(v) && v >= 0;
+const SIZE_FORM = "a size is a number, { nominal, upper, lower }, { nominal, class } or { min, max }";
+
+/** What is wrong with a size a kernel check states ({@link KernelSize}), or null. A class is resolved at its nominal. */
+function sizeProblem(v: unknown): string | null {
+  if (isNum(v)) return v >= 0 ? null : "a size is not below 0";
+  if (!isObject(v)) return SIZE_FORM;
+  for (const key of Object.keys(v)) if (!["nominal", "upper", "lower", "class", "min", "max"].includes(key)) return `a size has no field ${key} (nominal, upper, lower, class, min, max)`;
+  if (v.nominal !== undefined) {
+    if (v.min !== undefined || v.max !== undefined) return "a size is a nominal with deviations or a class, or a range, not both";
+    if (!isNum(v.nominal) || v.nominal < 0) return SIZE_FORM;
+    if (v.class !== undefined) {
+      if (v.upper !== undefined || v.lower !== undefined) return "give the class or the deviations, not both";
+      try {
+        toleranceLimits(v.nominal, { class: v.class as string });
+      } catch (e) {
+        return (e as Error).message;
+      }
+      return null;
+    }
+    for (const k of ["upper", "lower"]) if (v[k] !== undefined && !isNum(v[k])) return `${k} is a number of millimetres`;
+    if (isNum(v.upper) && isNum(v.lower) && v.upper < v.lower) return "the upper deviation is below the lower";
+    return null;
+  }
+  if (v.class !== undefined || v.upper !== undefined || v.lower !== undefined) return "deviations and a class go with a nominal";
+  if (v.min === undefined && v.max === undefined) return SIZE_FORM;
+  for (const k of ["min", "max"]) if (v[k] !== undefined && !isNum(v[k])) return `${k} is a number of millimetres`;
+  if (isNum(v.min) && isNum(v.max) && v.min > v.max) return "the range's min is above its max";
+  return null;
+}
+
+const HOLE_FORM = "holes is a count, or a list of groups { count, diameter, through?, depth?, axis?, at?, position? }";
+const GAPS_FORM = "gaps is a list of { between: [body, body], gap }";
+const FACES_FORM = "faces is a list of { name?, between: [face, face], distance }, a face being { body?, at: [x, y, z], normal? }";
+
 /** A `kernel` check: the file it measures, and only the measures that file's kind has. */
 function kernelCheck(t: DocTree, k: NonNullable<ScoutCheck["kernel"]>): void {
   if (!k || typeof k !== "object" || typeof k.as !== "string" || !KERNEL_FILE.test(k.as))
@@ -302,12 +380,67 @@ function kernelCheck(t: DocTree, k: NonNullable<ScoutCheck["kernel"]>): void {
   const allowed: readonly string[] = solid ? SOLID_MEASURES : CIRCUIT_MEASURES;
   const e = k.expect as Record<string, unknown>;
   if (!e || typeof e !== "object" || Array.isArray(e) || !Object.keys(e).length) throw new Error(`${where(t)} check: kernel expect names at least one of ${allowed.join(", ")}`);
+  const refuse = (message: string): never => {
+    throw new Error(`${where(t)} check: kernel ${message}`);
+  };
+  const size = (what: string, v: unknown) => {
+    const problem = sizeProblem(v);
+    if (problem) refuse(`${what}: ${problem}`);
+  };
   for (const [key, v] of Object.entries(e)) {
     if (!allowed.includes(key)) throw new Error(`${where(t)} check: a ${solid ? "solid" : "schematic"} has no measure ${key} (${allowed.join(", ")})`);
-    const count = typeof v === "number" && Number.isInteger(v) && v >= 0;
-    if (["bodies", "holes", "parts", "nets"].includes(key) && !count) throw new Error(`${where(t)} check: kernel ${key} is a count`);
-    if (key === "volume" && !(typeof v === "number" && v > 0)) throw new Error(`${where(t)} check: kernel volume is mm³, more than 0`);
-    if (key === "bbox" && !(Array.isArray(v) && v.length === 3 && v.every((n) => typeof n === "number" && n >= 0))) throw new Error(`${where(t)} check: kernel bbox is [x, y, z] mm`);
+    if (["bodies", "parts", "nets"].includes(key) && !isCount(v)) refuse(`${key} is a count`);
+    if (key === "holes" && !Array.isArray(v) && !isCount(v)) refuse(HOLE_FORM);
+    if (key === "holes" && Array.isArray(v)) {
+      if (!v.length) refuse(HOLE_FORM);
+      v.forEach((h, i) => {
+        const at = `holes[${i}]`;
+        if (!isObject(h)) return refuse(HOLE_FORM);
+        for (const f of Object.keys(h)) if (!["count", "diameter", "through", "depth", "axis", "at", "position"].includes(f)) refuse(`${at} has no field ${f}`);
+        if (!isCount(h.count)) refuse(`${at} count is a count`);
+        if (h.diameter === undefined) refuse(`${at} needs a diameter`);
+        size(`${at} diameter`, h.diameter);
+        if (h.depth !== undefined) size(`${at} depth`, h.depth);
+        if (h.through !== undefined && typeof h.through !== "boolean") refuse(`${at} through is true or false`);
+        if (h.axis !== undefined && !(isPoint(h.axis) && h.axis.some((n) => n !== 0))) refuse(`${at} axis is a direction [x, y, z]`);
+        if (h.at !== undefined && !(Array.isArray(h.at) && h.at.length && h.at.every(isPoint))) refuse(`${at} at is a list of points [x, y, z]`);
+        if (h.position !== undefined && !(isNum(h.position) && h.position > 0)) refuse(`${at} position is mm above 0`);
+      });
+    }
+    if (key === "volume") {
+      if (typeof v === "number" && !(v > 0)) refuse("volume is mm³, more than 0");
+      if (typeof v !== "number") size("volume", v);
+    }
+    if (key === "bbox") {
+      if (!(Array.isArray(v) && v.length === 3)) refuse("bbox is [x, y, z] mm");
+      (v as unknown[]).forEach((n, i) => size(`bbox[${i}]`, n));
+    }
+    if (key === "mass") {
+      const ok = isObject(v) && isNum(v.nominal) && v.nominal > 0 && isNum(v.density) && v.density > 0 && Object.keys(v).every((f) => ["nominal", "upper", "lower", "density"].includes(f))
+        && ["upper", "lower"].every((f) => v[f] === undefined || isNum(v[f]));
+      if (!ok) refuse("mass is { nominal, upper, lower, density } in grams and g/cm³");
+    }
+    if (key === "gap") size("gap", v);
+    if (key === "gaps") {
+      if (!(Array.isArray(v) && v.length)) refuse(GAPS_FORM);
+      (v as unknown[]).forEach((g, i) => {
+        const ok = isObject(g) && Object.keys(g).every((f) => ["between", "gap"].includes(f)) && Array.isArray(g.between) && g.between.length === 2
+          && g.between.every((n) => typeof n === "string" && n) && g.between[0] !== g.between[1];
+        if (!ok) refuse(GAPS_FORM);
+        size(`gaps[${i}] gap`, (g as Record<string, unknown>).gap);
+      });
+    }
+    if (key === "faces") {
+      if (!(Array.isArray(v) && v.length)) refuse(FACES_FORM);
+      (v as unknown[]).forEach((f, i) => {
+        const ok = isObject(f) && Object.keys(f).every((n) => ["name", "between", "distance"].includes(n)) && (f.name === undefined || (typeof f.name === "string" && f.name !== ""))
+          && Array.isArray(f.between) && f.between.length === 2
+          && f.between.every((s) => isObject(s) && Object.keys(s).every((n) => ["body", "at", "normal"].includes(n)) && isPoint(s.at)
+            && (s.body === undefined || (typeof s.body === "string" && s.body !== "")) && (s.normal === undefined || (isPoint(s.normal) && s.normal.some((n) => n !== 0))));
+        if (!ok) refuse(FACES_FORM);
+        size(`faces[${i}] distance`, (f as Record<string, unknown>).distance);
+      });
+    }
     if (key === "connections" && !(Array.isArray(v) && v.length && v.every((g) => Array.isArray(g) && g.length >= 2 && g.every((p) => typeof p === "string" && /^[^.\s]+\.[^.\s]+$/.test(p)))))
       throw new Error(`${where(t)} check: kernel connections is a list of pin groups ([["R1.2", "R2.1"]]), each on one net`);
   }
