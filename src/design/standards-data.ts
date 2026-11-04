@@ -440,7 +440,6 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 117,
   "yieldStrengthMPa": 69,
   "tensileStrengthMPa": 220,
-  "poissonsRatio": 0.34,
   "source": "MakeItFrom, Annealed (OS050) C11000 Copper (yield and tensile strength); LFA Wire, C11000 (density 8.89 g/cm³, modulus 17 000 ksi = 117 GPa)",
   "sourceUrl": "https://www.makeitfrom.com/material-properties/Annealed-OS050-C11000-Copper ; https://www.lfa-wire.com/?p=175",
   "observedAt": "2026-11-03"
