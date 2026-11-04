@@ -30,7 +30,24 @@
  * offer names it (`service`). A plan's `build` is the day every part must be at the builder, and a `<source part
  * strategy>` says how one line is filled for this order: `single`, `fill` (in order, each up to its stock), `split`
  * (each `<use qty>`; one with none takes the rest) or `dual` (each `<use share>`, on purpose). A `<use offer mpn?>`
- * names an offer of the part, or of its alternate by MPN.
+ * names an offer of the part, or of its alternate by MPN. A service whose days are `businessDays` counts Monday to
+ * Friday only.
+ *
+ * A plan may buy ahead for a later plan: `<ahead qty for>` in a `<source>` buys `qty` more than this order needs, by
+ * the same offers, for the plan `for` names (a ref). That plan counts them as stock on hand: `<stock from>` names the
+ * earlier plan and takes what it bought ahead for this one (`part` narrows it to one line). Stock held otherwise (left
+ * from a build, consigned) is `<stock part qty arrives?>`; `arrives` is the day it is there (with `from`, the earlier
+ * plan's build date). A `<source>` with only an `<ahead>` keeps the default fill and needs no strategy.
+ *
+ *   <logistics name="helmet, 10" quantity={10} build="2027-01-15">
+ *     <source part="FT2232HL-REEL" strategy="fill">
+ *       <use offer="JLCPCB parts library" /><use offer="JLCPCB parts library" mpn="FT2232HL-TRAY" />
+ *       <ahead qty={157} for="Helmet 100.logistics.tsx" />
+ *     </source>
+ *   </logistics>
+ *   <logistics name="helmet, 100" quantity={100} build="2027-06-01">
+ *     <stock from="Helmet 10.logistics.tsx" />
+ *   </logistics>
  *
  *   <supplier name="JLCPCB" …>
  *     <service id="global-sourcing" name="Global sourcing" reviewDays={1} reviewDaysHigh={3} leadTimeDays={9} leadTimeDaysHigh={20}>
@@ -89,6 +106,8 @@ export interface SupplierService {
   reviewDaysHigh?: number;
   leadTimeDays?: number;
   leadTimeDaysHigh?: number;
+  /** Its review and buying days are business days (Monday to Friday), not calendar days. */
+  businessDays?: boolean;
   note?: string;
   fees: ServiceFee[];
 }
@@ -135,11 +154,32 @@ export interface SourceUse {
   qty?: number;
   share?: number;
 }
-/** How a plan fills one line (a part number, an MPN or a line's id) for its order. */
+/** Units a plan buys past its own need, for a later plan (`for`, a ref by this plan's folder). */
+export interface SourceAhead {
+  qty: number;
+  for: string;
+  note?: string;
+}
+/**
+ * How a plan fills one line (a part number, an MPN or a line's id) for its order. With no `uses` the line keeps its
+ * default fill (a source that only buys ahead), and states no strategy.
+ */
 export interface LogisticsSource {
   part: string;
-  strategy: "single" | "fill" | "split" | "dual";
+  strategy?: "single" | "fill" | "split" | "dual";
   uses: SourceUse[];
+  ahead?: SourceAhead;
+}
+/**
+ * Stock this order already holds: what an earlier plan bought ahead for it (`from`, a ref; `part` narrows it to one
+ * line), or a stated `qty` of a `part`. `arrives`: the day it is there, YYYY-MM-DD.
+ */
+export interface LogisticsStock {
+  part?: string;
+  qty?: number;
+  from?: string;
+  arrives?: string;
+  note?: string;
 }
 /** A logistics plan as its file declares it. */
 export interface LogisticsDoc {
@@ -153,6 +193,8 @@ export interface LogisticsDoc {
   builder?: Place;
   routes: LogisticsRoute[];
   sources: LogisticsSource[];
+  /** Stock on hand; absent when the plan holds none. */
+  stocks?: LogisticsStock[];
 }
 
 export const PLACE_FIELDS = ["name", "lat", "lon", "country", "postal", "address"] as const;
@@ -160,10 +202,12 @@ export const SUPPLIER_FIELDS = ["name", "url", "leadTimeDays", "note"] as const;
 export const SHIPS_FIELDS = ["carrier", "service", "transitDays", "note"] as const;
 export const CONTACT_FIELDS = ["name", "role", "email", "phone"] as const;
 export const LOGISTICS_FIELDS = ["name", "quantity", "build"] as const;
-export const SERVICE_FIELDS = ["id", "name", "reviewDays", "reviewDaysHigh", "leadTimeDays", "leadTimeDaysHigh", "note"] as const;
+export const SERVICE_FIELDS = ["id", "name", "reviewDays", "reviewDaysHigh", "leadTimeDays", "leadTimeDaysHigh", "businessDays", "note"] as const;
 export const FEE_FIELDS = ["amount", "currency", "per", "each", "note"] as const;
 export const SOURCING_FIELDS = ["part", "strategy"] as const;
 export const SOURCING_USE_FIELDS = ["offer", "mpn", "qty", "share"] as const;
+export const AHEAD_FIELDS = ["qty", "for", "note"] as const;
+export const STOCK_FIELDS = ["part", "qty", "from", "arrives", "note"] as const;
 const STRATEGIES = ["single", "fill", "split", "dual"];
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 export const BOM_FIELDS = ["ref", "qty"] as const;
@@ -221,6 +265,7 @@ export const supplierVocabulary: Vocabulary<SupplierDoc> = {
     const services = t.children.filter((c) => c.tag === "service").map((c) => {
       text("service", c.attrs, ["id", "name", "note"]);
       count("service", c.attrs, ["reviewDays", "reviewDaysHigh", "leadTimeDays", "leadTimeDaysHigh"]);
+      if (c.attrs.businessDays !== undefined && typeof c.attrs.businessDays !== "boolean") throw new Error("<service> businessDays is true or false");
       const fees = c.children.filter((f) => f.tag === "fee").map((f) => {
         const a = f.attrs;
         count("fee", a, ["amount"]);
@@ -272,8 +317,10 @@ export const logisticsVocabulary: Vocabulary<LogisticsDoc> = {
     builder: { parents: ["logistics"], single: true, required: ["name", "lat", "lon"], attrs: PLACE_FIELDS },
     route: { parents: ["logistics"], required: ["supplier"], attrs: ["supplier"] },
     leg: { parents: ["route"], required: ["carrier"], attrs: LEG_FIELDS },
-    source: { parents: ["logistics"], required: ["part", "strategy"], attrs: SOURCING_FIELDS },
+    source: { parents: ["logistics"], required: ["part"], attrs: SOURCING_FIELDS },
     use: { parents: ["source"], required: ["offer"], attrs: SOURCING_USE_FIELDS },
+    ahead: { parents: ["source"], single: true, required: ["qty", "for"], attrs: AHEAD_FIELDS },
+    stock: { parents: ["logistics"], attrs: STOCK_FIELDS },
   },
   fromTree(t) {
     text("logistics", t.attrs, ["name"]);
@@ -291,16 +338,32 @@ export const logisticsVocabulary: Vocabulary<LogisticsDoc> = {
     });
     const sources = t.children.filter((c) => c.tag === "source").map((c) => {
       text("source", c.attrs, ["part"]);
-      if (!STRATEGIES.includes(c.attrs.strategy as string)) throw new Error("<source> strategy is single, fill, split or dual");
+      const named = c.children.some((u) => u.tag === "use");
+      if ((named || c.attrs.strategy !== undefined) && !STRATEGIES.includes(c.attrs.strategy as string)) throw new Error("<source> strategy is single, fill, split or dual");
       const uses = c.children.filter((u) => u.tag === "use").map((u) => {
         text("use", u.attrs, ["offer", "mpn"]);
         if (u.attrs.qty !== undefined && !(typeof u.attrs.qty === "number" && u.attrs.qty > 0)) throw new Error("<use> qty is a number above 0");
         if (u.attrs.share !== undefined && !(typeof u.attrs.share === "number" && u.attrs.share > 0 && u.attrs.share <= 1)) throw new Error("<use> share is a fraction above 0, at most 1");
         return fields(u.attrs, SOURCING_USE_FIELDS) as unknown as SourceUse;
       });
-      return { part: c.attrs.part as string, strategy: c.attrs.strategy as LogisticsSource["strategy"], uses };
+      const a = c.children.find((x) => x.tag === "ahead");
+      if (a) {
+        if (!(Number.isInteger(a.attrs.qty) && (a.attrs.qty as number) >= 1)) throw new Error("<ahead> qty is a whole number, 1 or more");
+        text("ahead", a.attrs, ["for", "note"]);
+      }
+      if (!named && !a) throw new Error(`<source part="${c.attrs.part}"> names no <use> and no <ahead>`);
+      return { part: c.attrs.part as string, ...(c.attrs.strategy !== undefined ? { strategy: c.attrs.strategy as LogisticsSource["strategy"] } : {}), uses, ...(a ? { ahead: fields(a.attrs, AHEAD_FIELDS) as unknown as SourceAhead } : {}) };
     });
-    return { ...(fields(t.attrs, LOGISTICS_FIELDS) as Pick<LogisticsDoc, "name" | "quantity" | "build">), boms, ...(builder ? { builder: place("builder", builder.attrs) } : {}), routes, sources };
+    const stocks = t.children.filter((c) => c.tag === "stock").map((c) => {
+      const a = c.attrs;
+      text("stock", a, ["part", "from", "note"]);
+      if (a.arrives !== undefined && !(typeof a.arrives === "string" && DATE.test(a.arrives))) throw new Error("<stock> arrives is a date, YYYY-MM-DD");
+      if (a.from !== undefined && a.qty !== undefined) throw new Error("<stock from> takes what that plan bought ahead for this one: it states no qty");
+      if (a.from === undefined && (a.part === undefined || a.qty === undefined)) throw new Error("<stock> names the part and its qty, or the plan it is from (from)");
+      if (a.qty !== undefined && !(typeof a.qty === "number" && a.qty > 0)) throw new Error("<stock> qty is a number above 0");
+      return fields(a, STOCK_FIELDS) as LogisticsStock;
+    });
+    return { ...(fields(t.attrs, LOGISTICS_FIELDS) as Pick<LogisticsDoc, "name" | "quantity" | "build">), boms, ...(builder ? { builder: place("builder", builder.attrs) } : {}), routes, sources, ...(stocks.length ? { stocks } : {}) };
   },
   toTree(d) {
     const children: DocTree[] = [];
@@ -317,7 +380,15 @@ export const logisticsVocabulary: Vocabulary<LogisticsDoc> = {
         })),
       });
     for (const src of d.sources ?? [])
-      children.push({ tag: "source", attrs: { part: src.part, strategy: src.strategy }, children: src.uses.map((u) => ({ tag: "use", attrs: fields(u as unknown as Record<string, unknown>, SOURCING_USE_FIELDS), children: [] })) });
+      children.push({
+        tag: "source",
+        attrs: fields(src as unknown as Record<string, unknown>, SOURCING_FIELDS),
+        children: [
+          ...src.uses.map((u) => ({ tag: "use", attrs: fields(u as unknown as Record<string, unknown>, SOURCING_USE_FIELDS), children: [] })),
+          ...(src.ahead ? [{ tag: "ahead", attrs: fields(src.ahead as unknown as Record<string, unknown>, AHEAD_FIELDS), children: [] }] : []),
+        ],
+      });
+    for (const st of d.stocks ?? []) children.push({ tag: "stock", attrs: fields(st as unknown as Record<string, unknown>, STOCK_FIELDS), children: [] });
     return { tag: "logistics", attrs: fields(d as unknown as Record<string, unknown>, LOGISTICS_FIELDS), children };
   },
   empty: (name) => ({ name, boms: [], routes: [], sources: [] }),

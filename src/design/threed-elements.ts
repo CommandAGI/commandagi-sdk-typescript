@@ -1774,6 +1774,14 @@ export type ImportFeature = {
   declaredBy?: CodeFeature;
 };
 
+/** A lot on its way to a supplier. */
+export type IncomingLot = {
+  /** @minimum 1 */
+  quantity: number;
+  /** The day the supplier expects it, YYYY-MM-DD. */
+  date: string;
+};
+
 /** HOW A PART IS INSPECTED OR TESTED, AND WHEN IT IS ACCEPTED. */
 export type Inspection = {
   dimensions?: CriticalDimension[];
@@ -2411,6 +2419,15 @@ export type NurbsSpec = {
   periodic?: boolean;
 };
 
+/** The day each term of an offer was read, where it is not the offer's `date` (each YYYY-MM-DD). */
+export type OfferDates = {
+  stock?: string;
+  preorder?: string;
+  priceBreaks?: string;
+  leadTimeDays?: string;
+  incoming?: string;
+};
+
 export type OffsetCap = "round" | "butt" | "square";
 
 export type OffsetFacesFeature = {
@@ -2498,6 +2515,8 @@ export type PartEngineering = {
   suppliers?: SupplierOffer[];
   /** Approved second sources. */
   alternates?: Alternate[];
+  /** What one order needs past `qty × N`: spares, attrition, a panel's multiple. Absent: `qty × N`. */
+  need?: PartNeed;
   /** How and where a made part is made. */
   make?: MakeSpec;
   inspection?: Inspection;
@@ -2523,6 +2542,33 @@ export type PartMass = {
   grams: number;
   /** Where the mass came from: a scale reading, a datasheet. */
   source: string;
+};
+
+/**
+ * WHAT ONE ORDER NEEDS OF A PART BEYOND `qty × N` (docs/formats.md § logistics, the need): true of the part whatever the order, so the design states it. need(N) = (qty × N + spares) plus attrition, rounded up to `multiple`.
+ */
+export type PartNeed = {
+  /**
+   * A fixed count per order: a second set of boards made at any quantity, a setup's first parts.
+   * @minimum 0
+   */
+  spares?: number;
+  /**
+   * A rate of what is fitted that is lost at assembly (tape-and-reel loss), on qty × N + spares.
+   * @minimum 0
+   * @maximum 0.99
+   */
+  attrition?: number;
+  /**
+   * At least this many extra for attrition.
+   * @minimum 0
+   */
+  attritionMin?: number;
+  /**
+   * The order rounds up to a multiple of this: the boards a panel holds, the parts on that many boards.
+   * @minimum 1
+   */
+  multiple?: number;
 };
 
 export type PathPatternFeature = {
@@ -2752,10 +2798,10 @@ export type PointCloudFeature = {
 /** The unit price from a quantity up (`@commandagi/core` quantity-terms' PriceBreak). */
 export type PriceBreak = {
   /**
-   * The order quantity this price holds from.
+   * The order quantity this price holds from. Absent: a single price, read without the quantity it holds at (the offer's one break): it holds at any quantity.
    * @minimum 1
    */
-  quantity: number;
+  quantity?: number;
   /**
    * The price of one unit; with `unitPriceHigh`, the low end of an estimate.
    * @minimum 0
@@ -3576,6 +3622,18 @@ export type SupplierOffer = {
    */
   stock?: number;
   /**
+   * How many can still be bought now, when that is not the stock: JLCPCB's "can pre-order now" (`canPresaleNumber`), negative when more is promised to other buyers than is held. The roll-up fills at most this many (none at 0 or less).
+   */
+  preorder?: number;
+  /**
+   * The stock the offer draws on, when another offer of the part draws on the same: JLCPCB's parts library and LCSC sell from one warehouse (`pool: "LCSC warehouse"` on both). The roll-up fills from a pool at most the largest stock any of its offers states, never their sum.
+   */
+  pool?: string;
+  /**
+   * Stock on its way to the supplier ("3,000 due 2026-11-05"): a logistics plan counts a lot due by the day the order must be placed. A design's own roll-up has no such day and counts none.
+   */
+  incoming?: IncomingLot[];
+  /**
    * What the offer is: "stock" (a catalog's stock and price, the default), "quote" (a price a supplier gave for this order: a factory run, a back-order), "listing" (a price shown on a marketplace page) or "broker" (a broker's listed lot).
    */
   kind?: "stock" | "quote" | "listing" | "broker";
@@ -3593,13 +3651,19 @@ export type SupplierOffer = {
    */
   tooling?: number | "unknown";
   /**
-   * The `<service id>` of the supplier's file the part is bought through (JLCPCB's "pre-order", "global-sourcing", "consignment"): a logistics plan adds its days and fees.
+   * The `<service id>` the part is bought through (JLCPCB's "pre-order", "global-sourcing", "consignment"), of the `via` supplier's file when the offer names one, else of its own: a logistics plan adds its days and fees.
    */
   service?: string;
+  /**
+   * The supplier file the part is bought through, when that is not its own supplier: DigiKey's offer (its `supplier`, price, stock and lead) bought by JLCPCB's global sourcing (`via: "suppliers/jlcpcb.supplier.tsx"`, `service: "global-sourcing"`). The lead is the offer's plus the service's days, the price the offer's plus the service's fees, and the part ships on the `via` supplier's route (with the boards).
+   */
+  via?: string;
   /** Where the terms were read: a page, a quote, or "estimate" with its basis. */
   source?: string;
   /** The day the terms were read, YYYY-MM-DD. */
   date?: string;
+  /** The day a term was read when it is not `date`: the stock on one day, the price breaks on another. */
+  dates?: OfferDates;
   /**
    * The supplier's file (`suppliers/jlcpcb.supplier.tsx`), by this document's folder: where it ships from, its carriers and contacts. A logistics plan (`<name>.logistics.tsx`) routes the lines whose chosen offer names it.
    */

@@ -112,3 +112,33 @@ test("a supplier's services and a plan's sources: how a part is bought through a
   assert.throws(() => declarationOf({ default: el("logistics", { build: "next June" }) }), /YYYY-MM-DD/);
   assert.throws(() => declarationOf({ default: el("supplier", { name: "X" }, el("service", { id: "s" }, el("fee", { amount: 1, per: "order" }))) }), /currency/);
 });
+
+test("buying ahead and stock on hand: a plan buys past its need for a later plan, which counts it; a service counted in business days; both ways", () => {
+  const ten = declarationOf({
+    default: el("logistics", { quantity: 10, build: "2027-01-15" },
+      el("source", { part: "FT2232HL-REEL", strategy: "fill" }, el("use", { offer: "JLCPCB parts library" }), el("use", { offer: "JLCPCB parts library", mpn: "FT2232HL-TRAY" }), el("ahead", { qty: 157, for: "Helmet 100.logistics.tsx" })),
+      el("source", { part: "TLV333IDCKR" }, el("ahead", { qty: 500, for: "Helmet 100.logistics.tsx", note: "the reel's rest" }))),
+  }).document!.document as never as { sources: unknown[]; stocks?: unknown };
+  assert.deepEqual(ten.sources, [
+    { part: "FT2232HL-REEL", strategy: "fill", uses: [{ offer: "JLCPCB parts library" }, { offer: "JLCPCB parts library", mpn: "FT2232HL-TRAY" }], ahead: { qty: 157, for: "Helmet 100.logistics.tsx" } },
+    { part: "TLV333IDCKR", uses: [], ahead: { qty: 500, for: "Helmet 100.logistics.tsx", note: "the reel's rest" } },
+  ]);
+  assert.equal(ten.stocks, undefined, "a plan that holds no stock states none");
+  assert.deepEqual(LOGISTICS.logistics.fromTree(LOGISTICS.logistics.toTree(ten as never)), ten, "both ways");
+  const hundred = declarationOf({
+    default: el("logistics", { quantity: 100 }, el("stock", { from: "Helmet 10.logistics.tsx" }), el("stock", { part: "KH-205580-DZ", qty: 2000, arrives: "2027-03-01", note: "consigned at JLCPCB" })),
+  }).document!.document as never as { stocks: unknown[] };
+  assert.deepEqual(hundred.stocks, [{ from: "Helmet 10.logistics.tsx" }, { part: "KH-205580-DZ", qty: 2000, arrives: "2027-03-01", note: "consigned at JLCPCB" }]);
+  assert.deepEqual(LOGISTICS.logistics.fromTree(LOGISTICS.logistics.toTree(hundred as never)), hundred, "both ways");
+  const plan = (...c: unknown[]) => () => declarationOf({ default: el("logistics", {}, ...c) });
+  assert.throws(plan(el("stock", { from: "a.logistics.tsx", qty: 3 })), /<stock from> takes what that plan bought ahead/);
+  assert.throws(plan(el("stock", { part: "X" })), /names the part and its qty, or the plan it is from/);
+  assert.throws(plan(el("stock", { part: "X", qty: 3, arrives: "soon" })), /arrives is a date/);
+  assert.throws(plan(el("source", { part: "X" }, el("ahead", { qty: 1.5, for: "b.logistics.tsx" }))), /<ahead> qty is a whole number/);
+  assert.throws(plan(el("source", { part: "X" })), /names no <use> and no <ahead>/);
+  assert.throws(plan(el("source", { part: "X" }, el("use", { offer: "A" }))), /strategy is single, fill, split or dual/);
+  const jlc = declarationOf({ default: el("supplier", { name: "JLCPCB" }, el("service", { id: "global-sourcing", reviewDays: 1, reviewDaysHigh: 3, leadTimeDays: 9, leadTimeDaysHigh: 20, businessDays: true })) }).document!.document as never as { services: unknown[] };
+  assert.deepEqual(jlc.services, [{ id: "global-sourcing", reviewDays: 1, reviewDaysHigh: 3, leadTimeDays: 9, leadTimeDaysHigh: 20, businessDays: true, fees: [] }]);
+  assert.deepEqual(LOGISTICS.supplier.fromTree(LOGISTICS.supplier.toTree(jlc as never)), jlc, "both ways");
+  assert.throws(() => declarationOf({ default: el("supplier", { name: "X" }, el("service", { id: "s", businessDays: "yes" })) }), /businessDays is true or false/);
+});

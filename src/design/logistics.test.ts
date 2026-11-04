@@ -94,6 +94,37 @@ test("multi-supplier sourcing in a part's fields: an offer's kind, confidence, l
   assert.throws(sheet({ alternates: [{ manufacturer: "Y", mpn: "Z", suppliers: [{ name: "L", stock: -1 }] }] }), /alternates\[0\]: suppliers\[0\]: stock is a whole number/);
 });
 
+test("a shared stock, a pre-order count, an offer through another supplier's service, stock on its way, per-term dates, a single price, and a part's need", () => {
+  const sourcing = {
+    suppliers: [
+      { name: "JLCPCB parts library", sku: "C530677", currency: "USD", priceBreaks: [{ quantity: 1, unitPrice: 0.1114 }], stock: 1984, preorder: 1816, pool: "LCSC warehouse", supplier: "suppliers/jlcpcb.supplier.tsx", source: "JLC parts API", date: "2026-11-03", dates: { priceBreaks: "2026-11-02" } },
+      { name: "LCSC", sku: "C530677", currency: "USD", priceBreaks: [{ quantity: 5, unitPrice: 0.1105 }], stock: 1675, pool: "LCSC warehouse", source: "LCSC product API", date: "2026-11-03" },
+      { name: "DigiKey", currency: "USD", priceBreaks: [{ unitPrice: 0.66 }], stock: 0, incoming: [{ quantity: 3000, date: "2026-11-05" }], supplier: "suppliers/digikey.supplier.tsx", via: "suppliers/jlcpcb.supplier.tsx", service: "global-sourcing", source: "digikey.com, the quantity of the price not read", date: "2026-11-03" },
+    ],
+    need: { spares: 334, attrition: 0.05 },
+  };
+  const { graph: g } = declarationOf({ default: () => jsx("group", { name: "L", children: [jsx("part", { name: "P1", pins: ["1"], mpn: "KH-205580-DZ", ...sourcing })] }) });
+  assert.deepEqual(props(g.nodes.P1!.inputs).slice(1), [
+    ["JLCPCB parts library Part", "C530677"],
+    ["JLCPCB parts library Terms", '{"currency":"USD","priceBreaks":[[1,0.1114]],"stock":1984,"preorder":1816,"pool":"LCSC warehouse","supplier":"suppliers/jlcpcb.supplier.tsx","source":"JLC parts API","date":"2026-11-03","dates":{"priceBreaks":"2026-11-02"}}'],
+    ["LCSC Part", "C530677"],
+    ["LCSC Terms", '{"currency":"USD","priceBreaks":[[5,0.1105]],"stock":1675,"pool":"LCSC warehouse","source":"LCSC product API","date":"2026-11-03"}'],
+    ["DigiKey Terms", '{"currency":"USD","priceBreaks":[[null,0.66]],"stock":0,"incoming":[{"quantity":3000,"date":"2026-11-05"}],"service":"global-sourcing","via":"suppliers/jlcpcb.supplier.tsx","supplier":"suppliers/digikey.supplier.tsx","source":"digikey.com, the quantity of the price not read","date":"2026-11-03"}'],
+    ["Need", '{"spares":334,"attrition":0.05}'],
+  ]);
+  assert.deepEqual(partFields(g.nodes.P1!.inputs), { mpn: "KH-205580-DZ", ...sourcing });
+  const sheet = (p: Record<string, unknown>) => () => declarationOf({ default: () => jsx("group", { name: "L", children: [jsx("part", { name: "U4", pins: ["1"], ...p })] }) });
+  assert.throws(sheet({ suppliers: [{ name: "X", preorder: 1.5 }] }), /preorder is a whole number/);
+  assert.doesNotThrow(sheet({ suppliers: [{ name: "X", preorder: -3898 }] }), "more promised than held");
+  assert.throws(sheet({ suppliers: [{ name: "X", via: "suppliers/jlcpcb.supplier.tsx" }] }), /names that supplier's service/);
+  assert.throws(sheet({ suppliers: [{ name: "X", incoming: [{ quantity: 3000, date: "soon" }] }] }), /incoming is a list of \{ quantity, date \}/);
+  assert.throws(sheet({ suppliers: [{ name: "X", dates: { colour: "2026-11-03" } }] }), /dates is \{ <term>: YYYY-MM-DD \}/);
+  assert.throws(sheet({ suppliers: [{ name: "X", priceBreaks: [{ unitPrice: 1 }, { quantity: 10, unitPrice: 0.9 }] }] }), /one break with no quantity is a single price/);
+  assert.throws(sheet({ need: { spares: 1.5 } }), /need.spares is a whole number/);
+  assert.throws(sheet({ need: { attrition: 5 } }), /need.attrition is a rate/);
+  assert.throws(sheet({ need: { panel: 3 } }), /need.panel is not read/);
+});
+
 test("a circuit's logistics <check> keeps its options; a board's <fab> is one board fact, checked by name", () => {
   const { graph: s } = declarationOf({ default: () => jsx("group", { name: "L", children: [jsx("check", { id: "cost", kind: "cost", options: { quantities: [10, 100] } })] }) });
   assert.deepEqual(s.meta?.checks, [{ id: "cost", kind: "cost", options: { quantities: [10, 100] } }]);
@@ -128,6 +159,11 @@ test("a 3D document's <item> and <assemble> are lists of the document; <body eng
   assert.throws(bad(jsx("body", { id: "b", engineering: { vendor: { name: "X" } } })), /vendor/);
   assert.throws(bad(jsx("item", { id: "t", name: "T", qty: 0 })), /qty/);
   assert.throws(bad(jsx("body", { id: "b", engineering: { lifecycle: { status: "dead" } } })), /status/);
+  // A part's need and an offer's shared stock, through another supplier's service, are engineering fields too.
+  const pin = { process: "purchased", need: { spares: 334, attrition: 0.05, multiple: 3 }, suppliers: [{ name: "DigiKey", via: "suppliers/jlcpcb.supplier.tsx", service: "global-sourcing", pool: "DigiKey", preorder: -5, incoming: [{ quantity: 3000, date: "2026-11-05" }], dates: { stock: "2026-11-03" }, priceBreaks: [{ unitPrice: 0.66 }] }] };
+  assert.doesNotThrow(bad(jsx("item", { id: "pin", name: "Pin", qty: 1128, engineering: pin })));
+  assert.throws(bad(jsx("item", { id: "pin", name: "Pin", engineering: { need: { multiple: 0 } } })), /multiple/);
+  assert.throws(bad(jsx("item", { id: "pin", name: "Pin", engineering: { need: { panels: 2 } } })), /panels/);
 });
 
 test("a 3D document's <product> is a list of the document; a made part's stock and a gas's shutoff are engineering fields", () => {

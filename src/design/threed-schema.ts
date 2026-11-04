@@ -3652,6 +3652,26 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false
   },
+  "IncomingLot": {
+   "type": "object",
+   "properties": {
+    "quantity": {
+     "type": "integer",
+     "minimum": 1
+    },
+    "date": {
+     "type": "string",
+     "description": "The day the supplier expects it, YYYY-MM-DD.",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+   },
+   "required": [
+    "quantity",
+    "date"
+   ],
+   "additionalProperties": false,
+   "description": "A lot on its way to a supplier."
+  },
   "Inspection": {
    "type": "object",
    "properties": {
@@ -5007,6 +5027,33 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "The NURBS half of a curve — degree, knots, weights. Stored verbatim as a sketch spline's `nurbs`."
   },
+  "OfferDates": {
+   "type": "object",
+   "properties": {
+    "stock": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "preorder": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "priceBreaks": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "leadTimeDays": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "incoming": {
+     "type": "string",
+     "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    }
+   },
+   "additionalProperties": false,
+   "description": "The day each term of an offer was read, where it is not the offer's `date` (each YYYY-MM-DD)."
+  },
   "OffsetCap": {
    "type": "string",
    "enum": [
@@ -5190,6 +5237,10 @@ export const THREED_SCHEMA: SchemaDocument = {
      },
      "description": "Approved second sources."
     },
+    "need": {
+     "$ref": "#/$defs/PartNeed",
+     "description": "What one order needs past `qty × N`: spares, attrition, a panel's multiple. Absent: `qty × N`."
+    },
     "make": {
      "$ref": "#/$defs/MakeSpec",
      "description": "How and where a made part is made."
@@ -5244,6 +5295,34 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A mass that was weighed or read from a datasheet. It stands in place of volume × density."
+  },
+  "PartNeed": {
+   "type": "object",
+   "properties": {
+    "spares": {
+     "type": "integer",
+     "description": "A fixed count per order: a second set of boards made at any quantity, a setup's first parts.",
+     "minimum": 0
+    },
+    "attrition": {
+     "type": "number",
+     "description": "A rate of what is fitted that is lost at assembly (tape-and-reel loss), on qty × N + spares.",
+     "minimum": 0,
+     "maximum": 0.99
+    },
+    "attritionMin": {
+     "type": "integer",
+     "description": "At least this many extra for attrition.",
+     "minimum": 0
+    },
+    "multiple": {
+     "type": "integer",
+     "description": "The order rounds up to a multiple of this: the boards a panel holds, the parts on that many boards.",
+     "minimum": 1
+    }
+   },
+   "additionalProperties": false,
+   "description": "WHAT ONE ORDER NEEDS OF A PART BEYOND `qty × N` (docs/formats.md § logistics, the need): true of the part whatever the order, so the design states it. need(N) = (qty × N + spares) plus attrition, rounded up to `multiple`."
   },
   "PathPatternFeature": {
    "type": "object",
@@ -5758,7 +5837,7 @@ export const THREED_SCHEMA: SchemaDocument = {
    "properties": {
     "quantity": {
      "type": "integer",
-     "description": "The order quantity this price holds from.",
+     "description": "The order quantity this price holds from. Absent: a single price, read without the quantity it holds at (the offer's one break): it holds at any quantity.",
      "minimum": 1
     },
     "unitPrice": {
@@ -5773,7 +5852,6 @@ export const THREED_SCHEMA: SchemaDocument = {
     }
    },
    "required": [
-    "quantity",
     "unitPrice"
    ],
    "additionalProperties": false,
@@ -7711,6 +7789,21 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "Units the supplier holds now. The roll-up fills at most this many from the offer, and the rest of the line from the next offer (or names it short). Absent: the offer is not limited by stock.",
      "minimum": 0
     },
+    "preorder": {
+     "type": "integer",
+     "description": "How many can still be bought now, when that is not the stock: JLCPCB's \"can pre-order now\" (`canPresaleNumber`), negative when more is promised to other buyers than is held. The roll-up fills at most this many (none at 0 or less)."
+    },
+    "pool": {
+     "type": "string",
+     "description": "The stock the offer draws on, when another offer of the part draws on the same: JLCPCB's parts library and LCSC sell from one warehouse (`pool: \"LCSC warehouse\"` on both). The roll-up fills from a pool at most the largest stock any of its offers states, never their sum."
+    },
+    "incoming": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/IncomingLot"
+     },
+     "description": "Stock on its way to the supplier (\"3,000 due 2026-11-05\"): a logistics plan counts a lot due by the day the order must be placed. A design's own roll-up has no such day and counts none."
+    },
     "kind": {
      "type": "string",
      "enum": [
@@ -7748,7 +7841,11 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "service": {
      "type": "string",
-     "description": "The `<service id>` of the supplier's file the part is bought through (JLCPCB's \"pre-order\", \"global-sourcing\", \"consignment\"): a logistics plan adds its days and fees."
+     "description": "The `<service id>` the part is bought through (JLCPCB's \"pre-order\", \"global-sourcing\", \"consignment\"), of the `via` supplier's file when the offer names one, else of its own: a logistics plan adds its days and fees."
+    },
+    "via": {
+     "type": "string",
+     "description": "The supplier file the part is bought through, when that is not its own supplier: DigiKey's offer (its `supplier`, price, stock and lead) bought by JLCPCB's global sourcing (`via: \"suppliers/jlcpcb.supplier.tsx\"`, `service: \"global-sourcing\"`). The lead is the offer's plus the service's days, the price the offer's plus the service's fees, and the part ships on the `via` supplier's route (with the boards)."
     },
     "source": {
      "type": "string",
@@ -7758,6 +7855,10 @@ export const THREED_SCHEMA: SchemaDocument = {
      "type": "string",
      "description": "The day the terms were read, YYYY-MM-DD.",
      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "dates": {
+     "$ref": "#/$defs/OfferDates",
+     "description": "The day a term was read when it is not `date`: the stock on one day, the price breaks on another."
     },
     "supplier": {
      "type": "string",

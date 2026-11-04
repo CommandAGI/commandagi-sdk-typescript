@@ -13,8 +13,10 @@
  *   packageDimensions                                                       the datasheet's package: "<n> pins, pitch
  *                                                                           <mm> mm, body <l> x <w> mm"
  *   suppliers={[{ name, sku, url, currency, priceBreaks, moq, orderMultiple, leadTimeDays, leadTimeDaysHigh, stock,
- *                 kind, confidence, samplesDays, tooling, service, supplier, source, date }]}
+ *                 preorder, pool, incoming, kind, confidence, samplesDays, tooling, service, via, supplier, source,
+ *                 date, dates }]}
  *   alternates={[{ manufacturer, mpn, note, approved, differences, datasheet, suppliers }]}  datasheet="https://…"
+ *   need={{ spares, attrition, attritionMin, multiple }}                    what one order needs past qty × N
  *   lifecycle={{ status, lastTimeBuy, onHand, reorderPoint, source, date }}
  *   compliance={{ rohs, rohsExemption, reach, conflictMinerals, eccn, certifications }}
  *   shipping={{ hsCode, origin, hazmat, packaging }}                        its logistics (docs/formats.md § logistics)
@@ -26,7 +28,8 @@
  * `datasheet` (docs/formats.md § logistics).
  *
  * A supplier is two properties: `<name> Part` (its sku; `LCSC Part` is what JLCPCB's assembly BOM reads) and
- * `<name> Terms` (the rest as compact JSON, a price break as [quantity, unitPrice], or [quantity, unitPrice, unitPriceHigh]). `Alternates` is JSON; a facet's
+ * `<name> Terms` (the rest as compact JSON, a price break as [quantity, unitPrice], or [quantity, unitPrice, unitPriceHigh];
+ * a single price with no quantity as [null, unitPrice]). `Alternates` and `Need` are JSON; a facet's
  * fields are one property each (`Lifecycle`, `RoHS`, `HS Code` …). The repository's decoder is
  * `packages/domain/world/logistics.js`; the Python and Rust SDKs write and read the same forms.
  */
@@ -74,12 +77,14 @@ const CHOICES: Record<string, readonly string[]> = {
 };
 const COUNTS = new Set(["lifecycle.onHand", "lifecycle.reorderPoint"]);
 const DATES = new Set(["lifecycle.lastTimeBuy", "lifecycle.date"]);
-const OFFER_TERMS = ["currency", "priceBreaks", "moq", "orderMultiple", "leadTimeDays", "leadTimeDaysHigh", "stock", "kind", "confidence", "samplesDays", "tooling", "service", "supplier", "url", "source", "date"] as const;
+const OFFER_TERMS = ["currency", "priceBreaks", "moq", "orderMultiple", "leadTimeDays", "leadTimeDaysHigh", "stock", "preorder", "pool", "incoming", "kind", "confidence", "samplesDays", "tooling", "service", "via", "supplier", "url", "source", "date", "dates"] as const;
+const NEED_KEYS = ["spares", "attrition", "attritionMin", "multiple"];
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const OFFER_KINDS = ["stock", "quote", "listing", "broker"];
 const ALTERNATE_KEYS = ["manufacturer", "mpn", "note", "approved", "differences", "datasheet", "suppliers"];
 const OFFER_KEYS = new Set(["name", "sku", ...OFFER_TERMS]);
 /** The arguments a part's fields take, in the order their forms are written. */
-export const FIELD_ARGUMENTS: readonly string[] = [...Object.keys(PART_FIELDS), "attrs", "suppliers", "alternates", "datasheet", "lifecycle", "compliance", "shipping"];
+export const FIELD_ARGUMENTS: readonly string[] = [...Object.keys(PART_FIELDS), "attrs", "suppliers", "alternates", "need", "datasheet", "lifecycle", "compliance", "shipping"];
 /** Fields a part holds otherwise: its reference, its value, its footprint. */
 const OWN_FIELDS = new Set(["Reference", "Value", "Footprint"]);
 
@@ -88,8 +93,11 @@ export interface SupplierOffer {
   sku?: string;
   url?: string;
   currency?: string;
-  /** The unit price from each quantity up; `unitPriceHigh` makes it an estimate range (unitPrice its low end). */
-  priceBreaks?: { quantity: number; unitPrice: number; unitPriceHigh?: number }[];
+  /**
+   * The unit price from each quantity up; `unitPriceHigh` makes it an estimate range (unitPrice its low end). One break
+   * with no quantity is a single price, read without the quantity it holds at.
+   */
+  priceBreaks?: { quantity?: number; unitPrice: number; unitPriceHigh?: number }[];
   moq?: number;
   orderMultiple?: number;
   leadTimeDays?: number;
@@ -97,6 +105,12 @@ export interface SupplierOffer {
   leadTimeDaysHigh?: number;
   /** Units held now: the roll-up fills at most this many from the offer. */
   stock?: number;
+  /** How many can still be bought now (JLC's "can pre-order now"; negative when more is promised than held): a cap. */
+  preorder?: number;
+  /** The stock it draws on, shared with the part's other offers that name it (one warehouse behind two counters). */
+  pool?: string;
+  /** Stock on its way to the supplier: each lot counts from its date. */
+  incoming?: { quantity: number; date: string }[];
   /** stock (the default), quote, listing or broker. */
   kind?: "stock" | "quote" | "listing" | "broker";
   /** firm (stock, quote) or indication (listing, broker): an indication is never a price to buy at. */
@@ -105,12 +119,27 @@ export interface SupplierOffer {
   samplesDays?: number;
   /** A factory run's one-time cost in `currency`, or "unknown". */
   tooling?: number | "unknown";
-  /** The `<service id>` of its supplier's file it is bought through. */
+  /** The `<service id>` it is bought through: of its `via` supplier's file, else of its own. */
   service?: string;
+  /** The supplier file it is bought through (DigiKey's part by JLCPCB's global sourcing): it ships on that route. */
+  via?: string;
   /** The supplier's file, by the document's folder. */
   supplier?: string;
   source?: string;
   date?: string;
+  /** The day a term was read when it is not `date` ({ stock: "2026-11-03", priceBreaks: "2026-11-02" }). */
+  dates?: Record<string, string>;
+}
+/** What one order of N products needs past qty × N: spares, then attrition, then a multiple (docs/formats.md § logistics). */
+export interface Need {
+  /** A fixed count per order. */
+  spares?: number;
+  /** A rate of what is fitted, lost at assembly (0.03). */
+  attrition?: number;
+  /** At least this many extra for attrition. */
+  attritionMin?: number;
+  /** The order rounds up to a multiple of this (a panel). */
+  multiple?: number;
 }
 /** A second source with another MPN (docs/formats.md § logistics, sourcing). */
 export interface Alternate {
@@ -137,6 +166,7 @@ export interface PartFields {
   attrs?: Record<string, string>;
   suppliers?: SupplierOffer[];
   alternates?: Alternate[];
+  need?: Need;
   datasheet?: string;
   lifecycle?: Record<string, string | number>;
   compliance?: Record<string, string | string[]>;
@@ -162,6 +192,7 @@ function argumentOf(name: string): string | null {
   if (p3) return p3;
   if (name === "Datasheet") return "datasheet";
   if (name === "Alternates") return "alternates";
+  if (name === "Need") return "need";
   for (const [arg, fields] of Object.entries(FACET_FIELDS)) if (Object.values(fields).includes(name)) return arg;
   return /. (Part|Terms)$/.test(name) ? "suppliers" : null;
 }
@@ -190,14 +221,33 @@ export function checkOffers(where: string, v: unknown): SupplierOffer[] {
     if (s.kind !== undefined && !OFFER_KINDS.includes(s.kind as string)) throw new Error(`${at}: kind is stock, quote, listing or broker`);
     if (s.confidence !== undefined && s.confidence !== "firm" && s.confidence !== "indication") throw new Error(`${at}: confidence is firm or indication`);
     if (s.tooling !== undefined && s.tooling !== "unknown" && !(typeof s.tooling === "number" && s.tooling >= 0)) throw new Error(`${at}: tooling is a cost, 0 or more, or "unknown"`);
-    for (const k of ["service", "supplier"] as const) if (s[k] !== undefined && !isText(s[k])) throw new Error(`${at}: ${k} is text`);
+    for (const k of ["service", "via", "supplier", "pool"] as const) if (s[k] !== undefined && !isText(s[k])) throw new Error(`${at}: ${k} is text`);
+    if (s.via !== undefined && s.service === undefined) throw new Error(`${at}: an offer bought through another supplier (via) names that supplier's service`);
+    if (s.preorder !== undefined && !Number.isInteger(s.preorder)) throw new Error(`${at}: preorder is a whole number (negative when more is promised than held)`);
+    if (s.incoming !== undefined && !(Array.isArray(s.incoming) && s.incoming.every((l) => isObject(l) && whole(l.quantity, 1) && typeof l.date === "string" && DAY.test(l.date) && Object.keys(l).every((k) => k === "quantity" || k === "date"))))
+      throw new Error(`${at}: incoming is a list of { quantity, date } (a whole number from 1, YYYY-MM-DD)`);
+    if (s.dates !== undefined && !(isObject(s.dates) && Object.entries(s.dates).every(([k, d]) => (OFFER_TERMS as readonly string[]).includes(k) && k !== "date" && k !== "dates" && typeof d === "string" && DAY.test(d))))
+      throw new Error(`${at}: dates is { <term>: YYYY-MM-DD } for the terms read on another day than date (stock, priceBreaks …)`);
     if (s.priceBreaks !== undefined) {
       const high = (b: Record<string, unknown>) => b.unitPriceHigh === undefined || (typeof b.unitPriceHigh === "number" && b.unitPriceHigh >= (b.unitPrice as number));
-      const ok = Array.isArray(s.priceBreaks) && s.priceBreaks.every((b) => isObject(b) && whole(b.quantity, 1) && typeof b.unitPrice === "number" && b.unitPrice >= 0 && high(b) && Object.keys(b).every((k) => ["quantity", "unitPrice", "unitPriceHigh"].includes(k)));
-      if (!ok) throw new Error(`${at}: priceBreaks is a list of { quantity, unitPrice, unitPriceHigh? } (quantity a whole number from 1, unitPrice 0 or more, unitPriceHigh not under it)`);
+      const list = s.priceBreaks as unknown[];
+      const single = Array.isArray(list) && list.length === 1 && isObject(list[0]) && list[0].quantity === undefined;
+      const ok = Array.isArray(list) && list.every((b) => isObject(b) && (whole(b.quantity, 1) || single) && typeof b.unitPrice === "number" && b.unitPrice >= 0 && high(b) && Object.keys(b).every((k) => ["quantity", "unitPrice", "unitPriceHigh"].includes(k)));
+      if (!ok) throw new Error(`${at}: priceBreaks is a list of { quantity, unitPrice, unitPriceHigh? } (quantity a whole number from 1, unitPrice 0 or more, unitPriceHigh not under it; one break with no quantity is a single price)`);
     }
     return JSON.parse(JSON.stringify(s)) as SupplierOffer;
   });
+}
+
+/** What one order needs past qty × N, checked; a wrong field is refused by name. */
+export function checkNeed(where: string, v: unknown): Need {
+  if (!isObject(v)) throw new Error(`${where}: need is { spares?, attrition?, attritionMin?, multiple? }`);
+  for (const k of Object.keys(v)) if (!NEED_KEYS.includes(k)) throw new Error(`${where}: need.${k} is not read (it takes ${NEED_KEYS.join(", ")})`);
+  if (v.spares !== undefined && !whole(v.spares, 0)) throw new Error(`${where}: need.spares is a whole number, a count per order`);
+  if (v.attrition !== undefined && !(typeof v.attrition === "number" && v.attrition >= 0 && v.attrition < 1)) throw new Error(`${where}: need.attrition is a rate, 0 to under 1 (0.03)`);
+  if (v.attritionMin !== undefined && !whole(v.attritionMin, 0)) throw new Error(`${where}: need.attritionMin is a whole number`);
+  if (v.multiple !== undefined && !whole(v.multiple, 1)) throw new Error(`${where}: need.multiple is a whole number, 1 or more`);
+  return JSON.parse(JSON.stringify(v)) as Need;
 }
 
 /** Second sources, each checked; an alternate's offers are offers. A wrong one is refused by name. */
@@ -218,7 +268,7 @@ export function checkAlternates(where: string, v: unknown): Alternate[] {
 function offerForms(where: string, v: unknown): ReturnType<typeof fieldForm>[] {
   return checkOffers(where, v).flatMap((s) => {
     const terms: Record<string, unknown> = {};
-    for (const k of OFFER_TERMS) if (s[k] !== undefined) terms[k] = k === "priceBreaks" ? (s[k] as { quantity: number; unitPrice: number; unitPriceHigh?: number }[]).map((b) => (b.unitPriceHigh === undefined ? [b.quantity, b.unitPrice] : [b.quantity, b.unitPrice, b.unitPriceHigh])) : s[k];
+    for (const k of OFFER_TERMS) if (s[k] !== undefined) terms[k] = k === "priceBreaks" ? (s[k] as { quantity?: number; unitPrice: number; unitPriceHigh?: number }[]).map((b) => (b.unitPriceHigh === undefined ? [b.quantity ?? null, b.unitPrice] : [b.quantity ?? null, b.unitPrice, b.unitPriceHigh])) : s[k];
     return [
       ...(s.sku !== undefined ? [fieldForm(`${s.name} Part`, s.sku as string)] : []),
       ...(Object.keys(terms).length || s.sku === undefined ? [fieldForm(`${s.name} Terms`, JSON.stringify(terms))] : []),
@@ -252,6 +302,7 @@ export function partFieldForms(where: string, props: Readonly<Record<string, unk
   if (props.alternates !== undefined) {
     forms.push(fieldForm("Alternates", JSON.stringify(checkAlternates(where, props.alternates))));
   }
+  if (props.need !== undefined) forms.push(fieldForm("Need", JSON.stringify(checkNeed(where, props.need))));
   if (props.datasheet !== undefined) {
     if (!isText(props.datasheet)) throw new Error(`${where}: datasheet is a URL or a path`);
     forms.push(fieldForm("Datasheet", props.datasheet));
@@ -311,8 +362,9 @@ export function partFields(inputs: Readonly<Record<string, unknown>>): PartField
     else if (arg === "suppliers") {
       const terms = JSON.parse(value) as Record<string, unknown>;
       const s = supplier(name.slice(0, -6)) as unknown as Record<string, unknown>;
-      for (const k of OFFER_TERMS) if (terms[k] !== undefined) s[k] = k === "priceBreaks" ? (terms[k] as [number, number, number?][]).map(([quantity, unitPrice, unitPriceHigh]) => (unitPriceHigh === undefined ? { quantity, unitPrice } : { quantity, unitPrice, unitPriceHigh })) : terms[k];
+      for (const k of OFFER_TERMS) if (terms[k] !== undefined) s[k] = k === "priceBreaks" ? (terms[k] as [number | null, number, number?][]).map(([quantity, unitPrice, unitPriceHigh]) => ({ ...(quantity === null ? {} : { quantity }), unitPrice, ...(unitPriceHigh === undefined ? {} : { unitPriceHigh }) })) : terms[k];
     } else if (arg === "alternates") out.alternates = JSON.parse(value);
+    else if (arg === "need") out.need = JSON.parse(value);
     else if (arg === "datasheet") out.datasheet = value;
     else if (arg) {
       const fields = FACET_FIELDS[arg as keyof typeof FACET_FIELDS];
