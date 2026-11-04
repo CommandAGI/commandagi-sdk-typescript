@@ -17,7 +17,8 @@
  *
  * The standard's parts REF their files: the books stay an hledger journal and the cap table an Open Cap Table Format
  * folder, because those open formats are the faithful records. The company is on the standard when it names any of
- * its parts (`<Books>`, `<CapTable>`, `<People>`, `<Calendar>`, `<Matters>`, `<Registration>`).
+ * its parts (`<Books>`, `<CapTable>`, `<People>`, `<Calendar>`, `<Matters>`, `<Registration>`). A `<Round>` with its
+ * `<Investment>`s models a priced round before it closes (`business-equity.ts`): the document's `rounds`.
  *
  *   <Subsidiary file ownership since method/>                          a subsidiary: its own company file, by ref
  *   <Paper kind title file status parties jurisdiction effective expires renewal noticeDays>
@@ -42,6 +43,10 @@ import { FILING_PAPER_PROPS, FORMATION_LISTS, FORMATION_TAGS, formationOf } from
 
 export * from "./business-finance.js";
 export { RegisteredAgent } from "./company-formation.js";
+
+import { EQUITY_TAGS, roundsOf } from "./business-equity.js";
+
+export { Round, Investment, EQUITY_TAGS, roundsOf } from "./business-equity.js";
 
 export const Company = "Company";
 export const Entity = "Entity";
@@ -78,8 +83,9 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
     props: { name: "text", about: "text", postalAddress: "text", files: "texts", dashboard: "text" },
     required: ["name"],
     one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE },
-    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS },
+    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", rounds: "Round", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS },
   },
+  ...EQUITY_TAGS,
   Entity: {
     props: { jurisdiction: "text", form: "text", taxClassification: "text", name: "text", formed: "text", fiscalYearEnd: "text", ids: "record", operatesIn: "texts", conditions: "record", dissolved: "text" },
     required: ["jurisdiction"],
@@ -243,6 +249,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     ...(x.many.versions!.length ? { versions: x.many.versions!.map((n) => ({ ...n.props })) } : {}),
   }));
   const finance = financeOf(node);
+  const rounds = roundsOf(node);
   return {
     format: "commandagi-company",
     name: p.name,
@@ -259,6 +266,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     ...(papers.length ? { papers } : {}),
     ...(finance ? { finance } : {}),
     ...formationOf(node),
+    ...(rounds.length ? { rounds } : {}),
   };
 }
 

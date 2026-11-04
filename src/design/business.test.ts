@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { Books, CapTable, Case, Change, Company, Entity, Harm, Option, Paper, Registration, Relief, Rfc, Signature, Subsidiary, Version, declarationOf, documentOf, jsx } from "./index.js";
+import { Books, CapTable, Case, Change, Company, Entity, Harm, Investment, Option, Paper, Registration, Relief, Rfc, Round, Signature, Subsidiary, Version, declarationOf, documentOf, jsx } from "./index.js";
 
 /** What a module declares, as a run reads it: the document beside an empty graph. */
 const declaredDocument = (mod: Record<string, unknown>) => declarationOf(mod).document!;
@@ -86,4 +86,31 @@ test("a group names its subsidiaries by ref and its papers with their signatures
               "versions": [{"file": "Acme/Lease v1.pdf", "date": "2026-01-02"}]}]});
   assert.throws(() => declaredDocument({ default: jsx(Company, { name: "X", children: jsx(Subsidiary, { file: "B.company.tsx" }) }) }), /<Subsidiary> needs ownership/);
   assert.equal("subsidiaries" in (declaredDocument({ default: jsx(Company, { name: "X" }) }).document as object), false, "a field the file names none of is absent");
+});
+
+test("a <Round> with its <Investment>s is the company's rounds, in the order written; its sources by path", () => {
+  const tree = jsx(Company, {
+    __source: 0,
+    name: "Kite Works",
+    children: [
+      jsx(CapTable, { __source: 1, ocf: "Kite Works/captable/" }),
+      jsx(Round, {
+        __source: 2,
+        name: "Series A",
+        date: "2027-03-01",
+        preMoney: "20000000",
+        currency: "USD",
+        poolTarget: "0.10",
+        children: [jsx(Investment, { __source: 3, stakeholder: "Lead Fund", amount: "5000000" }), jsx(Investment, { __source: 4, stakeholder: "Ada Lovelace", amount: 250000 })],
+      }),
+    ],
+  });
+  const d = declaredDocument({ default: tree });
+  assert.deepEqual((d.document as { rounds: unknown }).rounds, [
+    { name: "Series A", date: "2027-03-01", preMoney: "20000000", currency: "USD", poolTarget: "0.10", investments: [{ stakeholder: "Lead Fund", amount: "5000000" }, { stakeholder: "Ada Lovelace", amount: 250000 }] },
+  ]);
+  assert.deepEqual(d.sources, { "": 0, captable: 1, "rounds/0": 2, "rounds/0/investments/0": 3, "rounds/0/investments/1": 4 });
+  assert.equal("rounds" in (declaredDocument({ default: jsx(Company, { name: "Bare" }) }).document as object), false, "no round: no rounds field");
+  assert.throws(() => declaredDocument({ default: jsx(Company, { name: "X", children: jsx(Round, { name: "Seed" }) }) }), /<Round> needs preMoney/);
+  assert.throws(() => declaredDocument({ default: jsx(Company, { name: "X", children: jsx(Round, { name: "Seed", preMoney: "1", children: jsx(Investment, { stakeholder: "A", amount: "1", shares: 2 }) }) }) }), /<Investment> has no attribute shares/);
 });
