@@ -18,7 +18,8 @@
  * The standard's parts REF their files: the books stay an hledger journal and the cap table an Open Cap Table Format
  * folder, because those open formats are the faithful records. The company is on the standard when it names any of
  * its parts (`<Books>`, `<CapTable>`, `<People>`, `<Calendar>`, `<Matters>`, `<Registration>`). A `<Round>` with its
- * `<Investment>`s models a priced round before it closes (`business-equity.ts`): the document's `rounds`.
+ * `<Investment>`s models a priced round before it closes (`business-equity.ts`): the document's `rounds`. `<Brand file>`
+ * names one of its brands, each a `.brand.tsx` of its own (`./brands.ts`); a brand is not a part of the standard.
  *
  *   <Subsidiary file ownership since method/>                          a subsidiary: its own company file, by ref
  *   <Paper kind title file status parties jurisdiction effective expires renewal noticeDays>
@@ -61,6 +62,7 @@ export const Subsidiary = "Subsidiary";
 export const Paper = "Paper";
 export const Signature = "Signature";
 export const Version = "Version";
+export const Brand = "Brand";
 export const Rfc = "Rfc";
 export const Option = "Option";
 export const Change = "Change";
@@ -84,7 +86,7 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
     props: { name: "text", about: "text", postalAddress: "text", files: "texts", dashboard: "text" },
     required: ["name"],
     one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE, team: "Team" },
-    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", rounds: "Round", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS },
+    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", rounds: "Round", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS, brands: "Brand" },
   },
   ...EQUITY_TAGS,
   Entity: {
@@ -112,6 +114,8 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   Signature: { props: { party: "text", signer: "text", capacity: "text", date: "text", method: "text", evidence: "text" }, required: ["party"] },
   Version: { props: { file: "text", date: "text", note: "text" }, required: ["file"] },
   ...FORMATION_TAGS,
+  // A brand of the company: its own `.brand.tsx`, by ref (docs/company-substrate.md § the brand surface).
+  Brand: { props: { file: "text" }, required: ["file"] },
   Rfc: {
     props: { id: "text", procedure: "text", title: "text", body: "text", target: "text", engineJson: "text" },
     many: { options: "Option" },
@@ -245,6 +249,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
   const registrations = node.many.registrations!.map((r) => ({ ...r.props }));
   const on = ["books", "captable", "people", "calendar", "matters"].some((f) => one[f]) || registrations.length > 0;
   const subsidiaries = node.many.subsidiaries!.map((x) => ({ ...x.props }));
+  const brands = node.many.brands!.map((x) => ({ ...x.props }));
   const papers = node.many.papers!.map((x) => ({
     ...x.props,
     ...(x.many.signatures!.length ? { signatures: x.many.signatures!.map((n) => ({ ...n.props })) } : {}),
@@ -270,6 +275,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     ...formationOf(node),
     ...(rounds.length ? { rounds } : {}),
     ...(one.team ? { team: teamOf(one.team) } : {}),
+    ...(brands.length ? { brands } : {}),
   };
 }
 
