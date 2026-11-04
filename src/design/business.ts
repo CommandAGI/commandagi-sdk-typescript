@@ -45,6 +45,7 @@ import { PEOPLE_OPS_TAGS, teamOf } from "./people-ops.js";
 
 export * from "./business-finance.js";
 export { RegisteredAgent } from "./company-formation.js";
+import { COMPANY_GOVERNANCE_MANY, COMPANY_GOVERNANCE_ONE, GOVERNANCE_TAGS, PAPER_VOTE_PROPS, governanceOf, votesOf } from "./company-governance.js";
 
 import { EQUITY_TAGS, roundsOf } from "./business-equity.js";
 
@@ -85,8 +86,8 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   Company: {
     props: { name: "text", about: "text", postalAddress: "text", files: "texts", dashboard: "text" },
     required: ["name"],
-    one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE, team: "Team" },
-    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", rounds: "Round", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS, brands: "Brand" },
+    one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE, team: "Team", ...COMPANY_GOVERNANCE_ONE },
+    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", rounds: "Round", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS, brands: "Brand", ...COMPANY_GOVERNANCE_MANY },
   },
   ...EQUITY_TAGS,
   Entity: {
@@ -107,15 +108,18 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
       kind: "text", title: "text", file: "text", status: "text", parties: "texts", jurisdiction: "text",
       effective: "text", expires: "text", renewal: "text", noticeDays: "amount",
       ...FILING_PAPER_PROPS,
+      ...PAPER_VOTE_PROPS,
     },
     required: ["kind", "file"],
-    many: { signatures: "Signature", versions: "Version" },
+    many: { signatures: "Signature", versions: "Version", votes: "Vote" },
   },
   Signature: { props: { party: "text", signer: "text", capacity: "text", date: "text", method: "text", evidence: "text" }, required: ["party"] },
   Version: { props: { file: "text", date: "text", note: "text" }, required: ["file"] },
   ...FORMATION_TAGS,
   // A brand of the company: its own `.brand.tsx`, by ref (docs/company-substrate.md § the brand surface).
   Brand: { props: { file: "text" }, required: ["file"] },
+  // Seats, the compliance register, IP, insurance and votes (company-governance.ts).
+  ...(GOVERNANCE_TAGS as unknown as Record<string, TagSpec>),
   Rfc: {
     props: { id: "text", procedure: "text", title: "text", body: "text", target: "text", engineJson: "text" },
     many: { options: "Option" },
@@ -254,6 +258,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     ...x.props,
     ...(x.many.signatures!.length ? { signatures: x.many.signatures!.map((n) => ({ ...n.props })) } : {}),
     ...(x.many.versions!.length ? { versions: x.many.versions!.map((n) => ({ ...n.props })) } : {}),
+    ...votesOf(x),
   }));
   const finance = financeOf(node);
   const rounds = roundsOf(node);
@@ -276,6 +281,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     ...(rounds.length ? { rounds } : {}),
     ...(one.team ? { team: teamOf(one.team) } : {}),
     ...(brands.length ? { brands } : {}),
+    ...governanceOf(node),
   };
 }
 

@@ -8,6 +8,11 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- A company's governance, compliance, IP and insurance (`company-governance.ts`): `<Seat>`, `<Compliance>`,
+  `<Obligation>`, `<Evidence>`, `<IpAsset>`, `<Assignment>` and `<Policy>` children of a `<Company>`, and `<Vote>`
+  children of a `<Paper>` (which gains `body`, `threshold` and `quorum`). The company document gains `governance`,
+  `compliance`, `ip` and `insurance` only when the file writes one of their elements. The same in the TypeScript,
+  Python and Rust SDKs (one golden fixture, `company-governance.golden.json`).
 - A company names its subsidiaries, `<Subsidiary file ownership since method>` (each its own company file, by ref),
   and its typed documents, `<Paper kind title file status parties jurisdiction effective expires renewal noticeDays>`
   with `<Signature>` and `<Version>` children. The document gains `subsidiaries` and `papers`, absent when the file
