@@ -393,3 +393,28 @@ test("<body material> declares a physically based material: the golden's bodies 
   assert.throws(() => part({ roughness: golden.refused.roughness }), new RegExp(golden.refused.says));
   assert.throws(() => part({ texture: { kind: "knurl", scale: 1, depth: 0.1 } }), /kind/);
 });
+
+// pattern-operation.golden.json is the golden of the three SDKs (pattern_operation.json in the Python and Rust SDKs'
+// tests): a pattern says `operation` and `consumes` like the feature it repeats, or says neither.
+test("<circularPattern> and <linearPattern> take operation and consumes: the nodes read as the golden, and a wrong operation is refused by name", async () => {
+  const { readFileSync } = await import("node:fs");
+  const golden = JSON.parse(readFileSync(new URL("./pattern-operation.golden.json", import.meta.url), "utf8")) as { nodes: Record<string, unknown>; refused: { operation: string; says: string } };
+  const twin = (operation: string) =>
+    declarationOf({
+      default: () =>
+        jsx("part", {
+          name: "Two boxes",
+          children: [
+            jsx("box", { id: "a", name: "A", center: [0, 0, 5], size: [40, 40, 10], operation: "new" }),
+            jsx("box", { id: "b", name: "B", center: [0, 0, 25], size: [40, 40, 10], operation: "new" }),
+            jsx("cylinder", { id: "cut", name: "Cut", center: [10, 0, -5], axis: [0, 0, 1], radius: 2, height: 50, operation: "cut", consumes: ["a"] }),
+            jsx("circularPattern", { id: "ring", seedFeature: "cut", axis: { type: "datumAxis", axis: "Z" }, count: 4, operation, consumes: ["a"] }),
+            jsx("linearPattern", { id: "row", seedFeature: "cut", direction: [1, 0, 0], spacing: 10, count: 3 }),
+          ],
+        }),
+    }).graph;
+  const g = twin("cut");
+  assert.deepEqual(g.nodes.ring!.inputs, golden.nodes.ring);
+  assert.deepEqual(g.nodes.row!.inputs, golden.nodes.row);
+  assert.throws(() => twin(golden.refused.operation), new RegExp(golden.refused.says));
+});

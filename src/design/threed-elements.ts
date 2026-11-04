@@ -286,6 +286,10 @@ export type CircularPatternFeature = {
    * @default 6.283185307179586
    */
   angle?: number;
+  /**
+   * How the copies combine with the bodies they act on. Absent: the repeated feature's own operation. A pattern of a cut cuts only the bodies it consumes (`consumes`; absent: the bodies the repeated feature consumes).
+   */
+  operation?: BooleanMode;
   id: string;
   name: string;
   suppressed?: boolean;
@@ -2043,6 +2047,10 @@ export type LinearPatternFeature = {
    * @minimum 1
    */
   count2?: number;
+  /**
+   * How the copies combine with the bodies they act on. Absent: the repeated feature's own operation. A pattern of a cut cuts only the bodies it consumes (`consumes`; absent: the bodies the repeated feature consumes).
+   */
+  operation?: BooleanMode;
   id: string;
   name: string;
   suppressed?: boolean;
@@ -2755,6 +2763,10 @@ export type PathPatternFeature = {
    * Turn each copy as the path turns from its start: on a sketch, about the sketch's normal; on a curve in space, by the curve's rotation-minimizing frame (no roll about the path).
    */
   alignToPath?: boolean;
+  /**
+   * How the copies combine with the bodies they act on. Absent: the repeated feature's own operation. A pattern of a cut cuts only the bodies it consumes (`consumes`; absent: the bodies the repeated feature consumes).
+   */
+  operation?: BooleanMode;
   id: string;
   name: string;
   suppressed?: boolean;

@@ -659,6 +659,10 @@ export const THREED_SCHEMA: SchemaDocument = {
      "maximum": 6.283185307179586,
      "default": 6.283185307179586
     },
+    "operation": {
+     "$ref": "#/$defs/BooleanMode",
+     "description": "How the copies combine with the bodies they act on. Absent: the repeated feature's own operation. A pattern of a cut cuts only the bodies it consumes (`consumes`; absent: the bodies the repeated feature consumes)."
+    },
     "id": {
      "type": "string"
     },
@@ -4108,6 +4112,10 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "How many there are in the second direction.",
      "minimum": 1
     },
+    "operation": {
+     "$ref": "#/$defs/BooleanMode",
+     "description": "How the copies combine with the bodies they act on. Absent: the repeated feature's own operation. A pattern of a cut cuts only the bodies it consumes (`consumes`; absent: the bodies the repeated feature consumes)."
+    },
     "id": {
      "type": "string"
     },
@@ -5565,6 +5573,10 @@ export const THREED_SCHEMA: SchemaDocument = {
     "alignToPath": {
      "type": "boolean",
      "description": "Turn each copy as the path turns from its start: on a sketch, about the sketch's normal; on a curve in space, by the curve's rotation-minimizing frame (no roll about the path)."
+    },
+    "operation": {
+     "$ref": "#/$defs/BooleanMode",
+     "description": "How the copies combine with the bodies they act on. Absent: the repeated feature's own operation. A pattern of a cut cuts only the bodies it consumes (`consumes`; absent: the bodies the repeated feature consumes)."
     },
     "id": {
      "type": "string"
