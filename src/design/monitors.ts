@@ -18,7 +18,8 @@
  *
  * The rule of the ontology's files: a record is an element and its fields are the element's attributes, verbatim. A
  * source is named by its `id` in its monitor, a follow by the `monitor` it follows (a ref: the followed monitor's
- * folder, relative to this monitor's folder), a wake by its place.
+ * folder, relative to this monitor's folder), a wake by its place. A wake wakes the agent on records (`match`) or on a
+ * clock (`every="7d"`: a weekly brief).
  *
  * Nothing adds a default: what the file does not say, the document does not have (`via`, `readme`, `exit`, `host`,
  * `mode`, `retain`, `since`, `session`, `snapshot`, `profile`, `keep`, `maxCostPerDay`, `unit`). `monitorWithDefaults`
@@ -41,7 +42,7 @@ export const DISCOVER_MAX = 50;
 /** Who may read a file a discover writes (docs/monitors.md § own thread or record). */
 export const VISIBILITIES = ["private", "unlisted", "public"] as const;
 export type Visibility = (typeof VISIBILITIES)[number];
-export const WAKE_FIELDS = ["match", "prompt"] as const;
+export const WAKE_FIELDS = ["match", "every", "prompt"] as const;
 export const DERIVE_FIELDS = ["id", "op", "inputs", "params", "since"] as const;
 
 /**
@@ -157,8 +158,10 @@ export interface MonitorDerive {
   /** The first day the derive takes; its first run folds the inputs' logs from it. */
   since?: string;
 }
+/** A wake on records (`match`, a class glob) or on a clock (`every`, a duration from 30s to 7d): never both. */
 export interface MonitorWake {
   match?: string;
+  every?: string;
   prompt: string;
 }
 /** What a `monitor.tsx` declares: one monitor. */
@@ -342,6 +345,12 @@ function monitorOf(t: DocTree): MonitorDoc {
   const wakes = parts("wake").map((c) => {
     text(c, "match", "match");
     text(c, "prompt", "match");
+    if (c.attrs.every !== undefined) {
+      if (c.attrs.match !== undefined) throw new Error(`<wake match="${c.attrs.match as string}"> wakes on records (match) or on a clock (every), not both`);
+      const s = durationSeconds(c.attrs.every);
+      if (s === null || s < durationSeconds(EVERY_BOUNDS.min)! || s > durationSeconds(EVERY_BOUNDS.max)!)
+        throw new Error(`<wake> every is a duration from ${EVERY_BOUNDS.min} to ${EVERY_BOUNDS.max}, not ${JSON.stringify(c.attrs.every)}`);
+    }
     return said(c.attrs, WAKE_FIELDS) as unknown as MonitorWake;
   });
   return { ...said(t.attrs, MONITOR_FIELDS), sources: parts("source").map(sourceOf), follows, derives, wakes, discovers: parts("discover").map(discoverOf) };
@@ -393,7 +402,7 @@ export function monitorWithDefaults(m: MonitorDoc) {
     sources: m.sources.map((s) => ({ id: s.id, adapter: s.adapter, params: s.params ?? {}, every: s.every, via: s.via ?? "worker", exit: s.exit ?? null, host: s.host ?? null, mode: s.mode ?? "poll", retain: s.mode === "stream" ? (s.retain ?? "derived") : null, since: s.since ?? null, session: s.session ?? null, snapshot: s.snapshot ?? null, profile: s.profile ?? null, keep: s.keep ?? null, maxCostPerDay: s.maxCostPerDay ?? null, unit: s.unit ?? null, vantage: s.vantage ?? null, connection: s.connection ?? null })),
     follows: m.follows.map((f) => ({ monitor: f.monitor, when: f.when ?? null })),
     derives: (m.derives ?? []).map((d) => ({ id: d.id, op: d.op, inputs: d.inputs, params: d.params ?? {}, since: d.since ?? null })),
-    wakes: m.wakes.map((w) => ({ match: w.match ?? null, prompt: w.prompt })),
+    wakes: m.wakes.map((w) => ({ match: w.match ?? null, every: w.every ?? null, prompt: w.prompt })),
     discovers: (m.discovers ?? []).map((d) => ({ into: d.into ?? "./", of: d.of === undefined ? [] : typeof d.of === "string" ? [d.of] : d.of, when: d.when ?? null, slug: d.slug, class: d.class, props: d.props ?? {}, name: d.name ?? null, max: d.max ?? 10, visibility: d.visibility ?? null })),
   };
 }

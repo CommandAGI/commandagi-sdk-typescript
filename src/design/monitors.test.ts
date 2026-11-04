@@ -45,7 +45,7 @@ test("a monitor in JSX: a class is a component, an instance is one element, and 
     sources: [{ id: "filings", adapter: "sec-filings", params: { cik: "0001045810" }, every: "15m", via: "worker", exit: null, host: null, mode: "poll", retain: null, since: null, session: null, snapshot: null, profile: null, keep: null, maxCostPerDay: null, unit: null, vantage: null, connection: null }],
     follows: [{ monitor: "../../central-banks/fed", when: { class: "fomc.*" } }],
     derives: [],
-    wakes: [{ match: "sec.filing.8-k*", prompt: "Say what the report changes." }],
+    wakes: [{ match: "sec.filing.8-k*", every: null, prompt: "Say what the report changes." }],
     discovers: [],
   });
 });
@@ -83,6 +83,11 @@ test("a monitor refuses by name what it has no words for, and values out of rang
   assert.throws(one(src({ cron: "0 * * * *" })), /<source id="s">: cron is not read/);
   assert.throws(one(el("follows", { monitor: "." })), /names this monitor/);
   assert.throws(one(el("wake", { match: "x.*" })), /<wake> needs prompt/);
+  // A wake on a clock: a weekly brief. It says match or every, never both.
+  const weekly = declarationOf({ default: el("monitor", {}, el("wake", { every: "7d", prompt: "Write the week's brief." })) });
+  assert.deepEqual(monitorWithDefaults(weekly.document!.document as never).wakes, [{ match: null, every: "7d", prompt: "Write the week's brief." }]);
+  assert.throws(one(el("wake", { every: "8d", prompt: "p" })), /every is a duration from 30s to 7d/);
+  assert.throws(one(el("wake", { match: "x.*", every: "1d", prompt: "p" })), /not both/);
   // The id is the folder's path, and who reads the thread is the file's Drive visibility: neither is a word of the file.
   assert.throws(() => declarationOf({ default: el("monitor", { id: "economy/cpi" }) }), /<monitor>: id is not read/);
   assert.throws(() => declarationOf({ default: el("monitor", { visibility: "public" }) }), /<monitor>: visibility is not read/);
