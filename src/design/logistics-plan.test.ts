@@ -65,6 +65,23 @@ test("a logistics plan in JSX: its BOM designs, the builder, and each supplier's
   assert.throws(() => declarationOf({ default: el("logistics", { quantity: 2.5 }) }), /whole number/);
 });
 
+test("a leg that says \"quote this\": its want, its parcel, and the postal codes the carriers rate by; both ways", () => {
+  const file = el(
+    "logistics",
+    { name: "helmet" },
+    el("builder", { name: "the builder, San Francisco", lat: 37.72, lon: -122.44, country: "US", postal: "94112" }),
+    el("route", { supplier: "suppliers/x.supplier.tsx" }, el("leg", { carrier: "USPS", quote: "cheapest", kg: 2.5, mm: [300, 250, 220], to: "a buyer, Berlin", lat: 52.52, lon: 13.4, country: "DE", postal: "10115" })),
+  );
+  const doc = declarationOf({ default: file }).document!;
+  assert.deepEqual((doc.document as never as { builder: unknown }).builder, { name: "the builder, San Francisco", lat: 37.72, lon: -122.44, country: "US", postal: "94112" });
+  assert.deepEqual((doc.document as never as { routes: { legs: unknown[] }[] }).routes[0]!.legs[0], { carrier: "USPS", quote: "cheapest", kg: 2.5, mm: [300, 250, 220], to: { name: "a buyer, Berlin", lat: 52.52, lon: 13.4, country: "DE", postal: "10115" } });
+  assert.deepEqual(LOGISTICS.logistics.fromTree(LOGISTICS.logistics.toTree(doc.document as never)), doc.document, "both ways");
+  const bad = (leg: Record<string, unknown>) => () => declarationOf({ default: el("logistics", {}, el("route", { supplier: "s.supplier.tsx" }, el("leg", { carrier: "UPS", ...leg }))) });
+  assert.throws(bad({ quote: "the cheap one" }), /quote is cheapest, fastest/);
+  assert.throws(bad({ quote: "ups/03" }), /quote needs its parcel/);
+  assert.throws(bad({ quote: "fastest", kg: 2, mm: [300, 250] }), /mm is the parcel/);
+});
+
 test("a supplier's services and a plan's sources: how a part is bought through a supplier, and how one line is filled", () => {
   const supplier = declarationOf({
     default: el(

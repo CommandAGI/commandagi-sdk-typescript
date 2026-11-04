@@ -57,6 +57,8 @@ export interface Place {
   lon: number;
   /** ISO 3166 alpha-2. */
   country?: string;
+  /** The postal code a carrier rates by (a ZIP code in the US). */
+  postal?: string;
   address?: string;
 }
 export interface SupplierShips {
@@ -108,6 +110,16 @@ export interface LogisticsLeg {
   transitDays?: number;
   cost?: number;
   currency?: string;
+  /**
+   * "Quote this": the shipping interface quotes the leg live (docs/shipping.md) and the plan's view shows the quote
+   * beside the stated cost. `cheapest`, `fastest`, a carrier (`usps`), or a carrier and its service code
+   * (`usps/PRIORITY_MAIL`). The parcel it rates is `kg` and `mm`; both ends state a country and a postal code.
+   */
+  quote?: string;
+  /** The parcel's weight, kilograms. */
+  kg?: number;
+  /** The parcel's outside length, width and height, millimetres. */
+  mm?: [number, number, number];
   /** Where the leg ends; absent: at the builder. */
   to?: Place;
 }
@@ -143,7 +155,7 @@ export interface LogisticsDoc {
   sources: LogisticsSource[];
 }
 
-export const PLACE_FIELDS = ["name", "lat", "lon", "country", "address"] as const;
+export const PLACE_FIELDS = ["name", "lat", "lon", "country", "postal", "address"] as const;
 export const SUPPLIER_FIELDS = ["name", "url", "leadTimeDays", "note"] as const;
 export const SHIPS_FIELDS = ["carrier", "service", "transitDays", "note"] as const;
 export const CONTACT_FIELDS = ["name", "role", "email", "phone"] as const;
@@ -155,7 +167,9 @@ export const SOURCING_USE_FIELDS = ["offer", "mpn", "qty", "share"] as const;
 const STRATEGIES = ["single", "fill", "split", "dual"];
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 export const BOM_FIELDS = ["ref", "qty"] as const;
-export const LEG_FIELDS = ["carrier", "service", "transitDays", "cost", "currency", "to", "lat", "lon", "country"] as const;
+export const LEG_FIELDS = ["carrier", "service", "transitDays", "cost", "currency", "quote", "kg", "mm", "to", "lat", "lon", "country", "postal"] as const;
+/** What a leg's quote asks for: cheapest, fastest, a carrier, or a carrier and its service code. */
+const WANT = /^(?:cheapest|fastest|[a-z][a-z0-9-]{1,31}(?:\/[A-Za-z0-9_.-]{1,64})?)$/;
 
 const fields = (o: Record<string, unknown>, keys: readonly string[]) => {
   const out: Record<string, unknown> = {};
@@ -174,8 +188,8 @@ function place(tag: string, a: Record<string, unknown>, name = "name"): Place {
   if (typeof a.lat !== "number" || a.lat < -90 || a.lat > 90) throw new Error(`<${tag}> lat is degrees north, -90 to 90`);
   if (typeof a.lon !== "number" || a.lon < -180 || a.lon > 180) throw new Error(`<${tag}> lon is degrees east, -180 to 180`);
   if (a.country !== undefined && !(typeof a.country === "string" && /^[A-Z]{2}$/.test(a.country))) throw new Error(`<${tag}> country is ISO 3166 alpha-2 ("CN")`);
-  text(tag, a, ["address"]);
-  return { name: a[name] as string, lat: a.lat, lon: a.lon, ...(a.country ? { country: a.country as string } : {}), ...(a.address ? { address: a.address as string } : {}) };
+  text(tag, a, ["postal", "address"]);
+  return { name: a[name] as string, lat: a.lat, lon: a.lon, ...(a.country ? { country: a.country as string } : {}), ...(a.postal ? { postal: a.postal as string } : {}), ...(a.address ? { address: a.address as string } : {}) };
 }
 const placeAttrs = (p: Place): Record<string, unknown> => fields(p as unknown as Record<string, unknown>, PLACE_FIELDS);
 
@@ -240,8 +254,12 @@ function leg(c: DocTree): LogisticsLeg {
   count("leg", a, ["transitDays", "cost"]);
   if (a.currency !== undefined && !(typeof a.currency === "string" && /^[A-Z]{3}$/.test(a.currency))) throw new Error('<leg> currency is ISO 4217 ("USD")');
   if (a.cost !== undefined && a.currency === undefined) throw new Error("<leg> cost states its currency");
+  if (a.quote !== undefined && !(typeof a.quote === "string" && WANT.test(a.quote))) throw new Error("<leg> quote is cheapest, fastest, a carrier (usps), or a carrier and its service code (usps/PRIORITY_MAIL)");
+  if (a.kg !== undefined && !(typeof a.kg === "number" && a.kg > 0)) throw new Error("<leg> kg is the parcel's weight in kilograms, above 0");
+  if (a.mm !== undefined && !(Array.isArray(a.mm) && a.mm.length === 3 && a.mm.every((x) => typeof x === "number" && x > 0))) throw new Error("<leg> mm is the parcel's [length, width, height] in millimetres");
+  if (a.quote !== undefined && (a.kg === undefined || a.mm === undefined)) throw new Error("<leg> quote needs its parcel: kg and mm");
   const somewhere = a.to !== undefined || a.lat !== undefined || a.lon !== undefined || a.country !== undefined;
-  return { ...(fields(a, ["carrier", "service", "transitDays", "cost", "currency"]) as unknown as LogisticsLeg), ...(somewhere ? { to: place("leg", a, "to") } : {}) };
+  return { ...(fields(a, ["carrier", "service", "transitDays", "cost", "currency", "quote", "kg", "mm"]) as unknown as LogisticsLeg), ...(somewhere ? { to: place("leg", a, "to") } : {}) };
 }
 
 export const logisticsVocabulary: Vocabulary<LogisticsDoc> = {
@@ -294,7 +312,7 @@ export const logisticsVocabulary: Vocabulary<LogisticsDoc> = {
         attrs: { supplier: r.supplier },
         children: r.legs.map((l) => ({
           tag: "leg",
-          attrs: { ...fields(l as unknown as Record<string, unknown>, ["carrier", "service"]), ...(l.to ? { to: l.to.name, lat: l.to.lat, lon: l.to.lon, ...(l.to.country ? { country: l.to.country } : {}) } : {}), ...fields(l as unknown as Record<string, unknown>, ["transitDays", "cost", "currency"]) },
+          attrs: { ...fields(l as unknown as Record<string, unknown>, ["carrier", "service"]), ...(l.to ? { to: l.to.name, lat: l.to.lat, lon: l.to.lon, ...(l.to.country ? { country: l.to.country } : {}), ...(l.to.postal ? { postal: l.to.postal } : {}) } : {}), ...fields(l as unknown as Record<string, unknown>, ["transitDays", "cost", "currency", "quote", "kg", "mm"]) },
           children: [],
         })),
       });
