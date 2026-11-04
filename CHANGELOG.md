@@ -8,6 +8,9 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Changed
 
+- A local `Kernel` starts the first host whose 3D service is installed: the one beside this package, then each
+  `commandagi` on PATH. A host without one (a checkout's workspace host that never ran `commandagi threed install`)
+  no longer hides an installed host on PATH; the refusal names each host it asked.
 - `<check sweep>` names the joints it moves: `sweep={{ joints: ["X", "Z"], step: 10 }}` (was `joint`). Several joints
   are swept as a grid of their values, a loop a swept joint closes is solved at each pose, and screw and cylindrical
   joints sweep too (docs/formats.md § design checks, over the joints' ranges). A file that writes `joint` is refused

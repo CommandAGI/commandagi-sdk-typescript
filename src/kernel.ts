@@ -10,7 +10,7 @@
  *   local,cloud  (the default) this computer when its 3D service is installed (`commandagi threed install`, once),
  *                else the platform's kernel door with your COMMANDAGI_API_KEY
  *   local        this computer only, offline, no account. The SDK starts `commandagi threed serve` (the local host's
- *                CLI, npm `@commandagi/host`: the one installed beside this package, else the one on PATH) and stops
+ *                CLI, npm `@commandagi/host`: the first whose 3D service is installed, beside this package, then on PATH) and stops
  *                it when the process exits
  *   cloud        the platform only (`/kernels/3d/v1/<op>`), with your COMMANDAGI_API_KEY
  *   a URL        a service that already runs (`commandagi threed serve`), with COMMANDAGI_THREED_TOKEN as its bearer:
@@ -244,23 +244,25 @@ interface HostCli {
 }
 
 /**
- * The local host's `commandagi` (npm `@commandagi/host`, which carries the 3D service): the one installed beside this
- * package, else the one on PATH, else null.
+ * Every local host's `commandagi` (npm `@commandagi/host`, which carries the 3D service), in the order they are tried:
+ * the one installed beside this package, then each one on PATH.
  */
-async function hostCli(env: Env): Promise<HostCli | null> {
+async function hostClis(env: Env): Promise<HostCli[]> {
   const [{ createRequire }, { existsSync, readFileSync }, path] = await Promise.all([import("node:module"), import("node:fs"), import("node:path")]);
+  const found: HostCli[] = [];
   try {
     const manifest = createRequire(import.meta.url).resolve("@commandagi/host/package.json");
     const bin = (JSON.parse(readFileSync(manifest, "utf8")) as { bin?: Record<string, string> }).bin?.commandagi;
-    if (bin) return { file: process.execPath, args: [path.join(path.dirname(manifest), bin)], shell: false };
+    if (bin) found.push({ file: process.execPath, args: [path.join(path.dirname(manifest), bin)], shell: false });
   } catch {
     // Not installed beside this package.
   }
   const names = process.platform === "win32" ? ["commandagi.cmd", "commandagi.exe"] : ["commandagi"];
   for (const dir of (env.PATH ?? "").split(path.delimiter).filter(Boolean))
     for (const name of names)
-      if (existsSync(path.join(dir, name))) return { file: path.join(dir, name), args: [], shell: name.endsWith(".cmd") };
-  return null;
+      if (existsSync(path.join(dir, name)) && !found.some((f) => f.file === path.join(dir, name)))
+        found.push({ file: path.join(dir, name), args: [], shell: name.endsWith(".cmd") });
+  return found;
 }
 
 const INSTALL = "npm install -g @commandagi/host, then commandagi threed install";
@@ -268,19 +270,31 @@ const INSTALL = "npm install -g @commandagi/host, then commandagi threed install
 /** The host whose 3D service is installed, or why the local place cannot run. Asked once a process: `threed status`. */
 let localHost: Promise<HostCli | string> | null = null;
 
+/**
+ * The first host whose `threed status` says its 3D service is installed. A host without one (a checkout's workspace
+ * host whose service was never installed, beside a package that lives in that checkout) does not hide a host further
+ * on that has one.
+ */
 async function findLocal(env: Env): Promise<HostCli | string> {
-  const cli = await hostCli(env);
-  if (!cli) return `the local 3D service is not installed: it is the local host's (${INSTALL})`;
+  const clis = await hostClis(env);
+  if (!clis.length) return `the local 3D service is not installed: it is the local host's (${INSTALL})`;
   const { execFile } = await import("node:child_process");
-  const said = await new Promise<string>((resolve) =>
-    execFile(cli.file, [...cli.args, "threed", "status"], { shell: cli.shell, timeout: 60_000 }, (_e, stdout) => resolve(String(stdout ?? ""))),
-  );
-  try {
-    if ((JSON.parse(said) as { installed?: unknown }).installed === true) return cli;
-  } catch {
-    return `\`commandagi threed status\` gave no status (${INSTALL})`;
+  const why: string[] = [];
+  for (const cli of clis) {
+    const said = await new Promise<string>((resolve) =>
+      execFile(cli.file, [...cli.args, "threed", "status"], { shell: cli.shell, timeout: 60_000 }, (_e, stdout) => resolve(String(stdout ?? ""))),
+    );
+    const name = [cli.file, ...cli.args].join(" ");
+    try {
+      if ((JSON.parse(said) as { installed?: unknown }).installed === true) return cli;
+      why.push(`${name}: not installed`);
+    } catch {
+      why.push(`${name}: \`threed status\` gave no status`);
+    }
   }
-  return "the local 3D service is not installed (commandagi threed install)";
+  return clis.length === 1 && why[0]!.endsWith("no status")
+    ? `\`commandagi threed status\` gave no status (${INSTALL})`
+    : `the local 3D service is not installed (commandagi threed install)${clis.length > 1 ? `: ${why.join("; ")}` : ""}`;
 }
 
 /** The one service this process started (`commandagi threed serve`), shared by every local Kernel. */
