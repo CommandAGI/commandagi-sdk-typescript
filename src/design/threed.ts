@@ -67,6 +67,10 @@
  *   <joint id kind a b anchor axis limits …>  a joint between two bodies (`dynamics.joints`): fixed, revolute,
  *                                             prismatic, cylindrical, planar, screw, spherical or universal, its
  *                                             axis, its limits and the geometry it binds (`refA`, `refB`)
+ *   <contact id a b collide friction restitution report>
+ *                                             a contact pair (`dynamics.contacts`): two sides of bodies named as a
+ *                                             check names them (no `b`: the ground), whether they touch, their own
+ *                                             friction and restitution, and what a run records of them
  *   <mate id kind a b axis …>                 a mate between two components of an assembly (`assembly.mates`)
  *   <sheet id size scale projection views …>  an engineering drawing sheet of the document (`drawings`): standard
  *                                             views, the document's dimensions and a title block
@@ -118,7 +122,7 @@ import { toleranceProblem, type DimensionTolerance } from "./tolerances.js";
 export const THREED_FEATURES: readonly string[] = Object.keys(THREED_SCHEMA.roots);
 const FEATURES = new Set(THREED_FEATURES);
 /** Tags with a meaning of their own: never a `<feature type>`. */
-const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "joint", "mate", "sheet", "check", "accept", "permitted", "fastener", "tactile", "port", "item", "assemble", "library", "product", "point", "constraint", "projection", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input"]);
+const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "joint", "contact", "mate", "sheet", "check", "accept", "permitted", "fastener", "tactile", "port", "item", "assemble", "library", "product", "point", "constraint", "projection", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input"]);
 /** A sketch's segment kinds, by tag. */
 export const SKETCH_SEGMENTS: readonly string[] = ["line", "circle", "arc", "spline", "ellipse", "ellipseArc"];
 const SEGMENTS = new Set(SKETCH_SEGMENTS);
@@ -139,6 +143,7 @@ const NOT_SLOTS = new Set(["id", "name", "units", "planes", "features", "paramet
  */
 export const THREED_LISTS: Readonly<Record<string, { node: string; port: string; def: string }>> = {
   joint: { node: "dynamics", port: "joints", def: "DynamicsJoint" },
+  contact: { node: "dynamics", port: "contacts", def: "DynamicsContact" },
   mate: { node: "assembly", port: "mates", def: "Mate" },
   sheet: { node: "drawings", port: "value", def: "DrawingSheet" },
   check: { node: "checks", port: "value", def: "DesignCheck" },

@@ -449,6 +449,11 @@ export type ConicalSurface = {
 
 export type ConstraintKind = "coincident" | "parallel" | "perpendicular" | "distance" | "angle" | "horizontal" | "vertical" | "tangent" | "equal" | "pointOnLine" | "midpoint" | "pointOnCircle" | "symmetric" | "horizontalDistance" | "verticalDistance" | "radius";
 
+/**
+ * What a run records of a contact pair at each frame: how many points touch, the normal force on `a` (N), how fast `a` slides over `b` there (m/s; 0 while it sticks), and where it is touched (the force-weighted centre of the points).
+ */
+export type ContactReport = "count" | "normal" | "slip" | "point";
+
 /** WHICH COPPER LAYER a conductor lives on — its name and the datum plane it is drawn in. */
 export type CopperLayerRef = {
   /** The layer's name as the design's planar geometry refers to it — `F.Cu`, `In1.Cu`, `M1`. */
@@ -1125,6 +1130,40 @@ export type DrawingViewSpec = {
 };
 
 /**
+ * A CONTACT PAIR: how two sets of bodies touch in a simulation, and what a run records of it. `<contact>` in code (docs/formats.md § contacts). A pad on a part, a gripper's jaw on what it holds, a wheel on the floor: the pair's friction and restitution are the pair's own, not a mix of the two bodies' (a rubber pad on steel grips, the same pad on ice does not). Without `report` the run records every quantity of ContactReport.
+ */
+export type DynamicsContact = {
+  id: string;
+  /**
+   * The bodies of one side: by the id the document gives a body, its name or its part number (`*` matches any text), as a check names a body.
+   */
+  a: string;
+  /**
+   * The bodies of the other side, named as `a` is. Absent: the ground the simulation stands every body on.
+   */
+  b?: string;
+  /**
+   * false: the two sides never touch (they pass through each other, and nothing is recorded but zeros). Absent: true.
+   */
+  collide?: boolean;
+  /**
+   * The pair's Coulomb friction coefficient, in place of the one the two bodies' own make. Absent: theirs.
+   * @minimum 0
+   */
+  friction?: number;
+  /**
+   * The pair's restitution, 0 (no bounce) to 1, in place of the two bodies' own. Absent: theirs.
+   * @minimum 0
+   * @maximum 1
+   */
+  restitution?: number;
+  /**
+   * What a run records of the pair at each frame. Absent: all four; `[]`: nothing (a pair only for its coefficients).
+   */
+  report?: ContactReport[];
+};
+
+/**
  * A joint between two bodies: its kind, its axis, its limits and the two references it binds. `<joint>` in code.
  */
 export type DynamicsJoint = {
@@ -1328,7 +1367,7 @@ export type ExtrudeFeature = {
 };
 
 /** How a clearance hole fits its screw (ISO 273: close is fine, normal is medium, loose is coarse). */
-export type FastenerFit = "close" | "normal" | "loose";
+export type FastenerFit = "normal" | "close" | "loose";
 
 /**
  * A FASTENER STACK: `<fastener part length at axis clamped receiver washer nut grip />`. It places a screw of the fastener library (by its part id, `iso-4762-m6`: the library's `mechanical-fasteners` parts, built from the same tables), its washer and its nut, and it records what the screw does: it clamps these parts into this receiver. The fasteners check reads the record.

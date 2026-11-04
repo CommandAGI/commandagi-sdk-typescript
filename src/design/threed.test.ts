@@ -344,3 +344,31 @@ test("<rod> is a feature with its ends at ports or bodies, and <port> is the doc
   assert.throws(() => doc(jsx("rod", { id: "r", name: "R", section: { d: -1 } })), /d/);
   assert.throws(() => doc(jsx("slot", { name: "ports", value: [] })), /ports is not a slot/);
 });
+
+// contacts.golden.json is the golden of the three SDKs (contacts.json in the Python and Rust SDKs' tests): the twin
+// document each declares in its own language, read as the dynamics node's contacts.
+test("<contact> is the dynamics' contacts list: the twin document reads as the golden, and a wrong field is refused by name", async () => {
+  const { readFileSync } = await import("node:fs");
+  const golden = JSON.parse(readFileSync(new URL("./contacts.golden.json", import.meta.url), "utf8")) as { contacts: unknown[]; refused: { friction: number; says: string } };
+  const box = (id: string, name: string, center: number[], size: number[]) => jsx("box", { id, name, center, size, operation: "new" });
+  const twin = (grip: Record<string, unknown>) =>
+    declarationOf({
+      default: () =>
+        jsx("part", {
+          name: "Pad on a table",
+          children: [
+            box("table", "Table", [0, 0, 50], [400, 200, 100]),
+            box("pad", "Pad", [0, 0, 125], [60, 60, 50]),
+            box("ball", "Ball", [-600, 0, 300], [40, 40, 40]),
+            box("phantom", "Phantom", [150, 0, 200], [40, 40, 40]),
+            jsx("slot", { name: "dynamics", value: { bindings: [{ feature: "table", solver: "rigid", fixed: true }] } }),
+            jsx("contact", { id: "grip", a: "Pad", b: "Table", friction: 0.9, report: ["normal", "slip"], ...grip }),
+            jsx("contact", { id: "bounce", a: "Ball", restitution: 0.9 }),
+            jsx("contact", { id: "pass", a: "Phantom", b: "Table", collide: false, report: [] }),
+          ],
+        }),
+    }).graph;
+  assert.deepEqual(twin({}).nodes.dynamics!.inputs.contacts, golden.contacts);
+  assert.throws(() => twin({ friction: golden.refused.friction }), new RegExp(golden.refused.says));
+  assert.throws(() => twin({ report: ["torque"] }), /report/);
+});

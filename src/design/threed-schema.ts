@@ -1084,6 +1084,16 @@ export const THREED_SCHEMA: SchemaDocument = {
     "radius"
    ]
   },
+  "ContactReport": {
+   "type": "string",
+   "enum": [
+    "count",
+    "normal",
+    "slip",
+    "point"
+   ],
+   "description": "What a run records of a contact pair at each frame: how many points touch, the normal force on `a` (N), how fast `a` slides over `b` there (m/s; 0 while it sticks), and where it is touched (the force-weighted centre of the points)."
+  },
   "CopperLayerRef": {
    "type": "object",
    "properties": {
@@ -2335,6 +2345,53 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "One view on a sheet."
   },
+  "DynamicsContact": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "a": {
+     "type": "string",
+     "description": "The bodies of one side: by the id the document gives a body, its name or its part number (`*` matches any text), as a check names a body.",
+     "pattern": "\\S"
+    },
+    "b": {
+     "type": "string",
+     "description": "The bodies of the other side, named as `a` is. Absent: the ground the simulation stands every body on.",
+     "pattern": "\\S"
+    },
+    "collide": {
+     "type": "boolean",
+     "description": "false: the two sides never touch (they pass through each other, and nothing is recorded but zeros). Absent: true."
+    },
+    "friction": {
+     "type": "number",
+     "description": "The pair's Coulomb friction coefficient, in place of the one the two bodies' own make. Absent: theirs.",
+     "minimum": 0
+    },
+    "restitution": {
+     "type": "number",
+     "description": "The pair's restitution, 0 (no bounce) to 1, in place of the two bodies' own. Absent: theirs.",
+     "minimum": 0,
+     "maximum": 1
+    },
+    "report": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/ContactReport"
+     },
+     "description": "What a run records of the pair at each frame. Absent: all four; `[]`: nothing (a pair only for its coefficients)."
+    }
+   },
+   "required": [
+    "id",
+    "a"
+   ],
+   "additionalProperties": false,
+   "description": "A CONTACT PAIR: how two sets of bodies touch in a simulation, and what a run records of it. `<contact>` in code (docs/formats.md § contacts). A pad on a part, a gripper's jaw on what it holds, a wheel on the floor: the pair's friction and restitution are the pair's own, not a mix of the two bodies' (a rubber pad on steel grips, the same pad on ice does not). Without `report` the run records every quantity of ContactReport."
+  },
   "DynamicsJoint": {
    "type": "object",
    "properties": {
@@ -2752,8 +2809,8 @@ export const THREED_SCHEMA: SchemaDocument = {
   "FastenerFit": {
    "type": "string",
    "enum": [
-    "close",
     "normal",
+    "close",
     "loose"
    ],
    "description": "How a clearance hole fits its screw (ISO 273: close is fine, normal is medium, loose is coarse)."
