@@ -28,6 +28,11 @@
  * must be observed after it, and `surprise` says where a surprise goes (the parent workflow, an agent, a person).
  * A root `<input>` declares a typed value the run binds; a step's param refers to it as `${input:name}` (a secret from
  * the secret store is `${env:NAME}`), so the document holds the reference, never the value (docs/workflows.md).
+ *
+ * A step that waits for an approval says who may give it in `approval`, space separated: a principal (`agent:<id>`,
+ * `person:<id>`), a role (`role:<name>`), or a grant (`grant:<address>`: whoever holds a grant in force that covers
+ * that world, unit or folder). Any one of them approves or rejects; the runner holds the step until one does, and
+ * records who acted and when before the step goes on. A kind of principal ("a person") is never an approver.
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
 
@@ -42,7 +47,7 @@ export const FLOW_SURPRISE = ["parent", "agent", "person"] as const;
 export const FLOW_FIELDS = ["name", "description", "of"] as const;
 export const FLOW_INPUT_FIELDS = ["name", "type", "private", "default", "required", "description"] as const;
 export const FLOW_TOOL_FIELDS = ["id", "ref", "name", "ratePerHour", "currency", "description"] as const;
-export const FLOW_STEP_FIELDS = ["id", "order", "kind", "tool", "fixture", "by", "minutes", "setupMinutes", "ratePerHour", "currency", "instruction", "note", "channel", "ref", "command", "skill", "after", "surprise", "surpriseTo"] as const;
+export const FLOW_STEP_FIELDS = ["id", "order", "kind", "tool", "fixture", "by", "minutes", "setupMinutes", "ratePerHour", "currency", "instruction", "note", "channel", "ref", "command", "skill", "after", "surprise", "surpriseTo", "approval"] as const;
 export const FLOW_PARAM_FIELDS = ["name", "value", "unit", "description"] as const;
 export const FLOW_MEASURE_FIELDS = ["id", "name", "nominal", "min", "max", "plus", "minus", "unit", "method", "sampling", "acceptance"] as const;
 /** One more tool a step goes to: its time there, and its rate when it is not the tool's. */
@@ -61,6 +66,8 @@ const own = (o: Rec, keys: readonly string[]): Rec => {
 const where = (tag: string, key: string, a: Rec) => `<${tag}${a[key] !== undefined ? ` ${key}=${JSON.stringify(a[key])}` : ""}>`;
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 const ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+/** One approver of a step (Python `flows.py` and Rust `flows.rs` hold the same form). */
+const APPROVER = /^(?:(?:agent|person):[A-Za-z0-9._@-]{1,64}|role:[a-z][a-z0-9-]{0,63}|grant:[a-z][a-z0-9+.-]*:\/\/\S+)$/;
 function check(cond: unknown, message: string): void {
   if (!cond) throw new Error(message);
 }
@@ -141,6 +148,13 @@ function checkStep(t: DocTree): void {
   check(a.surprise === undefined || (FLOW_SURPRISE as readonly unknown[]).includes(a.surprise), `${at}: surprise is one of ${FLOW_SURPRISE.join(", ")} (got ${JSON.stringify(a.surprise)})`);
   check(a.surprise === undefined || a.surprise === "parent" || (typeof a.surpriseTo === "string" && a.surpriseTo.trim()), `${at}: surprise ${JSON.stringify(a.surprise)} names who handles it (surpriseTo: an agent or a person)`);
   check(a.surprise !== "parent" || a.surpriseTo === undefined, `${at}: a surprise that goes to the parent names no surpriseTo`);
+  if (a.approval !== undefined) {
+    check(typeof a.approval === "string" && a.approval.trim(), `${at}: approval names who may approve the step (agent:<id>, person:<id>, role:<name> or grant:<address>, space separated)`);
+    const who = typeof a.approval === "string" ? a.approval.trim().split(/\s+/) : [];
+    for (const w of who) check(APPROVER.test(w), `${at}: approval names a principal (agent:<id>, person:<id>), a role (role:<name>) or a grant (grant:<address>), not ${JSON.stringify(w)}`);
+    check(who.length === new Set(who).size, `${at}: approval names an approver twice`);
+    check(a.kind !== "note", `${at}: a note step does nothing, so it waits for no approval`);
+  }
   if (a.after !== undefined) {
     check(typeof a.after === "string" && a.after.trim(), `${at}: after names the steps this one follows (their ids, space separated)`);
     const ids = typeof a.after === "string" ? a.after.trim().split(/\s+/) : [];

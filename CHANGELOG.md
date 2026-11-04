@@ -15,6 +15,9 @@ Changed
 
 Added
 
+- A workflow step waits for an approval: `approval` names who may give it, space separated: a principal
+  (`agent:<id>`, `person:<id>`), a role (`role:<name>`) or the holder of a grant that covers an address
+  (`grant:<address>`). A note step takes none, and a kind of principal (`person`) is refused by name.
 - A film compiled from a shot list (`footage.ts`): each shot's footage comes from a source slot, `synth3d`,
   `diffusion` or `real`, switched per shot or for all. `compileFilm` writes the `<video>` timed by its voices, the jobs
   that make the footage, and a `.task.tsx` for each real take not yet uploaded; `diffusionKey` names a generated clip

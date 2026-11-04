@@ -78,6 +78,23 @@ test("a workflow is its typed inputs, its action steps, their expectations, thei
   assert.deepEqual(FLOWS.flow.fromTree(FLOWS.flow.toTree(d.document as never)), d.document, "both ways");
 });
 
+test("a step that waits for an approval names who may give it: a principal, a role or a grant, never a kind of principal", () => {
+  const approval = "agent:reviewer person:ada role:release-manager grant:local://desk/home/worlds/shop/world.tsx#arm-1";
+  const d = declare(el("flow", { name: "Ship" }, el("step", { id: "ship", kind: "command", channel: "desk", command: "ls", surprise: "parent", approval }, el("expect", { name: "exit", equals: 0 }))));
+  assert.equal((d.document as { steps: { approval?: string }[] }).steps[0]!.approval, approval);
+  assert.deepEqual(FLOWS.flow.fromTree(FLOWS.flow.toTree(d.document as never)), d.document, "both ways");
+  const step = (a: Record<string, unknown>) => flow(el("step", { id: "a", kind: "command", channel: "c", command: "ls", surprise: "parent", ...a }, el("expect", { name: "e", equals: 1 })));
+  for (const [root, why] of [
+    [step({ approval: "person" }), /<step id="a">: approval names a principal .* not "person"/],
+    [step({ approval: "agents" }), /not "agents"/],
+    [step({ approval: "grant:shop" }), /not "grant:shop"/],
+    [step({ approval: " " }), /<step id="a">: approval names who may approve the step/],
+    [step({ approval: "agent:a agent:a" }), /<step id="a">: approval names an approver twice/],
+    [flow(el("step", { id: "a", kind: "note", approval: "agent:a" })), /<step id="a">: a note step does nothing, so it waits for no approval/],
+  ] as [unknown, RegExp][])
+    assert.throws(() => declare(root), why);
+});
+
 test("a wrong field of a flow is refused by name", () => {
   const refused: [unknown, RegExp][] = [
     [flow(el("step", { id: "a", kind: "rest" })), /<step id="a">: kind must be one of work, note, message, command, computer, robot, chain, workflow, decision, agent \(got "rest"\)/],
