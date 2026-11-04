@@ -296,9 +296,15 @@ export function part(o: {
         texts: [],
       }
     : undefined;
-  const pins = o.footprint.pads.map((p) => {
+  // KiCad's rule: pads of one number are one pin. The first pad of a number is the pin; each further pad (a QFN's
+  // second land, a receptacle's other shell legs) is a socket of its own, `padOf` the pin, on the pin's net.
+  const first = new Map<string, string>();
+  const pins = o.footprint.pads.map((p, i) => {
     const name = o.pinNames?.[p.number] ?? p.name;
-    return { id: `p${slug(p.number)}`, number: p.number, ...(name ? { name } : {}), pad: placed(p.pad) };
+    const id = `p${slug(p.number)}`, of = p.number === "" ? undefined : first.get(p.number);
+    if (of !== undefined) return { id: `${id}_${i + 1}`, number: p.number, ...(name ? { name } : {}), padOf: of, pad: placed(p.pad) };
+    if (p.number !== "") first.set(p.number, id);
+    return { id, number: p.number, ...(name ? { name } : {}), pad: placed(p.pad) };
   });
   const ref = s.add(
     partTypeFor(pins),
@@ -316,7 +322,7 @@ export function part(o: {
     },
     { id: `part_${o.ref}`, label: o.ref },
   );
-  const handle = new PartRef(s, ref.id, o.ref, pins.map(({ pad: _pad, ...p }) => p), Object.fromEntries(Object.entries(o.aliases ?? {}).map(([k, v]) => [k.toLowerCase(), v])));
+  const handle = new PartRef(s, ref.id, o.ref, pins.filter((p) => !("padOf" in p)).map(({ pad: _pad, ...p }) => p),Object.fromEntries(Object.entries(o.aliases ?? {}).map(([k, v]) => [k.toLowerCase(), v])));
   state(s).parts.set(o.ref, handle);
   return handle;
 }

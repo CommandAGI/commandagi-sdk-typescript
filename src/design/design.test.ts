@@ -223,6 +223,20 @@ test("a footprint's courtyard is the part's F.CrtYd (B.CrtYd mirrored on the bot
   assert.throws(() => circuit("X", () => void component({ ref: "R1", footprint: { ...fpc, courtyard: [{ x: 0, y: 0 }] } })), /R1: a courtyard is two corners/);
 });
 
+test("pads of one number are one pin: each further pad is a socket of its own, padOf the pin, and pin() finds the pin", () => {
+  const pad = (number: string, x: number) => ({ number, pad: { type: "smd" as const, shape: "rect" as const, at: { x, y: 0 }, size: { w: 0.3, h: 0.3 }, layers: ["F.Cu"] } });
+  const fp = { name: "X:L", pads: [pad("1", 0), pad("2", 1), pad("2", 1.3), pad("", 3), pad("", 4)] };
+  let u: ReturnType<typeof component> | undefined;
+  const g = circuit("Further pads", () => {
+    u = component({ ref: "U1", footprint: fp, pinNames: { 2: "GND" } });
+    net("GND", u.pin("GND"));
+  }).ir;
+  const pins = g.nodes.part_U1!.inputs.pins as { id: string; number: string; name?: string; padOf?: string }[];
+  assert.deepEqual(pins.map((p) => [p.id, p.number, p.padOf ?? null]), [["p1", "1", null], ["p2", "2", null], ["p2_3", "2", "p2"], ["pnode", "", null], ["pnode", "", null]]);
+  assert.equal(pins[2]!.name, "GND");
+  assert.deepEqual(u!.pins.map((p) => p.id), ["p1", "p2", "pnode", "pnode"]);
+});
+
 test("a circuit's part names the pins it leaves open on purpose (noConnect), by its own pin numbers", () => {
   const g = circuit("Open", () => void component({ ref: "J1", footprint: footprints.pinHeader(3), noConnect: ["3"] })).ir;
   assert.deepEqual(g.nodes.part_J1!.inputs.noConnect, ["3"]);
