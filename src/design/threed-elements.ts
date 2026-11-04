@@ -30,11 +30,24 @@ export type AcceptedFinding = {
   reason: string;
 };
 
-/** An approved second source: another maker's part that may be fitted in place of this one. */
+/**
+ * A SECOND SOURCE WITH ANOTHER MPN: another maker's part that may be fitted in place of this one, what differs (as a person states it: nothing infers it), whether it is approved, and who sells it.
+ */
 export type Alternate = {
   manufacturer: string;
   mpn: string;
   note?: string;
+  /** false: a candidate still being qualified; it is named, never filled from. Absent: approved. */
+  approved?: boolean;
+  /**
+   * What differs from this part, one statement each ("rated stroke 1.5 mm, not 2.0 mm"); [] states a drop-in.
+   */
+  differences?: string[];
+  datasheet?: string;
+  /**
+   * Who sells the alternate, on what terms: a logistics plan may fill the line from them (`<use mpn offer>`).
+   */
+  suppliers?: SupplierOffer[];
 };
 
 /** ONE ASSEMBLY STEP: `<assemble>`. */
@@ -324,11 +337,11 @@ export type Compliance = {
   /**
    * "unknown": not known yet, and stated so (a warning, never a pass), rather than left out (an error) or invented.
    */
-  rohs?: "compliant" | "exempt" | "non-compliant" | "unknown";
+  rohs?: "unknown" | "compliant" | "exempt" | "non-compliant";
   /** The RoHS annex III exemption it relies on ("7(c)-I"). */
   rohsExemption?: string;
   /** "unknown" as for `rohs`. */
-  reach?: "compliant" | "non-compliant" | "unknown" | "svhc";
+  reach?: "unknown" | "compliant" | "non-compliant" | "svhc";
   /** "reported": the maker's conflict minerals report names the smelters. */
   conflictMinerals?: "none" | "unknown" | "reported";
   /** The export control classification: "EAR99", "5A992.c"; "unknown" as for `rohs`. */
@@ -3548,15 +3561,41 @@ export type SupplierOffer = {
    */
   orderMultiple?: number;
   /**
-   * Days from order to shipment.
+   * Days from order to shipment (a factory run: from the samples' approval).
    * @minimum 0
    */
   leadTimeDays?: number;
   /**
-   * Units the supplier says it has.
+   * The high end of a lead-time range ("9–20 days"): the order-by dates are reckoned on it.
+   * @minimum 0
+   */
+  leadTimeDaysHigh?: number;
+  /**
+   * Units the supplier holds now. The roll-up fills at most this many from the offer, and the rest of the line from the next offer (or names it short). Absent: the offer is not limited by stock.
    * @minimum 0
    */
   stock?: number;
+  /**
+   * What the offer is: "stock" (a catalog's stock and price, the default), "quote" (a price a supplier gave for this order: a factory run, a back-order), "listing" (a price shown on a marketplace page) or "broker" (a broker's listed lot).
+   */
+  kind?: "stock" | "quote" | "listing" | "broker";
+  /**
+   * Whether a person can buy at it: "firm" (the default for stock and a quote) or "indication" (the default for a listing and a broker lot). The roll-up fills and prices a line from firm offers only; an indication is named as what could fill a shortage, never as a price. A broker lot its broker confirmed is "firm".
+   */
+  confidence?: "firm" | "indication";
+  /**
+   * A factory run: days from order to approved samples, before `leadTimeDays` of production.
+   * @minimum 0
+   */
+  samplesDays?: number;
+  /**
+   * A factory run's one-time cost (tooling, NRE) in `currency`, added once to the order; "unknown": not quoted yet.
+   */
+  tooling?: number | "unknown";
+  /**
+   * The `<service id>` of the supplier's file the part is bought through (JLCPCB's "pre-order", "global-sourcing", "consignment"): a logistics plan adds its days and fees.
+   */
+  service?: string;
   /** Where the terms were read: a page, a quote, or "estimate" with its basis. */
   source?: string;
   /** The day the terms were read, YYYY-MM-DD. */

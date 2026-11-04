@@ -122,6 +122,27 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "note": {
      "type": "string"
+    },
+    "approved": {
+     "type": "boolean",
+     "description": "false: a candidate still being qualified; it is named, never filled from. Absent: approved."
+    },
+    "differences": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "What differs from this part, one statement each (\"rated stroke 1.5 mm, not 2.0 mm\"); [] states a drop-in."
+    },
+    "datasheet": {
+     "type": "string"
+    },
+    "suppliers": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/SupplierOffer"
+     },
+     "description": "Who sells the alternate, on what terms: a logistics plan may fill the line from them (`<use mpn offer>`)."
     }
    },
    "required": [
@@ -129,7 +150,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "mpn"
    ],
    "additionalProperties": false,
-   "description": "An approved second source: another maker's part that may be fitted in place of this one."
+   "description": "A SECOND SOURCE WITH ANOTHER MPN: another maker's part that may be fitted in place of this one, what differs (as a person states it: nothing infers it), whether it is approved, and who sells it."
   },
   "AssemblyStep": {
    "type": "object",
@@ -784,10 +805,10 @@ export const THREED_SCHEMA: SchemaDocument = {
     "rohs": {
      "type": "string",
      "enum": [
+      "unknown",
       "compliant",
       "exempt",
-      "non-compliant",
-      "unknown"
+      "non-compliant"
      ],
      "description": "\"unknown\": not known yet, and stated so (a warning, never a pass), rather than left out (an error) or invented."
     },
@@ -798,9 +819,9 @@ export const THREED_SCHEMA: SchemaDocument = {
     "reach": {
      "type": "string",
      "enum": [
+      "unknown",
       "compliant",
       "non-compliant",
-      "unknown",
       "svhc"
      ],
      "description": "\"unknown\" as for `rohs`."
@@ -7677,13 +7698,57 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "leadTimeDays": {
      "type": "number",
-     "description": "Days from order to shipment.",
+     "description": "Days from order to shipment (a factory run: from the samples' approval).",
+     "minimum": 0
+    },
+    "leadTimeDaysHigh": {
+     "type": "number",
+     "description": "The high end of a lead-time range (\"9–20 days\"): the order-by dates are reckoned on it.",
      "minimum": 0
     },
     "stock": {
      "type": "integer",
-     "description": "Units the supplier says it has.",
+     "description": "Units the supplier holds now. The roll-up fills at most this many from the offer, and the rest of the line from the next offer (or names it short). Absent: the offer is not limited by stock.",
      "minimum": 0
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "stock",
+      "quote",
+      "listing",
+      "broker"
+     ],
+     "description": "What the offer is: \"stock\" (a catalog's stock and price, the default), \"quote\" (a price a supplier gave for this order: a factory run, a back-order), \"listing\" (a price shown on a marketplace page) or \"broker\" (a broker's listed lot)."
+    },
+    "confidence": {
+     "type": "string",
+     "enum": [
+      "firm",
+      "indication"
+     ],
+     "description": "Whether a person can buy at it: \"firm\" (the default for stock and a quote) or \"indication\" (the default for a listing and a broker lot). The roll-up fills and prices a line from firm offers only; an indication is named as what could fill a shortage, never as a price. A broker lot its broker confirmed is \"firm\"."
+    },
+    "samplesDays": {
+     "type": "number",
+     "description": "A factory run: days from order to approved samples, before `leadTimeDays` of production.",
+     "minimum": 0
+    },
+    "tooling": {
+     "anyOf": [
+      {
+       "type": "number"
+      },
+      {
+       "type": "string",
+       "const": "unknown"
+      }
+     ],
+     "description": "A factory run's one-time cost (tooling, NRE) in `currency`, added once to the order; \"unknown\": not quoted yet."
+    },
+    "service": {
+     "type": "string",
+     "description": "The `<service id>` of the supplier's file the part is bought through (JLCPCB's \"pre-order\", \"global-sourcing\", \"consignment\"): a logistics plan adds its days and fees."
     },
     "source": {
      "type": "string",

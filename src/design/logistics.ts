@@ -25,6 +25,22 @@
  *     </logistics>
  *   );
  *
+ * A supplier's `<service id>` is a way to buy through it (JLCPCB's pre-order, global sourcing, consignment): its review
+ * and buying days and its `<fee amount currency per each?>`s (per order, per line, per unit, in groups of `each`); an
+ * offer names it (`service`). A plan's `build` is the day every part must be at the builder, and a `<source part
+ * strategy>` says how one line is filled for this order: `single`, `fill` (in order, each up to its stock), `split`
+ * (each `<use qty>`; one with none takes the rest) or `dual` (each `<use share>`, on purpose). A `<use offer mpn?>`
+ * names an offer of the part, or of its alternate by MPN.
+ *
+ *   <supplier name="JLCPCB" …>
+ *     <service id="global-sourcing" name="Global sourcing" reviewDays={1} reviewDaysHigh={3} leadTimeDays={9} leadTimeDaysHigh={20}>
+ *       <fee amount={20} currency="USD" per="line" note="connectors, switches, fuses and batteries" />
+ *     </service>
+ *   </supplier>
+ *   <logistics name="helmet" quantity={10} build="2027-01-15">
+ *     <source part="KH-205580-DZ" strategy="fill"><use offer="JLCPCB parts library" /><use offer="LCSC" /></source>
+ *   </logistics>
+ *
  * The rule of the ontology's files: a record is an element and its fields are the element's attributes. A route's
  * legs run in order from the supplier's `<location>`; a leg that names a place (`to`, `lat`, `lon`) ends there, and a
  * leg that names none ends at the builder. A leg's `cost` is for the plan's order (`quantity` products), in its
@@ -55,6 +71,25 @@ export interface SupplierContact {
   email?: string;
   phone?: string;
 }
+/** One fee of a service: per order, per line (a part type) or per unit, in groups of `each`. */
+export interface ServiceFee {
+  amount: number;
+  currency: string;
+  per: "order" | "line" | "unit";
+  each?: number;
+  note?: string;
+}
+/** A way to buy through a supplier: its review and buying days, and its fees. */
+export interface SupplierService {
+  id: string;
+  name?: string;
+  reviewDays?: number;
+  reviewDaysHigh?: number;
+  leadTimeDays?: number;
+  leadTimeDaysHigh?: number;
+  note?: string;
+  fees: ServiceFee[];
+}
 /** A supplier as its file declares it. */
 export interface SupplierDoc {
   name: string;
@@ -65,6 +100,7 @@ export interface SupplierDoc {
   location?: Place;
   ships: SupplierShips[];
   contacts: SupplierContact[];
+  services: SupplierService[];
 }
 export interface LogisticsLeg {
   carrier: string;
@@ -80,22 +116,44 @@ export interface LogisticsRoute {
   supplier: string;
   legs: LogisticsLeg[];
 }
+/** One offer a plan fills a line from: the part's own (`offer`), or its alternate's (`mpn`). */
+export interface SourceUse {
+  offer: string;
+  mpn?: string;
+  qty?: number;
+  share?: number;
+}
+/** How a plan fills one line (a part number, an MPN or a line's id) for its order. */
+export interface LogisticsSource {
+  part: string;
+  strategy: "single" | "fill" | "split" | "dual";
+  uses: SourceUse[];
+}
 /** A logistics plan as its file declares it. */
 export interface LogisticsDoc {
   name?: string;
   /** How many products the order builds. */
   quantity?: number;
+  /** The day every part must be at the builder, YYYY-MM-DD: the orders' order-by dates count back from it. */
+  build?: string;
   /** The designs whose roll-up is the bill of materials: a ref by the plan's folder, and how many per product. */
   boms: { ref: string; qty?: number }[];
   builder?: Place;
   routes: LogisticsRoute[];
+  sources: LogisticsSource[];
 }
 
 export const PLACE_FIELDS = ["name", "lat", "lon", "country", "address"] as const;
 export const SUPPLIER_FIELDS = ["name", "url", "leadTimeDays", "note"] as const;
 export const SHIPS_FIELDS = ["carrier", "service", "transitDays", "note"] as const;
 export const CONTACT_FIELDS = ["name", "role", "email", "phone"] as const;
-export const LOGISTICS_FIELDS = ["name", "quantity"] as const;
+export const LOGISTICS_FIELDS = ["name", "quantity", "build"] as const;
+export const SERVICE_FIELDS = ["id", "name", "reviewDays", "reviewDaysHigh", "leadTimeDays", "leadTimeDaysHigh", "note"] as const;
+export const FEE_FIELDS = ["amount", "currency", "per", "each", "note"] as const;
+export const SOURCING_FIELDS = ["part", "strategy"] as const;
+export const SOURCING_USE_FIELDS = ["offer", "mpn", "qty", "share"] as const;
+const STRATEGIES = ["single", "fill", "split", "dual"];
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
 export const BOM_FIELDS = ["ref", "qty"] as const;
 export const LEG_FIELDS = ["carrier", "service", "transitDays", "cost", "currency", "to", "lat", "lon", "country"] as const;
 
@@ -130,6 +188,8 @@ export const supplierVocabulary: Vocabulary<SupplierDoc> = {
     location: { parents: ["supplier"], single: true, required: ["name", "lat", "lon"], attrs: PLACE_FIELDS },
     ships: { parents: ["supplier"], required: ["carrier"], attrs: SHIPS_FIELDS },
     contact: { parents: ["supplier"], attrs: CONTACT_FIELDS },
+    service: { parents: ["supplier"], required: ["id"], attrs: SERVICE_FIELDS },
+    fee: { parents: ["service"], required: ["amount", "currency", "per"], attrs: FEE_FIELDS },
   },
   fromTree(t) {
     text("supplier", t.attrs, ["name", "url", "note"]);
@@ -144,16 +204,32 @@ export const supplierVocabulary: Vocabulary<SupplierDoc> = {
       text("contact", c.attrs, CONTACT_FIELDS);
       return fields(c.attrs, CONTACT_FIELDS) as SupplierContact;
     });
-    return { ...(fields(t.attrs, SUPPLIER_FIELDS) as unknown as Pick<SupplierDoc, "name">), ...(location ? { location: place("location", location.attrs) } : {}), ships, contacts };
+    const services = t.children.filter((c) => c.tag === "service").map((c) => {
+      text("service", c.attrs, ["id", "name", "note"]);
+      count("service", c.attrs, ["reviewDays", "reviewDaysHigh", "leadTimeDays", "leadTimeDaysHigh"]);
+      const fees = c.children.filter((f) => f.tag === "fee").map((f) => {
+        const a = f.attrs;
+        count("fee", a, ["amount"]);
+        if (!(typeof a.currency === "string" && /^[A-Z]{3}$/.test(a.currency))) throw new Error('<fee> currency is ISO 4217 ("USD")');
+        if (!["order", "line", "unit"].includes(a.per as string)) throw new Error("<fee> per is order, line or unit");
+        if (a.each !== undefined && !(Number.isInteger(a.each) && (a.each as number) >= 1)) throw new Error("<fee> each is a whole number, 1 or more");
+        text("fee", a, ["note"]);
+        return fields(a, FEE_FIELDS) as unknown as ServiceFee;
+      });
+      return { ...(fields(c.attrs, SERVICE_FIELDS) as unknown as Omit<SupplierService, "fees">), fees };
+    });
+    return { ...(fields(t.attrs, SUPPLIER_FIELDS) as unknown as Pick<SupplierDoc, "name">), ...(location ? { location: place("location", location.attrs) } : {}), ships, contacts, services };
   },
   toTree(d) {
     const children: DocTree[] = [];
     if (d.location) children.push({ tag: "location", attrs: placeAttrs(d.location), children: [] });
     for (const s of d.ships ?? []) children.push({ tag: "ships", attrs: fields(s as unknown as Record<string, unknown>, SHIPS_FIELDS), children: [] });
     for (const c of d.contacts ?? []) children.push({ tag: "contact", attrs: fields(c as Record<string, unknown>, CONTACT_FIELDS), children: [] });
+    for (const v of d.services ?? [])
+      children.push({ tag: "service", attrs: fields(v as unknown as Record<string, unknown>, SERVICE_FIELDS), children: v.fees.map((f) => ({ tag: "fee", attrs: fields(f as unknown as Record<string, unknown>, FEE_FIELDS), children: [] })) });
     return { tag: "supplier", attrs: fields(d as unknown as Record<string, unknown>, SUPPLIER_FIELDS), children };
   },
-  empty: (name) => ({ name, ships: [], contacts: [] }),
+  empty: (name) => ({ name, ships: [], contacts: [], services: [] }),
 };
 
 registerVocabulary(supplierVocabulary);
@@ -178,9 +254,12 @@ export const logisticsVocabulary: Vocabulary<LogisticsDoc> = {
     builder: { parents: ["logistics"], single: true, required: ["name", "lat", "lon"], attrs: PLACE_FIELDS },
     route: { parents: ["logistics"], required: ["supplier"], attrs: ["supplier"] },
     leg: { parents: ["route"], required: ["carrier"], attrs: LEG_FIELDS },
+    source: { parents: ["logistics"], required: ["part", "strategy"], attrs: SOURCING_FIELDS },
+    use: { parents: ["source"], required: ["offer"], attrs: SOURCING_USE_FIELDS },
   },
   fromTree(t) {
     text("logistics", t.attrs, ["name"]);
+    if (t.attrs.build !== undefined && !(typeof t.attrs.build === "string" && DATE.test(t.attrs.build))) throw new Error("<logistics> build is a date, YYYY-MM-DD");
     if (t.attrs.quantity !== undefined && !(Number.isInteger(t.attrs.quantity) && (t.attrs.quantity as number) > 0)) throw new Error("<logistics> quantity is a whole number, 1 or more");
     const builder = t.children.find((c) => c.tag === "builder");
     const boms = t.children.filter((c) => c.tag === "bom").map((c) => {
@@ -192,7 +271,18 @@ export const logisticsVocabulary: Vocabulary<LogisticsDoc> = {
       text("route", r.attrs, ["supplier"]);
       return { supplier: r.attrs.supplier as string, legs: r.children.filter((c) => c.tag === "leg").map(leg) };
     });
-    return { ...(fields(t.attrs, LOGISTICS_FIELDS) as Pick<LogisticsDoc, "name" | "quantity">), boms, ...(builder ? { builder: place("builder", builder.attrs) } : {}), routes };
+    const sources = t.children.filter((c) => c.tag === "source").map((c) => {
+      text("source", c.attrs, ["part"]);
+      if (!STRATEGIES.includes(c.attrs.strategy as string)) throw new Error("<source> strategy is single, fill, split or dual");
+      const uses = c.children.filter((u) => u.tag === "use").map((u) => {
+        text("use", u.attrs, ["offer", "mpn"]);
+        if (u.attrs.qty !== undefined && !(typeof u.attrs.qty === "number" && u.attrs.qty > 0)) throw new Error("<use> qty is a number above 0");
+        if (u.attrs.share !== undefined && !(typeof u.attrs.share === "number" && u.attrs.share > 0 && u.attrs.share <= 1)) throw new Error("<use> share is a fraction above 0, at most 1");
+        return fields(u.attrs, SOURCING_USE_FIELDS) as unknown as SourceUse;
+      });
+      return { part: c.attrs.part as string, strategy: c.attrs.strategy as LogisticsSource["strategy"], uses };
+    });
+    return { ...(fields(t.attrs, LOGISTICS_FIELDS) as Pick<LogisticsDoc, "name" | "quantity" | "build">), boms, ...(builder ? { builder: place("builder", builder.attrs) } : {}), routes, sources };
   },
   toTree(d) {
     const children: DocTree[] = [];
@@ -208,9 +298,11 @@ export const logisticsVocabulary: Vocabulary<LogisticsDoc> = {
           children: [],
         })),
       });
+    for (const src of d.sources ?? [])
+      children.push({ tag: "source", attrs: { part: src.part, strategy: src.strategy }, children: src.uses.map((u) => ({ tag: "use", attrs: fields(u as unknown as Record<string, unknown>, SOURCING_USE_FIELDS), children: [] })) });
     return { tag: "logistics", attrs: fields(d as unknown as Record<string, unknown>, LOGISTICS_FIELDS), children };
   },
-  empty: (name) => ({ name, boms: [], routes: [] }),
+  empty: (name) => ({ name, boms: [], routes: [], sources: [] }),
 };
 
 registerVocabulary(logisticsVocabulary);

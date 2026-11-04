@@ -71,6 +71,29 @@ test("a wrong logistics field is refused by name, and attrs cannot say what an a
   assert.throws(sheet({ attrs: { Datasheet: "x" } }), /attrs names Datasheet: say it with datasheet=/);
 });
 
+test("multi-supplier sourcing in a part's fields: an offer's kind, confidence, lead range, samples, tooling, service and supplier file, and an alternate with its differences and offers", () => {
+  const sourcing = {
+    suppliers: [
+      { name: "JLCPCB parts library", sku: "C530677", currency: "USD", priceBreaks: [{ quantity: 1, unitPrice: 0.0957 }], stock: 1984, service: "pre-order", supplier: "suppliers/jlcpcb.supplier.tsx", source: "jlcpcb.com", date: "2026-11-03" },
+      { name: "Kinghelm factory run", kind: "quote", confidence: "indication", currency: "USD", priceBreaks: [{ quantity: 5000, unitPrice: 0.07, unitPriceHigh: 0.1 }], moq: 5000, samplesDays: 21, leadTimeDays: 15, leadTimeDaysHigh: 20, tooling: "unknown", source: "maker's blog", date: "2026-11-03" },
+    ],
+    alternates: [{ manufacturer: "YIYUAN", mpn: "YTC1P-6020-01", approved: false, differences: ["rated stroke 1.5 mm, not 2.0 mm"], suppliers: [{ name: "LCSC", sku: "C5221290", stock: 885 }] }],
+  };
+  const { graph: g } = declarationOf({ default: () => jsx("group", { name: "L", children: [jsx("part", { name: "P1", pins: ["1"], mpn: "KH-205580-DZ", ...sourcing })] }) });
+  assert.deepEqual(props(g.nodes.P1!.inputs).slice(1, 4), [
+    ["JLCPCB parts library Part", "C530677"],
+    ["JLCPCB parts library Terms", '{"currency":"USD","priceBreaks":[[1,0.0957]],"stock":1984,"service":"pre-order","supplier":"suppliers/jlcpcb.supplier.tsx","source":"jlcpcb.com","date":"2026-11-03"}'],
+    ["Kinghelm factory run Terms", '{"currency":"USD","priceBreaks":[[5000,0.07,0.1]],"moq":5000,"leadTimeDays":15,"leadTimeDaysHigh":20,"kind":"quote","confidence":"indication","samplesDays":21,"tooling":"unknown","source":"maker\'s blog","date":"2026-11-03"}'],
+  ]);
+  assert.deepEqual(partFields(g.nodes.P1!.inputs), { mpn: "KH-205580-DZ", ...sourcing });
+  const sheet = (p: Record<string, unknown>) => () => declarationOf({ default: () => jsx("group", { name: "L", children: [jsx("part", { name: "U4", pins: ["1"], ...p })] }) });
+  assert.throws(sheet({ suppliers: [{ name: "X", kind: "auction" }] }), /kind is stock, quote, listing or broker/);
+  assert.throws(sheet({ suppliers: [{ name: "X", tooling: "a lot" }] }), /tooling is a cost/);
+  assert.throws(sheet({ suppliers: [{ name: "X", leadTimeDays: 9, leadTimeDaysHigh: 3 }] }), /not under leadTimeDays/);
+  assert.throws(sheet({ alternates: [{ manufacturer: "Y", mpn: "Z", pinout: "same" }] }), /pinout is not a field of an alternate/);
+  assert.throws(sheet({ alternates: [{ manufacturer: "Y", mpn: "Z", suppliers: [{ name: "L", stock: -1 }] }] }), /alternates\[0\]: suppliers\[0\]: stock is a whole number/);
+});
+
 test("a circuit's logistics <check> keeps its options; a board's <fab> is one board fact, checked by name", () => {
   const { graph: s } = declarationOf({ default: () => jsx("group", { name: "L", children: [jsx("check", { id: "cost", kind: "cost", options: { quantities: [10, 100] } })] }) });
   assert.deepEqual(s.meta?.checks, [{ id: "cost", kind: "cost", options: { quantities: [10, 100] } }]);

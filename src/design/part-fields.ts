@@ -12,8 +12,9 @@
  *                                                                           <YYYY-MM-DD>" or "measured <YYYY-MM-DD>[, <how>]"
  *   packageDimensions                                                       the datasheet's package: "<n> pins, pitch
  *                                                                           <mm> mm, body <l> x <w> mm"
- *   suppliers={[{ name, sku, url, currency, priceBreaks, moq, orderMultiple, leadTimeDays, stock, source, date }]}
- *   alternates={[{ manufacturer, mpn, note }]}  datasheet="https://…"
+ *   suppliers={[{ name, sku, url, currency, priceBreaks, moq, orderMultiple, leadTimeDays, leadTimeDaysHigh, stock,
+ *                 kind, confidence, samplesDays, tooling, service, supplier, source, date }]}
+ *   alternates={[{ manufacturer, mpn, note, approved, differences, datasheet, suppliers }]}  datasheet="https://…"
  *   lifecycle={{ status, lastTimeBuy, onHand, reorderPoint, source, date }}
  *   compliance={{ rohs, rohsExemption, reach, conflictMinerals, eccn, certifications }}
  *   shipping={{ hsCode, origin, hazmat, packaging }}                        its logistics (docs/formats.md § logistics)
@@ -73,7 +74,9 @@ const CHOICES: Record<string, readonly string[]> = {
 };
 const COUNTS = new Set(["lifecycle.onHand", "lifecycle.reorderPoint"]);
 const DATES = new Set(["lifecycle.lastTimeBuy", "lifecycle.date"]);
-const OFFER_TERMS = ["currency", "priceBreaks", "moq", "orderMultiple", "leadTimeDays", "stock", "url", "source", "date"] as const;
+const OFFER_TERMS = ["currency", "priceBreaks", "moq", "orderMultiple", "leadTimeDays", "leadTimeDaysHigh", "stock", "kind", "confidence", "samplesDays", "tooling", "service", "supplier", "url", "source", "date"] as const;
+const OFFER_KINDS = ["stock", "quote", "listing", "broker"];
+const ALTERNATE_KEYS = ["manufacturer", "mpn", "note", "approved", "differences", "datasheet", "suppliers"];
 const OFFER_KEYS = new Set(["name", "sku", ...OFFER_TERMS]);
 /** The arguments a part's fields take, in the order their forms are written. */
 export const FIELD_ARGUMENTS: readonly string[] = [...Object.keys(PART_FIELDS), "attrs", "suppliers", "alternates", "datasheet", "lifecycle", "compliance", "shipping"];
@@ -90,9 +93,36 @@ export interface SupplierOffer {
   moq?: number;
   orderMultiple?: number;
   leadTimeDays?: number;
+  /** The high end of a lead-time range. */
+  leadTimeDaysHigh?: number;
+  /** Units held now: the roll-up fills at most this many from the offer. */
   stock?: number;
+  /** stock (the default), quote, listing or broker. */
+  kind?: "stock" | "quote" | "listing" | "broker";
+  /** firm (stock, quote) or indication (listing, broker): an indication is never a price to buy at. */
+  confidence?: "firm" | "indication";
+  /** A factory run: days to approved samples, before production. */
+  samplesDays?: number;
+  /** A factory run's one-time cost in `currency`, or "unknown". */
+  tooling?: number | "unknown";
+  /** The `<service id>` of its supplier's file it is bought through. */
+  service?: string;
+  /** The supplier's file, by the document's folder. */
+  supplier?: string;
   source?: string;
   date?: string;
+}
+/** A second source with another MPN (docs/formats.md § logistics, sourcing). */
+export interface Alternate {
+  manufacturer: string;
+  mpn: string;
+  note?: string;
+  /** false: a candidate still being qualified. Absent: approved. */
+  approved?: boolean;
+  /** What differs, as a person states it; [] states a drop-in. */
+  differences?: string[];
+  datasheet?: string;
+  suppliers?: SupplierOffer[];
 }
 export interface PartFields {
   partNumber?: string;
@@ -106,7 +136,7 @@ export interface PartFields {
   packageDimensions?: string;
   attrs?: Record<string, string>;
   suppliers?: SupplierOffer[];
-  alternates?: { manufacturer: string; mpn: string; note?: string }[];
+  alternates?: Alternate[];
   datasheet?: string;
   lifecycle?: Record<string, string | number>;
   compliance?: Record<string, string | string[]>;
@@ -155,12 +185,33 @@ export function checkOffers(where: string, v: unknown): SupplierOffer[] {
     if (s.orderMultiple !== undefined && !whole(s.orderMultiple, 1)) throw new Error(`${at}: orderMultiple is a whole number, 1 or more`);
     if (s.stock !== undefined && !whole(s.stock, 0)) throw new Error(`${at}: stock is a whole number`);
     if (s.leadTimeDays !== undefined && !(typeof s.leadTimeDays === "number" && s.leadTimeDays >= 0)) throw new Error(`${at}: leadTimeDays is a number of days`);
+    if (s.leadTimeDaysHigh !== undefined && !(typeof s.leadTimeDaysHigh === "number" && s.leadTimeDaysHigh >= ((s.leadTimeDays as number | undefined) ?? 0))) throw new Error(`${at}: leadTimeDaysHigh is a number of days, not under leadTimeDays`);
+    if (s.samplesDays !== undefined && !(typeof s.samplesDays === "number" && s.samplesDays >= 0)) throw new Error(`${at}: samplesDays is a number of days`);
+    if (s.kind !== undefined && !OFFER_KINDS.includes(s.kind as string)) throw new Error(`${at}: kind is stock, quote, listing or broker`);
+    if (s.confidence !== undefined && s.confidence !== "firm" && s.confidence !== "indication") throw new Error(`${at}: confidence is firm or indication`);
+    if (s.tooling !== undefined && s.tooling !== "unknown" && !(typeof s.tooling === "number" && s.tooling >= 0)) throw new Error(`${at}: tooling is a cost, 0 or more, or "unknown"`);
+    for (const k of ["service", "supplier"] as const) if (s[k] !== undefined && !isText(s[k])) throw new Error(`${at}: ${k} is text`);
     if (s.priceBreaks !== undefined) {
       const high = (b: Record<string, unknown>) => b.unitPriceHigh === undefined || (typeof b.unitPriceHigh === "number" && b.unitPriceHigh >= (b.unitPrice as number));
       const ok = Array.isArray(s.priceBreaks) && s.priceBreaks.every((b) => isObject(b) && whole(b.quantity, 1) && typeof b.unitPrice === "number" && b.unitPrice >= 0 && high(b) && Object.keys(b).every((k) => ["quantity", "unitPrice", "unitPriceHigh"].includes(k)));
       if (!ok) throw new Error(`${at}: priceBreaks is a list of { quantity, unitPrice, unitPriceHigh? } (quantity a whole number from 1, unitPrice 0 or more, unitPriceHigh not under it)`);
     }
     return JSON.parse(JSON.stringify(s)) as SupplierOffer;
+  });
+}
+
+/** Second sources, each checked; an alternate's offers are offers. A wrong one is refused by name. */
+export function checkAlternates(where: string, v: unknown): Alternate[] {
+  if (!Array.isArray(v) || !v.length) throw new Error(`${where}: alternates is a list of { manufacturer, mpn, note?, approved?, differences?, datasheet?, suppliers? }`);
+  return v.map((a, i) => {
+    const at = `${where}: alternates[${i}]`;
+    if (!isObject(a) || !isText(a.manufacturer) || !isText(a.mpn)) throw new Error(`${at} is { manufacturer, mpn, … }, each text`);
+    for (const k of Object.keys(a)) if (!ALTERNATE_KEYS.includes(k)) throw new Error(`${at}: ${k} is not a field of an alternate (it takes ${ALTERNATE_KEYS.join(", ")})`);
+    for (const k of ["note", "datasheet"] as const) if (a[k] !== undefined && !isText(a[k])) throw new Error(`${at}: ${k} is text`);
+    if (a.approved !== undefined && typeof a.approved !== "boolean") throw new Error(`${at}: approved is true or false`);
+    if (a.differences !== undefined && !(Array.isArray(a.differences) && a.differences.every(isText))) throw new Error(`${at}: differences is a list of statements (text)`);
+    if (a.suppliers !== undefined) checkOffers(at, a.suppliers);
+    return JSON.parse(JSON.stringify(a)) as Alternate;
   });
 }
 
@@ -199,10 +250,7 @@ export function partFieldForms(where: string, props: Readonly<Record<string, unk
   }
   if (props.suppliers !== undefined) forms.push(...offerForms(where, props.suppliers));
   if (props.alternates !== undefined) {
-    const v = props.alternates;
-    if (!Array.isArray(v) || !v.length || !v.every((a) => isObject(a) && isText(a.manufacturer) && isText(a.mpn) && (a.note === undefined || isText(a.note)) && Object.keys(a).every((k) => ["manufacturer", "mpn", "note"].includes(k))))
-      throw new Error(`${where}: alternates is a list of { manufacturer, mpn, note? }`);
-    forms.push(fieldForm("Alternates", JSON.stringify(v)));
+    forms.push(fieldForm("Alternates", JSON.stringify(checkAlternates(where, props.alternates))));
   }
   if (props.datasheet !== undefined) {
     if (!isText(props.datasheet)) throw new Error(`${where}: datasheet is a URL or a path`);
