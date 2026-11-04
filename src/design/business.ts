@@ -37,6 +37,9 @@
  */
 import type { DeclaredDocument } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
+import { COMPANY_FINANCE_MANY, COMPANY_FINANCE_ONE, FINANCE_TAGS, financeOf } from "./business-finance.js";
+
+export * from "./business-finance.js";
 
 export const Company = "Company";
 export const Entity = "Entity";
@@ -57,8 +60,8 @@ export const Case = "Case";
 export const Harm = "Harm";
 export const Relief = "Relief";
 
-type Kind = "text" | "texts" | "bool" | "record" | "data" | "amount";
-interface TagSpec {
+export type Kind = "text" | "texts" | "bool" | "record" | "data" | "amount";
+export interface TagSpec {
   props: Record<string, Kind>;
   required?: readonly string[];
   /** A child that occurs at most once, by the field it fills. */
@@ -72,8 +75,8 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   Company: {
     props: { name: "text", about: "text", postalAddress: "text", files: "texts", dashboard: "text" },
     required: ["name"],
-    one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters" },
-    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper" },
+    one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE },
+    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", ...COMPANY_FINANCE_MANY },
   },
   Entity: {
     props: { jurisdiction: "text", form: "text", taxClassification: "text", name: "text", formed: "text", fiscalYearEnd: "text", ids: "record", operatesIn: "texts", conditions: "record" },
@@ -119,6 +122,7 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   },
   Harm: { props: { id: "text", interest: "text", description: "text", amount: "amount" }, required: ["id"] },
   Relief: { props: { kind: "text", description: "text", harmIds: "texts", amount: "amount", days: "amount" }, required: ["kind"] },
+  ...FINANCE_TAGS,
 };
 
 /** One element as read: its attributes, its children by field, and where it was written. */
@@ -233,6 +237,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     ...(x.many.signatures!.length ? { signatures: x.many.signatures!.map((n) => ({ ...n.props })) } : {}),
     ...(x.many.versions!.length ? { versions: x.many.versions!.map((n) => ({ ...n.props })) } : {}),
   }));
+  const finance = financeOf(node);
   return {
     format: "commandagi-company",
     name: p.name,
@@ -247,6 +252,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     // Each area's field is absent when the file names none of it (docs/company-substrate.md § how an area joins).
     ...(subsidiaries.length ? { subsidiaries } : {}),
     ...(papers.length ? { papers } : {}),
+    ...(finance ? { finance } : {}),
   };
 }
 
