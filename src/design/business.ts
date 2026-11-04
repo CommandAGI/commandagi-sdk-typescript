@@ -38,8 +38,10 @@
 import type { DeclaredDocument } from "./ir.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
 import { COMPANY_FINANCE_MANY, COMPANY_FINANCE_ONE, FINANCE_TAGS, financeOf } from "./business-finance.js";
+import { FILING_PAPER_PROPS, FORMATION_LISTS, FORMATION_TAGS, formationOf } from "./company-formation.js";
 
 export * from "./business-finance.js";
+export { RegisteredAgent } from "./company-formation.js";
 
 export const Company = "Company";
 export const Entity = "Entity";
@@ -76,10 +78,10 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
     props: { name: "text", about: "text", postalAddress: "text", files: "texts", dashboard: "text" },
     required: ["name"],
     one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE },
-    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", ...COMPANY_FINANCE_MANY },
+    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS },
   },
   Entity: {
-    props: { jurisdiction: "text", form: "text", taxClassification: "text", name: "text", formed: "text", fiscalYearEnd: "text", ids: "record", operatesIn: "texts", conditions: "record" },
+    props: { jurisdiction: "text", form: "text", taxClassification: "text", name: "text", formed: "text", fiscalYearEnd: "text", ids: "record", operatesIn: "texts", conditions: "record", dissolved: "text" },
     required: ["jurisdiction"],
   },
   Registration: { props: { kind: "text", jurisdiction: "text", id: "text", issued: "text", expires: "text", file: "text" }, required: ["kind"] },
@@ -95,12 +97,14 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
     props: {
       kind: "text", title: "text", file: "text", status: "text", parties: "texts", jurisdiction: "text",
       effective: "text", expires: "text", renewal: "text", noticeDays: "amount",
+      ...FILING_PAPER_PROPS,
     },
     required: ["kind", "file"],
     many: { signatures: "Signature", versions: "Version" },
   },
   Signature: { props: { party: "text", signer: "text", capacity: "text", date: "text", method: "text", evidence: "text" }, required: ["party"] },
   Version: { props: { file: "text", date: "text", note: "text" }, required: ["file"] },
+  ...FORMATION_TAGS,
   Rfc: {
     props: { id: "text", procedure: "text", title: "text", body: "text", target: "text", engineJson: "text" },
     many: { options: "Option" },
@@ -225,6 +229,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
           ids: e.ids ?? {},
           operatesIn: e.operatesIn ?? [],
           ...(e.conditions !== undefined ? { conditions: e.conditions } : {}),
+          ...(e.dissolved !== undefined ? { dissolved: e.dissolved } : {}),
         };
       })()
     : null;
@@ -253,6 +258,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     ...(subsidiaries.length ? { subsidiaries } : {}),
     ...(papers.length ? { papers } : {}),
     ...(finance ? { finance } : {}),
+    ...formationOf(node),
   };
 }
 
