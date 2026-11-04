@@ -4,7 +4,7 @@
  * (`<extrude distance="10">` is an error before the file runs). The elements are the same as `commandagi`'s runtime
  * makes; the reader (`declareThreeD`) checks them again against `THREED_SCHEMA`, for files written without types.
  */
-import type { AcceptedFinding, DesignCheck, DrawingSheet, DynamicsJoint, FastenerStack, Mate, PermittedFinding, PartEngineering, SketchElements, TactileSkin, ThreeDFeatureElements, Vec3 } from "./threed-elements.js";
+import type { AcceptedFinding, DesignCheck, DrawingSheet, DynamicsJoint, FastenerStack, Mate, PermittedFinding, PartEngineering, Port, SketchElements, TactileSkin, ThreeDFeatureElements, Vec3 } from "./threed-elements.js";
 
 export { jsx, jsxs, jsxDEV, Fragment } from "./jsx-runtime.js";
 
@@ -49,6 +49,8 @@ export declare namespace JSX {
     fastener: FastenerStack;
     /** A tactile skin: a grid of taxels on one face of a body. */
     tactile: TactileSkin;
+    /** Where a rod's end can be held: a pad, a joint, a socket, a row of them. */
+    port: Port;
     /** Any other field of the document, whole. */
     slot: { name: string; value: unknown };
     /** A feature of a type the kernel does not know. A known type is written as its own tag. */

@@ -329,3 +329,18 @@ test("a spline's inner tangents and how hard its tangents hold; a path pattern a
   assert.throws(read(jsx("curve", { ...each, tangentScale: [2, 0, 0.5] })), /tangentScale\/1: must be greater than 0/);
   assert.throws(read(jsx("curve", { id: "c", points: [[0, 0, 0], [1, 0, 0]], tangents: [{ at: 0.5, direction: [1, 0, 0] }] })), /tangents\/0\/at: must be a whole number/);
 });
+
+test("<rod> is a feature with its ends at ports or bodies, and <port> is the document's ports list, checked against its schema", () => {
+  const doc = (...children: unknown[]) => declarationOf({ default: () => jsx("part", { name: "Board", children }) }).graph;
+  const sockets = { id: "a", body: "board", at: [0, 0, 8.5], axis: [0, 0, -1], hold: "insert", depth: 6, retention: 1, count: 63, pitch: 2.54 };
+  const g = doc(
+    jsx("box", { id: "board", name: "Board", center: [80, 0, 4], size: [165, 55, 8.5], operation: "new" }),
+    jsx("port", sockets),
+    jsx("rod", { id: "j1", name: "Jumper", material: "WIRE-22AWG-SOLID-PVC", from: { port: "a3" }, to: { port: "a12" }, slack: 0.2 }),
+  );
+  assert.deepEqual(g.nodes.ports!.inputs.value, [sockets]);
+  assert.equal((g.nodes.j1!.inputs as Record<string, unknown>).slack, 0.2);
+  assert.throws(() => doc(jsx("port", { ...sockets, hold: "glue" })), /hold/);
+  assert.throws(() => doc(jsx("rod", { id: "r", name: "R", section: { d: -1 } })), /d/);
+  assert.throws(() => doc(jsx("slot", { name: "ports", value: [] })), /ports is not a slot/);
+});

@@ -1243,6 +1243,13 @@ export type ExternalPartRef = {
    */
   omit?: string[];
   /**
+   * A placed 3D document: where its rods' ends are held here, by the rod's id in its file (a resistor's leads in a breadboard's sockets: `ends={{ leg1: { to: { port: "bb/e12" } } }}`). Each end stated here is held so, over its file's.
+   */
+  ends?: { [key: string]: {
+    from?: RodEnd;
+    to?: RodEnd;
+  } };
+  /**
    * A placed 3D document: bodies it makes or files it places, each moved in its file's frame before the placement (a lid opened, a ram lowered), by the id, the name or the part number its own file gives it (a placed file's id moves everything placed under it). What its file says of the body (an `<accept>` or `<permitted>` region, in the body's own frame) moves with it, and so do its spare holes and the fastener stacks that hold only what one move moves. An entry that names nothing of the file is an error.
    */
   moves?: PlacedMove[];
@@ -2795,6 +2802,66 @@ export type PointCloudFeature = {
   declaredBy?: CodeFeature;
 };
 
+/**
+ * A PORT: where a rod's end can be held on a body: a pad, a solder joint, a terminal, a socket, a breadboard's row of sockets (`count` of them, named `<id>1` … `<id><count>` along `dir`). `<port>` in code. A socket holds an end coaxial on its axis, no deeper than `depth`, until it is pulled out with more than `retention`.
+ */
+export type Port = {
+  id: string;
+  /** The body it is on: it moves with it. Absent: the document's frame. */
+  body?: string;
+  /**
+   * Where it is: a pad's centre, a socket's mouth (the first of a row).
+   * @unit mm
+   */
+  at: Vec3;
+  /**
+   * The direction a rod leaves it (a pad's normal), or, for a socket, into it.
+   * @default [0,0,1]
+   */
+  axis?: Vec3;
+  /** How it holds an end. */
+  hold: RodHold;
+  /**
+   * How deep a socket is.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  depth?: number;
+  /**
+   * The pull a socket holds an end against.
+   * @unit N
+   * @minimum 0
+   */
+  retention?: number;
+  /**
+   * How many ports this row is.
+   * @minimum 1
+   * @default 1
+   */
+  count?: number;
+  /**
+   * The distance between two of the row.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  pitch?: number;
+  /**
+   * The direction the row runs.
+   * @default [1,0,0]
+   */
+  dir?: Vec3;
+  /**
+   * A row in groups: one pitch more after each `groups` ports (a breadboard's power rail, in fives).
+   * @minimum 1
+   */
+  groups?: number;
+  /**
+   * The number its first port is called by.
+   * @default 1
+   */
+  first?: number;
+};
+
 /** The unit price from a quantity up (`@commandagi/core` quantity-terms' PriceBreak). */
 export type PriceBreak = {
   /**
@@ -2984,6 +3051,129 @@ export type RibFeature = {
    */
   declaredBy?: CodeFeature;
 };
+
+/** Where a rod's end is held. */
+export type RodEnd = {
+  /**
+   * A port: one of this document's (`<port>`; a member of a row of them by its id and number, `a12`), a placed file's (`<placement id>/<port>`) or a placed component's pad (`<placement id>/<pad number>`). The port says how it holds.
+   */
+  port?: string;
+  /**
+   * Or a body, by id: the end is held on it where it is drawn (a lead in its part's body, a hair in the scalp).
+   */
+  body?: string;
+  /**
+   * How a body holds it.
+   * @default "solder"
+   */
+  hold?: RodHold;
+};
+
+/**
+ * A ROD: a wire, a component's lead, a string, a hair, a cable, a flat flex, a spring: an elastic body much longer than it is wide, with a bend that springs back below its yield and sets beyond it (docs/formats.md § a 3D document's rods). It makes no solid body: it is drawn as its section along its points, and the `rod` family of the dynamics simulates it (live in editing with `activation: { rod: "always" }`). Its shape is its rest shape: a permanent bend made in the editor is written back as its points. What it connects (a conductor joining two ports' nets) is read from its ends and its material, not stated on it.
+ */
+export type RodFeature = {
+  type: "rod";
+  /**
+   * Its points at rest, in order (one rod). Absent with `from` and `to`: laid between its two ends with its slack.
+   * @unit mm
+   * @minItems 2
+   */
+  points?: Vec3[];
+  /**
+   * Many rods of one material and section (a head of hair, a brush, a harness's strands), each its points at rest.
+   * @unit mm
+   */
+  strands?: Vec3[][];
+  /**
+   * What it is made of: a row of the rods tables along the search path (`materials/rods.csv`: a wire, its conductor and insulation and their diameters; it gives the section too), or a grade of the engineering tables with `section`.
+   */
+  material?: string;
+  /**
+   * Its cross-section, where its material's row states none: a circle, a tube or a rectangle (a ribbon).
+   * @unit mm
+   */
+  section?: RodSection;
+  /** Where its first end (each strand's first point) is held, and how. Absent: free. */
+  from?: RodEnd;
+  /** Where its last end (each strand's last point) is held, and how. Absent: free. */
+  to?: RodEnd;
+  /**
+   * Its length, laid between `from` and `to` with no points.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  length?: number;
+  /**
+   * Laid between `from` and `to` with no points or length: how much longer than the straight distance it is (0.2: 20 % longer).
+   * @minimum 0
+   * @default 0.15
+   */
+  slack?: number;
+  /**
+   * The section's first axis at its start (a ribbon's width). Absent: across its first edge, toward world z.
+   */
+  up?: Vec3;
+  /**
+   * The distance between its nodes in the simulation. Absent: its length over 24, at least 2 diameters.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  segment?: number;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
+/**
+ * How an end is held: soldered to a pad or a joint, crimped, inserted in a socket, or pinned at a point (free to turn).
+ */
+export type RodHold = "solder" | "crimp" | "insert" | "pin";
+
+/** A rectangular section: a ribbon, a strip, a flat flex. */
+export type RodRibbon = {
+  /**
+   * Its width, along the section's first axis (`up`).
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  w: number;
+  /**
+   * Its thickness.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  h: number;
+};
+
+/** A round section: a solid circle, or a tube with `wall`. */
+export type RodRound = {
+  /**
+   * Its outer diameter.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  d: number;
+  /**
+   * A tube's wall.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  wall?: number;
+};
+
+/** A rod's cross-section. */
+export type RodSection = RodRound | RodRibbon;
 
 export type RouteBias = "x-first" | "y-first";
 
@@ -4253,6 +4443,9 @@ export type SweepProps = Omit<SweepFeature, "type" | "error" | "declaredBy" | "n
 /** `<curve>`: the CurveFeature fields, by the same names. */
 export type CurveProps = Omit<CurveFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
 
+/** `<rod>`: the RodFeature fields, by the same names. */
+export type RodProps = Omit<RodFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
 /** `<loft>`: the LoftFeature fields, by the same names. */
 export type LoftProps = Omit<LoftFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
 
@@ -4405,6 +4598,7 @@ export interface ThreeDFeatureElements {
   revolve: RevolveProps;
   sweep: SweepProps;
   curve: CurveProps;
+  rod: RodProps;
   loft: LoftProps;
   fillet: FilletProps;
   chamfer: ChamferProps;

@@ -429,6 +429,32 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "source": "TR Fastenings knowledge base, Mechanical properties - Steel Screws and Bolts ISO 898-1 EN 20898-1 (cross-checked with Optimas, Mechanical and physical properties of steel fasteners); density, modulus and Poisson's ratio from Ovako Steel Navigator, 42CrMo4",
   "sourceUrl": "https://www.trfastenings.com/knowledge-base/metric-screws/screws-and-bolts-mechanical-properties ; https://optimas.com/technical-resources/mechanical-physical-properties-steel-fasteners/ ; https://steelnavigator.ovako.com/steel-grades/42crmo4/",
   "observedAt": "2026-10-22"
+ },
+ {
+  "id": "CU-C11000-O",
+  "name": "Copper C11000 (electrolytic tough pitch), annealed: wire and component leads",
+  "family": "copper",
+  "designationEn": "CW004A",
+  "designationUns": "UNS C11000",
+  "densityGCm3": 8.89,
+  "youngsModulusGPa": 117,
+  "yieldStrengthMPa": 69,
+  "tensileStrengthMPa": 220,
+  "poissonsRatio": 0.34,
+  "source": "MakeItFrom, Annealed (OS050) C11000 Copper (yield and tensile strength); LFA Wire, C11000 (density 8.89 g/cm³, modulus 17 000 ksi = 117 GPa)",
+  "sourceUrl": "https://www.makeitfrom.com/material-properties/Annealed-OS050-C11000-Copper ; https://www.lfa-wire.com/?p=175",
+  "observedAt": "2026-11-03"
+ },
+ {
+  "id": "PVC-FLEX",
+  "name": "Flexible (plasticized) PVC, PVC-P: a hook-up wire's insulation",
+  "family": "plastic",
+  "densityGCm3": 1.4,
+  "youngsModulusGPa": 1.4,
+  "tensileStrengthMPa": 16,
+  "source": "MakeItFrom, Plasticized (Flexible) Polyvinyl Chloride (PVC-P)",
+  "sourceUrl": "https://www.makeitfrom.com/material-properties/Plasticized-Flexible-Polyvinyl-Chloride-PVC-P",
+  "observedAt": "2026-11-03"
  }
 ];
 

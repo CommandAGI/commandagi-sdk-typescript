@@ -9,6 +9,7 @@ export const THREED_SCHEMA: SchemaDocument = {
   "revolve": "RevolveFeature",
   "sweep": "SweepFeature",
   "curve": "CurveFeature",
+  "rod": "RodFeature",
   "loft": "LoftFeature",
   "fillet": "FilletFeature",
   "chamfer": "ChamferFeature",
@@ -2565,6 +2566,23 @@ export const THREED_SCHEMA: SchemaDocument = {
       "type": "string"
      },
      "description": "A placed 3D document: what of it is left out here, each by the id, the name or the part number its own file gives it (`*` matches any text): a body it makes, a file it places (its id names everything placed under it), a fastener stack, an `<item>`. What its file says of a body left out (an `<accept>`, a `<permitted>`, the stacks that hold it) goes with it. An entry that names nothing of the file is an error. One frame in every station, each station with its own deck: `omit={[\"deck\"]}`."
+    },
+    "ends": {
+     "type": "object",
+     "properties": {},
+     "additionalProperties": {
+      "type": "object",
+      "properties": {
+       "from": {
+        "$ref": "#/$defs/RodEnd"
+       },
+       "to": {
+        "$ref": "#/$defs/RodEnd"
+       }
+      },
+      "additionalProperties": false
+     },
+     "description": "A placed 3D document: where its rods' ends are held here, by the rod's id in its file (a resistor's leads in a breadboard's sockets: `ends={{ leg1: { to: { port: \"bb/e12\" } } }}`). Each end stated here is held so, over its file's."
     },
     "moves": {
      "type": "array",
@@ -5832,6 +5850,86 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "A raw point cloud — scan points, SWC point sets, or a splat stripped of covariance."
   },
+  "Port": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "body": {
+     "type": "string",
+     "description": "The body it is on: it moves with it. Absent: the document's frame."
+    },
+    "at": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Where it is: a pad's centre, a socket's mouth (the first of a row).",
+     "x-unit": "mm"
+    },
+    "axis": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The direction a rod leaves it (a pad's normal), or, for a socket, into it.",
+     "default": [
+      0,
+      0,
+      1
+     ]
+    },
+    "hold": {
+     "$ref": "#/$defs/RodHold",
+     "description": "How it holds an end."
+    },
+    "depth": {
+     "type": "number",
+     "description": "How deep a socket is.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "retention": {
+     "type": "number",
+     "description": "The pull a socket holds an end against.",
+     "x-unit": "N",
+     "minimum": 0
+    },
+    "count": {
+     "type": "integer",
+     "description": "How many ports this row is.",
+     "minimum": 1,
+     "default": 1
+    },
+    "pitch": {
+     "type": "number",
+     "description": "The distance between two of the row.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "dir": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The direction the row runs.",
+     "default": [
+      1,
+      0,
+      0
+     ]
+    },
+    "groups": {
+     "type": "integer",
+     "description": "A row in groups: one pitch more after each `groups` ports (a breadboard's power rail, in fives).",
+     "minimum": 1
+    },
+    "first": {
+     "type": "integer",
+     "description": "The number its first port is called by.",
+     "default": 1
+    }
+   },
+   "required": [
+    "id",
+    "at",
+    "hold"
+   ],
+   "additionalProperties": false,
+   "description": "A PORT: where a rod's end can be held on a body: a pad, a solder joint, a terminal, a socket, a breadboard's row of sockets (`count` of them, named `<id>1` … `<id><count>` along `dir`). `<port>` in code. A socket holds an end coaxial on its axis, no deeper than `depth`, until it is pulled out with more than `retention`."
+  },
   "PriceBreak": {
    "type": "object",
    "properties": {
@@ -6148,6 +6246,191 @@ export const THREED_SCHEMA: SchemaDocument = {
     "name"
    ],
    "additionalProperties": false
+  },
+  "RodEnd": {
+   "type": "object",
+   "properties": {
+    "port": {
+     "type": "string",
+     "description": "A port: one of this document's (`<port>`; a member of a row of them by its id and number, `a12`), a placed file's (`<placement id>/<port>`) or a placed component's pad (`<placement id>/<pad number>`). The port says how it holds."
+    },
+    "body": {
+     "type": "string",
+     "description": "Or a body, by id: the end is held on it where it is drawn (a lead in its part's body, a hair in the scalp)."
+    },
+    "hold": {
+     "$ref": "#/$defs/RodHold",
+     "description": "How a body holds it.",
+     "default": "solder"
+    }
+   },
+   "additionalProperties": false,
+   "description": "Where a rod's end is held."
+  },
+  "RodFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "rod"
+    },
+    "points": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/Vec3"
+     },
+     "description": "Its points at rest, in order (one rod). Absent with `from` and `to`: laid between its two ends with its slack.",
+     "x-unit": "mm",
+     "minItems": 2
+    },
+    "strands": {
+     "type": "array",
+     "items": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/Vec3"
+      }
+     },
+     "description": "Many rods of one material and section (a head of hair, a brush, a harness's strands), each its points at rest.",
+     "x-unit": "mm"
+    },
+    "material": {
+     "type": "string",
+     "description": "What it is made of: a row of the rods tables along the search path (`materials/rods.csv`: a wire, its conductor and insulation and their diameters; it gives the section too), or a grade of the engineering tables with `section`."
+    },
+    "section": {
+     "$ref": "#/$defs/RodSection",
+     "description": "Its cross-section, where its material's row states none: a circle, a tube or a rectangle (a ribbon).",
+     "x-unit": "mm"
+    },
+    "from": {
+     "$ref": "#/$defs/RodEnd",
+     "description": "Where its first end (each strand's first point) is held, and how. Absent: free."
+    },
+    "to": {
+     "$ref": "#/$defs/RodEnd",
+     "description": "Where its last end (each strand's last point) is held, and how. Absent: free."
+    },
+    "length": {
+     "type": "number",
+     "description": "Its length, laid between `from` and `to` with no points.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "slack": {
+     "type": "number",
+     "description": "Laid between `from` and `to` with no points or length: how much longer than the straight distance it is (0.2: 20 % longer).",
+     "minimum": 0,
+     "default": 0.15
+    },
+    "up": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The section's first axis at its start (a ribbon's width). Absent: across its first edge, toward world z."
+    },
+    "segment": {
+     "type": "number",
+     "description": "The distance between its nodes in the simulation. Absent: its length over 24, at least 2 diameters.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "A ROD: a wire, a component's lead, a string, a hair, a cable, a flat flex, a spring: an elastic body much longer than it is wide, with a bend that springs back below its yield and sets beyond it (docs/formats.md § a 3D document's rods). It makes no solid body: it is drawn as its section along its points, and the `rod` family of the dynamics simulates it (live in editing with `activation: { rod: \"always\" }`). Its shape is its rest shape: a permanent bend made in the editor is written back as its points. What it connects (a conductor joining two ports' nets) is read from its ends and its material, not stated on it."
+  },
+  "RodHold": {
+   "type": "string",
+   "enum": [
+    "solder",
+    "crimp",
+    "insert",
+    "pin"
+   ],
+   "description": "How an end is held: soldered to a pad or a joint, crimped, inserted in a socket, or pinned at a point (free to turn)."
+  },
+  "RodRibbon": {
+   "type": "object",
+   "properties": {
+    "w": {
+     "type": "number",
+     "description": "Its width, along the section's first axis (`up`).",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "h": {
+     "type": "number",
+     "description": "Its thickness.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    }
+   },
+   "required": [
+    "w",
+    "h"
+   ],
+   "additionalProperties": false,
+   "description": "A rectangular section: a ribbon, a strip, a flat flex."
+  },
+  "RodRound": {
+   "type": "object",
+   "properties": {
+    "d": {
+     "type": "number",
+     "description": "Its outer diameter.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "wall": {
+     "type": "number",
+     "description": "A tube's wall.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    }
+   },
+   "required": [
+    "d"
+   ],
+   "additionalProperties": false,
+   "description": "A round section: a solid circle, or a tube with `wall`."
+  },
+  "RodSection": {
+   "anyOf": [
+    {
+     "$ref": "#/$defs/RodRound"
+    },
+    {
+     "$ref": "#/$defs/RodRibbon"
+    }
+   ],
+   "description": "A rod's cross-section."
   },
   "RouteBias": {
    "type": "string",
