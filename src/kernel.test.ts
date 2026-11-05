@@ -134,9 +134,9 @@ test("local, then cloud: a local refusal is the answer, and a place with no kern
       assert.deepEqual(cloud.seen[0]!.body.inputs, { doc: input("{}") });
     });
     // No key and no local kernel: no place runs it, and the error says why for each place. A host beside the package
-    // (a checkout) answers `threed status` with the short reason; none anywhere names how to install it.
+    // (a checkout) answers `threed status` with the short reason, or none when its CLI is not built; none anywhere names how to install it.
     await withEnv({ COMMANDAGI_THREED: "local,cloud", PATH: "" }, async () => {
-      await assert.rejects(new Kernel().export("{}"), (e: unknown) => e instanceof KernelError && e.status === 503 && /kernel_unavailable: no place ran 3d export: local: the local 3D service is not installed( \(commandagi threed install\)|: it is the local host.s \(npm install -g @commandagi\/host, then commandagi threed install\)); cloud: no such place here/.test(e.message));
+      await assert.rejects(new Kernel().export("{}"), (e: unknown) => e instanceof KernelError && e.status === 503 && /kernel_unavailable: no place ran 3d export: local: (the local 3D service is not installed( \(commandagi threed install\)|: it is the local host.s \(npm install -g @commandagi\/host, then commandagi threed install\))|`commandagi threed status` gave no status \(npm install -g @commandagi\/host, then commandagi threed install\)); cloud: no such place here/.test(e.message));
     });
   } finally {
     local.server.close();
