@@ -715,6 +715,10 @@ export const THREED_SCHEMA: SchemaDocument = {
      "additionalProperties": {},
      "description": "What the file runs with (its declared `params` by name)."
     },
+    "host": {
+     "$ref": "#/$defs/HostCode",
+     "description": "RUN BY THE LOCAL HOST in the folder's own environment (its `.venv` or uv project), not in the sandbox: the file is a program that writes files (docs/code-sandbox.md § a host code part). Its STEP outputs are this part's bodies, its JSON outputs drive fields through `bind`. Absent: the file declares features in the sandbox."
+    },
     "id": {
      "type": "string"
     },
@@ -3742,6 +3746,80 @@ export const THREED_SCHEMA: SchemaDocument = {
     "counterbore",
     "countersink"
    ]
+  },
+  "HostCode": {
+   "type": "object",
+   "properties": {
+    "outputs": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "The files the program writes, relative to the document: `.step` (each one body, the first takes the code part's id) and `.json` (values `bind` reads). At least one `.step`.",
+     "minItems": 1
+    },
+    "reads": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Other files the program reads, relative to the document: their bytes are part of the cache key."
+    },
+    "secrets": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Secrets the program is given as environment variables, by name: each must be named by the grant too."
+    },
+    "timeout": {
+     "type": "number",
+     "description": "The longest the program may run, in seconds (default 300).",
+     "minimum": 1,
+     "maximum": 3600
+    },
+    "bind": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/HostCodeBinding"
+     },
+     "description": "Values of the JSON outputs that drive the document's fields, as a parameter's bindings do."
+    }
+   },
+   "required": [
+    "outputs"
+   ],
+   "additionalProperties": false,
+   "description": "What a host code part writes and reads (`<code host={…}>`; docs/formats.md § a host code part)."
+  },
+  "HostCodeBinding": {
+   "type": "object",
+   "properties": {
+    "output": {
+     "type": "string",
+     "description": "The JSON output, as `outputs` names it."
+    },
+    "key": {
+     "type": "string",
+     "description": "The value's dot path in that JSON (`boards.front.x`, `poses.0.z`)."
+    },
+    "target": {
+     "type": "string",
+     "description": "The feature whose field it drives."
+    },
+    "field": {
+     "type": "string",
+     "description": "The field's dot path, as a parameter's binding names it (`placement.position.2`)."
+    }
+   },
+   "required": [
+    "output",
+    "key",
+    "target",
+    "field"
+   ],
+   "additionalProperties": false,
+   "description": "One value of a host code part's JSON output that drives a field of a feature."
   },
   "ImportFeature": {
    "type": "object",

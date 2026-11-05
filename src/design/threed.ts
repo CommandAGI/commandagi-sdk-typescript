@@ -397,11 +397,11 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
     if (el.type !== "sketch") {
       noChildren(el);
       if (el.type === "code") {
-        // A code feature's `inputs` are ports of its node, beside `source` and `consumes` (the document graph's rule).
+        // A code feature's `inputs` are ports of its node, beside `source`, `host` and `consumes` (the document graph's rule).
         const { inputs: codeInputs, ...own } = rest as { inputs?: Record<string, unknown> };
         if (codeInputs !== undefined && (typeof codeInputs !== "object" || Array.isArray(codeInputs) || codeInputs === null))
           throw new Error(`${where(el)}: inputs is an object`);
-        for (const k of Object.keys(own)) if (k !== "source" && k !== "consumes") throw new Error(`${where(el)}: a code feature has source, inputs and consumes, not ${k}`);
+        for (const k of Object.keys(own)) if (k !== "source" && k !== "host" && k !== "consumes") throw new Error(`${where(el)}: a code feature has source, inputs, host and consumes, not ${k}`);
         inputs = { ...own, ...(codeInputs ?? {}) };
       }
     }
