@@ -84,12 +84,14 @@ test("a kind registered later reads its own tags and refuses them in a study of 
   assert.throws(() => registerStudyKind("other", { fixture: { rule: { parents: ["study"] }, field: "holds", list: true } }), /fills holds, but it already fills fixtures/);
 });
 
-test("an arm-design study in JSX: its varied links by id, the workspace, the payload, the objectives in order", () => {
+test("an arm-design study in JSX: its varied links, offset and tip by id, the workspace, the payload, the objectives in order", () => {
   const file = el(
     "study",
     { kind: "arm-design", part: "devices/so101-reach/definition.tsx", units: "mm-kg-s" },
     el("vary", { id: "upper", joint: "elbow_flex", axis: "x", values: [-112.57, -125] }),
     el("vary", { id: "forearm", joint: "wrist_flex", axis: "x", values: [-134.9, -150] }),
+    el("vary", { id: "wrist", field: "offset_mm", joint: "wrist_roll", axis: "y", values: [0, 10] }),
+    el("vary", { id: "tool", field: "tip_mm", axis: "z", values: [-98.1274, -120] }),
     el("workspace", { min: [-100, -100, 20], max: [100, 50, 100], step: 25, down: true }),
     el("payload", { mass: 0.5, gravity: [0, 0, -9.81] }),
     el("criterion", { id: "covers", quantity: "coverage", limit: 0.9 }),
@@ -101,7 +103,8 @@ test("an arm-design study in JSX: its varied links by id, the workspace, the pay
     kind: "arm-design",
     part: "devices/so101-reach/definition.tsx",
     units: "mm-kg-s",
-    vary: [{ id: "upper", joint: "elbow_flex", axis: "x", values: [-112.57, -125] }, { id: "forearm", joint: "wrist_flex", axis: "x", values: [-134.9, -150] }],
+    vary: [{ id: "upper", joint: "elbow_flex", axis: "x", values: [-112.57, -125] }, { id: "forearm", joint: "wrist_flex", axis: "x", values: [-134.9, -150] },
+      { id: "wrist", field: "offset_mm", joint: "wrist_roll", axis: "y", values: [0, 10] }, { id: "tool", field: "tip_mm", axis: "z", values: [-98.1274, -120] }],
     workspace: { min: [-100, -100, 20], max: [100, 50, 100], step: 25, down: true },
     payload: { mass: 0.5, gravity: [0, 0, -9.81] },
     criteria: [{ id: "covers", quantity: "coverage", limit: 0.9 }],

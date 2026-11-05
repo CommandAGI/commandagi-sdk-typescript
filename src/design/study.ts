@@ -31,7 +31,7 @@
  *     "pressure", id, faces, total | value }] }], mesh?, solver?, criteria?: [{ id, quantity, limit, region?,
  *     loadCase?, step? }], revise?: [{ parameter, min, max }], steps?: [{ id, joint, from, to }], gains?: [{ joint, kp?,
  *     kv? }], tune?: [{ joint, kp?: [low, high], kv?: [low, high] }], response?: { duration, dt?, band? }, vary?: [{ id,
- *     joint, axis, values }], workspace?: { min, max, step, down? }, payload?: { mass, gravity }, objectives?: [{ quantity,
+ *     field?, joint?, axis, values }], workspace?: { min, max, step, down? }, payload?: { mass, gravity }, objectives?: [{ quantity,
  *     goal }] }
  */
 import { registerVocabulary, type DocTree, type TagRule, type Vocabulary } from "./documents.js";
@@ -148,16 +148,19 @@ registerStudyKind("step-response", {
 /**
  * An arm-design study (`kind="arm-design"`, `units="mm-kg-s"`): a sweep over an arm definition's link lengths and
  * offsets, each variant scored on a target workspace. Its `part` is a device definition in the study's folder (the
- * definition its best variant is written into). Each `<vary>` sets one component (`axis`) of `origin_mm` of the chain
- * link that ends at `joint` to each of its `values` (mm); the sweep is every combination. `<workspace>` is the grid the
- * arm must reach (`min`, `max`, `step`, mm, the definition's model frame; `down`: with the tool pointing down),
- * `<payload>` the load at the tool point (`mass`, kg; `gravity`, m/s² in that frame). A criterion reads `coverage`
- * (the fraction of the grid reached, at least its limit), `manipulability.min` (mm/rad, at least its limit) or
- * `torque.ratio` (the static torque over the rated torque, at most its limit); `<objective quantity goal>` ranks the
+ * definition its best variant is written into). Each `<vary>` sets one component (`axis`) of the vector its `field`
+ * names to each of its `values` (mm): `origin_mm` of the chain link that ends at `joint` (no `field`), `offset_mm` of
+ * that link, or the kinematics' `tip_mm` (the tool point; no `joint`). The sweep is every combination. `<workspace>`
+ * is the grid the arm must reach (`min`, `max`, `step`, mm, the definition's model frame; `down`: with the tool
+ * pointing down), `<payload>` the load at the tool point (`mass`, kg; `gravity`, m/s² in that frame). A criterion reads
+ * `coverage` (the fraction of the grid reached, at least its limit), `manipulability.min` (mm/rad, at least its
+ * limit), `torque.ratio` (the static torque over the rated torque, at most its limit) or `torque.dynamic` (the torque a
+ * trajectory at the rated speeds needs over the rated torque, at most its limit); `<objective quantity goal>` ranks the
  * variants that pass the same criteria, in the order written.
  *
  *   <study kind="arm-design" part="devices/so101-reach/definition.tsx" units="mm-kg-s">
  *     <vary id="upper" joint="elbow_flex" axis="x" values={[-112.57, -125, -140]} />
+ *     <vary id="tool" field="tip_mm" axis="z" values={[-98.1274, -120]} />
  *     <workspace min={[-100, -100, 20]} max={[100, 50, 100]} step={25} down />
  *     <payload mass={0.5} gravity={[0, 0, -9.81]} />
  *     <criterion id="covers" quantity="coverage" limit={0.9} />
@@ -165,7 +168,7 @@ registerStudyKind("step-response", {
  *   </study>
  */
 registerStudyKind("arm-design", {
-  vary: { rule: { parents: ["study"], key: "id", required: ["id", "joint", "axis", "values"], attrs: ["id", "joint", "axis", "values"] }, field: "vary", list: true },
+  vary: { rule: { parents: ["study"], key: "id", required: ["id", "axis", "values"], attrs: ["id", "field", "joint", "axis", "values"] }, field: "vary", list: true },
   workspace: { rule: { parents: ["study"], single: true, required: ["min", "max", "step"], attrs: ["min", "max", "step", "down"] }, field: "workspace" },
   payload: { rule: { parents: ["study"], single: true, required: ["mass", "gravity"], attrs: ["mass", "gravity"] }, field: "payload" },
   objective: { rule: { parents: ["study"], key: "quantity", required: ["quantity", "goal"], attrs: ["quantity", "goal"] }, field: "objectives", list: true },
