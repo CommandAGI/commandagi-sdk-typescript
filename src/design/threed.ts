@@ -87,7 +87,7 @@
  *   <tactile id body face at normal along rows cols pitch thickness saturation>
  *                                             a tactile skin (`tactile`): a grid of taxels on one face of a body,
  *                                             which a device definition's tactile channel records
- *   <port id body at axis hold depth retention count pitch dir groups first>
+ *   <port id body at axis hold depth retention retentionSource count pitch dir groups first>
  *                                             where a rod's end can be held (`ports`): a pad, a joint, a socket,
  *                                             a row of them (`<id>1` … `<id><count>`)
  *   <slot name value>                         any other field of the document, whole (environment, animation,

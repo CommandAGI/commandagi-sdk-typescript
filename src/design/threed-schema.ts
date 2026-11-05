@@ -6095,9 +6095,13 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "retention": {
      "type": "number",
-     "description": "The pull a socket holds an end against.",
+     "description": "The pull a socket holds an end against: a lead pulled harder over 1/240 s slides out. Absent, 1 N, an estimate for a breadboard's contact, not a reading.",
      "x-unit": "N",
      "minimum": 0
+    },
+    "retentionSource": {
+     "type": "string",
+     "description": "Where the retention was read: a datasheet and its page or table (a ZIF connector's cable holding force), a measurement, or \"estimate\" with its basis."
     },
     "count": {
      "type": "integer",

@@ -2999,11 +2999,15 @@ export type Port = {
    */
   depth?: number;
   /**
-   * The pull a socket holds an end against.
+   * The pull a socket holds an end against: a lead pulled harder over 1/240 s slides out. Absent, 1 N, an estimate for a breadboard's contact, not a reading.
    * @unit N
    * @minimum 0
    */
   retention?: number;
+  /**
+   * Where the retention was read: a datasheet and its page or table (a ZIF connector's cable holding force), a measurement, or "estimate" with its basis.
+   */
+  retentionSource?: string;
   /**
    * How many ports this row is.
    * @minimum 1
