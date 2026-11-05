@@ -84,7 +84,7 @@ test("a kind registered later reads its own tags and refuses them in a study of 
   assert.throws(() => registerStudyKind("other", { fixture: { rule: { parents: ["study"] }, field: "holds", list: true } }), /fills holds, but it already fills fixtures/);
 });
 
-test("an arm-design study in JSX: its varied links, offset and tip by id, the workspace, the payload, the objectives in order", () => {
+test("an arm-design study in JSX: its varied links, offset and tip by id, the workspace, the payload, the obstacles by id, the objectives in order", () => {
   const file = el(
     "study",
     { kind: "arm-design", part: "devices/so101-reach/definition.tsx", units: "mm-kg-s" },
@@ -94,6 +94,8 @@ test("an arm-design study in JSX: its varied links, offset and tip by id, the wo
     el("vary", { id: "tool", field: "tip_mm", axis: "z", values: [-98.1274, -120] }),
     el("workspace", { min: [-100, -100, 20], max: [100, 50, 100], step: 25, down: true }),
     el("payload", { mass: 0.5, gravity: [0, 0, -9.81] }),
+    el("obstacle", { id: "fixture", min: [-160, -40, 0], max: [-120, 40, 60] }),
+    el("obstacle", { id: "bin", min: [60, -60, 0], max: [140, 20, 90], wall: 4 }),
     el("criterion", { id: "covers", quantity: "coverage", limit: 0.9 }),
     el("objective", { quantity: "coverage", goal: "max" }),
     el("objective", { quantity: "manipulability.min", goal: "max" }),
@@ -107,6 +109,7 @@ test("an arm-design study in JSX: its varied links, offset and tip by id, the wo
       { id: "wrist", field: "offset_mm", joint: "wrist_roll", axis: "y", values: [0, 10] }, { id: "tool", field: "tip_mm", axis: "z", values: [-98.1274, -120] }],
     workspace: { min: [-100, -100, 20], max: [100, 50, 100], step: 25, down: true },
     payload: { mass: 0.5, gravity: [0, 0, -9.81] },
+    obstacles: [{ id: "fixture", min: [-160, -40, 0], max: [-120, 40, 60] }, { id: "bin", min: [60, -60, 0], max: [140, 20, 90], wall: 4 }],
     criteria: [{ id: "covers", quantity: "coverage", limit: 0.9 }],
     objectives: [{ quantity: "coverage", goal: "max" }, { quantity: "manipulability.min", goal: "max" }],
   });
