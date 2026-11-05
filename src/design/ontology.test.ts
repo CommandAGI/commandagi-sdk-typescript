@@ -89,6 +89,33 @@ test("a device definition's channels are <channel> elements; its bounds are attr
   assert.throws(() => declarationOf({ default: el("device", { name: "A", channels: [] }) }), /each channel as a <channel> element/);
 });
 
+test("bounds and interlocks are elements: a <bound> folds into its channel, an <interlock> into the definition's or the world's list", () => {
+  const requires = [{ channel: "switches", field: "home", eq: true }];
+  const def = el(
+    "device",
+    { name: "Hatch" },
+    el("channel", { id: "gate", dir: "duplex", medium: "records", format: "json-records" }),
+    el("channel", { id: "switches", dir: "out", medium: "records", format: "json-records" }),
+    el("bound", { channel: "gate", field: "lift", min: 0, max: 420, maxRate: 200 }),
+    el("interlock", { name: "gate-closes-only-with-shuttle-home", channel: "gate", when: { field: "lift", lt: 420 }, requires, why: "the gate would close on the tray" }),
+  );
+  const doc = documentOf({ default: def }).document as Record<string, unknown>;
+  assert.deepEqual(doc.channels, [
+    { id: "gate", dir: "duplex", medium: "records", format: "json-records", bounds: [{ field: "lift", min: 0, max: 420, maxRate: 200 }] },
+    { id: "switches", dir: "out", medium: "records", format: "json-records" },
+  ]);
+  assert.deepEqual(doc.interlocks, [{ name: "gate-closes-only-with-shuttle-home", channel: "gate", when: { field: "lift", lt: 420 }, requires, why: "the gate would close on the tray" }]);
+  assert.deepEqual(ONTOLOGY.device.fromTree(ONTOLOGY.device.toTree(doc as never)), doc, "both ways");
+  assert.throws(() => declarationOf({ default: el("device", { name: "A" }, el("bound", { channel: "x", field: "f", max: 1 })) }), /channel "x" is not a <channel> of this device/);
+  assert.throws(() => declarationOf({ default: el("device", { name: "A" }, el("channel", { id: "c", bounds: [] })) }), /each bound as a <bound channel="c">/);
+  assert.throws(() => declarationOf({ default: el("device", { name: "A", interlocks: [] }) }), /each interlock as an <interlock> element/);
+  const world = documentOf({
+    default: el("world", { name: "Unit", kind: "physical" }, el("unit", { uid: "tray", name: "tray", device: "d" }), el("interlock", { name: "shuttle-needs-hatch-open", unit: "tray", channel: "shuttle", requires: [{ unit: "hatch", channel: "gate", field: "open", eq: true }], why: "the tray would strike the gate" })),
+  }).document as Record<string, unknown>;
+  assert.deepEqual(world.interlocks, [{ name: "shuttle-needs-hatch-open", unit: "tray", channel: "shuttle", requires: [{ unit: "hatch", channel: "gate", field: "open", eq: true }], why: "the tray would strike the gate" }]);
+  assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(world as never)), world, "a world's interlocks both ways");
+});
+
 test("a definition names its firmware and revision; a firmware declares its channels and the revisions it supports", () => {
   const def = documentOf({ default: el("device", { name: "Cam", firmware: "../../firmware/cam", revision: "rev-a" }, el("channel", { id: "cam", dir: "out", medium: "video", format: "video" })) }).document;
   assert.deepEqual(def, { name: "Cam", firmware: "../../firmware/cam", revision: "rev-a", channels: [{ id: "cam", dir: "out", medium: "video", format: "video" }] });

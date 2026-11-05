@@ -13,8 +13,11 @@
  * children (`units` → `<unit>`, `channels` → `<channel>`, a scene's `bodies` → `<body>`). The tags:
  *
  *   <world name kind description? from? model?    world.tsx             <space origin_mm size_mm>, <group uid …>,
- *          links? policies?>                                                     <unit uid …>, <view …>, <scene …> (<body id …>)
- *   <device name … firmware? revision?>           definition.tsx        <channel id dir medium format transport …>
+ *          links? policies?>                                                     <unit uid …>, <view …>, <scene …> (<body id …>),
+ *                                                                                  <interlock name unit channel requires why …>
+ *   <device name … firmware? revision?>           definition.tsx        <channel id dir medium format transport …>,
+ *                                                                        <bound channel field min? max? maxRate? maxSpeed?>,
+ *                                                                        <interlock name channel requires why verbs? when?>
  *   <dashboard name …>                            <name>.dashboard.tsx   <param id type …>, one layout: <split axis
  *                                                                        ratio> of two <split>|<pane id kind …>, or
  *                                                                        one <pane> (repeat="live-stream": one pane
@@ -31,6 +34,18 @@
  *
  * A code form declares; it never enforces. A definition's bounds, interlocks and grants are read and enforced by the
  * host as they are for its JSON.
+ *
+ * Bounds and interlocks are what the host's admission gate holds every command to, driver or not (docs/devices.md §
+ * the admission gate, in the CommandAGI repository). A `<bound>` names its channel and one field of what the channel's
+ * commands set (`fr3_joint1`, `FL_knee.q`); it folds into that channel's `bounds`. An `<interlock>` refuses a command
+ * on its `channel` unless each of `requires` holds on another channel's last known state; an unknown state refuses:
+ *
+ *   <bound channel="joints" field="fr3_joint1" min={-2.9007} max={2.9007} maxRate={2.62} />
+ *   <interlock name="gate-closes-only-with-shuttle-home" channel="gate" when={{ field: "lift", lt: 420 }}
+ *     requires={[{ channel: "shuttle-switches", field: "home", eq: true }]} why="…" />
+ *
+ * A world's `<interlock>` names the unit it guards (`unit`) and, in each requirement, the unit it reads (`unit`, the
+ * guarded one when absent).
  */
 import { Declaration, type IRGraph, type IRNode, type IRWire } from "./ir.js";
 import { isElement, type DesignElement } from "./jsx-runtime.js";
@@ -64,6 +79,10 @@ export const GROUP_FIELDS = ["uid", "name", "description", "group", "size_mm", "
  * leads (`twin`, `physical`, or a ref to a run folder: replay).
  */
 const WORLD_FIELDS = ["name", "kind", "description", "from", "model", "links", "policies"] as const;
+/** A `<bound>`'s attributes: the channel it bounds, the field, and its limits. */
+const BOUND_FIELDS = ["channel", "field", "min", "max", "maxRate", "maxSpeed", "why"] as const;
+/** An `<interlock>`'s attributes; `unit` only in a world. */
+const INTERLOCK_FIELDS = ["name", "unit", "channel", "verbs", "when", "requires", "why"] as const;
 
 /** A follow policy of a world (`<world policies={[…]}>`; docs/follow.md). Units are rad, rad/s, rad/s², ms. */
 export interface FollowPolicy {
@@ -91,6 +110,8 @@ export interface WorldDoc {
   kind: "physical" | "simulation";
   units: Record<string, unknown>[];
   policies?: FollowPolicy[];
+  /** Interlocks between its units, each an `<interlock>` element. */
+  interlocks?: Record<string, unknown>[];
   groups?: Record<string, unknown>[];
   [field: string]: unknown;
 }
@@ -107,11 +128,12 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
     view: { parents: ["world"], single: true },
     scene: { parents: ["world"], single: true },
     body: { parents: ["scene"], key: "id", required: ["id"] },
+    interlock: { parents: ["world"], key: "name", required: ["name", "unit", "channel", "requires", "why"], attrs: INTERLOCK_FIELDS },
   },
   fromTree(t) {
     if (t.attrs.kind !== "physical" && t.attrs.kind !== "simulation") throw new Error(`<world> kind is "physical" or "simulation", said explicitly, not ${JSON.stringify(t.attrs.kind)}`);
     const space = childrenOf(t, "space")[0], view = childrenOf(t, "view")[0], scene = childrenOf(t, "scene")[0];
-    const bodies = scene ? childrenOf(scene, "body") : [], groups = childrenOf(t, "group");
+    const bodies = scene ? childrenOf(scene, "body") : [], groups = childrenOf(t, "group"), interlocks = childrenOf(t, "interlock");
     return {
       ...(own(t.attrs, WORLD_FIELDS) as { name: string; kind: "physical" | "simulation" }),
       ...(space ? { space: { ...space.attrs } } : {}),
@@ -119,6 +141,7 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
       units: childrenOf(t, "unit").map((u) => ({ ...u.attrs })),
       ...(view ? { view: { ...view.attrs } } : {}),
       ...(scene ? { scene: { ...scene.attrs, ...(bodies.length ? { bodies: bodies.map((b) => ({ ...b.attrs })) } : {}) } } : {}),
+      ...(interlocks.length ? { interlocks: interlocks.map((i) => ({ ...i.attrs })) } : {}),
     };
   },
   toTree(w) {
@@ -131,6 +154,7 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
       const bodies = Array.isArray(w.scene.bodies) && w.scene.bodies.every((b) => isRecord(b) && typeof b.id === "string") ? (w.scene.bodies as Record<string, unknown>[]) : null;
       children.push({ tag: "scene", attrs: bodies ? omit(w.scene, ["bodies"]) : { ...w.scene }, children: (bodies ?? []).map((b) => leaf("body", { ...b })) });
     }
+    for (const i of w.interlocks ?? []) children.push(leaf("interlock", { ...i }));
     return { tag: "world", attrs: own(w, WORLD_FIELDS), children };
   },
 };
@@ -140,6 +164,7 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
 export interface DeviceDoc {
   name: string;
   channels?: Record<string, unknown>[];
+  interlocks?: Record<string, unknown>[];
   [field: string]: unknown;
 }
 
@@ -150,14 +175,32 @@ export const deviceVocabulary: Vocabulary<DeviceDoc> = {
   tags: {
     device: { parents: [], required: ["name"] },
     channel: { parents: ["device"], key: "id", required: ["id"] },
+    bound: { parents: ["device"], required: ["channel", "field"], attrs: BOUND_FIELDS },
+    interlock: { parents: ["device"], key: "name", required: ["name", "channel", "requires", "why"], attrs: INTERLOCK_FIELDS.filter((k) => k !== "unit") },
   },
   fromTree(t) {
     if ("channels" in t.attrs) throw new Error("<device>: write each channel as a <channel> element, not a channels attribute");
-    const channels = childrenOf(t, "channel");
-    return { ...(t.attrs as { name: string }), ...(channels.length ? { channels: channels.map((c) => ({ ...c.attrs })) } : {}) };
+    if ("interlocks" in t.attrs) throw new Error("<device>: write each interlock as an <interlock> element, not an interlocks attribute");
+    const channels = childrenOf(t, "channel").map((c) => {
+      if ("bounds" in c.attrs) throw new Error(`<channel id="${String(c.attrs.id)}">: write each bound as a <bound channel="${String(c.attrs.id)}"> element, not a bounds attribute`);
+      return { ...c.attrs } as Record<string, unknown>;
+    });
+    for (const b of childrenOf(t, "bound")) {
+      const c = channels.find((x) => x.id === b.attrs.channel);
+      if (!c) throw new Error(`<bound field="${String(b.attrs.field)}">: channel ${JSON.stringify(b.attrs.channel)} is not a <channel> of this device`);
+      ((c.bounds ??= []) as Record<string, unknown>[]).push(omit(b.attrs, ["channel"]));
+    }
+    const interlocks = childrenOf(t, "interlock").map((i) => ({ ...i.attrs }));
+    return { ...(t.attrs as { name: string }), ...(channels.length ? { channels } : {}), ...(interlocks.length ? { interlocks } : {}) };
   },
   toTree(d) {
-    return { tag: "device", attrs: omit(d, ["channels"]), children: (d.channels ?? []).map((c) => leaf("channel", { ...c })) };
+    const channels = d.channels ?? [];
+    const bounds = channels.flatMap((c) => (Array.isArray(c.bounds) ? (c.bounds as Record<string, unknown>[]).map((b) => leaf("bound", { channel: c.id, ...b })) : []));
+    return {
+      tag: "device",
+      attrs: omit(d, ["channels", "interlocks"]),
+      children: [...channels.map((c) => leaf("channel", omit(c, ["bounds"]))), ...bounds, ...(d.interlocks ?? []).map((i) => leaf("interlock", { ...i }))],
+    };
   },
 };
 
