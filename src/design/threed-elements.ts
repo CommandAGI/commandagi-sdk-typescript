@@ -2578,7 +2578,7 @@ export type MakeSpec = {
 };
 
 /** How a part is made. */
-export type ManufacturingProcess = "other" | "cnc-milling" | "cnc-turning" | "laser-cutting" | "waterjet-cutting" | "sheet-metal-bending" | "extrusion" | "casting" | "injection-moulding" | "fdm-printing" | "sla-printing" | "sls-printing" | "welding" | "grinding" | "glass-working" | "saw-cutting" | "manual" | "purchased" | "reference";
+export type ManufacturingProcess = "other" | "manual" | "cnc-milling" | "cnc-turning" | "laser-cutting" | "waterjet-cutting" | "sheet-metal-bending" | "extrusion" | "casting" | "injection-moulding" | "fdm-printing" | "sla-printing" | "sls-printing" | "welding" | "grinding" | "glass-working" | "saw-cutting" | "purchased" | "reference";
 
 /**
  * A constraint between two placed components. References a component by its `ExternalPartRef` feature id and a local axis on that component. The assembly solver relaxes both components' placements (position AND orientation) toward simultaneous satisfaction of every mate with least motion; unsatisfiable mates (missing components) are reported, never silently dropped.
@@ -3268,6 +3268,12 @@ export type PlacedUnit = {
    * Its own tuning of its definition's channels, by channel id (a unit adds no channel and changes no transport).
    */
   channels?: { [key: string]: unknown }[];
+  /** What kind of machine it is, as the views group it (mechanical, ee, bio, aerial, shared …). */
+  domain?: string;
+  /**
+   * `manual`: a person works it (its channels bind no driver); `uncommissioned`: no bench has checked its driver yet.
+   */
+  support?: "manual" | "uncommissioned";
 };
 
 /**

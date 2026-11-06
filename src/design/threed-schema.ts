@@ -5217,6 +5217,7 @@ export const THREED_SCHEMA: SchemaDocument = {
    "type": "string",
    "enum": [
     "other",
+    "manual",
     "cnc-milling",
     "cnc-turning",
     "laser-cutting",
@@ -5232,7 +5233,6 @@ export const THREED_SCHEMA: SchemaDocument = {
     "grinding",
     "glass-working",
     "saw-cutting",
-    "manual",
     "purchased",
     "reference"
    ],
@@ -6668,6 +6668,19 @@ export const THREED_SCHEMA: SchemaDocument = {
       "additionalProperties": {}
      },
      "description": "Its own tuning of its definition's channels, by channel id (a unit adds no channel and changes no transport)."
+    },
+    "domain": {
+     "type": "string",
+     "description": "What kind of machine it is, as the views group it (mechanical, ee, bio, aerial, shared …).",
+     "pattern": "\\S"
+    },
+    "support": {
+     "type": "string",
+     "enum": [
+      "manual",
+      "uncommissioned"
+     ],
+     "description": "`manual`: a person works it (its channels bind no driver); `uncommissioned`: no bench has checked its driver yet."
     }
    },
    "required": [
