@@ -3059,6 +3059,7 @@ export const THREED_SCHEMA: SchemaDocument = {
       "dae",
       "usd",
       "3dxml",
+      "jt",
       "kicad_pcb",
       "pcb.tsx",
       "pcb.jsx",
@@ -3069,7 +3070,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "node": {
      "type": "string",
-     "description": "One node of the linked file, where the file holds several things a placement may place: for a 3DXML (`importer: \"3dxml\"`), the ReferenceRep it draws, `<structure file>#<id>` (`Product.3dxml#4`; docs/formats.md § 3DXML). Absent: the whole file."
+     "description": "One node of the linked file, where the file holds several things a placement may place: for a 3DXML (`importer: \"3dxml\"`), the ReferenceRep it draws, `<structure file>#<id>` (`Product.3dxml#4`; docs/formats.md § 3DXML); for a JT file (`importer: \"jt\"`), the shape node it draws, by its object id in the file's scene graph (`49`; docs/formats.md § JT). Absent: the whole file."
     },
     "unitScaleMm": {
      "type": "number",
