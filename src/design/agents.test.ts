@@ -31,6 +31,23 @@ test("a base names its harness; a fork names its parent", () => {
   assert.deepEqual(AGENTS.agent.fromTree(AGENTS.agent.toTree(fork.document as never)), fork.document);
 });
 
+test("a fork's runtime configuration is its file's too, both ways", () => {
+  const props = {
+    parent: "cloud://global/agents/commandagi", name: "Researcher", avatar: "avatar.png", sound: "chime",
+    skills: ["../../skills/review/SKILL.md"], kernel: { type: "llm" },
+    cognition: { urgency: 0.8, faculties: { working_memory: true }, models: [], speculation: true },
+    routing: { quality: 2, cost: 1 }, fabric: { config: {}, mindPin: "anthropic/claude-opus-5-5", added: [], gates: {} },
+    access: { scopes: ["threads:read"], reach: "own" }, confirmSpend: true,
+  };
+  const doc = declare(el("agent", props)).document;
+  assert.deepEqual(doc, props);
+  assert.deepEqual(AGENTS.agent.fromTree(AGENTS.agent.toTree(doc as never)), doc);
+  assert.throws(() => declare(el("agent", { parent: "../a", skills: "review" })), /skills is a list of refs/);
+  assert.throws(() => declare(el("agent", { parent: "../a", access: ["threads:read"] })), /access is an object/);
+  assert.throws(() => declare(el("agent", { parent: "../a", confirmSpend: "yes" })), /confirmSpend is true or false/);
+  assert.throws(() => declare(el("agent", { parent: "../a", avatar: "../x/avatar.png" })), /avatar is a file beside this one/);
+});
+
 test("refusals, by name", () => {
   assert.throws(() => declare(el("agent", { name: "x" })), /names its harness .* or its parent/);
   assert.throws(() => declare(el("agent", { harness: "codex", parent: "../a" })), /not both: a fork keeps its parent's harness/);

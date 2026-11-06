@@ -34,6 +34,15 @@
  *   // agents/a2/agent.tsx — a fork on another model, at a reasoning effort its CLI takes
  *   export default () => <agent parent="cloud://global/agents/claude-code" name="A2" model="anthropic/claude-sonnet-5-5" effort="medium" />;
  *
+ *   // agents/researcher/agent.tsx — and its runtime configuration: its picture beside it, its equipped skills, its
+ *   // cognition, its routing weights, its wiring, its reach into its owner's account, and that it asks before it spends
+ *   export default () => (
+ *     <agent parent="cloud://global/agents/commandagi" name="Researcher" avatar="avatar.png"
+ *       skills={["../../skills/review/SKILL.md"]} cognition={{ urgency: 0.8, faculties: { working_memory: true }, models: [], speculation: true }}
+ *       routing={{ quality: 2, cost: 1 }} fabric={{ config: {}, mindPin: "anthropic/claude-opus-5-5", added: [], gates: {} }}
+ *       access={{ scopes: ["threads:read"], reach: "own" }} confirmSpend />
+ *   );
+ *
  * A file never names itself: a harness's id is its folder's name, an agent's id is its folder's name. `parent` is a
  * ref to the parent's folder: relative to this agent's folder (`../researcher`), or an address
  * (`cloud://global/agents/claude-code`). `harness` is a harness's id (its folder under `cloud://global/agents/harnesses/`).
@@ -59,7 +68,12 @@ export const REALTIME_OUT = ["audio", "text", "tools"] as const;
 /** G.711 μ-law (a telephone call) and 16-bit little-endian PCM, mono, at a rate. */
 export const AUDIO_FORMATS = ["g711-ulaw@8000", "pcm16@8000", "pcm16@16000", "pcm16@24000"] as const;
 export const HARNESS_FIELDS = ["kind", "label", "provider", "cli", "runs", "tasks", "realtime", "family", "experimental", "homepage", "about"] as const;
-export const AGENT_FIELDS = ["harness", "parent", "name", "model", "effort", "supervisor", "instructions", "voice", "voiceMode", "tools", "persona", "color", "icon", "gender"] as const;
+export const AGENT_FIELDS = [
+  "harness", "parent", "name", "model", "effort", "supervisor", "instructions", "voice", "voiceMode", "tools", "persona", "color", "icon", "gender",
+  "avatar", "sound", "skills", "kernel", "cognition", "routing", "fabric", "access", "confirmSpend",
+] as const;
+/** The fields of an `<agent>` that are plain data, each an object: the platform's own shapes, verbatim. */
+export const AGENT_OBJECT_FIELDS = ["persona", "kernel", "cognition", "routing", "fabric", "access"] as const;
 export const VOICE_MODES = ["off", "push-to-talk", "open-mic"] as const;
 
 /** A harness's file and an agent's file, each in its own folder. */
@@ -135,6 +149,27 @@ export interface AgentDoc {
   color?: string;
   icon?: string;
   gender?: string;
+  /** Its picture: a file beside this one (`avatar.png`), shown where it has no `icon`. */
+  avatar?: string;
+  /** Its alert sound's id (`chime`). */
+  sound?: string;
+  /** The skills it has equipped, in order: each a ref to a skill's `SKILL.md` (`../../skills/review/SKILL.md`). */
+  skills?: string[];
+  /** What runs its loop, in its harness's kind: `{ type: "interactive-cli", cli: "claude" }`, `{ type: "scripted", scriptRef }`. */
+  kernel?: Record<string, unknown>;
+  /** Its cognitive architecture: `{ urgency, faculties, models, speculation }`. Absent: the platform's. */
+  cognition?: Record<string, unknown>;
+  /** The weights a `route:<family>` model is chosen by: `{ quality, cost, coldLatency, throughput, qualityAxes }`. */
+  routing?: Record<string, unknown>;
+  /** Its own wiring of the model fabric, which every room it joins starts from: `{ config, mindPin, added, gates }`. */
+  fabric?: Record<string, unknown>;
+  /**
+   * Its reach into its owner's account: `{ scopes, reach, … }`. Absent: none. It is a limit on the agent, so the
+   * platform applies it only for a principal who may set it (docs/agents.md § files).
+   */
+  access?: Record<string, unknown>;
+  /** It asks before it spends on a resource (a computer, a robot, a snapshot). */
+  confirmSpend?: boolean;
 }
 
 const where = (t: DocTree) => `<${t.tag}>`;
@@ -207,7 +242,7 @@ function harnessOf(t: DocTree): HarnessDoc {
 }
 
 function agentOf(t: DocTree): AgentDoc {
-  for (const k of ["harness", "parent", "name", "model", "effort", "supervisor", "instructions", "voice", "color", "icon", "gender"]) word(t, k);
+  for (const k of ["harness", "parent", "name", "model", "effort", "supervisor", "instructions", "voice", "color", "icon", "gender", "avatar", "sound"]) word(t, k);
   oneOf(t, "voiceMode", VOICE_MODES);
   if (t.attrs.supervisor !== undefined && !/^(agent|person):\S+$/.test(t.attrs.supervisor as string)) throw new Error(`<agent> supervisor is an agent or a person ("agent:lead", "person:me"), not ${JSON.stringify(t.attrs.supervisor)}`);
   const base = t.attrs.harness !== undefined, fork = t.attrs.parent !== undefined;
@@ -216,8 +251,15 @@ function agentOf(t: DocTree): AgentDoc {
   if (base && !AGENT_ID.test(t.attrs.harness as string)) throw new Error(`<agent> harness is a harness's id ("claude-code"), not ${JSON.stringify(t.attrs.harness)}`);
   const tools = t.attrs.tools;
   if (tools !== undefined && !(Array.isArray(tools) && tools.every((x) => typeof x === "string" && x))) throw new Error(`<agent> tools is a list of tool names, not ${JSON.stringify(tools)}`);
-  const persona = t.attrs.persona;
-  if (persona !== undefined && (!persona || typeof persona !== "object" || Array.isArray(persona))) throw new Error(`<agent> persona is an object ({ tone: "warm" }), not ${JSON.stringify(persona)}`);
+  const skills = t.attrs.skills;
+  if (skills !== undefined && !(Array.isArray(skills) && skills.every((x) => typeof x === "string" && x))) throw new Error(`<agent> skills is a list of refs to SKILL.md files, not ${JSON.stringify(skills)}`);
+  for (const k of AGENT_OBJECT_FIELDS) {
+    const v = t.attrs[k];
+    if (v !== undefined && (!v || typeof v !== "object" || Array.isArray(v))) throw new Error(`<agent> ${k} is an object (${k === "persona" ? `{ tone: "warm" }` : "{ … }"}), not ${JSON.stringify(v)}`);
+  }
+  if (t.attrs.confirmSpend !== undefined && typeof t.attrs.confirmSpend !== "boolean") throw new Error(`<agent> confirmSpend is true or false, not ${JSON.stringify(t.attrs.confirmSpend)}`);
+  const avatar = t.attrs.avatar;
+  if (typeof avatar === "string" && (avatar.includes("/") || avatar.startsWith("."))) throw new Error(`<agent> avatar is a file beside this one ("avatar.png"), not ${JSON.stringify(avatar)}`);
   if (t.children.length) throw new Error(`<agent> has no children; its instructions are its instructions="…" attribute`);
   return said(t.attrs, AGENT_FIELDS) as unknown as AgentDoc;
 }
