@@ -20,6 +20,7 @@ import type {
   Note,
   PermittedFinding,
   PartEngineering,
+  PlacedUnit,
   Port,
   RadialDimension,
   SizeDimension,
@@ -77,6 +78,8 @@ export declare namespace JSX {
     tactile: TactileSkin;
     /** Where a rod's end can be held: a pad, a joint, a socket, a row of them. */
     port: Port;
+    /** A device definition placed as a unit (`placements`): never real, its channels run on their simulators. */
+    unit: PlacedUnit;
     /** An annotation: the tag is its type, each attribute the field of the same name. */
     linearDimension: Omit<LinearDimension, "type">;
     radialDimension: Omit<RadialDimension, "type">;

@@ -3229,6 +3229,48 @@ export type PlacedMove = {
 };
 
 /**
+ * A device definition placed in a design as a unit: the fields a world's unit has (`packages/domain/world/worlds.js`) less those that name one real machine (serial, revision, release, calibration: a world's). `readDesign` (`packages/domain/world/designs.js`) checks it with the world's own unit rules.
+ */
+export type PlacedUnit = {
+  /**
+   * The unit's id in the design, as every element of a 3D document is keyed: the unit's uid, `<design address>#<id>` (lower case, digits and `-`, at most 48: `readDesign` holds it to a world's uid rule).
+   */
+  id: string;
+  name: string;
+  /** A ref to its device definition (`definition.tsx`), relative to this file, or an address. */
+  device: string;
+  /**
+   * Where it stands in the design's frame.
+   * @unit mm
+   * @minItems 3
+   * @maxItems 3
+   */
+  position: [number, number, number];
+  /**
+   * Its heading about z.
+   * @unit rad
+   */
+  rotation: number;
+  /**
+   * How far its front is raised above level, positive up.
+   * @minimum -90
+   * @maximum 90
+   */
+  tilt_deg?: number;
+  /**
+   * The box it takes, when its definition's model does not say.
+   * @unit mm
+   * @minItems 3
+   * @maxItems 3
+   */
+  size_mm?: [number, number, number];
+  /**
+   * Its own tuning of its definition's channels, by channel id (a unit adds no channel and changes no transport).
+   */
+  channels?: { [key: string]: unknown }[];
+};
+
+/**
  * A rigid placement of a part in assembly space: a position, an orientation quaternion, and a uniform scale. Mirrors import but is self-contained (no pivot — the part is placed about its own origin) so the pure model has no kernel dependency.
  */
 export type Placement = {

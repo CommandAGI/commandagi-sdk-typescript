@@ -274,6 +274,17 @@ test("<tactile> places a grid of taxels on a face of a body: the document's tact
   assert.throws(() => doc(jsx("slot", { name: "tactile", value: [] })), /tactile is not a slot/);
 });
 
+test("<unit> places a device definition in the design: the document's placements, checked against its schema", () => {
+  const doc = (...children: unknown[]) => declarationOf({ default: () => jsx("part", { name: "Cell", children }) }).graph;
+  const arm = { id: "arm", name: "arm", device: "../devices/so101-follower-arm/definition.tsx", position: [0, -49, 760], rotation: 0 };
+  assert.deepEqual(doc(jsx("unit", arm)).nodes.placements!.inputs.value, [arm]);
+  // A field of one real machine is a world's unit's: a design's unit is never real.
+  assert.throws(() => doc(jsx("unit", { ...arm, serial: "SN-1" })), /serial/);
+  assert.throws(() => doc(jsx("unit", { ...arm, id: "Arm 1" })), /id/);
+  assert.throws(() => doc(jsx("unit", arm), jsx("unit", arm)), /two <unit> elements are called arm/);
+  assert.throws(() => doc(jsx("slot", { name: "placements", value: [] })), /placements is not a slot/);
+});
+
 // sdk/python tests/test_threed.py reads the same elements to the same inputs.
 test("a curve in space is a sweep's path and, under its own id, the plane its profile is drawn on", () => {
   const g = declarationOf({

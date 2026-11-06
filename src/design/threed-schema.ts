@@ -6612,6 +6612,74 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "One body of a placed 3D document moved in its file's frame (`<externalPart moves>`)."
   },
+  "PlacedUnit": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "The unit's id in the design, as every element of a 3D document is keyed: the unit's uid, `<design address>#<id>` (lower case, digits and `-`, at most 48: `readDesign` holds it to a world's uid rule).",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "name": {
+     "type": "string",
+     "pattern": "\\S"
+    },
+    "device": {
+     "type": "string",
+     "description": "A ref to its device definition (`definition.tsx`), relative to this file, or an address.",
+     "pattern": "\\S"
+    },
+    "position": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "description": "Where it stands in the design's frame.",
+     "x-unit": "mm",
+     "minItems": 3,
+     "maxItems": 3
+    },
+    "rotation": {
+     "type": "number",
+     "description": "Its heading about z.",
+     "x-unit": "rad"
+    },
+    "tilt_deg": {
+     "type": "number",
+     "description": "How far its front is raised above level, positive up.",
+     "minimum": -90,
+     "maximum": 90
+    },
+    "size_mm": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "description": "The box it takes, when its definition's model does not say.",
+     "x-unit": "mm",
+     "minItems": 3,
+     "maxItems": 3
+    },
+    "channels": {
+     "type": "array",
+     "items": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": {}
+     },
+     "description": "Its own tuning of its definition's channels, by channel id (a unit adds no channel and changes no transport)."
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "device",
+    "position",
+    "rotation"
+   ],
+   "additionalProperties": false,
+   "description": "A device definition placed in a design as a unit: the fields a world's unit has (`packages/domain/world/worlds.js`) less those that name one real machine (serial, revision, release, calibration: a world's). `readDesign` (`packages/domain/world/designs.js`) checks it with the world's own unit rules."
+  },
   "Placement": {
    "type": "object",
    "properties": {
