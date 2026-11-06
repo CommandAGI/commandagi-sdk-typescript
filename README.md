@@ -165,7 +165,9 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   `<param>`s, one layout of `<split axis ratio>` and `<pane id kind …>`, and `<region side …>`s), a geo project
   (`<name>.geo.tsx`: `<geoproject>` with `<dateRange>`, `<camera>`, `<reference>`), a geo project's shock
   (`<name>.shock.tsx`: `<shock>`), scenario (`<name>.scenario.tsx`: `<scenario>`), model (`<name>.geomodel.tsx`:
-  `<geomodel>` with a `<parameter>` per parameter) and parameter set (`<name>.geoparams.tsx`: `<geoparams>`), and a node graph
+  `<geomodel>` with a `<parameter>` per parameter) and parameter set (`<name>.geoparams.tsx`: `<geoparams>`), layer (`<name>.geolayer.tsx`: `<geolayer>`), formula
+  (`<name>.geoformula.tsx`: `<geoformula>`), saved view (`<name>.geoview.tsx`: `<geoview>`), report
+  (`<name>.georeport.tsx`: `<georeport>`) and graph (`<name>.geograph.tsx`: `<geograph>`), and a node graph
   (`<name>.opgraph.tsx`: `<opgraph>` with `<node id type x y …ports>` and `<wire from="a:out" to="b:in">`). A
   record is an element and its fields are its attributes, verbatim. `declarationOf` gives `{ format, document,
   sources }` (a node graph: the op graph itself).

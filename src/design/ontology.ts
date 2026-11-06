@@ -1,6 +1,6 @@
 /**
  * THE ONTOLOGY'S OWN FILES IN JSX — worlds, device definitions, dashboards, geo projects (and their shocks, scenarios,
- * models and parameter sets) and node graphs, written as
+ * models, parameter sets, layers, formulas, saved views, reports and graphs) and node graphs, written as
  * the elements their editors edit (docs/formats.md § code as the source of truth, in the CommandAGI repository).
  *
  *   // worlds/shop/world.tsx
@@ -30,6 +30,11 @@
  *   <geomodel id name runtime version …>          <name>.geomodel.tsx    <parameter name default min max label?>,
  *                                                                        <reference role path …>
  *   <geoparams id name forModel values>           <name>.geoparams.tsx   <reference role path …>
+ *   <geolayer id name renderer category scale …>  <name>.geolayer.tsx    <reference role path …>
+ *   <geoformula id name inputs expression …>      <name>.geoformula.tsx  <reference role path …>
+ *   <geoview id name camera timeline …>           <name>.geoview.tsx     <reference role path …>
+ *   <georeport id name blocks>                    <name>.georeport.tsx   <reference role path …>
+ *   <geograph id name nodes edges>                <name>.geograph.tsx    <reference role path …>
  *   <opgraph name>                                <name>.opgraph.tsx     <node id type x y …ports>, <wire from to>
  *
  * A node graph is the editor's op graph itself (no carrier): `<node id="blur" type="blur" x={300} y={80} radius={6} />`
@@ -441,6 +446,28 @@ export const geomodelVocabulary = geoFileVocabulary(
 );
 /** A parameter set (`<name>.geoparams.tsx`): values for one model's parameters. */
 export const geoparamsVocabulary = geoFileVocabulary("geoparams", "a geo parameter set", "geoparams", "geoeconomics/params", ["forModel", "values"]);
+/** A layer (`<name>.geolayer.tsx`): how a dataset or a formula is drawn on the globe. */
+export const geolayerVocabulary = geoFileVocabulary("geolayer", "a geo layer", "geolayer", "geoeconomics/layer", [
+  "renderer",
+  "category",
+  "sourceDataset",
+  "sourceFormula",
+  "scale",
+  "opacity",
+  "visible",
+  "units",
+  "filter",
+  "normalizeBy",
+  "zoomRange",
+]);
+/** A formula (`<name>.geoformula.tsx`): a quantity derived from datasets by an expression over named inputs. */
+export const geoformulaVocabulary = geoFileVocabulary("geoformula", "a geo formula", "geoformula", "geoeconomics/formula", ["inputs", "expression", "outputUnit", "missingValue"]);
+/** A saved view (`<name>.geoview.tsx`): a camera, the layers drawn, a selection, a time and a comparison. */
+export const geoviewVocabulary = geoFileVocabulary("geoview", "a geo view", "geoview", "geoeconomics/view", ["camera", "enabledLayers", "layerOverrides", "selection", "timeline", "comparison"]);
+/** A report (`<name>.georeport.tsx`): its blocks, prose and refs to the project's files, in order. */
+export const georeportVocabulary = geoFileVocabulary("georeport", "a geo report", "georeport", "geoeconomics/report", ["blocks"]);
+/** A graph (`<name>.geograph.tsx`): nodes and the weighted edges between them. */
+export const geographVocabulary = geoFileVocabulary("geograph", "a geo graph", "geograph", "geoeconomics/graph", ["nodes", "edges"]);
 
 // ── <name>.opgraph.tsx: the node graph ─────────────────────────────────────────────────────────────────────────────
 
@@ -562,7 +589,7 @@ export function declareOpGraph(root: DesignElement): Declaration {
   return new Declaration("graph", opgraphVocabulary.fromTree(treeOfElement(root, opgraphVocabulary)));
 }
 
-const GEO_DOCUMENTS = [shockVocabulary, scenarioVocabulary, geomodelVocabulary, geoparamsVocabulary];
+const GEO_DOCUMENTS = [shockVocabulary, scenarioVocabulary, geomodelVocabulary, geoparamsVocabulary, geolayerVocabulary, geoformulaVocabulary, geoviewVocabulary, georeportVocabulary, geographVocabulary];
 for (const v of [worldVocabulary, deviceVocabulary, dashboardVocabulary, geoVocabulary, ...GEO_DOCUMENTS, opgraphVocabulary]) registerVocabulary(v);
 
 /** The vocabularies of the ontology's files, by format. */
@@ -575,5 +602,10 @@ export const ONTOLOGY = {
   scenario: scenarioVocabulary,
   geomodel: geomodelVocabulary,
   geoparams: geoparamsVocabulary,
+  geolayer: geolayerVocabulary,
+  geoformula: geoformulaVocabulary,
+  geoview: geoviewVocabulary,
+  georeport: georeportVocabulary,
+  geograph: geographVocabulary,
   opgraph: opgraphVocabulary,
 } as const;

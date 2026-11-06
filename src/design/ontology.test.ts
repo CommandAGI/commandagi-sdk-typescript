@@ -194,6 +194,40 @@ test("a geo project's shock, scenario, model and parameter set: fields are attri
   assert.throws(() => documentOf({ default: el("shock", { id: "x", name: "x", colour: "red" }) }), /colour is not read/);
 });
 
+test("a geo project's layer, formula, view, report and graph: every field is an attribute, verbatim", () => {
+  const scale = { kind: "linear", ramp: [{ t: 0, color: "#e9e9ec" }, { t: 1, color: "#141418" }] };
+  const layer = documentOf({ default: el("geolayer", { id: "l", name: "chokepoints", renderer: "point", category: "Energy", sourceDataset: "datasets/energy/throughput.dataset", scale, opacity: 1, units: "mb/d" }, el("reference", { role: "source", path: "datasets/energy/throughput.dataset" })) });
+  assert.equal(layer.format, "geolayer");
+  assert.deepEqual(layer.document, {
+    type: "geoeconomics/layer",
+    schemaVersion: "1.0",
+    id: "l",
+    name: "chokepoints",
+    references: [{ role: "source", path: "datasets/energy/throughput.dataset" }],
+    data: { renderer: "point", category: "Energy", sourceDataset: "datasets/energy/throughput.dataset", scale, opacity: 1, units: "mb/d" },
+  });
+  // A changed opacity is the one attribute that changes; the studio's times are not in the code.
+  const faded = { ...layer.document, updatedAt: "2026-11-06T00:00:00.000Z", data: { ...(layer.document.data as object), opacity: 0.4 } };
+  assert.deepEqual(ONTOLOGY.geolayer.toTree(faded as never).attrs, { id: "l", name: "chokepoints", renderer: "point", category: "Energy", sourceDataset: "datasets/energy/throughput.dataset", scale, opacity: 0.4, units: "mb/d" });
+
+  const formula = documentOf({ default: el("geoformula", { id: "f", name: "output-per-gdp", inputs: { gdp: "datasets/gdp.dataset" }, expression: "1 / gdp", outputUnit: "share", missingValue: "skip" }) });
+  assert.deepEqual(formula.document.data, { inputs: { gdp: "datasets/gdp.dataset" }, expression: "1 / gdp", outputUnit: "share", missingValue: "skip" });
+
+  const camera = { centerLng: 45, centerLat: 25, scale: 340 };
+  const timeline = { current: "2029-01", range: { start: "2015-01", end: "2030-01" }, playing: false };
+  const view = documentOf({ default: el("geoview", { id: "v", name: "global-energy", camera, enabledLayers: ["layers/energy/oil.geolayer.tsx"], selection: null, timeline }) });
+  assert.deepEqual(view.document.data, { camera, enabledLayers: ["layers/energy/oil.geolayer.tsx"], selection: null, timeline });
+
+  const blocks = [{ kind: "markdown", text: "# Impact" }, { kind: "ref", refType: "scenario", path: "scenarios/a/a.scenario.tsx", frozen: false }];
+  assert.deepEqual(documentOf({ default: el("georeport", { id: "r", name: "impact", blocks }) }).document.data, { blocks });
+
+  const graph = documentOf({ default: el("geograph", { id: "g", name: "links", nodes: [{ id: "a", label: "A" }, { id: "b", label: "B" }], edges: [{ from: "a", to: "b", weight: 2 }] }) });
+  assert.equal(graph.format, "geograph");
+  assert.deepEqual(graph.document.data, { nodes: [{ id: "a", label: "A" }, { id: "b", label: "B" }], edges: [{ from: "a", to: "b", weight: 2 }] });
+
+  assert.throws(() => ONTOLOGY.geolayer.toTree({ ...layer.document, data: { ...(layer.document.data as object), glow: true } } as never), /glow of a geo layer has no element/);
+});
+
 test("a node graph in JSX is the editor's own op graph: positions in meta, wires into ports with the literal kept", () => {
   const file = el(
     "opgraph",
