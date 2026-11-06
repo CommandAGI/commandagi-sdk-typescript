@@ -108,7 +108,7 @@ export const exitVocabulary: Vocabulary<ExitDoc> = {
 registerVocabulary(exitVocabulary);
 
 /**
- * VANTAGES — `infra/vantages/<name>/vantage.tsx` (docs/mirrors.md § 2): an observer of the account. A monitor's source
+ * VANTAGES — `infra/vantages/<name>/vantage.tsx` (docs/mirrors.md § 2): an observer of the account. A script's source
  * names one (`<source vantage="../../infra/vantages/fsn-1">`) and every record it reads says it observed from there.
  *
  *   <vantage name="fsn-1" path="worker" exit="fsn-1" location={{ city: "Falkenstein", region: "DE-SN", country: "DE" }}
@@ -235,15 +235,15 @@ export function vantageWithDefaults(d: VantageDoc) {
 // ── Sessions: logged-in states as declared assets ───────────────────────────────────────────────
 
 /**
- * A logged-in state (docs/monitors.md § approaches): a browser profile on a host, a Linux VM snapshot or an Android VM
+ * A logged-in state (docs/scripts.md § approaches: one thing, several paths): a browser profile on a host, a Linux VM snapshot or an Android VM
  * snapshot, in which a site is signed in (or deliberately not). One folder is one state:
- * `infra/sessions/<name>/session.tsx`. A monitor's source names it by a ref
+ * `infra/sessions/<name>/session.tsx`. A script's source names it by a ref
  * (`session="../../../infra/sessions/x-web/session.tsx"`). The file holds no credential: the state lives in the host's
  * profile store or in the provider's snapshot.
  *
  *   export default () => (
  *     <session name="x-web" site="https://x.com" kind="browser-profile" profile="x-web" refreshed="2026-10-12">
- *       <uses monitor="../../../social/x/nvidia" />
+ *       <uses script="../../../social/x/nvidia/nvidia.script.tsx" />
  *     </session>
  *   );
  */
@@ -269,8 +269,8 @@ export interface SessionDoc {
   /** The day the state was last signed in again (`YYYY-MM-DD`). */
   refreshed?: string;
   note?: string;
-  /** The monitors that read through it: refs to their folders, relative to the session's folder. */
-  uses: { monitor: string }[];
+  /** The scripts that read through it: refs to their files, relative to the session's folder. */
+  uses: { script: string }[];
 }
 
 const DAY = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
@@ -281,7 +281,7 @@ export const sessionVocabulary: Vocabulary<SessionDoc> = {
   root: "session",
   tags: {
     session: { parents: [], required: ["name", "site", "kind"], attrs: SESSION_FIELDS },
-    uses: { parents: ["session"], key: "monitor", required: ["monitor"], attrs: ["monitor"] },
+    uses: { parents: ["session"], key: "script", required: ["script"], attrs: ["script"] },
   },
   fromTree(t) {
     for (const k of SESSION_FIELDS) word(t, k);
@@ -295,7 +295,7 @@ export const sessionVocabulary: Vocabulary<SessionDoc> = {
     if (!browser && t.attrs.profile !== undefined) throw new Error(`${where(t)} a ${t.attrs.kind as string} has a snapshot, not a profile`);
     if (t.attrs.profile !== undefined && !NAME.test(t.attrs.profile as string)) throw new Error(`${where(t)} profile is lower-case letters, digits and -, at most 48`);
     if (t.attrs.refreshed !== undefined && !DAY.test(t.attrs.refreshed as string)) throw new Error(`${where(t)} refreshed is a day ("2026-10-12"), not ${JSON.stringify(t.attrs.refreshed)}`);
-    const uses = t.children.map((c) => ({ monitor: c.attrs.monitor as string }));
+    const uses = t.children.map((c) => ({ script: c.attrs.script as string }));
     const out: Record<string, unknown> = {};
     for (const k of SESSION_FIELDS) if (t.attrs[k] !== undefined) out[k] = t.attrs[k];
     return { ...out, uses } as unknown as SessionDoc;
@@ -306,7 +306,7 @@ export const sessionVocabulary: Vocabulary<SessionDoc> = {
       const v = (d as unknown as Record<string, unknown>)[k];
       if (v !== undefined && v !== null && v !== "") attrs[k] = v;
     }
-    return { tag: "session", attrs, children: (d.uses ?? []).map((u) => ({ tag: "uses", attrs: { monitor: u.monitor }, children: [] })) };
+    return { tag: "session", attrs, children: (d.uses ?? []).map((u) => ({ tag: "uses", attrs: { script: u.script }, children: [] })) };
   },
 };
 
@@ -323,7 +323,7 @@ export function sessionWithDefaults(d: SessionDoc) {
     snapshot: d.snapshot ?? null,
     refreshed: d.refreshed ?? null,
     note: d.note ?? null,
-    uses: (d.uses ?? []).map((u) => u.monitor),
+    uses: (d.uses ?? []).map((u) => u.script),
   };
 }
 

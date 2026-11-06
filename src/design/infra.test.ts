@@ -70,15 +70,15 @@ test("a vantage is a device, a place and a session: the run gives the VantageDoc
   assert.throws(v({ clock: 50 }), /clock is \{ sd \} in ms/);
 });
 
-test("a logged-in state in JSX: a browser profile or a snapshot, the monitors that use it, and no credential", () => {
+test("a logged-in state in JSX: a browser profile or a snapshot, the scripts that use it, and no credential", () => {
   const { document } = declarationOf({
-    default: () => el("session", { name: "x-web", site: "https://x.com", kind: "browser-profile", profile: "x-web", refreshed: "2026-10-12" }, el("uses", { monitor: "../../../social/x/nvidia" })),
+    default: () => el("session", { name: "x-web", site: "https://x.com", kind: "browser-profile", profile: "x-web", refreshed: "2026-10-12" }, el("uses", { script: "../../../social/x/nvidia/nvidia.script.tsx" })),
   });
   assert.equal(document!.format, "session");
-  assert.deepEqual(document!.document, { name: "x-web", site: "https://x.com", kind: "browser-profile", profile: "x-web", refreshed: "2026-10-12", uses: [{ monitor: "../../../social/x/nvidia" }] });
+  assert.deepEqual(document!.document, { name: "x-web", site: "https://x.com", kind: "browser-profile", profile: "x-web", refreshed: "2026-10-12", uses: [{ script: "../../../social/x/nvidia/nvidia.script.tsx" }] });
   assert.deepEqual(INFRA.session.fromTree(INFRA.session.toTree(document!.document as never)), document!.document, "both ways");
   assert.deepEqual(sessionWithDefaults(document!.document as never), {
-    name: "x-web", site: "https://x.com", kind: "browser-profile", host: null, profile: "x-web", snapshot: null, refreshed: "2026-10-12", note: null, uses: ["../../../social/x/nvidia"],
+    name: "x-web", site: "https://x.com", kind: "browser-profile", host: null, profile: "x-web", snapshot: null, refreshed: "2026-10-12", note: null, uses: ["../../../social/x/nvidia/nvidia.script.tsx"],
   });
   const session = (props: Record<string, unknown>) => () => declarationOf({ default: el("session", { name: "s-1", site: "https://example.com", kind: "vm-snapshot", snapshot: "genesis", ...props }) });
   assert.doesNotThrow(session({}));

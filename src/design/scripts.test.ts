@@ -36,6 +36,7 @@ test("a script in JSX: a class is a component, an instance is one element, and t
     wakes: [{ when: { class: "sec.filing.8-k*" }, prompt: "Say what the report changes." }],
     discovers: [],
     judges: [],
+    params: [],
   });
   assert.deepEqual(SCRIPTS.script.fromTree(SCRIPTS.script.toTree(doc as never)), doc, "both ways");
   const full = scriptWithDefaults(doc as never);
@@ -46,8 +47,8 @@ test("a script in JSX: a class is a component, an instance is one element, and t
 
 test("an empty script, its file name, and a part that names another stream", () => {
   const { document } = declarationOf({ default: el("script") });
-  assert.deepEqual(document!.document, { sources: [], tails: [], derives: [], wakes: [], discovers: [], judges: [] });
-  assert.deepEqual(SCRIPTS.script.empty!("script"), { sources: [], tails: [], derives: [], wakes: [], discovers: [], judges: [] });
+  assert.deepEqual(document!.document, { sources: [], tails: [], derives: [], wakes: [], discovers: [], judges: [], params: [] });
+  assert.deepEqual(SCRIPTS.script.empty!("script"), { sources: [], tails: [], derives: [], wakes: [], discovers: [], judges: [], params: [] });
   for (const name of ["nvidia.script.tsx", "a.script.jsx", "b.script.py", "c.script.rs"]) assert.ok(SCRIPT_FILE.test(name), name);
   for (const name of ["monitor.tsx", "script.tsx", "nvidia.tsx"]) assert.ok(!SCRIPT_FILE.test(name), name);
   const ticks = declarationOf({ default: el("script", {}, el("source", { id: "q", adapter: "fred", every: "1h", stream: "ticks" })) });
@@ -117,6 +118,23 @@ test("a judge names what it judges, its rubric and its model", () => {
   const { document } = declarationOf({ default: el("script", {}, el("judge", { id: "claims", of: "task", rubric: "./rubric.md", model: "fireworks/glm-5p3" })) });
   assert.deepEqual(scriptWithDefaults(document!.document as never).judges, [{ id: "claims", of: "task", rubric: "./rubric.md", model: "fireworks/glm-5p3" }]);
   assert.throws(() => declarationOf({ default: el("script", {}, el("judge", { id: "j", of: "thread", rubric: "r.md", model: "m" })) }), /of is "turn", "task"/);
+});
+
+test("a template declares its params: each a typed <param> its placeholders name; both ways", () => {
+  const { document } = declarationOf({
+    default: el("script", { title: "${name} (${ticker})" }, el("param", { id: "cik", type: "string", label: "the company's CIK" }), el("param", { id: "ticker", type: "string", required: false, default: "NVDA" }), el("source", { id: "filings", adapter: "sec-filings", params: { cik: "${cik}" }, every: "30m" })),
+  });
+  const doc = document!.document as never;
+  assert.deepEqual(SCRIPTS.script.fromTree(SCRIPTS.script.toTree(doc)), doc, "both ways");
+  assert.deepEqual(scriptWithDefaults(doc).params, [
+    { id: "cik", type: "string", label: "the company's CIK", default: null, required: true, choices: null, accept: null },
+    { id: "ticker", type: "string", label: null, default: "NVDA", required: false, choices: null, accept: null },
+  ]);
+  const one = (props: Record<string, unknown>) => () => declarationOf({ default: el("script", {}, el("param", { id: "p", type: "string", ...props })) });
+  assert.throws(one({ type: "date" }), /type is "file"/);
+  assert.throws(one({ id: "a-b" }), /id is letters, digits and _/);
+  assert.throws(one({ type: "choice" }), /a choice names its choices/);
+  assert.throws(() => declarationOf({ default: el("script", {}, el("param", { id: "p", type: "string" }), el("param", { id: "p", type: "number" })) }), /two <param> in <script> have id "p"|declared twice/);
 });
 
 // script-wake.golden.json is the golden of the three SDKs (sdk/python/tests/script_wake.json, sdk/rust/tests/script_wake.json).

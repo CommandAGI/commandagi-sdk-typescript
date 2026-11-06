@@ -94,7 +94,7 @@ export interface ScoutCheck {
   /** An arithmetic expression in `x` that maps each input to its output (within `tolerance`). */
   program?: { data: [number, number][]; tolerance?: number };
   /**
-   * The answer is one of our documents in code, in the file `as` names (`world.tsx`, `definition.tsx`, `monitor.tsx`,
+   * The answer is one of our documents in code, in the file `as` names (`world.tsx`, `definition.tsx`, `<name>.script.tsx`,
    * `<name>.task.tsx` …): it is read by that document's own reader, and must say what `expect` names — an object
    * matches by its fields, and a list of objects that each have an `id` matches by id in any order.
    */

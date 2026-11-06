@@ -6,6 +6,11 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 ## Unreleased
 
+Removed
+
+- The monitors vocabulary (`monitors.ts`: `<monitor>`, `<follows monitor>`, `MONITORS`, `monitorWithDefaults`) and a
+  `<session>`'s `<uses monitor>`. Scripts replace them (`scripts.ts`).
+
 Added
 
 - A fact a company or a brand does not know is `{ unknown: "<why>" }` in its attribute, and one it knows only roughly
@@ -22,7 +27,12 @@ Added
   `<discover>` and `<judge>`. A tail, a derive's port and a discover's `of` name a file (a script, a run's
   `records.jsonl`) or a series (`fred:DGS10`), never a folder (`tailRefProblem`). A wake's `when` is a record
   predicate. `scriptWithDefaults` fills `stream: "records"`. One golden fixture of a wake for the three SDKs,
-  `script-wake.golden.json`. Scripts replace monitors; `monitors.ts` goes when the platform reads scripts only.
+  `script-wake.golden.json`. Scripts replace monitors.
+- A script template's `<param id type label default required choices accept>` (`SCRIPT_PARAM_FIELDS`,
+  `SCRIPT_PARAM_TYPES`): its `${id}` placeholders are filled when it is copied, and a placeholder as a whole value
+  passes the file checks. The document's `params` is always a list. The judge's fields are `SCRIPT_JUDGE_FIELDS` and
+  `SCRIPT_JUDGE_OF`.
+- A `<session>` names the scripts that read through it by their files: `<uses script="…/<word>.script.tsx" />`.
 - A company's deals (`company-deals.ts`): `<Deal id title counterparty stage value currency expected closed owner since
   source note>` children of a `<Company>`, its sales pipeline. `counterparty` names a card or a row of the relationships
   folder, `stage` is lead, qualified, proposal, negotiation, won or lost, and a deal with no value is one whose worth

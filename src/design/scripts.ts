@@ -26,7 +26,7 @@
  * `mode`, `retain`, `since`, `session`, `snapshot`, `profile`, `keep`, `maxCostPerDay`, `unit`, `stream`).
  * `scriptWithDefaults` gives the document as the platform reads it (`via: "worker"`, `mode: "poll"`, `stream:
  * "records"`, the others null; a stream source's `retain` "derived", a poll's null). A script's lists (`sameAs`,
- * `sources`, `tails`, `derives`, `wakes`, `discovers`, `judges`) are always there, empty when the file has none. Who may
+ * `sources`, `tails`, `derives`, `wakes`, `discovers`, `judges`, `params`) are always there, empty when the file has none. Who may
  * read the run is the file's own Drive visibility, not a word of the file.
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
@@ -44,10 +44,14 @@ export const DISCOVER_MAX = 50;
 export const VISIBILITIES = ["private", "unlisted", "public"] as const;
 export type Visibility = (typeof VISIBILITIES)[number];
 export const WAKE_FIELDS = ["when", "every", "prompt", "agent", "maxSpend"] as const;
-export const JUDGE_FIELDS = ["id", "of", "rubric", "model"] as const;
+export const SCRIPT_JUDGE_FIELDS = ["id", "of", "rubric", "model"] as const;
 /** What a judge judges: each turn of the thread's agents, or each turn on a mounted task. */
-export const JUDGE_OF = ["turn", "task"] as const;
+export const SCRIPT_JUDGE_OF = ["turn", "task"] as const;
 export const DERIVE_FIELDS = ["id", "op", "inputs", "params", "since", "stream"] as const;
+/** A template's parameter (docs/scripts.md § the catalogue): its `${id}` placeholders are filled when it is copied. */
+export const SCRIPT_PARAM_FIELDS = ["id", "type", "label", "default", "required", "choices", "accept"] as const;
+/** What a parameter is: the same types a dashboard template's parameters have. */
+export const SCRIPT_PARAM_TYPES = ["file", "device", "world", "unit", "channel", "run", "stream", "number", "string", "choice"] as const;
 
 /**
  * The paths a source's reads take (docs/sources.md § fetch paths): the api worker, a host, a VPN exit, a headless
@@ -192,13 +196,23 @@ export interface ScriptJudge {
   /** The judge's id in its script (a word). */
   id: string;
   /** What is judged: each turn of the thread's agents (`turn`), or each turn on a mounted task (`task`). */
-  of: (typeof JUDGE_OF)[number];
+  of: (typeof SCRIPT_JUDGE_OF)[number];
   /** The rubric: a `.md`, a ref relative to the script's folder. */
   rubric: string;
   /** A model of the catalog (`fireworks/glm-5p3`). */
   model: string;
 }
-/** What a `<name>.script.tsx` declares: one script. */
+/** A template's parameter, as a dashboard template's `<param>` is. */
+export interface ScriptParam {
+  id: string;
+  type: (typeof SCRIPT_PARAM_TYPES)[number];
+  label?: string;
+  default?: string | number;
+  required?: boolean;
+  choices?: string[];
+  accept?: string[];
+}
+/** What a `<name>.script.tsx` declares: one script. A script with `<param>`s is a template: it applies once copied. */
 export interface ScriptDoc {
   title?: string;
   class?: string;
@@ -212,6 +226,7 @@ export interface ScriptDoc {
   wakes: ScriptWake[];
   discovers: ScriptDiscover[];
   judges: ScriptJudge[];
+  params: ScriptParam[];
 }
 
 const UNIT_SECONDS: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };
@@ -334,7 +349,7 @@ function discoverOf(t: DocTree): ScriptDiscover {
       (slug as { paths: unknown[] }).paths.every((p) => typeof p === "string" && DATA_PATH.test(p)) &&
       Object.keys(slug).every((k) => k === "paths" || k === "pattern"));
   if (!slugOk) throw new Error(`${at} slug is a data path (data.cve) or { paths: [...], pattern }, not ${JSON.stringify(slug)}`);
-  if (!/^[^#\s]+\.[jt]sx?#[A-Z][A-Za-z0-9_]{0,59}$/.test(t.attrs.class as string))
+  if (!/^[^#\s]+\.[jt]sx?#[A-Z][A-Za-z0-9_]{0,59}$/.test(t.attrs.class as string) && !PLACEHOLDER.test(t.attrs.class as string))
     throw new Error(`${at} class is the class file and its exported name ("../exploit.tsx#Exploit"), not ${JSON.stringify(t.attrs.class)}`);
   if (t.attrs.name !== undefined && !DATA_PATH.test(t.attrs.name as string)) throw new Error(`${at} name is a data path (fromName), not ${JSON.stringify(t.attrs.name)}`);
   const props = t.attrs.props;
@@ -407,11 +422,32 @@ function scriptOf(t: DocTree): ScriptDoc {
   const judges = parts("judge").map((c) => {
     for (const k of ["id", "rubric", "model"]) text(c, k);
     if (!WORD.test(c.attrs.id as string)) throw new Error(`${where(c)} id is a word (letters, digits, _ and -)`);
-    oneOf(c, "of", JUDGE_OF);
+    oneOf(c, "of", SCRIPT_JUDGE_OF);
     if (!/\.md$/i.test(c.attrs.rubric as string)) throw new Error(`${where(c)} rubric is a .md file ("./rubric.md"), not ${JSON.stringify(c.attrs.rubric)}`);
-    return said(c.attrs, JUDGE_FIELDS) as unknown as ScriptJudge;
+    return said(c.attrs, SCRIPT_JUDGE_FIELDS) as unknown as ScriptJudge;
   });
-  return { ...said(t.attrs, SCRIPT_FIELDS), sources: parts("source").map(sourceOf), tails, derives, wakes, discovers: parts("discover").map(discoverOf), judges };
+  const params = parts("param").map(paramOf);
+  const ids = new Set<string>();
+  for (const p of params) {
+    if (ids.has(p.id)) throw new Error(`<param id="${p.id}"> is declared twice`);
+    ids.add(p.id);
+  }
+  return { ...said(t.attrs, SCRIPT_FIELDS), sources: parts("source").map(sourceOf), tails, derives, wakes, discovers: parts("discover").map(discoverOf), judges, params };
+}
+
+function paramOf(c: DocTree): ScriptParam {
+  if (!/^[A-Za-z_][A-Za-z0-9_]{0,39}$/.test(c.attrs.id as string)) throw new Error(`${where(c)} id is letters, digits and _, not ${JSON.stringify(c.attrs.id)}`);
+  oneOf(c, "type", SCRIPT_PARAM_TYPES);
+  text(c, "label");
+  const d = c.attrs.default;
+  if (d !== undefined && typeof d !== "string" && !(typeof d === "number" && Number.isFinite(d))) throw new Error(`${where(c)} default is a text or a number, not ${JSON.stringify(d)}`);
+  if (c.attrs.required !== undefined && typeof c.attrs.required !== "boolean") throw new Error(`${where(c)} required is true or false`);
+  for (const k of ["choices", "accept"]) {
+    const v = c.attrs[k];
+    if (v !== undefined && !(Array.isArray(v) && v.length && v.every((x) => typeof x === "string" && x))) throw new Error(`${where(c)} ${k} is a list of texts`);
+  }
+  if (c.attrs.type === "choice" && c.attrs.choices === undefined) throw new Error(`${where(c)} a choice names its choices`);
+  return said(c.attrs, SCRIPT_PARAM_FIELDS) as unknown as ScriptParam;
 }
 
 /** A part's `stream`, when it says one: a word. */
@@ -422,12 +458,15 @@ function streamOf(t: DocTree): void {
 
 /** A statistics series by its id (`fred:DGS10`): a scheme and no `/`. */
 const SERIES = /^[a-z][a-z0-9-]*:[^\s/:][^\s/]*$/;
+/** A template's parameter as a whole value: `${of}`. */
+const PLACEHOLDER = /^\$\{[A-Za-z_][A-Za-z0-9_]*\}$/;
 /** A tailed file: a script file or a run's records file, by a ref or an address. */
 const TAILED_FILE = /(?:^|\/)[^/]+\.script\.(?:[jt]sx|py|rs)$|(?:^|\/)records\.jsonl$/i;
 
 /** Why a ref cannot be what a tail (a derive's port, a discover's `of`) reads, or null: it names a file, never a folder. */
 export function tailRefProblem(ref: string): string | null {
-  if (SERIES.test(ref) || TAILED_FILE.test(ref)) return null;
+  // A template's placeholder is a file once its copy fills it (docs/scripts.md § the catalogue).
+  if (SERIES.test(ref) || TAILED_FILE.test(ref) || PLACEHOLDER.test(ref)) return null;
   if (/^\.\/?$/.test(ref)) return "names this script's folder; a tail names another file";
   return `names a file: a script ("../nvidia/nvidia.script.tsx"), a run's records.jsonl, or a series ("fred:DGS10"), not ${JSON.stringify(ref)}`;
 }
@@ -443,7 +482,8 @@ export const scriptVocabulary: Vocabulary<ScriptDoc> = {
     derive: { parents: ["script"], key: "id", required: ["id", "op", "inputs"], attrs: DERIVE_FIELDS },
     wake: { parents: ["script"], required: ["prompt"], attrs: WAKE_FIELDS },
     discover: { parents: ["script"], required: ["slug", "class"], attrs: DISCOVER_FIELDS },
-    judge: { parents: ["script"], key: "id", required: ["id", "of", "rubric", "model"], attrs: JUDGE_FIELDS },
+    judge: { parents: ["script"], key: "id", required: ["id", "of", "rubric", "model"], attrs: SCRIPT_JUDGE_FIELDS },
+    param: { parents: ["script"], key: "id", required: ["id", "type"], attrs: SCRIPT_PARAM_FIELDS },
   },
   // A tail names a file by its ref: the platform checks that the file is there and has a run.
   fromTree: scriptOf,
@@ -457,11 +497,12 @@ export const scriptVocabulary: Vocabulary<ScriptDoc> = {
         ...(m.derives ?? []).map((d) => ({ tag: "derive", attrs: attrsOf(d, DERIVE_FIELDS), children: [] })),
         ...(m.wakes ?? []).map((w) => ({ tag: "wake", attrs: attrsOf(w, WAKE_FIELDS), children: [] })),
         ...(m.discovers ?? []).map((d) => ({ tag: "discover", attrs: attrsOf(d, DISCOVER_FIELDS), children: [] })),
-        ...(m.judges ?? []).map((j) => ({ tag: "judge", attrs: attrsOf(j, JUDGE_FIELDS), children: [] })),
+        ...(m.judges ?? []).map((j) => ({ tag: "judge", attrs: attrsOf(j, SCRIPT_JUDGE_FIELDS), children: [] })),
+        ...(m.params ?? []).map((p) => ({ tag: "param", attrs: attrsOf(p, SCRIPT_PARAM_FIELDS), children: [] })),
       ],
     };
   },
-  empty: () => ({ sources: [], tails: [], derives: [], wakes: [], discovers: [], judges: [] }),
+  empty: () => ({ sources: [], tails: [], derives: [], wakes: [], discovers: [], judges: [], params: [] }),
 };
 
 registerVocabulary(scriptVocabulary);
@@ -483,5 +524,6 @@ export function scriptWithDefaults(m: ScriptDoc) {
     wakes: m.wakes.map((w) => ({ when: w.when ?? null, every: w.every ?? null, prompt: w.prompt, agent: w.agent ?? null, maxSpend: w.maxSpend ?? null })),
     discovers: (m.discovers ?? []).map((d) => ({ into: d.into ?? "./", of: d.of === undefined ? [] : typeof d.of === "string" ? [d.of] : d.of, when: d.when ?? null, slug: d.slug, class: d.class, props: d.props ?? {}, name: d.name ?? null, max: d.max ?? 10, visibility: d.visibility ?? null })),
     judges: (m.judges ?? []).map((j) => ({ id: j.id, of: j.of, rubric: j.rubric, model: j.model })),
+    params: (m.params ?? []).map((p) => ({ id: p.id, type: p.type, label: p.label ?? null, default: p.default ?? null, required: p.required ?? true, choices: p.choices ?? null, accept: p.accept ?? null })),
   };
 }
