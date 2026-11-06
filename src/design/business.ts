@@ -55,6 +55,7 @@ import { PEOPLE_OPS_TAGS, teamOf } from "./people-ops.js";
 export * from "./business-finance.js";
 export { RegisteredAgent } from "./company-formation.js";
 import { COMPANY_GOVERNANCE_MANY, COMPANY_GOVERNANCE_ONE, GOVERNANCE_TAGS, PAPER_VOTE_PROPS, governanceOf, votesOf } from "./company-governance.js";
+import { COMPANY_DEALS_MANY, DEALS_TAGS, dealsOf } from "./company-deals.js";
 
 import { EQUITY_TAGS, roundsOf } from "./business-equity.js";
 
@@ -98,7 +99,7 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
     props: { name: "text", about: "text", postalAddress: "text", files: "texts", dashboard: "text" },
     required: ["name"],
     one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE, team: "Team", ...COMPANY_GOVERNANCE_ONE, relationships: "Relationships" },
-    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", rounds: "Round", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS, brands: "Brand", ...COMPANY_GOVERNANCE_MANY, products: "Product" },
+    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", rounds: "Round", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS, brands: "Brand", ...COMPANY_GOVERNANCE_MANY, products: "Product", ...COMPANY_DEALS_MANY },
   },
   ...EQUITY_TAGS,
   Entity: {
@@ -135,6 +136,8 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   Relationships: { props: { file: "text" }, required: ["file"] },
   // Seats, the compliance register, IP, insurance and votes (company-governance.ts).
   ...(GOVERNANCE_TAGS as unknown as Record<string, TagSpec>),
+  // The sales pipeline: one <Deal> a deal (company-deals.ts).
+  ...DEALS_TAGS,
   Rfc: {
     props: { id: "text", procedure: "text", title: "text", body: "text", target: "text", engineJson: "text" },
     many: { options: "Option" },
@@ -302,6 +305,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     ...(products.length ? { products } : {}),
     ...(one.relationships ? { relationships: one.relationships.props.file } : {}),
     ...governanceOf(node),
+    ...dealsOf(node),
   };
 }
 

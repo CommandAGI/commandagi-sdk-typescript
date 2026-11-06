@@ -23,6 +23,11 @@ Added
   `records.jsonl`) or a series (`fred:DGS10`), never a folder (`tailRefProblem`). A wake's `when` is a record
   predicate. `scriptWithDefaults` fills `stream: "records"`. One golden fixture of a wake for the three SDKs,
   `script-wake.golden.json`. Scripts replace monitors; `monitors.ts` goes when the platform reads scripts only.
+- A company's deals (`company-deals.ts`): `<Deal id title counterparty stage value currency expected closed owner since
+  source note>` children of a `<Company>`, its sales pipeline. `counterparty` names a card or a row of the relationships
+  folder, `stage` is lead, qualified, proposal, negotiation, won or lost, and a deal with no value is one whose worth
+  is unknown. The company document gains `deals` only when the file writes one. The same in the TypeScript, Python
+  and Rust SDKs (one golden fixture, `company-deals.golden.json`).
 - A board's `<fab>` states the house's other least dimensions, as KiCad's board setup states them:
   `minViaDiameter`, `minHoleClearance` (copper to a hole), `minHoleToHole` and `minEdgeClearance` (mm), and
   `viaInPad` (true or false: the house fills and caps a via in a pad, so a net's via may stand in its own pads). The

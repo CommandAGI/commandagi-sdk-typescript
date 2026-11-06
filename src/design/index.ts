@@ -86,6 +86,7 @@ export { PART_FIELDS, FACET_FIELDS, partFields, type PartFields, type SupplierOf
 export * from "./business.js";
 export * from "./people-ops.js";
 export * from "./company-governance.js";
+export * from "./company-deals.js";
 export { declareThreeD, isThreeD, THREED_FEATURES, THREED_LISTS, SKETCH_SEGMENTS, BUILTIN_PLANES } from "./threed.js";
 export {
   material,
