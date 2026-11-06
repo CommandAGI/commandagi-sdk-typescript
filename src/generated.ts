@@ -2765,18 +2765,10 @@ export const SDK_SCHEMA = {
             schema: {
               type: "object",
               properties: {
-                world: {
-                  type: "object",
-                  properties: {
-                    name: { type: "string", minLength: 1, maxLength: 1024 },
-                    kind: { type: "string", enum: ["simulation"] },
-                    scene: { type: "object", additionalProperties: true },
-                  },
-                  required: ["name", "kind", "scene"],
-                  additionalProperties: true,
-                },
+                of: { type: "string", minLength: 1, maxLength: 1024 },
+                scene: { type: "object", additionalProperties: true },
               },
-              required: ["world"],
+              required: ["of", "scene"],
               additionalProperties: false,
             },
           },
@@ -3837,9 +3829,7 @@ export class SimControls {
     return this.a.act("params", payload);
   }
   /** Simulation lifecycle · `load` */
-  load(payload: {
-    world: { name: string; kind: "simulation"; scene: Args; [key: string]: unknown };
-  }): Promise<unknown> {
+  load(payload: { of: string; scene: Args }): Promise<unknown> {
     return this.a.act("load", payload);
   }
   /** Simulation lifecycle · `describe` */
