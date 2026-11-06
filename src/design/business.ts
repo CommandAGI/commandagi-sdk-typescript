@@ -55,7 +55,7 @@ import { PEOPLE_OPS_TAGS, teamOf } from "./people-ops.js";
 export * from "./business-finance.js";
 export { RegisteredAgent } from "./company-formation.js";
 import { COMPANY_GOVERNANCE_MANY, COMPANY_GOVERNANCE_ONE, GOVERNANCE_TAGS, PAPER_VOTE_PROPS, governanceOf, votesOf } from "./company-governance.js";
-import { COMPANY_DEALS_MANY, DEALS_TAGS, dealsOf } from "./company-deals.js";
+import { COMPANY_DEALS_MANY, COMPANY_DEALS_ONE, DEALS_TAGS, dealsOf } from "./company-deals.js";
 
 import { EQUITY_TAGS, roundsOf } from "./business-equity.js";
 
@@ -98,7 +98,7 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   Company: {
     props: { name: "text", about: "text", postalAddress: "text", files: "texts", dashboard: "text" },
     required: ["name"],
-    one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE, team: "Team", ...COMPANY_GOVERNANCE_ONE, relationships: "Relationships" },
+    one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE, team: "Team", ...COMPANY_GOVERNANCE_ONE, relationships: "Relationships", ...COMPANY_DEALS_ONE },
     many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", rounds: "Round", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS, brands: "Brand", ...COMPANY_GOVERNANCE_MANY, products: "Product", ...COMPANY_DEALS_MANY },
   },
   ...EQUITY_TAGS,
