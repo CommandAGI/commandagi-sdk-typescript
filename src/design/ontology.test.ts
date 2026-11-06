@@ -163,6 +163,37 @@ test("a geo project's manifest: its date range and camera are elements", () => {
   assert.deepEqual(doc, { type: "geoeconomics/project", schemaVersion: "1.0", id: "p1", name: "Chokepoints", data: { defaultDateRange: { start: "2015-01", end: "2030-01" }, defaultCamera: { centerLng: 40, centerLat: 25, scale: 320 } } });
 });
 
+test("a geo project's shock, scenario, model and parameter set: fields are attributes, a model's parameters are elements", () => {
+  const shock = documentOf({ default: el("shock", { id: "closure", name: "Hormuz closure", eventType: "route-disruption", targets: ["cp-hormuz"], start: "2028-03", magnitude: 0.7 }) });
+  assert.equal(shock.format, "shock");
+  assert.deepEqual(shock.document, { type: "geoeconomics/event", schemaVersion: "1.0", id: "closure", name: "Hormuz closure", data: { eventType: "route-disruption", targets: ["cp-hormuz"], start: "2028-03", magnitude: 0.7 } });
+  // The studio's envelope carries times; the code holds none, so a changed target is the one attribute that changes.
+  const clicked = { ...shock.document, createdAt: "2026-11-06T00:00:00.000Z", updatedAt: "2026-11-06T00:00:01.000Z", data: { ...(shock.document.data as object), targets: ["cp-hormuz", "IR"] } };
+  assert.deepEqual(ONTOLOGY.shock.toTree(clicked as never).attrs, { id: "closure", name: "Hormuz closure", eventType: "route-disruption", targets: ["cp-hormuz", "IR"], start: "2028-03", magnitude: 0.7 });
+
+  const scenario = documentOf({ default: el("scenario", { id: "s", name: "Hormuz", baselineDate: "2028-03", timeHorizon: { start: "2028-03", end: "2030-03" }, events: ["./shocks/closure.shock.tsx"], models: ["../../models/commodity-shock.geomodel.tsx"] }) });
+  assert.deepEqual(scenario.document.data, { baselineDate: "2028-03", timeHorizon: { start: "2028-03", end: "2030-03" }, events: ["./shocks/closure.shock.tsx"], models: ["../../models/commodity-shock.geomodel.tsx"] });
+
+  const model = documentOf({ default: el("geomodel", { id: "m", name: "Commodity shock", runtime: "commodity-shock", version: "1.0", compatibleEvents: ["route-disruption"] }, el("parameter", { name: "priceElasticity", default: 0.2, min: 0.05, max: 0.6 }), el("reference", { role: "paper", path: "../notes/methodology.md" })) });
+  assert.deepEqual(model.document, {
+    type: "geoeconomics/model",
+    schemaVersion: "1.0",
+    id: "m",
+    name: "Commodity shock",
+    references: [{ role: "paper", path: "../notes/methodology.md" }],
+    data: { runtime: "commodity-shock", version: "1.0", compatibleEvents: ["route-disruption"], parameterSchema: { priceElasticity: { default: 0.2, min: 0.05, max: 0.6 } } },
+  });
+  const back = ONTOLOGY.geomodel.toTree(model.document as never);
+  assert.deepEqual(back.children.map((c) => [c.tag, c.attrs]), [["parameter", { name: "priceElasticity", default: 0.2, min: 0.05, max: 0.6 }], ["reference", { role: "paper", path: "../notes/methodology.md" }]]);
+  assert.deepEqual(ONTOLOGY.geomodel.fromTree(back), model.document);
+
+  const params = documentOf({ default: el("geoparams", { id: "p", name: "Severe", forModel: "commodity-shock", values: { priceElasticity: 0.25 } }) });
+  assert.deepEqual(params.document.data, { forModel: "commodity-shock", values: { priceElasticity: 0.25 } });
+
+  assert.throws(() => ONTOLOGY.shock.toTree({ ...shock.document, data: { ...(shock.document.data as object), colour: "red" } } as never), /colour of a shock has no element/);
+  assert.throws(() => documentOf({ default: el("shock", { id: "x", name: "x", colour: "red" }) }), /colour is not read/);
+});
+
 test("a node graph in JSX is the editor's own op graph: positions in meta, wires into ports with the literal kept", () => {
   const file = el(
     "opgraph",

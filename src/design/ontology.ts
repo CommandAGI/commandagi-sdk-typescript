@@ -1,5 +1,6 @@
 /**
- * THE ONTOLOGY'S OWN FILES IN JSX — worlds, device definitions, dashboards, geo projects and node graphs, written as
+ * THE ONTOLOGY'S OWN FILES IN JSX — worlds, device definitions, dashboards, geo projects (and their shocks, scenarios,
+ * models and parameter sets) and node graphs, written as
  * the elements their editors edit (docs/formats.md § code as the source of truth, in the CommandAGI repository).
  *
  *   // worlds/shop/world.tsx
@@ -24,6 +25,11 @@
  *                                                                        per live stream); <region side tab …>
  *   <geoproject id name …>                        <name>.geo.tsx         <dateRange start end>, <camera …>,
  *                                                                        <reference role path …>
+ *   <shock id name eventType targets start …>     <name>.shock.tsx       <reference role path …>
+ *   <scenario id name baselineDate events …>      <name>.scenario.tsx    <reference role path …>
+ *   <geomodel id name runtime version …>          <name>.geomodel.tsx    <parameter name default min max label?>,
+ *                                                                        <reference role path …>
+ *   <geoparams id name forModel values>           <name>.geoparams.tsx   <reference role path …>
  *   <opgraph name>                                <name>.opgraph.tsx     <node id type x y …ports>, <wire from to>
  *
  * A node graph is the editor's op graph itself (no carrier): `<node id="blur" type="blur" x={300} y={80} radius={6} />`
@@ -49,7 +55,7 @@
  */
 import { Declaration, type IRGraph, type IRNode, type IRWire } from "./ir.js";
 import { isElement, type DesignElement } from "./jsx-runtime.js";
-import { registerVocabulary, treeOfElement, type DocTree, type Vocabulary } from "./documents.js";
+import { registerVocabulary, treeOfElement, type DocTree, type TagRule, type Vocabulary } from "./documents.js";
 
 const own = (o: Record<string, unknown>, keys: readonly string[]) => Object.fromEntries(keys.filter((k) => o[k] !== undefined).map((k) => [k, o[k]]));
 const omit = (o: Record<string, unknown>, keys: readonly string[]) => Object.fromEntries(Object.entries(o).filter(([k, v]) => !keys.includes(k) && v !== undefined));
@@ -331,6 +337,111 @@ export const geoVocabulary: Vocabulary<GeoProjectDoc> = {
   },
 };
 
+// ── a geo project's documents: <name>.shock.tsx, .scenario.tsx, .geomodel.tsx, .geoparams.tsx ───────────────────────
+
+/** What a geo document says of itself. Its times are the file's own: the code holds none, so an edit changes one field. */
+const GEO_OWN = ["id", "name", "metadata"] as const;
+/** The envelope the geo studio holds a geo document in (`type` says which), its fields under `data`. */
+export interface GeoFileDoc {
+  type: string;
+  schemaVersion: string;
+  id: string;
+  name: string;
+  data: Record<string, unknown>;
+  [field: string]: unknown;
+}
+
+/** A keyed record of the document's `data` (a model's `parameterSchema`), written as one child element per entry. */
+interface GeoRecord {
+  tag: string;
+  field: string;
+  key: string;
+  attrs: readonly string[];
+  required: readonly string[];
+}
+
+/**
+ * The vocabulary of one geo document: a root element whose attributes are its own fields and its `data`'s, verbatim,
+ * and `<reference role path hash?>` children (its `references`).
+ */
+function geoFileVocabulary(format: string, noun: string, root: string, type: string, fields: readonly string[], record?: GeoRecord): Vocabulary<GeoFileDoc> {
+  const tags: Record<string, TagRule> = {
+    [root]: { parents: [], required: ["id", "name"], attrs: [...GEO_OWN, ...fields] },
+    reference: { parents: [root], key: "path", required: ["role", "path"], attrs: ["role", "path", "hash"] },
+  };
+  if (record) tags[record.tag] = { parents: [root], key: record.key, required: record.required, attrs: record.attrs };
+  const envelope = new Set(["type", "schemaVersion", "createdAt", "updatedAt", "data", "references", ...GEO_OWN]);
+  return {
+    format,
+    noun,
+    root,
+    tags,
+    fromTree(t) {
+      const refs = childrenOf(t, "reference");
+      const data = own(t.attrs, fields);
+      const entries = record ? childrenOf(t, record.tag) : [];
+      if (record && entries.length) data[record.field] = Object.fromEntries(entries.map((e) => [String(e.attrs[record.key]), omit(e.attrs, [record.key])]));
+      return {
+        type,
+        // A geo document says which shape it is in; this is the one the studio reads.
+        schemaVersion: "1.0",
+        ...(own(t.attrs, GEO_OWN) as { id: string; name: string }),
+        ...(refs.length ? { references: refs.map((r) => ({ ...r.attrs })) } : {}),
+        data,
+      };
+    },
+    toTree(g) {
+      const data = isRecord(g.data) ? g.data : {};
+      const extra = [
+        ...Object.keys(g).filter((k) => !envelope.has(k) && g[k] !== undefined),
+        ...Object.keys(data).filter((k) => !fields.includes(k) && k !== record?.field && data[k] !== undefined),
+      ];
+      if (extra.length) throw new Error(`the ${extra.join(", ")} of ${noun} has no element in code yet`);
+      const children: DocTree[] = [];
+      if (record && isRecord(data[record.field]))
+        for (const [k, v] of Object.entries(data[record.field] as Record<string, unknown>)) children.push(leaf(record.tag, { [record.key]: k, ...(isRecord(v) ? v : {}) }));
+      for (const r of Array.isArray(g.references) ? g.references : []) if (isRecord(r)) children.push(leaf("reference", { ...r }));
+      return { tag: root, attrs: { ...own(g, GEO_OWN), ...own(data, fields) }, children };
+    },
+  };
+}
+
+/** A shock (`<name>.shock.tsx`): one intervention of a scenario. A click on the globe rewrites its `targets`. */
+export const shockVocabulary = geoFileVocabulary("shock", "a shock", "shock", "geoeconomics/event", [
+  "eventType",
+  "targets",
+  "start",
+  "durationMonths",
+  "magnitude",
+  "probability",
+  "implementationLagMonths",
+  "enabled",
+  "affectedVariables",
+  "transmissionChannels",
+  "notes",
+]);
+/** A scenario (`<name>.scenario.tsx`): the shocks, models and parameter sets it runs, by their paths. */
+export const scenarioVocabulary = geoFileVocabulary("scenario", "a scenario", "scenario", "geoeconomics/scenario", [
+  "baselineDate",
+  "timeHorizon",
+  "parentScenario",
+  "events",
+  "models",
+  "parameterSets",
+  "tags",
+]);
+/** A model's manifest (`<name>.geomodel.tsx`): its runtime and a `<parameter>` per entry of its `parameterSchema`. */
+export const geomodelVocabulary = geoFileVocabulary(
+  "geomodel",
+  "a geo model",
+  "geomodel",
+  "geoeconomics/model",
+  ["runtime", "version", "compatibleEvents", "assumptions", "limitations", "citations", "validation"],
+  { tag: "parameter", field: "parameterSchema", key: "name", attrs: ["name", "label", "default", "min", "max"], required: ["name", "default", "min", "max"] },
+);
+/** A parameter set (`<name>.geoparams.tsx`): values for one model's parameters. */
+export const geoparamsVocabulary = geoFileVocabulary("geoparams", "a geo parameter set", "geoparams", "geoeconomics/params", ["forModel", "values"]);
+
 // ── <name>.opgraph.tsx: the node graph ─────────────────────────────────────────────────────────────────────────────
 
 /** The graph id and domain a node graph has unless its file says another (the node-graph editor's new graph). */
@@ -451,7 +562,18 @@ export function declareOpGraph(root: DesignElement): Declaration {
   return new Declaration("graph", opgraphVocabulary.fromTree(treeOfElement(root, opgraphVocabulary)));
 }
 
-for (const v of [worldVocabulary, deviceVocabulary, dashboardVocabulary, geoVocabulary, opgraphVocabulary]) registerVocabulary(v);
+const GEO_DOCUMENTS = [shockVocabulary, scenarioVocabulary, geomodelVocabulary, geoparamsVocabulary];
+for (const v of [worldVocabulary, deviceVocabulary, dashboardVocabulary, geoVocabulary, ...GEO_DOCUMENTS, opgraphVocabulary]) registerVocabulary(v);
 
 /** The vocabularies of the ontology's files, by format. */
-export const ONTOLOGY = { world: worldVocabulary, device: deviceVocabulary, dashboard: dashboardVocabulary, geo: geoVocabulary, opgraph: opgraphVocabulary } as const;
+export const ONTOLOGY = {
+  world: worldVocabulary,
+  device: deviceVocabulary,
+  dashboard: dashboardVocabulary,
+  geo: geoVocabulary,
+  shock: shockVocabulary,
+  scenario: scenarioVocabulary,
+  geomodel: geomodelVocabulary,
+  geoparams: geoparamsVocabulary,
+  opgraph: opgraphVocabulary,
+} as const;
