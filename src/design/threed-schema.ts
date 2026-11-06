@@ -153,6 +153,250 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "A SECOND SOURCE WITH ANOTHER MPN: another maker's part that may be fitted in place of this one, what differs (as a person states it: nothing infers it), whether it is approved, and who sells it."
   },
+  "Anchor": {
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "type": "string",
+       "const": "point"
+      },
+      "at": {
+       "$ref": "#/$defs/Vec3"
+      }
+     },
+     "required": [
+      "type",
+      "at"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "type": "string",
+       "const": "topo"
+      },
+      "ref": {
+       "$ref": "#/$defs/TopoRef"
+      }
+     },
+     "required": [
+      "type",
+      "ref"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "$ref": "#/$defs/AnchorGroup"
+    },
+    {
+     "$ref": "#/$defs/AnchorOf"
+    },
+    {
+     "$ref": "#/$defs/AnchorGeometry"
+    },
+    {
+     "$ref": "#/$defs/AnchorPart"
+    }
+   ],
+   "description": "Where an annotation attaches in space. Either a bare world POINT (mm) or a robust TOPOLOGY REFERENCE (face center / edge midpoint / vertex) that re-resolves across rebuilds. A topo anchor always carries a usable position in `ref.signature.point`, so anchorPoint is kernel-free."
+  },
+  "AnchorGeometry": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "geometry"
+    },
+    "shape": {
+     "$ref": "#/$defs/SupplementalShape"
+    }
+   },
+   "required": [
+    "type",
+    "shape"
+   ],
+   "additionalProperties": false,
+   "description": "Geometry that is no face or edge of the model (AP242 supplemental geometry): an axis, a line of a datum target, a point. In millimetres, in the model's frame."
+  },
+  "AnchorGroup": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "group"
+    },
+    "kind": {
+     "type": "string",
+     "enum": [
+      "composite",
+      "pattern",
+      "allAround",
+      "between",
+      "centre"
+     ]
+    },
+    "items": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/Anchor"
+     }
+    },
+    "of": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/Anchor"
+     }
+    }
+   },
+   "required": [
+    "type"
+   ],
+   "additionalProperties": false,
+   "description": "A feature of several faces, edges or features (an AP242 shape aspect that is not one face): `items` are what it names itself, `of` the features it is made of. `kind` says how (docs/engineering.md § PMI in STEP): absent one feature of the faces and edges in `items` (a bore of two half-cylinders) composite one feature made of the features in `of` (COMPOSITE_SHAPE_ASPECT) pattern a pattern of the features in `of`: \"4X\" (COMPOSITE_GROUP_SHAPE_ASPECT) allAround all around the profile of `of` (ALL_AROUND_SHAPE_ASPECT) between between the features in `of` (BETWEEN_SHAPE_ASPECT) centre the centre (an axis, a median plane) of the features in `of` (CENTRE_OF_SYMMETRY); `items` its geometry when the file gives it"
+  },
+  "AnchorOf": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "of"
+    },
+    "id": {
+     "type": "string",
+     "description": "The annotation's id."
+    }
+   },
+   "required": [
+    "type",
+    "id"
+   ],
+   "additionalProperties": false,
+   "description": "The feature another annotation is on: a datum feature, a datum target, a size that is a datum feature."
+  },
+  "AnchorPart": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "part"
+    }
+   },
+   "required": [
+    "type"
+   ],
+   "additionalProperties": false,
+   "description": "The whole part: a tolerance or a note on the part's shape itself, not on a feature of it (`all over`)."
+  },
+  "AngularDimension": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "angularDimension"
+    },
+    "vertex": {
+     "$ref": "#/$defs/Anchor"
+    },
+    "a": {
+     "$ref": "#/$defs/Anchor"
+    },
+    "b": {
+     "$ref": "#/$defs/Anchor"
+    },
+    "value": {
+     "type": "number",
+     "description": "The angle it states.",
+     "x-unit": "rad"
+    },
+    "angleSelection": {
+     "type": "string",
+     "enum": [
+      "equal",
+      "large",
+      "small"
+     ]
+    },
+    "id": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string",
+     "description": "Optional free-text label override; most types otherwise derive their display text from the geometry."
+    },
+    "textAt": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Optional explicit placement (mm) for the text/frame; defaults derive from the anchors."
+    },
+    "visible": {
+     "type": "boolean",
+     "description": "Toggle visibility without deleting (parity with decals/bindings). Default true."
+    },
+    "tolerance": {
+     "$ref": "#/$defs/DimensionTolerance",
+     "description": "Its tolerance (`./tolerances.ts`): deviations, a class or basic. A stack-up or a fit check names it by its id."
+    },
+    "limits": {
+     "type": "boolean",
+     "description": "The tolerance is stated as its limits (`35.2 / 34.8`), not as deviations from the nominal."
+    },
+    "fit": {
+     "type": "object",
+     "properties": {
+      "zone": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "form": {
+       "type": "string"
+      },
+      "grade": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "zone",
+      "source"
+     ],
+     "additionalProperties": false,
+     "description": "An ISO 286 class as the file wrote it (LIMITS_AND_FITS), where that is not what the class gives: its zone and source (not `hole`/`shaft` and `ISO 286-1`), and its form and grade when they are not the class's letters and number."
+    },
+    "notes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Its notes (AP242 `dimensional note`s besides `basic`): `auxiliary` (a reference dimension), `theoretical` …"
+    },
+    "modifiers": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Its modifiers (AP242's set of `dimensional note`s): `statistical`, `continuous feature`, `controlled radius` …"
+    },
+    "noValue": {
+     "type": "boolean",
+     "description": "The file states no value for it: a dimension that only says which features are dimensioned."
+    },
+    "formats": {
+     "$ref": "#/$defs/ValueFormats"
+    }
+   },
+   "required": [
+    "type",
+    "a",
+    "b",
+    "id"
+   ],
+   "additionalProperties": false,
+   "description": "Angle at a vertex subtended by two other anchors (rays vertex→a and vertex→b), or the angle between two features that a STEP file states (AP242 ANGULAR_LOCATION: `a` and `b` the features, `value` the angle)."
+  },
   "AssemblyStep": {
    "type": "object",
    "properties": {
@@ -1718,6 +1962,49 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "A cylinder: `S(u,v) = origin + R(cos u·x + sin u·y) + v·axis`. `u` is an ANGLE, `v` a length — OCC's own convention, and the reason \"we already have uv, sketch in it\" measures wrong: a step in `u` is `R` millimetres, not one."
   },
+  "DatumFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "datumFeature"
+    },
+    "letter": {
+     "type": "string",
+     "description": "The datum letter (A, B, C, …)."
+    },
+    "anchor": {
+     "$ref": "#/$defs/Anchor"
+    },
+    "datumOn": {
+     "$ref": "#/$defs/Anchor",
+     "description": "What the datum itself names, when a file puts the faces on the DATUM too (some writers do)."
+    },
+    "id": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string",
+     "description": "Optional free-text label override; most types otherwise derive their display text from the geometry."
+    },
+    "textAt": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Optional explicit placement (mm) for the text/frame; defaults derive from the anchors."
+    },
+    "visible": {
+     "type": "boolean",
+     "description": "Toggle visibility without deleting (parity with decals/bindings). Default true."
+    }
+   },
+   "required": [
+    "type",
+    "letter",
+    "anchor",
+    "id"
+   ],
+   "additionalProperties": false,
+   "description": "A datum-feature label (the boxed letter A/B/C… with a leader/triangle to the referenced feature)."
+  },
   "DatumPlaneFeature": {
    "type": "object",
    "properties": {
@@ -1769,6 +2056,122 @@ export const THREED_SCHEMA: SchemaDocument = {
     "name"
    ],
    "additionalProperties": false
+  },
+  "DatumReference": {
+   "type": "object",
+   "properties": {
+    "letter": {
+     "type": "string"
+    },
+    "modifier": {
+     "$ref": "#/$defs/MaterialModifier"
+    },
+    "modifiers": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "AP242's other datum reference modifiers, by their names in the standard (`basic`, `free_state`, `translation`, `orientation`, `distance_variable`, `degree_of_freedom_constraint_x` …)."
+    },
+    "common": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/DatumReference"
+     },
+     "description": "The datums of a common datum, each with its own modifiers."
+    }
+   },
+   "required": [
+    "letter"
+   ],
+   "additionalProperties": false,
+   "description": "A datum reference in a feature-control frame: a letter and its material modifier. A common datum is its letters joined by a hyphen (`A-B`), or `common` when one of its datums carries a modifier of its own."
+  },
+  "DatumTarget": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "datumTarget"
+    },
+    "letter": {
+     "type": "string"
+    },
+    "target": {
+     "type": "string",
+     "description": "Its number: `1` of A1."
+    },
+    "anchor": {
+     "$ref": "#/$defs/Anchor",
+     "description": "The faces it is on."
+    },
+    "placed": {
+     "type": "object",
+     "properties": {
+      "shape": {
+       "type": "string",
+       "description": "AP242's target shape: `point`, `line`, `rectangle`, `circle`, `circular curve`."
+      },
+      "origin": {
+       "$ref": "#/$defs/Vec3"
+      },
+      "axis": {
+       "$ref": "#/$defs/Vec3",
+       "description": "Its placement's z and x directions."
+      },
+      "refDirection": {
+       "$ref": "#/$defs/Vec3"
+      },
+      "sizes": {
+       "type": "object",
+       "properties": {},
+       "additionalProperties": {
+        "type": "number"
+       },
+       "description": "Its sizes by their AP242 names: `target length`, `target width`, `target diameter`.",
+       "x-unit": "mm"
+      }
+     },
+     "required": [
+      "shape",
+      "origin",
+      "axis",
+      "refDirection"
+     ],
+     "additionalProperties": false
+    },
+    "on": {
+     "$ref": "#/$defs/Anchor",
+     "description": "The feature it is on (AP242 FEATURE_FOR_DATUM_TARGET_RELATIONSHIP)."
+    },
+    "datumOn": {
+     "$ref": "#/$defs/Anchor",
+     "description": "What the datum itself names, when a file puts geometry on the DATUM too."
+    },
+    "id": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string",
+     "description": "Optional free-text label override; most types otherwise derive their display text from the geometry."
+    },
+    "textAt": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Optional explicit placement (mm) for the text/frame; defaults derive from the anchors."
+    },
+    "visible": {
+     "type": "boolean",
+     "description": "Toggle visibility without deleting (parity with decals/bindings). Default true."
+    }
+   },
+   "required": [
+    "type",
+    "letter",
+    "target",
+    "id"
+   ],
+   "additionalProperties": false,
+   "description": "A datum target (A1, B2 …): a point, line or area of a feature that establishes datum `letter`. On a face of the model (`anchor`), or placed (`placed`): a shape at a placement, with its size (AP242 PLACED_DATUM_TARGET_FEATURE)."
   },
   "DeleteFaceFeature": {
    "type": "object",
@@ -2994,6 +3397,160 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "A FASTENER STACK: `<fastener part length at axis clamped receiver washer nut grip />`. It places a screw of the fastener library (by its part id, `iso-4762-m6`: the library's `mechanical-fasteners` parts, built from the same tables), its washer and its nut, and it records what the screw does: it clamps these parts into this receiver. The fasteners check reads the record."
   },
+  "FeatureControlFrame": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "featureControlFrame"
+    },
+    "characteristic": {
+     "$ref": "#/$defs/GdtCharacteristic"
+    },
+    "tolerance": {
+     "type": "number",
+     "description": "Tolerance-zone value (mm)."
+    },
+    "diameterZone": {
+     "type": "boolean",
+     "description": "Diameter (Ø) tolerance zone — typical for `position`."
+    },
+    "modifier": {
+     "$ref": "#/$defs/MaterialModifier",
+     "description": "Material-condition modifier on the tolerance."
+    },
+    "datums": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/DatumReference"
+     },
+     "description": "Ordered datum references (primary, secondary, tertiary)."
+    },
+    "anchor": {
+     "$ref": "#/$defs/Anchor"
+    },
+    "modifiers": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "AP242's other tolerance modifiers, by their names in the standard: `free_state`, `tangent_plane`, `statistical_tolerance`, `common_zone`, `each_radial_element`, `line_element`, `any_cross_section`, `not_convex`, `reciprocity_requirement`, `separate_requirement`, `major_diameter`, `minor_diameter`, `pitch_diameter`."
+    },
+    "zone": {
+     "type": "string",
+     "description": "The zone's form when it is not a Ø zone (AP242 TOLERANCE_ZONE_FORM: `spherical`, `within a circle` …)."
+    },
+    "unequal": {
+     "type": "number",
+     "description": "An unequally disposed zone (UZ): its displacement.",
+     "x-unit": "mm"
+    },
+    "runoutZone": {
+     "type": "object",
+     "properties": {
+      "angle": {
+       "type": "number"
+      }
+     },
+     "additionalProperties": false,
+     "description": "A runout zone definition (RUNOUT_ZONE_DEFINITION): its orientation's angle, when the file gives one.",
+     "x-unit": "rad"
+    },
+    "projected": {
+     "type": "object",
+     "properties": {
+      "length": {
+       "type": "number"
+      },
+      "from": {
+       "$ref": "#/$defs/Anchor"
+      }
+     },
+     "required": [
+      "length"
+     ],
+     "additionalProperties": false,
+     "description": "A projected zone (Ⓟ): its length, and the face it projects from."
+    },
+    "perUnit": {
+     "type": "object",
+     "properties": {
+      "size": {
+       "type": "number"
+      },
+      "area": {
+       "type": "string",
+       "enum": [
+        "square",
+        "rectangular",
+        "circular"
+       ]
+      },
+      "second": {
+       "type": "number"
+      }
+     },
+     "required": [
+      "size"
+     ],
+     "additionalProperties": false,
+     "description": "A tolerance per unit length or area: its size, the area's shape and its second size."
+    },
+    "maximum": {
+     "type": "number",
+     "description": "Its maximum when a modifier lets it grow (AP242 GEOMETRIC_TOLERANCE_WITH_MAXIMUM_TOLERANCE).",
+     "x-unit": "mm"
+    },
+    "segmentOf": {
+     "type": "object",
+     "properties": {
+      "to": {
+       "type": "string"
+      },
+      "relation": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "to",
+      "relation"
+     ],
+     "additionalProperties": false,
+     "description": "This frame is the lower segment of frame `to`: `composite` (a composite frame) or another relation by name."
+    },
+    "datumFrame": {
+     "$ref": "#/$defs/Anchor",
+     "description": "The placement (or the geometry) its datum system names: the datum reference frame's axes."
+    },
+    "formats": {
+     "$ref": "#/$defs/ValueFormats"
+    },
+    "id": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string",
+     "description": "Optional free-text label override; most types otherwise derive their display text from the geometry."
+    },
+    "textAt": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Optional explicit placement (mm) for the text/frame; defaults derive from the anchors."
+    },
+    "visible": {
+     "type": "boolean",
+     "description": "Toggle visibility without deleting (parity with decals/bindings). Default true."
+    }
+   },
+   "required": [
+    "type",
+    "characteristic",
+    "tolerance",
+    "anchor",
+    "id"
+   ],
+   "additionalProperties": false,
+   "description": "A GD&T feature-control frame: characteristic ▸ tolerance (+ Ø zone / modifier) ▸ datum references."
+  },
   "FilletFeature": {
    "type": "object",
    "properties": {
@@ -3309,6 +3866,26 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A **3D Gaussian-Splat volume** — the headline volumetric primitive: a cloud of anisotropic translucent gaussians (position + per-axis scale + orientation + color/opacity), the representation of choice for photoreal capture (video/scan → navigable scene) and volumetric science visualization. Imported from a gaussian PLY (or `.splat`); the DC spherical-harmonic term is baked to an RGB color on import."
+  },
+  "GdtCharacteristic": {
+   "type": "string",
+   "enum": [
+    "position",
+    "straightness",
+    "flatness",
+    "circularity",
+    "cylindricity",
+    "profileLine",
+    "profileSurface",
+    "angularity",
+    "perpendicularity",
+    "parallelism",
+    "concentricity",
+    "symmetry",
+    "circularRunout",
+    "totalRunout"
+   ],
+   "description": "The 14 geometric characteristics (ASME Y14.5 / ISO 1101) a feature-control frame can specify."
   },
   "GenNodeRecord": {
    "type": "object",
@@ -4143,6 +4720,118 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "WHERE A BOUGHT PART IS IN ITS LIFE, AND HOW MANY ARE ON THE SHELF."
   },
+  "LinearDimension": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "linearDimension"
+    },
+    "a": {
+     "$ref": "#/$defs/Anchor"
+    },
+    "b": {
+     "$ref": "#/$defs/Anchor"
+    },
+    "axis": {
+     "type": "string",
+     "enum": [
+      "x",
+      "y",
+      "z"
+     ],
+     "description": "Project the distance onto one axis (`x`/`y`/`z`) for an ordinate measure; omit for true 3D distance."
+    },
+    "value": {
+     "type": "number",
+     "description": "The distance it states (mm), when it is stated and not measured from the anchors.",
+     "x-unit": "mm"
+    },
+    "directed": {
+     "type": "boolean",
+     "description": "From `a` to `b` (AP242 DIRECTED_DIMENSIONAL_LOCATION)."
+    },
+    "measure": {
+     "type": "string",
+     "description": "AP242's name of the distance when it is not `linear distance` (`curved distance`, `linear distance inner outer` …)."
+    },
+    "id": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string",
+     "description": "Optional free-text label override; most types otherwise derive their display text from the geometry."
+    },
+    "textAt": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Optional explicit placement (mm) for the text/frame; defaults derive from the anchors."
+    },
+    "visible": {
+     "type": "boolean",
+     "description": "Toggle visibility without deleting (parity with decals/bindings). Default true."
+    },
+    "tolerance": {
+     "$ref": "#/$defs/DimensionTolerance",
+     "description": "Its tolerance (`./tolerances.ts`): deviations, a class or basic. A stack-up or a fit check names it by its id."
+    },
+    "limits": {
+     "type": "boolean",
+     "description": "The tolerance is stated as its limits (`35.2 / 34.8`), not as deviations from the nominal."
+    },
+    "fit": {
+     "type": "object",
+     "properties": {
+      "zone": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "form": {
+       "type": "string"
+      },
+      "grade": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "zone",
+      "source"
+     ],
+     "additionalProperties": false,
+     "description": "An ISO 286 class as the file wrote it (LIMITS_AND_FITS), where that is not what the class gives: its zone and source (not `hole`/`shaft` and `ISO 286-1`), and its form and grade when they are not the class's letters and number."
+    },
+    "notes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Its notes (AP242 `dimensional note`s besides `basic`): `auxiliary` (a reference dimension), `theoretical` …"
+    },
+    "modifiers": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Its modifiers (AP242's set of `dimensional note`s): `statistical`, `continuous feature`, `controlled radius` …"
+    },
+    "noValue": {
+     "type": "boolean",
+     "description": "The file states no value for it: a dimension that only says which features are dimensioned."
+    },
+    "formats": {
+     "$ref": "#/$defs/ValueFormats"
+    }
+   },
+   "required": [
+    "type",
+    "a",
+    "b",
+    "id"
+   ],
+   "additionalProperties": false,
+   "description": "Distance between two anchors — true 3D, or projected onto a single axis (ordinate/aligned)."
+  },
   "LinearPatternFeature": {
    "type": "object",
    "properties": {
@@ -4711,6 +5400,15 @@ export const THREED_SCHEMA: SchemaDocument = {
     "envIntensity"
    ],
    "additionalProperties": false
+  },
+  "MaterialModifier": {
+   "type": "string",
+   "enum": [
+    "M",
+    "L",
+    "S"
+   ],
+   "description": "Material-condition modifier applied to a tolerance value or a datum reference."
   },
   "MaterialPreset": {
    "type": "string",
@@ -5288,6 +5986,63 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A HOLE OF A BOUGHT PART DRAWN AS ITS ENVELOPE: where the real part (a valve's flange, a lug's ring, a pump's foot) has a hole that a screw passes through or screws into. The fastener checks read it as they read a modelled round hole."
+  },
+  "Note": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "note"
+    },
+    "text": {
+     "type": "string"
+    },
+    "anchor": {
+     "$ref": "#/$defs/Anchor"
+    },
+    "leaderTo": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Where the text box sits; the leader runs anchor → here. Omit for no leader (label at the anchor)."
+    },
+    "property": {
+     "type": "string",
+     "description": "The name of the property a STEP file holds the note as (`semantic text`; empty for a plain note). A note with a `property` is semantic PMI and goes into a STEP file; one without is a drawing's."
+    },
+    "lineNames": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "The names of its lines, when the file names them (a line's item in a STEP file); the text's lines in order."
+    },
+    "oneItem": {
+     "type": "boolean",
+     "description": "Its text is one item with its line breaks in it, not one item per line."
+    },
+    "id": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string",
+     "description": "Optional free-text label override; most types otherwise derive their display text from the geometry."
+    },
+    "textAt": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Optional explicit placement (mm) for the text/frame; defaults derive from the anchors."
+    },
+    "visible": {
+     "type": "boolean",
+     "description": "Toggle visibility without deleting (parity with decals/bindings). Default true."
+    }
+   },
+   "required": [
+    "type",
+    "text",
+    "anchor",
+    "id"
+   ],
+   "additionalProperties": false,
+   "description": "A free note with an optional leader line from an anchor to the text box."
   },
   "NurbsSpec": {
    "type": "object",
@@ -6413,6 +7168,120 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "description": "What a quantity is counted in: parts (`each`), grams, kilograms, metres, millimetres or millilitres."
   },
+  "RadialDimension": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "radialDimension"
+    },
+    "measure": {
+     "type": "string",
+     "enum": [
+      "radius",
+      "diameter"
+     ]
+    },
+    "spherical": {
+     "type": "boolean",
+     "description": "A sphere's (SØ, SR)."
+    },
+    "of": {
+     "$ref": "#/$defs/Anchor",
+     "description": "The feature it sizes (its faces): what a STEP file names. Absent: the cylinder at `center`."
+    },
+    "datum": {
+     "type": "string",
+     "description": "This size is also datum feature `datum` (AP242 DIMENSIONAL_SIZE_WITH_DATUM_FEATURE)."
+    },
+    "center": {
+     "$ref": "#/$defs/Anchor"
+    },
+    "rim": {
+     "$ref": "#/$defs/Anchor",
+     "description": "A point on the rim; the radius is |rim − center| (doubled for a diameter)."
+    },
+    "value": {
+     "type": "number",
+     "description": "Explicit radius (mm) used when no rim anchor is given."
+    },
+    "id": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string",
+     "description": "Optional free-text label override; most types otherwise derive their display text from the geometry."
+    },
+    "textAt": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Optional explicit placement (mm) for the text/frame; defaults derive from the anchors."
+    },
+    "visible": {
+     "type": "boolean",
+     "description": "Toggle visibility without deleting (parity with decals/bindings). Default true."
+    },
+    "tolerance": {
+     "$ref": "#/$defs/DimensionTolerance",
+     "description": "Its tolerance (`./tolerances.ts`): deviations, a class or basic. A stack-up or a fit check names it by its id."
+    },
+    "limits": {
+     "type": "boolean",
+     "description": "The tolerance is stated as its limits (`35.2 / 34.8`), not as deviations from the nominal."
+    },
+    "fit": {
+     "type": "object",
+     "properties": {
+      "zone": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "form": {
+       "type": "string"
+      },
+      "grade": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "zone",
+      "source"
+     ],
+     "additionalProperties": false,
+     "description": "An ISO 286 class as the file wrote it (LIMITS_AND_FITS), where that is not what the class gives: its zone and source (not `hole`/`shaft` and `ISO 286-1`), and its form and grade when they are not the class's letters and number."
+    },
+    "notes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Its notes (AP242 `dimensional note`s besides `basic`): `auxiliary` (a reference dimension), `theoretical` …"
+    },
+    "modifiers": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Its modifiers (AP242's set of `dimensional note`s): `statistical`, `continuous feature`, `controlled radius` …"
+    },
+    "noValue": {
+     "type": "boolean",
+     "description": "The file states no value for it: a dimension that only says which features are dimensioned."
+    },
+    "formats": {
+     "$ref": "#/$defs/ValueFormats"
+    }
+   },
+   "required": [
+    "type",
+    "measure",
+    "center",
+    "id"
+   ],
+   "additionalProperties": false,
+   "description": "Diameter (Ø) or radius (R) of a circular feature — center + a rim point, or an explicit value."
+  },
   "RevolveFeature": {
    "type": "object",
    "properties": {
@@ -7011,6 +7880,115 @@ export const THREED_SCHEMA: SchemaDocument = {
    },
    "additionalProperties": false,
    "description": "WHAT CUSTOMS AND A CARRIER NEED OF A PART."
+  },
+  "SizeDimension": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "sizeDimension"
+    },
+    "measure": {
+     "type": "string",
+     "description": "AP242's name of the size: `thickness`, `curve length`, `angular size`, `toroidal minor diameter` …"
+    },
+    "of": {
+     "$ref": "#/$defs/Anchor"
+    },
+    "value": {
+     "type": "number",
+     "description": "The size it states: mm, or rad for an angular size."
+    },
+    "angleSelection": {
+     "type": "string",
+     "enum": [
+      "equal",
+      "large",
+      "small"
+     ],
+     "description": "An angular size's angle: `equal`, `large` or `small`."
+    },
+    "datum": {
+     "type": "string",
+     "description": "This size is also datum feature `datum`."
+    },
+    "id": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string",
+     "description": "Optional free-text label override; most types otherwise derive their display text from the geometry."
+    },
+    "textAt": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Optional explicit placement (mm) for the text/frame; defaults derive from the anchors."
+    },
+    "visible": {
+     "type": "boolean",
+     "description": "Toggle visibility without deleting (parity with decals/bindings). Default true."
+    },
+    "tolerance": {
+     "$ref": "#/$defs/DimensionTolerance",
+     "description": "Its tolerance (`./tolerances.ts`): deviations, a class or basic. A stack-up or a fit check names it by its id."
+    },
+    "limits": {
+     "type": "boolean",
+     "description": "The tolerance is stated as its limits (`35.2 / 34.8`), not as deviations from the nominal."
+    },
+    "fit": {
+     "type": "object",
+     "properties": {
+      "zone": {
+       "type": "string"
+      },
+      "source": {
+       "type": "string"
+      },
+      "form": {
+       "type": "string"
+      },
+      "grade": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "zone",
+      "source"
+     ],
+     "additionalProperties": false,
+     "description": "An ISO 286 class as the file wrote it (LIMITS_AND_FITS), where that is not what the class gives: its zone and source (not `hole`/`shaft` and `ISO 286-1`), and its form and grade when they are not the class's letters and number."
+    },
+    "notes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Its notes (AP242 `dimensional note`s besides `basic`): `auxiliary` (a reference dimension), `theoretical` …"
+    },
+    "modifiers": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "Its modifiers (AP242's set of `dimensional note`s): `statistical`, `continuous feature`, `controlled radius` …"
+    },
+    "noValue": {
+     "type": "boolean",
+     "description": "The file states no value for it: a dimension that only says which features are dimensioned."
+    },
+    "formats": {
+     "$ref": "#/$defs/ValueFormats"
+    }
+   },
+   "required": [
+    "type",
+    "measure",
+    "of",
+    "value",
+    "id"
+   ],
+   "additionalProperties": false,
+   "description": "A size of a feature that is no diameter or radius: a thickness, a curve's length, a cone's angle, a torus's diameters (AP242 DIMENSIONAL_SIZE and ANGULAR_SIZE)."
   },
   "SkeletonFeature": {
    "type": "object",
@@ -8376,6 +9354,124 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "A subdivision-surface body (Catmull-Clark). Authored in the **sculpt** mode as an editable control cage — a quad mesh you push/pull/subdivide — and committed into the document as a body. The cage is stored verbatim (control points + quad faces); the surface is computed by subdividing `level` times (pure TS subdivision in `cad/model/subdiv.ts`), then meshed for display. Independent of the OCC kernel (which has no native subdivision), so it works everywhere."
   },
+  "SupplementalShape": {
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "const": "point"
+      },
+      "at": {
+       "$ref": "#/$defs/Vec3"
+      }
+     },
+     "required": [
+      "kind",
+      "at"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "const": "line"
+      },
+      "from": {
+       "$ref": "#/$defs/Vec3"
+      },
+      "to": {
+       "$ref": "#/$defs/Vec3"
+      }
+     },
+     "required": [
+      "kind",
+      "from",
+      "to"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "const": "circle"
+      },
+      "center": {
+       "$ref": "#/$defs/Vec3"
+      },
+      "normal": {
+       "$ref": "#/$defs/Vec3"
+      },
+      "radius": {
+       "type": "number"
+      },
+      "from": {
+       "$ref": "#/$defs/Vec3"
+      },
+      "to": {
+       "$ref": "#/$defs/Vec3"
+      }
+     },
+     "required": [
+      "kind",
+      "center",
+      "normal",
+      "radius"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "const": "curves"
+      },
+      "of": {
+       "type": "array",
+       "items": {
+        "$ref": "#/$defs/SupplementalShape"
+       }
+      }
+     },
+     "required": [
+      "kind",
+      "of"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "kind": {
+       "type": "string",
+       "const": "axes"
+      },
+      "origin": {
+       "$ref": "#/$defs/Vec3"
+      },
+      "axis": {
+       "$ref": "#/$defs/Vec3"
+      },
+      "refDirection": {
+       "$ref": "#/$defs/Vec3"
+      }
+     },
+     "required": [
+      "kind",
+      "origin",
+      "axis",
+      "refDirection"
+     ],
+     "additionalProperties": false
+    }
+   ]
+  },
   "SupplierOffer": {
    "type": "object",
    "properties": {
@@ -8515,6 +9611,57 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "WHO SELLS A PART, AND ON WHAT TERMS: one supplier's offer (docs/formats.md § logistics). The quantity terms (`stock`, `moq`, `orderMultiple`, `leadTimeDays`, `priceBreaks`) are the ones a component catalog's offer states. A price or a stock says where and when it was read (`source`, `date`)."
+  },
+  "SurfaceFinish": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "surfaceFinish"
+    },
+    "roughness": {
+     "type": "number",
+     "description": "Arithmetic mean roughness Ra (µm)."
+    },
+    "requirement": {
+     "type": "string",
+     "enum": [
+      "any",
+      "required",
+      "prohibited"
+     ],
+     "description": "Machining requirement: `any` (basic ✓), material-removal `required`, or `prohibited`."
+    },
+    "process": {
+     "type": "string",
+     "description": "Optional process / lay note (e.g. \"milled\", \"⊥\")."
+    },
+    "anchor": {
+     "$ref": "#/$defs/Anchor"
+    },
+    "id": {
+     "type": "string"
+    },
+    "label": {
+     "type": "string",
+     "description": "Optional free-text label override; most types otherwise derive their display text from the geometry."
+    },
+    "textAt": {
+     "$ref": "#/$defs/Vec3",
+     "description": "Optional explicit placement (mm) for the text/frame; defaults derive from the anchors."
+    },
+    "visible": {
+     "type": "boolean",
+     "description": "Toggle visibility without deleting (parity with decals/bindings). Default true."
+    }
+   },
+   "required": [
+    "type",
+    "anchor",
+    "id"
+   ],
+   "additionalProperties": false,
+   "description": "A surface-finish (roughness) symbol on a face."
   },
   "SurfaceTexture": {
    "type": "object",
@@ -9079,6 +10226,10 @@ export const THREED_SCHEMA: SchemaDocument = {
      "type": "number",
      "description": "Face area (faces only)."
     },
+    "box": {
+     "$ref": "#/$defs/TopoBox",
+     "description": "Faces: the box of its boundary, when its surface does not tell it from a neighbour's (a STEP file's freeform face: a fillet's torus, a B-spline). The face whose boundary has this box wins."
+    },
     "length": {
      "type": "number",
      "description": "Edge length (edges only)."
@@ -9445,6 +10596,23 @@ export const THREED_SCHEMA: SchemaDocument = {
      "$ref": "#/$defs/ToroidalSurface"
     }
    ]
+  },
+  "ValueFormats": {
+   "type": "object",
+   "properties": {},
+   "additionalProperties": {
+    "type": "object",
+    "properties": {
+     "format": {
+      "type": "string"
+     },
+     "qualifier": {
+      "type": "string"
+     }
+    },
+    "additionalProperties": false
+   },
+   "description": "How a value is written, as AP242 qualifies a measure: `format` its VALUE_FORMAT_TYPE_QUALIFIER (`NR2 1.3`: decimal places as ISO 6093 counts them), `qualifier` its TYPE_QUALIFIER (`maximum`, `minimum`), keyed by the field the value is (`value`, `tolerance`, `unequal`, `projected`, `perUnit` …)."
   },
   "Vec2": {
    "type": "array",

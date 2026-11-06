@@ -4,7 +4,31 @@
  * (`<extrude distance="10">` is an error before the file runs). The elements are the same as `commandagi`'s runtime
  * makes; the reader (`declareThreeD`) checks them again against `THREED_SCHEMA`, for files written without types.
  */
-import type { AcceptedFinding, DesignCheck, DrawingSheet, DynamicsContact, DynamicsJoint, FastenerStack, Mate, PermittedFinding, PartEngineering, Port, SketchElements, TactileSkin, ThreeDFeatureElements, Vec3 } from "./threed-elements.js";
+import type {
+  AcceptedFinding,
+  AngularDimension,
+  DatumFeature,
+  DatumTarget,
+  DesignCheck,
+  DrawingSheet,
+  DynamicsContact,
+  DynamicsJoint,
+  FastenerStack,
+  FeatureControlFrame,
+  LinearDimension,
+  Mate,
+  Note,
+  PermittedFinding,
+  PartEngineering,
+  Port,
+  RadialDimension,
+  SizeDimension,
+  SketchElements,
+  SurfaceFinish,
+  TactileSkin,
+  ThreeDFeatureElements,
+  Vec3,
+} from "./threed-elements.js";
 
 export { jsx, jsxs, jsxDEV, Fragment } from "./jsx-runtime.js";
 
@@ -53,6 +77,16 @@ export declare namespace JSX {
     tactile: TactileSkin;
     /** Where a rod's end can be held: a pad, a joint, a socket, a row of them. */
     port: Port;
+    /** An annotation: the tag is its type, each attribute the field of the same name. */
+    linearDimension: Omit<LinearDimension, "type">;
+    radialDimension: Omit<RadialDimension, "type">;
+    sizeDimension: Omit<SizeDimension, "type">;
+    angularDimension: Omit<AngularDimension, "type">;
+    note: Omit<Note, "type">;
+    datumFeature: Omit<DatumFeature, "type">;
+    datumTarget: Omit<DatumTarget, "type">;
+    featureControlFrame: Omit<FeatureControlFrame, "type">;
+    surfaceFinish: Omit<SurfaceFinish, "type">;
     /** Any other field of the document, whole. */
     slot: { name: string; value: unknown };
     /** A feature of a type the kernel does not know. A known type is written as its own tag. */

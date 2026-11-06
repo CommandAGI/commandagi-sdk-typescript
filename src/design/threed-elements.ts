@@ -50,6 +50,102 @@ export type Alternate = {
   suppliers?: SupplierOffer[];
 };
 
+/**
+ * Where an annotation attaches in space. Either a bare world POINT (mm) or a robust TOPOLOGY REFERENCE (face center / edge midpoint / vertex) that re-resolves across rebuilds. A topo anchor always carries a usable position in `ref.signature.point`, so anchorPoint is kernel-free.
+ */
+export type Anchor = {
+  type: "point";
+  at: Vec3;
+} | {
+  type: "topo";
+  ref: TopoRef;
+} | AnchorGroup | AnchorOf | AnchorGeometry | AnchorPart;
+
+/**
+ * Geometry that is no face or edge of the model (AP242 supplemental geometry): an axis, a line of a datum target, a point. In millimetres, in the model's frame.
+ */
+export type AnchorGeometry = {
+  type: "geometry";
+  shape: SupplementalShape;
+};
+
+/**
+ * A feature of several faces, edges or features (an AP242 shape aspect that is not one face): `items` are what it names itself, `of` the features it is made of. `kind` says how (docs/engineering.md § PMI in STEP): absent one feature of the faces and edges in `items` (a bore of two half-cylinders) composite one feature made of the features in `of` (COMPOSITE_SHAPE_ASPECT) pattern a pattern of the features in `of`: "4X" (COMPOSITE_GROUP_SHAPE_ASPECT) allAround all around the profile of `of` (ALL_AROUND_SHAPE_ASPECT) between between the features in `of` (BETWEEN_SHAPE_ASPECT) centre the centre (an axis, a median plane) of the features in `of` (CENTRE_OF_SYMMETRY); `items` its geometry when the file gives it
+ */
+export type AnchorGroup = {
+  type: "group";
+  kind?: "composite" | "pattern" | "allAround" | "between" | "centre";
+  items?: Anchor[];
+  of?: Anchor[];
+};
+
+/**
+ * The feature another annotation is on: a datum feature, a datum target, a size that is a datum feature.
+ */
+export type AnchorOf = {
+  type: "of";
+  /** The annotation's id. */
+  id: string;
+};
+
+/**
+ * The whole part: a tolerance or a note on the part's shape itself, not on a feature of it (`all over`).
+ */
+export type AnchorPart = {
+  type: "part";
+};
+
+/**
+ * Angle at a vertex subtended by two other anchors (rays vertex→a and vertex→b), or the angle between two features that a STEP file states (AP242 ANGULAR_LOCATION: `a` and `b` the features, `value` the angle).
+ */
+export type AngularDimension = {
+  type: "angularDimension";
+  vertex?: Anchor;
+  a: Anchor;
+  b: Anchor;
+  /**
+   * The angle it states.
+   * @unit rad
+   */
+  value?: number;
+  angleSelection?: "equal" | "large" | "small";
+  id: string;
+  /**
+   * Optional free-text label override; most types otherwise derive their display text from the geometry.
+   */
+  label?: string;
+  /** Optional explicit placement (mm) for the text/frame; defaults derive from the anchors. */
+  textAt?: Vec3;
+  /** Toggle visibility without deleting (parity with decals/bindings). Default true. */
+  visible?: boolean;
+  /**
+   * Its tolerance (`./tolerances.ts`): deviations, a class or basic. A stack-up or a fit check names it by its id.
+   */
+  tolerance?: DimensionTolerance;
+  /** The tolerance is stated as its limits (`35.2 / 34.8`), not as deviations from the nominal. */
+  limits?: boolean;
+  /**
+   * An ISO 286 class as the file wrote it (LIMITS_AND_FITS), where that is not what the class gives: its zone and source (not `hole`/`shaft` and `ISO 286-1`), and its form and grade when they are not the class's letters and number.
+   */
+  fit?: {
+    zone: string;
+    source: string;
+    form?: string;
+    grade?: string;
+  };
+  /**
+   * Its notes (AP242 `dimensional note`s besides `basic`): `auxiliary` (a reference dimension), `theoretical` …
+   */
+  notes?: string[];
+  /**
+   * Its modifiers (AP242's set of `dimensional note`s): `statistical`, `continuous feature`, `controlled radius` …
+   */
+  modifiers?: string[];
+  /** The file states no value for it: a dimension that only says which features are dimensioned. */
+  noValue?: boolean;
+  formats?: ValueFormats;
+};
+
 /** ONE ASSEMBLY STEP: `<assemble>`. */
 export type AssemblyStep = {
   id: string;
@@ -785,6 +881,25 @@ export type CylindricalSurface = {
   axis: Vec3;
 };
 
+/** A datum-feature label (the boxed letter A/B/C… with a leader/triangle to the referenced feature). */
+export type DatumFeature = {
+  type: "datumFeature";
+  /** The datum letter (A, B, C, …). */
+  letter: string;
+  anchor: Anchor;
+  /** What the datum itself names, when a file puts the faces on the DATUM too (some writers do). */
+  datumOn?: Anchor;
+  id: string;
+  /**
+   * Optional free-text label override; most types otherwise derive their display text from the geometry.
+   */
+  label?: string;
+  /** Optional explicit placement (mm) for the text/frame; defaults derive from the anchors. */
+  textAt?: Vec3;
+  /** Toggle visibility without deleting (parity with decals/bindings). Default true. */
+  visible?: boolean;
+};
+
 export type DatumPlaneFeature = {
   type: "datumPlane";
   /** Offset from a base plane along its normal. */
@@ -808,6 +923,58 @@ export type DatumPlaneFeature = {
    * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
    */
   declaredBy?: CodeFeature;
+};
+
+/**
+ * A datum reference in a feature-control frame: a letter and its material modifier. A common datum is its letters joined by a hyphen (`A-B`), or `common` when one of its datums carries a modifier of its own.
+ */
+export type DatumReference = {
+  letter: string;
+  modifier?: MaterialModifier;
+  /**
+   * AP242's other datum reference modifiers, by their names in the standard (`basic`, `free_state`, `translation`, `orientation`, `distance_variable`, `degree_of_freedom_constraint_x` …).
+   */
+  modifiers?: string[];
+  /** The datums of a common datum, each with its own modifiers. */
+  common?: DatumReference[];
+};
+
+/**
+ * A datum target (A1, B2 …): a point, line or area of a feature that establishes datum `letter`. On a face of the model (`anchor`), or placed (`placed`): a shape at a placement, with its size (AP242 PLACED_DATUM_TARGET_FEATURE).
+ */
+export type DatumTarget = {
+  type: "datumTarget";
+  letter: string;
+  /** Its number: `1` of A1. */
+  target: string;
+  /** The faces it is on. */
+  anchor?: Anchor;
+  placed?: {
+    /** AP242's target shape: `point`, `line`, `rectangle`, `circle`, `circular curve`. */
+    shape: string;
+    origin: Vec3;
+    /** Its placement's z and x directions. */
+    axis: Vec3;
+    refDirection: Vec3;
+    /**
+     * Its sizes by their AP242 names: `target length`, `target width`, `target diameter`.
+     * @unit mm
+     */
+    sizes?: { [key: string]: number };
+  };
+  /** The feature it is on (AP242 FEATURE_FOR_DATUM_TARGET_RELATIONSHIP). */
+  on?: Anchor;
+  /** What the datum itself names, when a file puts geometry on the DATUM too. */
+  datumOn?: Anchor;
+  id: string;
+  /**
+   * Optional free-text label override; most types otherwise derive their display text from the geometry.
+   */
+  label?: string;
+  /** Optional explicit placement (mm) for the text/frame; defaults derive from the anchors. */
+  textAt?: Vec3;
+  /** Toggle visibility without deleting (parity with decals/bindings). Default true. */
+  visible?: boolean;
 };
 
 export type DeleteFaceFeature = {
@@ -1510,6 +1677,76 @@ export type FastenerStack = {
   partNumber?: string;
 };
 
+/** A GD&T feature-control frame: characteristic ▸ tolerance (+ Ø zone / modifier) ▸ datum references. */
+export type FeatureControlFrame = {
+  type: "featureControlFrame";
+  characteristic: GdtCharacteristic;
+  /** Tolerance-zone value (mm). */
+  tolerance: number;
+  /** Diameter (Ø) tolerance zone — typical for `position`. */
+  diameterZone?: boolean;
+  /** Material-condition modifier on the tolerance. */
+  modifier?: MaterialModifier;
+  /** Ordered datum references (primary, secondary, tertiary). */
+  datums?: DatumReference[];
+  anchor: Anchor;
+  /**
+   * AP242's other tolerance modifiers, by their names in the standard: `free_state`, `tangent_plane`, `statistical_tolerance`, `common_zone`, `each_radial_element`, `line_element`, `any_cross_section`, `not_convex`, `reciprocity_requirement`, `separate_requirement`, `major_diameter`, `minor_diameter`, `pitch_diameter`.
+   */
+  modifiers?: string[];
+  /**
+   * The zone's form when it is not a Ø zone (AP242 TOLERANCE_ZONE_FORM: `spherical`, `within a circle` …).
+   */
+  zone?: string;
+  /**
+   * An unequally disposed zone (UZ): its displacement.
+   * @unit mm
+   */
+  unequal?: number;
+  /**
+   * A runout zone definition (RUNOUT_ZONE_DEFINITION): its orientation's angle, when the file gives one.
+   * @unit rad
+   */
+  runoutZone?: {
+    angle?: number;
+  };
+  /** A projected zone (Ⓟ): its length, and the face it projects from. */
+  projected?: {
+    length: number;
+    from?: Anchor;
+  };
+  /** A tolerance per unit length or area: its size, the area's shape and its second size. */
+  perUnit?: {
+    size: number;
+    area?: "square" | "rectangular" | "circular";
+    second?: number;
+  };
+  /**
+   * Its maximum when a modifier lets it grow (AP242 GEOMETRIC_TOLERANCE_WITH_MAXIMUM_TOLERANCE).
+   * @unit mm
+   */
+  maximum?: number;
+  /**
+   * This frame is the lower segment of frame `to`: `composite` (a composite frame) or another relation by name.
+   */
+  segmentOf?: {
+    to: string;
+    relation: string;
+  };
+  /** The placement (or the geometry) its datum system names: the datum reference frame's axes. */
+  datumFrame?: Anchor;
+  formats?: ValueFormats;
+  id: string;
+  /**
+   * Optional free-text label override; most types otherwise derive their display text from the geometry.
+   */
+  label?: string;
+  /** Optional explicit placement (mm) for the text/frame; defaults derive from the anchors. */
+  textAt?: Vec3;
+  /** Toggle visibility without deleting (parity with decals/bindings). Default true. */
+  visible?: boolean;
+};
+
 export type FilletFeature = {
   type: "fillet";
   /**
@@ -1648,6 +1885,9 @@ export type GaussianSplatFeature = {
    */
   declaredBy?: CodeFeature;
 };
+
+/** The 14 geometric characteristics (ASME Y14.5 / ISO 1101) a feature-control frame can specify. */
+export type GdtCharacteristic = "position" | "straightness" | "flatness" | "circularity" | "cylindricity" | "profileLine" | "profileSurface" | "angularity" | "perpendicularity" | "parallelism" | "concentricity" | "symmetry" | "circularRunout" | "totalRunout";
 
 /**
  * The record a node holds: the output's locator always, the provenance fields when the run returned them. A run that returned only a file still records where its bytes are, in the same slot.
@@ -2053,6 +2293,63 @@ export type Lifecycle = {
   date?: string;
 };
 
+/** Distance between two anchors — true 3D, or projected onto a single axis (ordinate/aligned). */
+export type LinearDimension = {
+  type: "linearDimension";
+  a: Anchor;
+  b: Anchor;
+  /**
+   * Project the distance onto one axis (`x`/`y`/`z`) for an ordinate measure; omit for true 3D distance.
+   */
+  axis?: "x" | "y" | "z";
+  /**
+   * The distance it states (mm), when it is stated and not measured from the anchors.
+   * @unit mm
+   */
+  value?: number;
+  /** From `a` to `b` (AP242 DIRECTED_DIMENSIONAL_LOCATION). */
+  directed?: boolean;
+  /**
+   * AP242's name of the distance when it is not `linear distance` (`curved distance`, `linear distance inner outer` …).
+   */
+  measure?: string;
+  id: string;
+  /**
+   * Optional free-text label override; most types otherwise derive their display text from the geometry.
+   */
+  label?: string;
+  /** Optional explicit placement (mm) for the text/frame; defaults derive from the anchors. */
+  textAt?: Vec3;
+  /** Toggle visibility without deleting (parity with decals/bindings). Default true. */
+  visible?: boolean;
+  /**
+   * Its tolerance (`./tolerances.ts`): deviations, a class or basic. A stack-up or a fit check names it by its id.
+   */
+  tolerance?: DimensionTolerance;
+  /** The tolerance is stated as its limits (`35.2 / 34.8`), not as deviations from the nominal. */
+  limits?: boolean;
+  /**
+   * An ISO 286 class as the file wrote it (LIMITS_AND_FITS), where that is not what the class gives: its zone and source (not `hole`/`shaft` and `ISO 286-1`), and its form and grade when they are not the class's letters and number.
+   */
+  fit?: {
+    zone: string;
+    source: string;
+    form?: string;
+    grade?: string;
+  };
+  /**
+   * Its notes (AP242 `dimensional note`s besides `basic`): `auxiliary` (a reference dimension), `theoretical` …
+   */
+  notes?: string[];
+  /**
+   * Its modifiers (AP242's set of `dimensional note`s): `statistical`, `continuous feature`, `controlled radius` …
+   */
+  modifiers?: string[];
+  /** The file states no value for it: a dimension that only says which features are dimensioned. */
+  noValue?: boolean;
+  formats?: ValueFormats;
+};
+
 export type LinearPatternFeature = {
   type: "linearPattern";
   /** Features whose bodies are patterned. */
@@ -2380,6 +2677,9 @@ export type MaterialDef = {
   texture?: SurfaceTexture;
 };
 
+/** Material-condition modifier applied to a tolerance value or a datum reference. */
+export type MaterialModifier = "M" | "L" | "S";
+
 export type MaterialPreset = "aluminum" | "anodized-aluminum" | "steel" | "stainless-steel" | "plastic" | "abs" | "pbt" | "pc" | "petg" | "pla" | "brass" | "copper" | "chrome" | "rubber" | "glass" | "pcb" | "custom";
 
 export type MeshBodyFeature = {
@@ -2616,6 +2916,34 @@ export type MountingHole = {
    * @exclusiveMinimum 0
    */
   depth?: number;
+};
+
+/** A free note with an optional leader line from an anchor to the text box. */
+export type Note = {
+  type: "note";
+  text: string;
+  anchor: Anchor;
+  /** Where the text box sits; the leader runs anchor → here. Omit for no leader (label at the anchor). */
+  leaderTo?: Vec3;
+  /**
+   * The name of the property a STEP file holds the note as (`semantic text`; empty for a plain note). A note with a `property` is semantic PMI and goes into a STEP file; one without is a drawing's.
+   */
+  property?: string;
+  /**
+   * The names of its lines, when the file names them (a line's item in a STEP file); the text's lines in order.
+   */
+  lineNames?: string[];
+  /** Its text is one item with its line breaks in it, not one item per line. */
+  oneItem?: boolean;
+  id: string;
+  /**
+   * Optional free-text label override; most types otherwise derive their display text from the geometry.
+   */
+  label?: string;
+  /** Optional explicit placement (mm) for the text/frame; defaults derive from the anchors. */
+  textAt?: Vec3;
+  /** Toggle visibility without deleting (parity with decals/bindings). Default true. */
+  visible?: boolean;
 };
 
 /** The NURBS half of a curve — degree, knots, weights. Stored verbatim as a sketch spline's `nurbs`. */
@@ -3197,6 +3525,58 @@ export type ProfileRef = {
  */
 export type QuantityUnit = "mm" | "each" | "g" | "kg" | "m" | "ml";
 
+/** Diameter (Ø) or radius (R) of a circular feature — center + a rim point, or an explicit value. */
+export type RadialDimension = {
+  type: "radialDimension";
+  measure: "radius" | "diameter";
+  /** A sphere's (SØ, SR). */
+  spherical?: boolean;
+  /** The feature it sizes (its faces): what a STEP file names. Absent: the cylinder at `center`. */
+  of?: Anchor;
+  /** This size is also datum feature `datum` (AP242 DIMENSIONAL_SIZE_WITH_DATUM_FEATURE). */
+  datum?: string;
+  center: Anchor;
+  /** A point on the rim; the radius is |rim − center| (doubled for a diameter). */
+  rim?: Anchor;
+  /** Explicit radius (mm) used when no rim anchor is given. */
+  value?: number;
+  id: string;
+  /**
+   * Optional free-text label override; most types otherwise derive their display text from the geometry.
+   */
+  label?: string;
+  /** Optional explicit placement (mm) for the text/frame; defaults derive from the anchors. */
+  textAt?: Vec3;
+  /** Toggle visibility without deleting (parity with decals/bindings). Default true. */
+  visible?: boolean;
+  /**
+   * Its tolerance (`./tolerances.ts`): deviations, a class or basic. A stack-up or a fit check names it by its id.
+   */
+  tolerance?: DimensionTolerance;
+  /** The tolerance is stated as its limits (`35.2 / 34.8`), not as deviations from the nominal. */
+  limits?: boolean;
+  /**
+   * An ISO 286 class as the file wrote it (LIMITS_AND_FITS), where that is not what the class gives: its zone and source (not `hole`/`shaft` and `ISO 286-1`), and its form and grade when they are not the class's letters and number.
+   */
+  fit?: {
+    zone: string;
+    source: string;
+    form?: string;
+    grade?: string;
+  };
+  /**
+   * Its notes (AP242 `dimensional note`s besides `basic`): `auxiliary` (a reference dimension), `theoretical` …
+   */
+  notes?: string[];
+  /**
+   * Its modifiers (AP242's set of `dimensional note`s): `statistical`, `continuous feature`, `controlled radius` …
+   */
+  modifiers?: string[];
+  /** The file states no value for it: a dimension that only says which features are dimensioned. */
+  noValue?: boolean;
+  formats?: ValueFormats;
+};
+
 export type RevolveFeature = {
   type: "revolve";
   /** The sketch regions to revolve. */
@@ -3553,6 +3933,57 @@ export type Shipping = {
   packaged?: PackagedSize;
   /** How it is packed: "tape and reel", "tray", "bag of 100". */
   packaging?: string;
+};
+
+/**
+ * A size of a feature that is no diameter or radius: a thickness, a curve's length, a cone's angle, a torus's diameters (AP242 DIMENSIONAL_SIZE and ANGULAR_SIZE).
+ */
+export type SizeDimension = {
+  type: "sizeDimension";
+  /** AP242's name of the size: `thickness`, `curve length`, `angular size`, `toroidal minor diameter` … */
+  measure: string;
+  of: Anchor;
+  /** The size it states: mm, or rad for an angular size. */
+  value: number;
+  /** An angular size's angle: `equal`, `large` or `small`. */
+  angleSelection?: "equal" | "large" | "small";
+  /** This size is also datum feature `datum`. */
+  datum?: string;
+  id: string;
+  /**
+   * Optional free-text label override; most types otherwise derive their display text from the geometry.
+   */
+  label?: string;
+  /** Optional explicit placement (mm) for the text/frame; defaults derive from the anchors. */
+  textAt?: Vec3;
+  /** Toggle visibility without deleting (parity with decals/bindings). Default true. */
+  visible?: boolean;
+  /**
+   * Its tolerance (`./tolerances.ts`): deviations, a class or basic. A stack-up or a fit check names it by its id.
+   */
+  tolerance?: DimensionTolerance;
+  /** The tolerance is stated as its limits (`35.2 / 34.8`), not as deviations from the nominal. */
+  limits?: boolean;
+  /**
+   * An ISO 286 class as the file wrote it (LIMITS_AND_FITS), where that is not what the class gives: its zone and source (not `hole`/`shaft` and `ISO 286-1`), and its form and grade when they are not the class's letters and number.
+   */
+  fit?: {
+    zone: string;
+    source: string;
+    form?: string;
+    grade?: string;
+  };
+  /**
+   * Its notes (AP242 `dimensional note`s besides `basic`): `auxiliary` (a reference dimension), `theoretical` …
+   */
+  notes?: string[];
+  /**
+   * Its modifiers (AP242's set of `dimensional note`s): `statistical`, `continuous feature`, `controlled radius` …
+   */
+  modifiers?: string[];
+  /** The file states no value for it: a dimension that only says which features are dimensioned. */
+  noValue?: boolean;
+  formats?: ValueFormats;
 };
 
 /**
@@ -4033,6 +4464,30 @@ export type SubdivBodyFeature = {
   declaredBy?: CodeFeature;
 };
 
+export type SupplementalShape = {
+  kind: "point";
+  at: Vec3;
+} | {
+  kind: "line";
+  from: Vec3;
+  to: Vec3;
+} | {
+  kind: "circle";
+  center: Vec3;
+  normal: Vec3;
+  radius: number;
+  from?: Vec3;
+  to?: Vec3;
+} | {
+  kind: "curves";
+  of: SupplementalShape[];
+} | {
+  kind: "axes";
+  origin: Vec3;
+  axis: Vec3;
+  refDirection: Vec3;
+};
+
 /**
  * WHO SELLS A PART, AND ON WHAT TERMS: one supplier's offer (docs/formats.md § logistics). The quantity terms (`stock`, `moq`, `orderMultiple`, `leadTimeDays`, `priceBreaks`) are the ones a component catalog's offer states. A price or a stock says where and when it was read (`source`, `date`).
  */
@@ -4124,6 +4579,27 @@ export type SupplierOffer = {
    * The supplier's file (`suppliers/jlcpcb.supplier.tsx`), by this document's folder: where it ships from, its carriers and contacts. A logistics plan (`<name>.logistics.tsx`) routes the lines whose chosen offer names it.
    */
   supplier?: string;
+};
+
+/** A surface-finish (roughness) symbol on a face. */
+export type SurfaceFinish = {
+  type: "surfaceFinish";
+  /** Arithmetic mean roughness Ra (µm). */
+  roughness?: number;
+  /** Machining requirement: `any` (basic ✓), material-removal `required`, or `prohibited`. */
+  requirement?: "any" | "required" | "prohibited";
+  /** Optional process / lay note (e.g. "milled", "⊥"). */
+  process?: string;
+  anchor: Anchor;
+  id: string;
+  /**
+   * Optional free-text label override; most types otherwise derive their display text from the geometry.
+   */
+  label?: string;
+  /** Optional explicit placement (mm) for the text/frame; defaults derive from the anchors. */
+  textAt?: Vec3;
+  /** Toggle visibility without deleting (parity with decals/bindings). Default true. */
+  visible?: boolean;
 };
 
 /**
@@ -4440,6 +4916,10 @@ export type TopoSignature = {
   normal?: Vec3;
   /** Face area (faces only). */
   area?: number;
+  /**
+   * Faces: the box of its boundary, when its surface does not tell it from a neighbour's (a STEP file's freeform face: a fillet's torus, a B-spline). The face whose boundary has this box wins.
+   */
+  box?: TopoBox;
   /** Edge length (edges only). */
   length?: number;
   /** Edge chord direction, normalized (edges only). */
@@ -4576,6 +5056,14 @@ export type UnwrapIdentification = {
 };
 
 export type UnwrapSurface = PlanarSurface | CylindricalSurface | ConicalSurface | SphericalSurface | ToroidalSurface;
+
+/**
+ * How a value is written, as AP242 qualifies a measure: `format` its VALUE_FORMAT_TYPE_QUALIFIER (`NR2 1.3`: decimal places as ISO 6093 counts them), `qualifier` its TYPE_QUALIFIER (`maximum`, `minimum`), keyed by the field the value is (`value`, `tolerance`, `unequal`, `projected`, `perUnit` …).
+ */
+export type ValueFormats = { [key: string]: {
+  format?: string;
+  qualifier?: string;
+} };
 
 /**
  * A point or vector in 2D (sketch space).

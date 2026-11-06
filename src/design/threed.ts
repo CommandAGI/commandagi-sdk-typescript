@@ -90,8 +90,18 @@
  *   <port id body at axis hold depth retention retentionSource count pitch dir groups first>
  *                                             where a rod's end can be held (`ports`): a pad, a joint, a socket,
  *                                             a row of them (`<id>1` … `<id><count>`)
+ *   <linearDimension id a b axis value tolerance …>   an annotation (`annotations`): the tag is its type
+ *   <radialDimension id measure center rim of …>      (linearDimension, radialDimension, sizeDimension,
+ *   <sizeDimension id measure of value …>             angularDimension, note, datumFeature, datumTarget,
+ *   <angularDimension id vertex a b value …>          featureControlFrame, surfaceFinish), each attribute the
+ *   <note id text anchor leaderTo property>           field of the same name (`3d-core/annotations.ts`). An
+ *   <datumFeature id letter anchor>                   anchor is { type: "point", at } | { type: "topo", ref } |
+ *   <datumTarget id letter target anchor placed on>   { type: "group", kind, items, of } | { type: "of", id }
+ *   <featureControlFrame id characteristic tolerance  (the feature another annotation is on) |
+ *     datums anchor modifiers zone …>                 { type: "geometry", shape }. The elements, whatever their
+ *   <surfaceFinish id roughness requirement anchor>   tags, are the list in the order they are written
  *   <slot name value>                         any other field of the document, whole (environment, animation,
- *                                             standardParts, decals, annotations, the rest of dynamics …)
+ *                                             standardParts, decals, the rest of dynamics …)
  *
  * The reader declares the document's graph exactly (docs/formats.md § the 3D document's body): a feature is a node of
  * its type with its fields as ports, a plane a `plane` node, a parameter an `input` node whose `drives` are its
@@ -122,7 +132,7 @@ import { toleranceProblem, type DimensionTolerance } from "./tolerances.js";
 export const THREED_FEATURES: readonly string[] = Object.keys(THREED_SCHEMA.roots);
 const FEATURES = new Set(THREED_FEATURES);
 /** Tags with a meaning of their own: never a `<feature type>`. */
-const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "joint", "contact", "mate", "sheet", "check", "accept", "permitted", "fastener", "tactile", "port", "item", "assemble", "library", "product", "point", "constraint", "projection", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input"]);
+const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "joint", "contact", "mate", "sheet", "check", "accept", "permitted", "fastener", "tactile", "port", "item", "assemble", "library", "product", "point", "constraint", "projection", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input", "linearDimension", "radialDimension", "sizeDimension", "angularDimension", "note", "datumFeature", "datumTarget", "featureControlFrame", "surfaceFinish"]);
 /** A sketch's segment kinds, by tag. */
 export const SKETCH_SEGMENTS: readonly string[] = ["line", "circle", "arc", "spline", "ellipse", "ellipseArc"];
 const SEGMENTS = new Set(SKETCH_SEGMENTS);
@@ -136,12 +146,16 @@ export const BUILTIN_PLANES = {
 const VIEW_ATTRS = new Set(["semanticVisibility"]);
 const PARAM_FIELDS = ["value", "unit", "comment", "min", "max", "step", "tolerance"];
 /** Document fields a <slot> may not hold: they have elements of their own, or are the graph itself. */
-const NOT_SLOTS = new Set(["id", "name", "units", "planes", "features", "parameters", "presentation", "isAssembly", "bodyMeta", "semanticVisibility", "drawings", "checks", "accepted", "permitted", "fasteners", "tactile", "ports", "items", "assemblySteps", "library", "products"]);
+const NOT_SLOTS = new Set(["id", "name", "units", "planes", "features", "parameters", "presentation", "isAssembly", "bodyMeta", "semanticVisibility", "drawings", "checks", "accepted", "permitted", "fasteners", "tactile", "ports", "items", "assemblySteps", "library", "products", "annotations"]);
+/** The annotations of a 3D document, by tag: each tag is its annotation's `type` (`3d-core/annotations.ts`). */
+export const THREED_ANNOTATIONS: readonly string[] = ["linearDimension", "radialDimension", "sizeDimension", "angularDimension", "note", "datumFeature", "datumTarget", "featureControlFrame", "surfaceFinish"];
 /**
  * Elements that are the items of a list the document holds: the tag, the document field (its node), the port of that
- * node that holds the list, and the definition each item is checked against (`THREED_SCHEMA.$defs`).
+ * node that holds the list, and the definition each item is checked against (`THREED_SCHEMA.$defs`). Several tags may
+ * make one list: `kind` then names its items, each tag is its item's `type` (`<note>` is `{ type: "note", … }`), and
+ * the items are in the order their elements are written, whatever their tags.
  */
-export const THREED_LISTS: Readonly<Record<string, { node: string; port: string; def: string }>> = {
+export const THREED_LISTS: Readonly<Record<string, { node: string; port: string; def: string; kind?: string }>> = {
   joint: { node: "dynamics", port: "joints", def: "DynamicsJoint" },
   contact: { node: "dynamics", port: "contacts", def: "DynamicsContact" },
   mate: { node: "assembly", port: "mates", def: "Mate" },
@@ -156,7 +170,10 @@ export const THREED_LISTS: Readonly<Record<string, { node: string; port: string;
   assemble: { node: "assemblySteps", port: "value", def: "AssemblyStep" },
   library: { node: "library", port: "value", def: "LibraryData" },
   product: { node: "products", port: "value", def: "ProductFacts" },
+  ...Object.fromEntries(THREED_ANNOTATIONS.map((tag) => [tag, { node: "annotations", port: "value", def: tag[0]!.toUpperCase() + tag.slice(1), kind: "annotation" }])),
 };
+/** The tags of the elements that are a document field's list (`annotations`: every annotation's), as `<tag>`. */
+const listTags = (field: string) => Object.entries(THREED_LISTS).filter(([, l]) => l.node === field && l.port === "value").map(([tag]) => `<${tag}>`);
 
 interface Node {
   id: string;
@@ -288,7 +305,8 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
   const bodies: Record<string, unknown> = {};
   const bodySources: Record<string, unknown> = {};
   const declared: DesignElement[] = [];
-  const lists: Record<string, { items: Record<string, unknown>[]; sources: Record<string, unknown> }> = {};
+  // Each list by its node and port: the tags that share one (the annotations) fill it in the order they are written.
+  const lists = new Map<string, { tag: string; items: Record<string, unknown>[]; sources: Record<string, unknown> }>();
   // Every element is read, and every one refused is named together: a file with ten mistakes needs one run, not ten.
   const refused: string[] = [];
   const refuse = (e: unknown) => refused.push(e instanceof Error ? e.message : String(e));
@@ -328,20 +346,26 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
     } else if (THREED_LISTS[el.type]) {
       noChildren(el);
       const id = idOf(el);
-      const list = (lists[el.type] ??= { items: [], sources: {} });
-      if (list.items.some((x) => x.id === id)) throw new Error(`two <${el.type}> elements are called ${id}`);
-      const item = checkValue(el, THREED_LISTS[el.type]!.def, fields(el)) as Record<string, unknown>;
+      const { node, port, def, kind } = THREED_LISTS[el.type]!;
+      const at = `${node}.${port}`;
+      const list = lists.get(at) ?? lists.set(at, { tag: el.type, items: [], sources: {} }).get(at)!;
+      if (list.items.some((x) => x.id === id)) throw new Error(kind ? `two ${kind}s are called ${id}` : `two <${el.type}> elements are called ${id}`);
+      if (kind && "type" in el.props) throw new Error(`${where(el)}: the tag is the ${kind}'s type`);
+      const item = checkValue(el, def, kind ? { type: el.type, ...fields(el) } : fields(el)) as Record<string, unknown>;
       if (el.type === "sheet") {
         const problems = sheetViewProblems(item.views as SheetView[]);
         if (problems.length) throw new Error(`${where(el)}: ${problems.join("; ")}`);
       }
       list.items.push(item);
-      if (el.source !== undefined) list.sources[`${el.type}:${id}`] = el.source;
+      if (el.source !== undefined) list.sources[`${kind ?? el.type}:${id}`] = el.source;
     } else if (el.type === "slot") {
       noChildren(el);
       const field = el.props.name;
       if (typeof field !== "string" || !/^[A-Za-z_]\w*$/.test(field)) throw new Error(`${where(el)} needs the name of a document field`);
-      if (NOT_SLOTS.has(field)) throw new Error(`${where(el)}: ${field} is not a slot (it has its own element or attribute)`);
+      if (NOT_SLOTS.has(field)) {
+        const tags = listTags(field);
+        throw new Error(`${where(el)}: ${field} is not a slot ${tags.length ? `(its items are written as their own elements: ${tags.join(", ")})` : "(it has its own element or attribute)"}`);
+      }
       for (const k of Object.keys(el.props)) if (!["children", "key", "name", "value"].includes(k)) throw new Error(`${where(el)}: prop ${k} is not read on a slot (its value is "value")`);
       claim(field, `the document's ${field}`);
       const value = plain(el.props.value, `${where(el)} value`);
@@ -423,7 +447,7 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
     const { name: label, ...inputs } = p;
     nodes[id] = { id, type: "plane", label, inputs: JSON.parse(JSON.stringify(inputs)) };
   }
-  for (const [tag, { items, sources }] of Object.entries(lists)) {
+  for (const { tag, items, sources } of lists.values()) {
     const { node: field, port } = THREED_LISTS[tag]!;
     if (!nodes[field]) {
       claim(field, `the document's ${field} (<${tag}>)`);

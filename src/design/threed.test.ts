@@ -418,3 +418,36 @@ test("<circularPattern> and <linearPattern> take operation and consumes: the nod
   assert.deepEqual(g.nodes.row!.inputs, golden.nodes.row);
   assert.throws(() => twin(golden.refused.operation), new RegExp(golden.refused.says));
 });
+
+// sdk/python tests/test_threed.py and sdk/rust threed.rs read the same annotations and refuse them with the same sentences.
+test("each annotation is an element whose tag is its type: the elements, whatever their tags, are the document's annotations in order", () => {
+  const read = (...children: unknown[]) => declarationOf({ default: () => jsx("part", { name: "Bracket", children }) }).graph;
+  const top = { type: "topo", ref: { kind: "face", signature: { point: [0, 0, 10] } } };
+  const bore = { type: "group", items: [{ type: "topo", ref: { kind: "face", signature: { point: [5, 0, 5] } } }, { type: "topo", ref: { kind: "face", signature: { point: [-5, 0, 5] } } }] };
+  const axis = { type: "geometry", shape: { kind: "line", from: [0, 0, 0], to: [0, 0, 10] } };
+  const items: [string, Record<string, unknown> & { id: string }][] = [
+    ["linearDimension", { id: "d1", a: { type: "point", at: [0, 0, 0] }, b: { type: "point", at: [40, 0, 0] }, axis: "x", tolerance: { upper: 0.1, lower: -0.1 }, limits: true }],
+    ["radialDimension", { id: "d2", measure: "diameter", of: bore, center: { type: "point", at: [0, 0, 5] }, value: 5, datum: "B" }],
+    ["sizeDimension", { id: "d3", measure: "thickness", of: top, value: 10, notes: ["statistical"] }],
+    ["angularDimension", { id: "d4", a: top, b: bore, value: 1.5707963267948966 }],
+    ["note", { id: "n1", text: "BREAK SHARP EDGES", anchor: { type: "part" }, leaderTo: [10, 10, 20], property: "semantic text" }],
+    ["datumFeature", { id: "A", letter: "A", anchor: top }],
+    ["datumTarget", { id: "A1", letter: "A", target: "1", placed: { shape: "circle", origin: [0, 0, 10], axis: [0, 0, 1], refDirection: [1, 0, 0], sizes: { "target diameter": 4 } } }],
+    ["featureControlFrame", { id: "f1", characteristic: "position", tolerance: 0.1, diameterZone: true, modifier: "M", datums: [{ letter: "A" }, { letter: "B", modifiers: ["translation"] }], anchor: { type: "of", id: "d2" }, projected: { length: 8 }, segmentOf: { to: "f0", relation: "composite" } }],
+    ["surfaceFinish", { id: "s1", roughness: 1.6, requirement: "required", process: "milled", anchor: axis }],
+  ];
+  const g = read(jsx("box", { id: "b", center: [0, 0, 5], size: [40, 20, 10], operation: "new" }), ...items.map(([tag, props], i) => jsx(tag, { ...props, __source: i + 1 })));
+  assert.deepEqual(g.nodes.annotations!.inputs.value, items.map(([type, props]) => ({ type, ...props })));
+  assert.deepEqual(g.nodes.annotations!.meta, { sources: Object.fromEntries(items.map(([, p], i) => [`annotation:${p.id}`, i + 1])) });
+
+  const refused = (...children: unknown[]) => () => read(...children);
+  assert.throws(refused(jsx("featureControlFrame", { id: "f1", characteristic: "roundness", tolerance: 0.1, anchor: top })), {
+    message: '<featureControlFrame id="f1">: characteristic: must be one of position, straightness, flatness, circularity, cylindricity, profileLine, profileSurface, angularity, perpendicularity, parallelism, concentricity, symmetry, circularRunout, totalRunout (got "roundness")',
+  });
+  assert.throws(refused(jsx("note", { id: "n1", text: "x", anchor: { type: "of" } })), /<note id="n1">: anchor/);
+  assert.throws(refused(jsx("note", { id: "n1", type: "note", text: "x", anchor: top })), { message: `<note id="n1">: the tag is the annotation's type` });
+  assert.throws(refused(jsx("note", { id: "n1", text: "x", anchor: top }), jsx("datumFeature", { id: "n1", letter: "A", anchor: top })), { message: "two annotations are called n1" });
+  assert.throws(refused(jsx("slot", { name: "annotations", value: [] })), {
+    message: '<slot name="annotations">: annotations is not a slot (its items are written as their own elements: <linearDimension>, <radialDimension>, <sizeDimension>, <angularDimension>, <note>, <datumFeature>, <datumTarget>, <featureControlFrame>, <surfaceFinish>)',
+  });
+});
