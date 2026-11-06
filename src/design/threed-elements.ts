@@ -1495,7 +1495,11 @@ export type ExternalPartRef = {
   /**
    * How to interpret the linked file: a 3D document in code (`"3d"`, a `.3d.tsx`, `.3d.py` or `.3d.rs` run), a foreign solid imported via the named importer ("step"/"iges"), or a board converted to a 3D solid on open — a KiCad board ("kicad_pcb") or a board in code, in the language it is written in ("pcb.tsx", "pcb.jsx", "pcb.py", "pcb.rs"; a LIVE link, so board edits re-mesh here). Mirrors `FileRef.importer`.
    */
-  importer?: "step" | "iges" | "3d" | "wrl" | "glb" | "gltf" | "obj" | "stl" | "ply" | "3mf" | "fbx" | "dae" | "usd" | "kicad_pcb" | "pcb.tsx" | "pcb.jsx" | "pcb.py" | "pcb.rs";
+  importer?: "step" | "iges" | "3d" | "wrl" | "glb" | "gltf" | "obj" | "stl" | "ply" | "3mf" | "fbx" | "dae" | "usd" | "3dxml" | "kicad_pcb" | "pcb.tsx" | "pcb.jsx" | "pcb.py" | "pcb.rs";
+  /**
+   * One node of the linked file, where the file holds several things a placement may place: for a 3DXML (`importer: "3dxml"`), the ReferenceRep it draws, `<structure file>#<id>` (`Product.3dxml#4`; docs/formats.md § 3DXML). Absent: the whole file.
+   */
+  node?: string;
   /**
    * Millimetres represented by one source coordinate for unitless/scene formats. Defaults are format-aware (glTF/VRML standard metres → 1000 mm; OBJ/STL → 1 mm). KiCad WRL adapters set 2.54.
    */
