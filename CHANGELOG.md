@@ -8,6 +8,15 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- A fact a company or a brand does not know is `{ unknown: "<why>" }` in its attribute, and one it knows only roughly
+  `{ about: <value> }` (`facts.ts`: `isUnknown`, `isAbout`, `factMarker`). Any attribute takes either, a required one
+  too; absent stays "the file says nothing". A malformed marker is refused by name.
+- `<Product id name about maker seller status file>` (who makes it, who sells it as merchant of record) and
+  `<Relationships file>` (its relationships.csv) in a `<Company>`; `<Compliance horizon>` (how far ahead the register
+  and the deadlines look, a term such as "18 months"); `<IpAsset claimants>` (the parties that claim it: two is a
+  disputed owner).
+- A brand's `<Site>` names a site hosted elsewhere (`url`, `host`, `project`) or a CommandAGI site's `folder`;
+  `<Domain transferLock>`; `<Mailbox address kind>`, an address the brand receives mail at.
 - A board's `<fab>` states the house's other least dimensions, as KiCad's board setup states them:
   `minViaDiameter`, `minHoleClearance` (copper to a hole), `minHoleToHole` and `minEdgeClearance` (mm), and
   `viaInPad` (true or false: the house fills and caps a via in a pad, so a net's via may stand in its own pads). The
@@ -199,6 +208,10 @@ Fixed
   (CORE-57, ROUTER-07). A shank in less than `minVolume` (0.01 mm³) of material is not in material (IC2-21).
 - 3D: printability judges a placed part as it lies in its own file, as `mill` does (ROUTER-09). `slicer slice` and
   `check` of a `.slice.tsx` read the design's imports in the run's folder (ROUTER-11). Needs a host of this version.
+
+Removed
+
+- `<Domain mail>`: a domain receives mail when the brand names a `<Mailbox>` at it.
 
 ## 0.6.8 (2026-10-23)
 

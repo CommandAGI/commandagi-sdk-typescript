@@ -5,11 +5,13 @@
  *
  *   <Seat body="board" title="director" holder="Northwind/people/Lin Chen.vcf" start="2024-01-31" end="2027-01-31"
  *         appointedBy="Northwind/Documents/Organizational consent.pdf" />
- *   <Compliance industries={["naics:541370"]} />
+ *   <Compliance industries={["naics:541370"]} horizon="18 months" />
  *   <Obligation id="soc2-report" name="SOC 2 report to customers" due="2026-09-30" every="year" />
  *   <Evidence obligation="US-DE:de-llc-lp-annual-tax" due="2026-06-01" done="2026-05-20" file="Northwind/filings/2026 DE tax.pdf" />
  *   <IpAsset kind="trademark" stage="registered" title="NORTHWIND" jurisdiction="US" number="7123456"
  *            filed="2024-03-01" registered="2025-02-11" owner="Northwind Survey LLC" file="Northwind/ip/7123456.pdf" />
+ *   <IpAsset kind="copyright" stage="unregistered" title="the firmware" owner={{ unknown: "the files disagree" }}
+ *            claimants={["CommandAGI Inc.", "Exocortex Labs"]} />                      two claimants: a disputed owner
  *   <Assignment person="Northwind/people/Lin Chen.vcf" signed="2024-02-01" file="Northwind/ip/Lin Chen PIIA.pdf" />
  *   <Policy kind="aviation" carrier="Skyward Mutual" number="AV-778812" start="2025-07-01" end="2026-07-01"
  *           limit={1000000} currency="USD" file="Northwind/legal/aviation-policy.pdf" />
@@ -34,11 +36,11 @@ export const Vote = "Vote";
 /** The tags' attributes, in business.ts's TagSpec shape. */
 export const GOVERNANCE_TAGS = {
   Seat: { props: { body: "text", title: "text", holder: "text", start: "text", end: "text", appointedBy: "text" }, required: ["body", "title", "holder"] },
-  Compliance: { props: { industries: "texts" } },
+  Compliance: { props: { industries: "texts", horizon: "text" } },
   Obligation: { props: { id: "text", name: "text", authority: "text", url: "text", due: "text", every: "text", note: "text" }, required: ["id", "name", "due"] },
   Evidence: { props: { obligation: "text", due: "text", done: "text", file: "text", note: "text" }, required: ["obligation", "due"] },
   IpAsset: {
-    props: { kind: "text", stage: "text", title: "text", jurisdiction: "text", number: "text", filed: "text", registered: "text", expires: "text", owner: "text", classes: "texts", file: "text" },
+    props: { kind: "text", stage: "text", title: "text", jurisdiction: "text", number: "text", filed: "text", registered: "text", expires: "text", owner: "text", claimants: "texts", classes: "texts", file: "text" },
     required: ["kind", "title"],
   },
   Assignment: { props: { person: "text", signed: "text", file: "text" }, required: ["person"] },
@@ -65,6 +67,7 @@ export function governanceOf(node: BusinessNode): Record<string, unknown> {
   if (node.one.compliance || many("obligations").length || many("evidence").length)
     out.compliance = {
       industries: (node.one.compliance?.props.industries as string[] | undefined) ?? [],
+      ...(node.one.compliance?.props.horizon !== undefined ? { horizon: node.one.compliance.props.horizon } : {}),
       obligations: many("obligations").map(propsOf),
       evidence: many("evidence").map(propsOf),
     };

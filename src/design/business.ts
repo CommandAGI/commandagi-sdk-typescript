@@ -26,6 +26,10 @@
  *     <Signature party signer capacity date method evidence/>  <Version file date note/>
  *                                                                      a typed document (docs/company-substrate.md)
  *
+ *   <Product id name about maker seller status file/>                    a product: who makes it, who sells it (merchant
+ *                                                                      of record); `<Relationships file/>` its suppliers'
+ *                                                                      and funders' relationships.csv, by ref
+ *
  *   <Rfc title target procedure body engineJson id>                     an RFC draft; `id` once the contract opened it
  *     <Option title summary>                                             one option
  *       <Change op parameter value dutyId title text protects harm …/>     one change of the law (`parameter` is the
@@ -36,8 +40,13 @@
  * Each tag is a string constant, so `<Company>` is an element like an intrinsic one and keeps its `__source` (the
  * element's index in the file): the reader returns, beside the document, where each part of it was written, and an
  * editor writes an edit back into that element. An unknown attribute or child is refused by name, never guessed.
+ *
+ * A fact the company does not know is `{ unknown: "<why>" }` in its attribute, and one it knows only roughly
+ * `{ about: <value> }` (./facts.ts): `<Entity name="Exocortex Labs" jurisdiction={{ unknown: "whether it is an entity is open" }} />`.
+ * A required attribute may be unknown. Absent is not unknown: absent says nothing.
  */
 import type { DeclaredDocument } from "./ir.js";
+import { factMarker } from "./facts.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
 import { COMPANY_FINANCE_MANY, COMPANY_FINANCE_ONE, FINANCE_TAGS, financeOf } from "./business-finance.js";
 import { FILING_PAPER_PROPS, FORMATION_LISTS, FORMATION_TAGS, formationOf } from "./company-formation.js";
@@ -64,6 +73,8 @@ export const Paper = "Paper";
 export const Signature = "Signature";
 export const Version = "Version";
 export const Brand = "Brand";
+export const Product = "Product";
+export const Relationships = "Relationships";
 export const Rfc = "Rfc";
 export const Option = "Option";
 export const Change = "Change";
@@ -86,8 +97,8 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   Company: {
     props: { name: "text", about: "text", postalAddress: "text", files: "texts", dashboard: "text" },
     required: ["name"],
-    one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE, team: "Team", ...COMPANY_GOVERNANCE_ONE },
-    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", rounds: "Round", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS, brands: "Brand", ...COMPANY_GOVERNANCE_MANY },
+    one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE, team: "Team", ...COMPANY_GOVERNANCE_ONE, relationships: "Relationships" },
+    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", rounds: "Round", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS, brands: "Brand", ...COMPANY_GOVERNANCE_MANY, products: "Product" },
   },
   ...EQUITY_TAGS,
   Entity: {
@@ -118,6 +129,10 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   ...FORMATION_TAGS,
   // A brand of the company: its own `.brand.tsx`, by ref (docs/company-substrate.md § the brand surface).
   Brand: { props: { file: "text" }, required: ["file"] },
+  // What the company sells or makes: who makes it and who sells it (the merchant of record), when they differ.
+  Product: { props: { id: "text", name: "text", about: "text", maker: "text", seller: "text", status: "text", file: "text" }, required: ["name"] },
+  // The company's relationships (suppliers, manufacturers, funders, channels): one relationships.csv, by ref.
+  Relationships: { props: { file: "text" }, required: ["file"] },
   // Seats, the compliance register, IP, insurance and votes (company-governance.ts).
   ...(GOVERNANCE_TAGS as unknown as Record<string, TagSpec>),
   Rfc: {
@@ -156,8 +171,10 @@ export interface BusinessNode {
 
 const where = (el: DesignElement) => `<${el.type}>`;
 
-function value(el: DesignElement, prop: string, kind: Kind): unknown {
-  const v = el.props[prop];
+function value(el: DesignElement, prop: string, kind: Kind, v: unknown = el.props[prop]): unknown {
+  // Any attribute may be unknown (`{ unknown: "<why>" }`) or approximate (`{ about: <value> }`): ./facts.ts.
+  const fact = factMarker(v, `${where(el)} ${prop}`, (x) => value(el, prop, kind, x));
+  if (fact) return fact;
   const bad = (what: string) => new Error(`${where(el)}: ${prop} is ${what}, not ${JSON.stringify(v)}`);
   switch (kind) {
     case "text":
@@ -254,6 +271,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
   const on = ["books", "captable", "people", "calendar", "matters"].some((f) => one[f]) || registrations.length > 0;
   const subsidiaries = node.many.subsidiaries!.map((x) => ({ ...x.props }));
   const brands = node.many.brands!.map((x) => ({ ...x.props }));
+  const products = node.many.products!.map((x) => ({ ...x.props }));
   const papers = node.many.papers!.map((x) => ({
     ...x.props,
     ...(x.many.signatures!.length ? { signatures: x.many.signatures!.map((n) => ({ ...n.props })) } : {}),
@@ -281,6 +299,8 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     ...(rounds.length ? { rounds } : {}),
     ...(one.team ? { team: teamOf(one.team) } : {}),
     ...(brands.length ? { brands } : {}),
+    ...(products.length ? { products } : {}),
+    ...(one.relationships ? { relationships: one.relationships.props.file } : {}),
     ...governanceOf(node),
   };
 }
