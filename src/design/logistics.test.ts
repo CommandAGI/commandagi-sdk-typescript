@@ -133,13 +133,14 @@ test("a circuit's logistics <check> keeps its options; a board's <fab> is one bo
   const { graph: s } = declarationOf({ default: () => jsx("group", { name: "L", children: [jsx("check", { id: "cost", kind: "cost", options: { quantities: [10, 100] } })] }) });
   assert.deepEqual(s.meta?.checks, [{ id: "cost", kind: "cost", options: { quantities: [10, 100] } }]);
   const board = (...children: unknown[]) => () => declarationOf({ default: jsx("board", { schematic: "L.sch.tsx", width: 20, height: 20, children }) }).graph;
-  const fab = { suppliers: [{ name: "JLCPCB", currency: "USD", priceBreaks: [{ quantity: 5, unitPrice: 2 }], leadTimeDays: 7, source: "jlcpcb.com quote", date: "2026-10-15" }], finish: "ENIG", mask: "green", silk: "white", minTrack: 0.09, minSpace: 0.09, minDrill: 0.15, minAnnularRing: 0.13, maxLayers: 6, thicknesses: [1.6], assembly: { house: "JLCPCB", sides: ["top"] }, inspection: { electrical: "flying-probe", acceptance: "boots" }, compliance: { rohs: "compliant", reach: "compliant", eccn: "EAR99" }, shipping: { hsCode: "8534.00", origin: "CN", hazmat: "none" } };
+  const fab = { suppliers: [{ name: "JLCPCB", currency: "USD", priceBreaks: [{ quantity: 5, unitPrice: 2 }], leadTimeDays: 7, source: "jlcpcb.com quote", date: "2026-10-15" }], finish: "ENIG", mask: "green", silk: "white", minTrack: 0.09, minSpace: 0.09, minDrill: 0.15, minAnnularRing: 0.13, minViaDiameter: 0.3, minHoleClearance: 0.14, minHoleToHole: 0.2, minEdgeClearance: 0.3, viaInPad: true, maxLayers: 6, thicknesses: [1.6], assembly: { house: "JLCPCB", sides: ["top"] }, inspection: { electrical: "flying-probe", acceptance: "boots" }, compliance: { rohs: "compliant", reach: "compliant", eccn: "EAR99" }, shipping: { hsCode: "8534.00", origin: "CN", hazmat: "none" } };
   const g = board(jsx("fab", fab))();
   const facts = Object.values(g.nodes).filter((n) => n.type === "eda.boardfact" && n.inputs.fact === "fab");
   assert.equal(facts.length, 1);
   assert.deepEqual(facts[0]!.inputs, { fact: "fab", ...fab });
   assert.throws(board(jsx("fab", {}), jsx("fab", {})), /a board has one <fab>/);
   assert.throws(board(jsx("fab", { layers: 4 })), /prop layers is not read on a board/);
+  assert.throws(board(jsx("fab", { viaInPad: "yes" })), /viaInPad is true or false/);
   assert.throws(board(jsx("fab", { assembly: { house: "JLCPCB", sides: ["left"] } })), /assembly.sides is a list of "top", "bottom"/);
   assert.throws(board(jsx("fab", { inspection: { electrical: "x-ray" } })), /inspection.electrical is one of flying-probe, fixture, none/);
 });

@@ -8,6 +8,10 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- A board's `<fab>` states the house's other least dimensions, as KiCad's board setup states them:
+  `minViaDiameter`, `minHoleClearance` (copper to a hole), `minHoleToHole` and `minEdgeClearance` (mm), and
+  `viaInPad` (true or false: the house fills and caps a via in a pad, so a net's via may stand in its own pads). The
+  same in the Python and Rust SDKs.
 - A definition's declared bounds and interlocks (`ontology.ts`): `<bound channel field min? max? maxRate? maxSpeed?
   why?>` folds into its channel's `bounds`, and `<interlock name channel requires why verbs? when?>` into the
   definition's `interlocks`; a world's `<interlock unit …>` guards one of its units by another's state. The host's

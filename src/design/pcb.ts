@@ -119,10 +119,14 @@
  *   <objective weights>               the weight of each term of the layout score ({ wirelength: 1, vias: 2, … }).
  *
  * How the board is made (docs/formats.md § logistics):
- *   <fab suppliers finish mask silk minTrack minSpace minDrill minAnnularRing maxLayers thicknesses assembly
- *        inspection compliance shipping>
+ *   <fab suppliers finish mask silk minTrack minSpace minDrill minAnnularRing minViaDiameter minHoleClearance
+ *        minHoleToHole minEdgeClearance viaInPad maxLayers thicknesses assembly inspection compliance shipping>
  *                                     the fab house (the first of `suppliers`, with its terms), its capabilities for
- *                                     the service ordered (mm), the finish, the solder mask and silk colours, the
+ *                                     the service ordered (mm: the least track, space, drill, via ring and via, copper
+ *                                     to a hole, hole to hole, copper to the edge; the router and the DRC hold the
+ *                                     board to them, and the KiCad export writes them as its board setup), whether it
+ *                                     fills and caps a via in a pad (`viaInPad`, default false: a via of a net may
+ *                                     then stand in that net's pads), the finish, the solder mask and silk colours, the
  *                                     assembly ({ house, sides }), the board's test ({ electrical, procedure,
  *                                     acceptance, … }), its compliance and shipping. One per board. The board's
  *                                     layers, thickness and copper stay its own.
@@ -379,7 +383,8 @@ export function boardConstraint(tag: string, props: Record<string, unknown>): Re
   return { constraint: tag, ...constraintFact(el) };
 }
 
-const FAB_CAPABILITIES = ["minTrack", "minSpace", "minDrill", "minAnnularRing"];
+/** The house's least dimensions (mm), as KiCad's board setup states them (`design_settings.rules`). */
+const FAB_CAPABILITIES = ["minTrack", "minSpace", "minDrill", "minAnnularRing", "minViaDiameter", "minHoleClearance", "minHoleToHole", "minEdgeClearance"];
 const SIDES = ["top", "bottom"];
 const ELECTRICAL = ["flying-probe", "fixture", "none"];
 const INSPECTION_KEYS = ["dimensions", "procedure", "acceptance", "sampling", "electrical", "minutes", "ratePerHour", "currency"];
@@ -390,7 +395,7 @@ const INSPECTION_KEYS = ["dimensions", "procedure", "acceptance", "sampling", "e
  * (docs/formats.md § logistics). The board's layers, thickness and copper are its own and are not restated here.
  */
 function fabFact(el: DesignElement): Record<string, unknown> {
-  refuseUnknown(el, ["suppliers", "finish", "mask", "silk", ...FAB_CAPABILITIES, "maxLayers", "thicknesses", "assembly", "inspection", "compliance", "shipping"]);
+  refuseUnknown(el, ["suppliers", "finish", "mask", "silk", ...FAB_CAPABILITIES, "viaInPad", "maxLayers", "thicknesses", "assembly", "inspection", "compliance", "shipping"]);
   const w = where(el);
   const out: Record<string, unknown> = {};
   if (el.props.suppliers !== undefined) out.suppliers = checkOffers(w, el.props.suppliers);
@@ -404,6 +409,11 @@ function fabFact(el: DesignElement): Record<string, unknown> {
   for (const k of FAB_CAPABILITIES) {
     const v = positive(el, k);
     if (v !== undefined) out[k] = v;
+  }
+  const viaInPad = el.props.viaInPad;
+  if (viaInPad !== undefined) {
+    if (typeof viaInPad !== "boolean") throw new Error(`${w}: viaInPad is true or false`);
+    out.viaInPad = viaInPad;
   }
   const maxLayers = num(el, "maxLayers");
   if (maxLayers !== undefined) {
