@@ -17,6 +17,12 @@ Added
   disputed owner).
 - A brand's `<Site>` names a site hosted elsewhere (`url`, `host`, `project`) or a CommandAGI site's `folder`;
   `<Domain transferLock>`; `<Mailbox address kind>`, an address the brand receives mail at.
+- Scripts (`scripts.ts`; CommandAGI's docs/scripts.md): a `<name>.script.tsx` declares one `<script title class about
+  readme sameAs>` with `<source … stream>`, `<tail of when stream>`, `<derive … stream>`, `<wake when|every>`,
+  `<discover>` and `<judge>`. A tail, a derive's port and a discover's `of` name a file (a script, a run's
+  `records.jsonl`) or a series (`fred:DGS10`), never a folder (`tailRefProblem`). A wake's `when` is a record
+  predicate. `scriptWithDefaults` fills `stream: "records"`. One golden fixture of a wake for the three SDKs,
+  `script-wake.golden.json`. Scripts replace monitors; `monitors.ts` goes when the platform reads scripts only.
 - A board's `<fab>` states the house's other least dimensions, as KiCad's board setup states them:
   `minViaDiameter`, `minHoleClearance` (copper to a hole), `minHoleToHole` and `minEdgeClearance` (mm), and
   `viaInPad` (true or false: the house fills and caps a via in a pad, so a net's via may stand in its own pads). The

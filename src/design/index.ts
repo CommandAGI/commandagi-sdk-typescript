@@ -122,6 +122,25 @@ export * from "./ontology.js";
 export * from "./tasks.js";
 export * from "./mounts.js";
 export * from "./monitors.js";
+export {
+  SCRIPT_FIELDS,
+  TAIL_FIELDS,
+  JUDGE_FIELDS,
+  JUDGE_OF,
+  SCRIPT_FILE,
+  STREAM_NAME,
+  SCRIPTS,
+  scriptVocabulary,
+  scriptWithDefaults,
+  tailRefProblem,
+  type ScriptDoc,
+  type ScriptSource,
+  type ScriptTail,
+  type ScriptDerive,
+  type ScriptWake,
+  type ScriptDiscover,
+  type ScriptJudge,
+} from "./scripts.js";
 export * from "./agents.js";
 export * from "./routing.js";
 export * from "./skills.js";
