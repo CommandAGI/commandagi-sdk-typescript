@@ -159,7 +159,7 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   which pin, via or trace point they land on. The circuit editor joins it onto its schematic and writes each board
   edit back into the file.
 - **The ontology's files in JSX** (CommandAGI opens them where it opens their JSON, and writes each edit back into
-  the code): a world (`worlds/<name>/world.tsx`: `<world name kind>` with `<space>`, `<unit uid name device
+  the code): a world (`worlds/<name>/world.tsx`: `<world name>` with `<space>`, `<unit uid name device
   position rotation>`, `<view>`, `<scene>` and its `<body>`s), a device definition (`devices/<name>/definition.tsx`:
   `<device>` with its `<channel>`s and their bounds), a dashboard (`<name>.dashboard.tsx`: `<dashboard>` with
   `<param>`s, one layout of `<split axis ratio>` and `<pane id kind …>`, and `<region side …>`s), a geo project
