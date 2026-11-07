@@ -15,25 +15,25 @@ const documentOf = (mod: Record<string, unknown>) => {
   return document!;
 };
 
-test("a world in JSX declares its world: units, space and a scene's bodies are elements; each __source keyed by its path", () => {
+test("a world in JSX declares its world: units and space are elements; each __source keyed by its path", () => {
   const file = el(
     "world",
-    { name: "Shop", kind: "simulation", __source: 0 },
+    { name: "Shop", __source: 0 },
     el("space", { origin_mm: [0, 0, 0], size_mm: [4000, 3000, 2500] }),
     el("unit", { uid: "arm", name: "arm", device: "../../devices/so-101/definition.tsx", position: [100, 0, 0], rotation: 90, __source: 2 }),
-    el("scene", { hz: 240 }, el("body", { id: "cube", shape: { type: "box", hx: 0.02 }, at: [0, 0, 1] })),
   );
   const { format, document: world, sources } = documentOf({ default: () => file });
   assert.equal(format, "world");
   assert.deepEqual(sources, { "": 0, "unit#arm": 2 });
   assert.deepEqual(world, {
     name: "Shop",
-    kind: "simulation",
     space: { origin_mm: [0, 0, 0], size_mm: [4000, 3000, 2500] },
     units: [{ uid: "arm", name: "arm", device: "../../devices/so-101/definition.tsx", position: [100, 0, 0], rotation: 90 }],
-    scene: { hz: 240, bodies: [{ id: "cube", shape: { type: "box", hx: 0.02 }, at: [0, 0, 1] }] },
   });
   assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(world as never)), world, "both ways");
+  // Every world is real: a kind and a scene are refused by name.
+  assert.throws(() => documentOf({ default: () => el("world", { name: "Shop", kind: "physical" }) }), /<world kind>: a world names real things: it has no kind/);
+  assert.throws(() => documentOf({ default: () => el("world", { name: "Shop" }, el("scene", { hz: 240 }, el("body", { id: "cube" }))) }), /<scene> in a <world>: a world declares no scene/);
 
   // A group is what a unit stands in or on: a shelf and its level, the level inside the shelf, the unit naming its level.
   const shelved = documentOf({
@@ -71,7 +71,7 @@ test("a world in JSX declares its world: units, space and a scene's bodies are e
 
   const world_ = (...children: unknown[]) => () => declarationOf({ default: el("world", { name: "W" }, ...children) });
   assert.deepEqual(documentOf({ default: () => el("world", { name: "W" }) }).document, { name: "W", units: [] });
-  assert.throws(() => declarationOf({ default: el("world", { name: "W", kind: "real" }) }), /physical" or "simulation", not "real"/);
+  assert.throws(() => declarationOf({ default: el("world", { name: "W", kind: "real" }) }), /it has no kind/);
   assert.throws(world_(el("unit", { uid: "a", name: "a", device: "d.json", speed: 3 })), /<unit uid="a">: speed is not read/);
   assert.throws(world_(el("unit", { uid: "a", name: "a", device: "d" }), el("unit", { uid: "a", name: "b", device: "d" })), /two <unit> in <world> have uid "a"/);
   assert.throws(world_(el("body", { id: "b" })), /<body> stands in <scene>, not in <world>/);

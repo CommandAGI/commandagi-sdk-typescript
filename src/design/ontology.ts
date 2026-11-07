@@ -11,10 +11,10 @@
  *   );
  *
  * A record is an element and its fields are the element's attributes, verbatim; a list of records is the parent's
- * children (`units` → `<unit>`, `channels` → `<channel>`, a scene's `bodies` → `<body>`). The tags:
+ * children (`units` → `<unit>`, `channels` → `<channel>`). The tags:
  *
  *   <world name description? from? model?         world.tsx             <space origin_mm size_mm>, <group uid …>,
- *          links? policies?>                                                     <unit uid …>, <view …>, <scene …> (<body id …>),
+ *          links? policies?>                                                     <unit uid …>, <view …>,
  *                                                                                  <interlock name unit channel requires why …>
  *   <device name … firmware? revision?>           definition.tsx        <channel id dir medium format transport …>,
  *                                                                        <bound channel field min? max? maxRate? maxSpeed?>,
@@ -89,7 +89,10 @@ export const GROUP_FIELDS = ["uid", "name", "description", "group", "size_mm", "
  * tracks another's joints (the leader), by angle. `reality` is where the follower is driven; `leader.run` which run
  * leads (`twin`, `physical`, or a ref to a run folder: replay).
  */
-const WORLD_FIELDS = ["name", "kind", "description", "from", "model", "links", "policies"] as const;
+const WORLD_FIELDS = ["name", "description", "from", "model", "links", "policies"] as const;
+/** What a world no longer says, read only to refuse it by name: every world is real, and a simulation is a `.3d.tsx`'s. */
+const WORLD_KIND = "a world names real things: it has no kind; a simulation is a run of a .3d.tsx";
+const WORLD_SCENE = "a world declares no scene: its twin steps its model's scene (model=\"model.3d.tsx\"), and a simulation's scene is a .3d.tsx's";
 /** A `<bound>`'s attributes: the channel it bounds, the field, and its limits. */
 const BOUND_FIELDS = ["channel", "field", "min", "max", "maxRate", "maxSpeed", "why"] as const;
 /** An `<interlock>`'s attributes; `unit` only in a world. */
@@ -118,8 +121,6 @@ export interface FollowPolicy {
 
 export interface WorldDoc {
   name: string;
-  /** A simulation world's mark while those are converted to designs; a world with none names real things. */
-  kind?: "physical" | "simulation";
   units: Record<string, unknown>[];
   policies?: FollowPolicy[];
   /** Interlocks between its units, each an `<interlock>` element. */
@@ -133,26 +134,26 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
   noun: "a world",
   root: "world",
   tags: {
-    world: { parents: [], required: ["name"], attrs: WORLD_FIELDS },
+    world: { parents: [], required: ["name"], attrs: [...WORLD_FIELDS, "kind"] },
     space: { parents: ["world"], single: true, required: ["origin_mm", "size_mm"], attrs: ["origin_mm", "size_mm"] },
     group: { parents: ["world"], key: "uid", required: ["uid", "name"], attrs: GROUP_FIELDS },
     unit: { parents: ["world"], key: "uid", required: ["uid", "name", "device"], attrs: UNIT_FIELDS },
     view: { parents: ["world"], single: true },
-    scene: { parents: ["world"], single: true },
-    body: { parents: ["scene"], key: "id", required: ["id"] },
+    scene: { parents: ["world"] },
+    body: { parents: ["scene"] },
     interlock: { parents: ["world"], key: "name", required: ["name", "unit", "channel", "requires", "why"], attrs: INTERLOCK_FIELDS },
   },
   fromTree(t) {
-    if (t.attrs.kind !== undefined && t.attrs.kind !== "physical" && t.attrs.kind !== "simulation") throw new Error(`<world> kind is "physical" or "simulation", not ${JSON.stringify(t.attrs.kind)}`);
-    const space = childrenOf(t, "space")[0], view = childrenOf(t, "view")[0], scene = childrenOf(t, "scene")[0];
-    const bodies = scene ? childrenOf(scene, "body") : [], groups = childrenOf(t, "group"), interlocks = childrenOf(t, "interlock");
+    if (t.attrs.kind !== undefined) throw new Error(`<world kind>: ${WORLD_KIND}`);
+    if (childrenOf(t, "scene").length) throw new Error(`<scene> in a <world>: ${WORLD_SCENE}`);
+    const space = childrenOf(t, "space")[0], view = childrenOf(t, "view")[0];
+    const groups = childrenOf(t, "group"), interlocks = childrenOf(t, "interlock");
     return {
-      ...(own(t.attrs, WORLD_FIELDS) as { name: string; kind?: "physical" | "simulation" }),
+      ...(own(t.attrs, WORLD_FIELDS) as { name: string }),
       ...(space ? { space: { ...space.attrs } } : {}),
       ...(groups.length ? { groups: groups.map((g) => ({ ...g.attrs })) } : {}),
       units: childrenOf(t, "unit").map((u) => ({ ...u.attrs })),
       ...(view ? { view: { ...view.attrs } } : {}),
-      ...(scene ? { scene: { ...scene.attrs, ...(bodies.length ? { bodies: bodies.map((b) => ({ ...b.attrs })) } : {}) } } : {}),
       ...(interlocks.length ? { interlocks: interlocks.map((i) => ({ ...i.attrs })) } : {}),
     };
   },
@@ -162,10 +163,6 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
     for (const g of w.groups ?? []) children.push(leaf("group", own(g, GROUP_FIELDS)));
     for (const u of w.units ?? []) children.push(leaf("unit", own(u, UNIT_FIELDS)));
     if (isRecord(w.view)) children.push(leaf("view", { ...w.view }));
-    if (isRecord(w.scene)) {
-      const bodies = Array.isArray(w.scene.bodies) && w.scene.bodies.every((b) => isRecord(b) && typeof b.id === "string") ? (w.scene.bodies as Record<string, unknown>[]) : null;
-      children.push({ tag: "scene", attrs: bodies ? omit(w.scene, ["bodies"]) : { ...w.scene }, children: (bodies ?? []).map((b) => leaf("body", { ...b })) });
-    }
     for (const i of w.interlocks ?? []) children.push(leaf("interlock", { ...i }));
     return { tag: "world", attrs: own(w, WORLD_FIELDS), children };
   },
