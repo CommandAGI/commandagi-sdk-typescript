@@ -694,6 +694,40 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false
   },
+  "CaptureGeoPose": {
+   "type": "object",
+   "properties": {
+    "latDeg": {
+     "type": "number",
+     "x-unit": "deg",
+     "minimum": -90,
+     "maximum": 90
+    },
+    "lonDeg": {
+     "type": "number",
+     "x-unit": "deg",
+     "minimum": -180,
+     "maximum": 180
+    },
+    "heightM": {
+     "type": "number",
+     "description": "Above the WGS84 ellipsoid.",
+     "x-unit": "m"
+    },
+    "headingDeg": {
+     "type": "number",
+     "description": "The heading of the frame's +y axis, clockwise from true north (0: its axes are east, north, up).",
+     "x-unit": "deg"
+    }
+   },
+   "required": [
+    "latDeg",
+    "lonDeg",
+    "heightM"
+   ],
+   "additionalProperties": false,
+   "description": "Where a captured place's frame stands on the Earth: its origin (WGS84, the height above the ellipsoid) and the heading of its +y axis."
+  },
   "ChamferFeature": {
    "type": "object",
    "properties": {
@@ -6597,6 +6631,57 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A FINDING A PROCESS OR A PURPOSE PERMITS: `<permitted check body process edgeDir region diameter reason />`. A square edge of a laser-cut sheet, a hole that is there for a cable. It permits the findings of that check on the bodies it names, made by that process, along that direction and in that region (each given test must hold). A permitted finding stays in the report with the entry that permitted it."
+  },
+  "PlacedCapture": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "src": {
+     "type": "string",
+     "description": "A ref to the capture: the `capture.json` of a capture folder (tiled `.spz`, georeferenced by its pipeline), or one splat file, a standard 3DGS `.ply` or a `.spz`, in metres with z up. A path from this file's folder, or an address.",
+     "pattern": "\\S"
+    },
+    "at": {
+     "$ref": "#/$defs/CaptureGeoPose",
+     "description": "Where its frame stands. One file needs it; a capture folder stands at its own origin, and `at` moves it."
+    },
+    "captured": {
+     "type": "string",
+     "description": "For one file (a folder's `capture.json` says these itself): the day its photos were taken (ISO, `2017-03-21`)."
+    },
+    "source": {
+     "type": "string",
+     "description": "Where it came from: the published scene's or the photos' page."
+    },
+    "licence": {
+     "type": "string",
+     "description": "The licence of the capture and of its photos (an SPDX id: `CC-BY-4.0`, `CC-BY-SA-4.0`, `CC0-1.0` …)."
+    },
+    "credit": {
+     "type": "string",
+     "description": "The credit its licence asks for."
+    },
+    "terms": {
+     "type": "string",
+     "description": "The page of terms that was read."
+    },
+    "devices": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "The cameras that took its photos."
+    }
+   },
+   "required": [
+    "id",
+    "src"
+   ],
+   "additionalProperties": false,
+   "description": "A captured place drawn in a georeferenced document (the Matrix) as Gaussian splats: `<capture>` in code (docs/worlds-and-runs.md § the Matrix's captured places). It is captured data, never live: the viewer shows its date and source beside it. Geo-core `splats.ts` reads it (`captureSourceOf`, `capturePlacement`, `fileCapture`)."
   },
   "PlacedMove": {
    "type": "object",

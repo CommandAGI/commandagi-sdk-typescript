@@ -286,6 +286,34 @@ export type BoxFeature = {
   declaredBy?: CodeFeature;
 };
 
+/**
+ * Where a captured place's frame stands on the Earth: its origin (WGS84, the height above the ellipsoid) and the heading of its +y axis.
+ */
+export type CaptureGeoPose = {
+  /**
+   * @unit deg
+   * @minimum -90
+   * @maximum 90
+   */
+  latDeg: number;
+  /**
+   * @unit deg
+   * @minimum -180
+   * @maximum 180
+   */
+  lonDeg: number;
+  /**
+   * Above the WGS84 ellipsoid.
+   * @unit m
+   */
+  heightM: number;
+  /**
+   * The heading of the frame's +y axis, clockwise from true north (0: its axes are east, north, up).
+   * @unit deg
+   */
+  headingDeg?: number;
+};
+
 export type ChamferFeature = {
   type: "chamfer";
   /**
@@ -3220,6 +3248,37 @@ export type PermittedFinding = {
   diameter?: number;
   /** Why the finding is right here. */
   reason: string;
+};
+
+/**
+ * A captured place drawn in a georeferenced document (the Matrix) as Gaussian splats: `<capture>` in code (docs/worlds-and-runs.md § the Matrix's captured places). It is captured data, never live: the viewer shows its date and source beside it. Geo-core `splats.ts` reads it (`captureSourceOf`, `capturePlacement`, `fileCapture`).
+ */
+export type PlacedCapture = {
+  id: string;
+  /**
+   * A ref to the capture: the `capture.json` of a capture folder (tiled `.spz`, georeferenced by its pipeline), or one splat file, a standard 3DGS `.ply` or a `.spz`, in metres with z up. A path from this file's folder, or an address.
+   */
+  src: string;
+  /**
+   * Where its frame stands. One file needs it; a capture folder stands at its own origin, and `at` moves it.
+   */
+  at?: CaptureGeoPose;
+  /**
+   * For one file (a folder's `capture.json` says these itself): the day its photos were taken (ISO, `2017-03-21`).
+   */
+  captured?: string;
+  /** Where it came from: the published scene's or the photos' page. */
+  source?: string;
+  /**
+   * The licence of the capture and of its photos (an SPDX id: `CC-BY-4.0`, `CC-BY-SA-4.0`, `CC0-1.0` …).
+   */
+  licence?: string;
+  /** The credit its licence asks for. */
+  credit?: string;
+  /** The page of terms that was read. */
+  terms?: string;
+  /** The cameras that took its photos. */
+  devices?: string[];
 };
 
 /** One body of a placed 3D document moved in its file's frame (`<externalPart moves>`). */

@@ -20,6 +20,7 @@ import type {
   Note,
   PermittedFinding,
   PartEngineering,
+  PlacedCapture,
   PlacedUnit,
   Port,
   RadialDimension,
@@ -80,6 +81,8 @@ export declare namespace JSX {
     port: Port;
     /** A device definition placed as a unit (`placements`): never real, its channels run on their simulators. */
     unit: PlacedUnit;
+    /** A captured place drawn as Gaussian splats (`captures`): captured data, never live. */
+    capture: PlacedCapture;
     /** An annotation: the tag is its type, each attribute the field of the same name. */
     linearDimension: Omit<LinearDimension, "type">;
     radialDimension: Omit<RadialDimension, "type">;

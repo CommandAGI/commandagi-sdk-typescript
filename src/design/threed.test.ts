@@ -285,6 +285,27 @@ test("<unit> places a device definition in the design: the document's placements
   assert.throws(() => doc(jsx("slot", { name: "placements", value: [] })), /placements is not a slot/);
 });
 
+test("<capture> places a captured place by its geo pose: the document's captures, checked against their schema", () => {
+  const doc = (...children: unknown[]) => declarationOf({ default: () => jsx("part", { name: "Matrix", children }) }).graph;
+  const ply = {
+    id: "bridgeway",
+    src: "./bridgeway.ply",
+    at: { latDeg: 37.8564, lonDeg: -122.4796, heightM: 4.109, headingDeg: 12 },
+    captured: "2017-03-21",
+    source: "https://kartaview.org/details/57649",
+    licence: "CC-BY-SA-4.0",
+    credit: "Street photos © KartaView contributors, CC BY-SA 4.0",
+    terms: "https://kartaview.org/terms",
+    devices: ["Apple iPhone 7 Plus"],
+  };
+  const folder = { id: "bridgeway-2017", src: "cloud://home/user-commandagi/assets/matrix/captures/sausalito-bridgeway-2017/capture.json" };
+  assert.deepEqual(doc(jsx("capture", ply), jsx("capture", folder)).nodes.captures!.inputs.value, [ply, folder]);
+  assert.throws(() => doc(jsx("capture", { ...ply, at: { latDeg: 137, lonDeg: 0, heightM: 0 } })), /latDeg/);
+  assert.throws(() => doc(jsx("capture", { id: "x" })), /src/);
+  assert.throws(() => doc(jsx("capture", folder), jsx("capture", folder)), /two <capture> elements are called bridgeway-2017/);
+  assert.throws(() => doc(jsx("slot", { name: "captures", value: [] })), /captures is not a slot/);
+});
+
 // sdk/python tests/test_threed.py reads the same elements to the same inputs.
 test("a curve in space is a sweep's path and, under its own id, the plane its profile is drawn on", () => {
   const g = declarationOf({

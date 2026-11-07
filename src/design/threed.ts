@@ -64,6 +64,10 @@
  *   <product id name partNumber compliance shipping>
  *                                             the product as it is sold (`products`): its certifications, tariff
  *                                             heading, packed size and mass
+ *   <capture id src at captured source licence credit terms devices>
+ *                                             a captured place drawn as Gaussian splats (`captures`): a capture
+ *                                             folder's capture.json, or one .ply / .spz placed by `at` (lat, lon,
+ *                                             height, heading); captured data, never live
  *   <joint id kind a b anchor axis limits …>  a joint between two bodies (`dynamics.joints`): fixed, revolute,
  *                                             prismatic, cylindrical, planar, screw, spherical or universal, its
  *                                             axis, its limits and the geometry it binds (`refA`, `refB`)
@@ -132,7 +136,7 @@ import { toleranceProblem, type DimensionTolerance } from "./tolerances.js";
 export const THREED_FEATURES: readonly string[] = Object.keys(THREED_SCHEMA.roots);
 const FEATURES = new Set(THREED_FEATURES);
 /** Tags with a meaning of their own: never a `<feature type>`. */
-const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "joint", "contact", "mate", "sheet", "check", "accept", "permitted", "fastener", "tactile", "port", "item", "assemble", "library", "product", "unit", "point", "constraint", "projection", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input", "linearDimension", "radialDimension", "sizeDimension", "angularDimension", "note", "datumFeature", "datumTarget", "featureControlFrame", "surfaceFinish"]);
+const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "joint", "contact", "mate", "sheet", "check", "accept", "permitted", "fastener", "tactile", "port", "item", "assemble", "library", "product", "unit", "capture", "point", "constraint", "projection", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input", "linearDimension", "radialDimension", "sizeDimension", "angularDimension", "note", "datumFeature", "datumTarget", "featureControlFrame", "surfaceFinish"]);
 /** A sketch's segment kinds, by tag. */
 export const SKETCH_SEGMENTS: readonly string[] = ["line", "circle", "arc", "spline", "ellipse", "ellipseArc"];
 const SEGMENTS = new Set(SKETCH_SEGMENTS);
@@ -146,7 +150,7 @@ export const BUILTIN_PLANES = {
 const VIEW_ATTRS = new Set(["semanticVisibility"]);
 const PARAM_FIELDS = ["value", "unit", "comment", "min", "max", "step", "tolerance"];
 /** Document fields a <slot> may not hold: they have elements of their own, or are the graph itself. */
-const NOT_SLOTS = new Set(["id", "name", "units", "planes", "features", "parameters", "presentation", "isAssembly", "bodyMeta", "semanticVisibility", "drawings", "checks", "accepted", "permitted", "fasteners", "tactile", "ports", "items", "assemblySteps", "library", "products", "placements", "annotations"]);
+const NOT_SLOTS = new Set(["id", "name", "units", "planes", "features", "parameters", "presentation", "isAssembly", "bodyMeta", "semanticVisibility", "drawings", "checks", "accepted", "permitted", "fasteners", "tactile", "ports", "items", "assemblySteps", "library", "products", "placements", "captures", "annotations"]);
 /** The annotations of a 3D document, by tag: each tag is its annotation's `type` (`3d-core/annotations.ts`). */
 export const THREED_ANNOTATIONS: readonly string[] = ["linearDimension", "radialDimension", "sizeDimension", "angularDimension", "note", "datumFeature", "datumTarget", "featureControlFrame", "surfaceFinish"];
 /**
@@ -171,6 +175,7 @@ export const THREED_LISTS: Readonly<Record<string, { node: string; port: string;
   library: { node: "library", port: "value", def: "LibraryData" },
   product: { node: "products", port: "value", def: "ProductFacts" },
   unit: { node: "placements", port: "value", def: "PlacedUnit" },
+  capture: { node: "captures", port: "value", def: "PlacedCapture" },
   ...Object.fromEntries(THREED_ANNOTATIONS.map((tag) => [tag, { node: "annotations", port: "value", def: tag[0]!.toUpperCase() + tag.slice(1), kind: "annotation" }])),
 };
 /** The tags of the elements that are a document field's list (`annotations`: every annotation's), as `<tag>`. */
