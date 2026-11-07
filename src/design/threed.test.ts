@@ -306,6 +306,19 @@ test("<capture> places a captured place by its geo pose: the document's captures
   assert.throws(() => doc(jsx("slot", { name: "captures", value: [] })), /captures is not a slot/);
 });
 
+// sdk/python tests/test_threed.py and sdk/rust tests/threed.rs read the same element to the same inputs.
+test("<view> keeps a camera under a name, and what it rides: the document's views, checked against their schema", () => {
+  const doc = (...children: unknown[]) => declarationOf({ default: () => jsx("part", { name: "Matrix", children }) }).graph;
+  const camera = { target: [0, 0, 0], radius: 3e6, theta: 0.5, phi: 1 };
+  const ferry = { id: "ferry", name: "Ride the ferry", camera, ride: { target: "vessel-367123450", view: "chase" } };
+  const wide = { id: "wide", name: "Wide", camera };
+  assert.deepEqual(doc(jsx("view", ferry), jsx("view", wide)).nodes.views!.inputs.value, [ferry, wide]);
+  assert.throws(() => doc(jsx("view", { ...ferry, ride: { target: "a", view: "sideways" } })), /view/);
+  assert.throws(() => doc(jsx("view", { ...ferry, ride: { view: "orbit" } })), /target/);
+  assert.throws(() => doc(jsx("view", wide), jsx("view", wide)), /two <view> elements are called wide/);
+  assert.throws(() => doc(jsx("slot", { name: "views", value: [] })), /views is not a slot \(its items are written as their own elements: <view>\)/);
+});
+
 // sdk/python tests/test_threed.py reads the same elements to the same inputs.
 test("a curve in space is a sweep's path and, under its own id, the plane its profile is drawn on", () => {
   const g = declarationOf({

@@ -6027,6 +6027,34 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "A HOLE OF A BOUGHT PART DRAWN AS ITS ENVELOPE: where the real part (a valve's flange, a lug's ring, a pump's foot) has a hole that a screw passes through or screws into. The fastener checks read it as they read a modelled round hole."
   },
+  "NamedView": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string",
+     "description": "The view's key in code.",
+     "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "name": {
+     "type": "string",
+     "description": "The view's name in the Views menu."
+    },
+    "camera": {
+     "$ref": "#/$defs/ViewCamera"
+    },
+    "ride": {
+     "$ref": "#/$defs/ViewRide",
+     "description": "What the camera rides when the view is applied; absent: it rides nothing."
+    }
+   },
+   "required": [
+    "id",
+    "name",
+    "camera"
+   ],
+   "additionalProperties": false,
+   "description": "A camera kept under a name (`ThreeDDocument.views`): `<view>` in code."
+  },
   "Note": {
    "type": "object",
    "properties": {
@@ -7595,6 +7623,15 @@ export const THREED_SCHEMA: SchemaDocument = {
     "name"
    ],
    "additionalProperties": false
+  },
+  "RideView": {
+   "type": "string",
+   "enum": [
+    "chase",
+    "cockpit",
+    "orbit"
+   ],
+   "description": "How a ridden camera stands to what it rides (docs/worlds-and-runs.md § the Matrix's cameras)."
   },
   "RodEnd": {
    "type": "object",
@@ -10812,6 +10849,67 @@ export const THREED_SCHEMA: SchemaDocument = {
    "minItems": 3,
    "maxItems": 3,
    "description": "A point or vector in 3D."
+  },
+  "ViewCamera": {
+   "type": "object",
+   "properties": {
+    "target": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 3,
+     "maxItems": 3,
+     "description": "The point the camera looks at.",
+     "x-unit": "mm"
+    },
+    "radius": {
+     "type": "number",
+     "description": "The camera's distance from that point.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "theta": {
+     "type": "number",
+     "description": "The angle about the vertical axis.",
+     "x-unit": "rad"
+    },
+    "phi": {
+     "type": "number",
+     "description": "The angle down from the vertical axis.",
+     "x-unit": "rad",
+     "minimum": 0,
+     "maximum": 3.141592653589793
+    }
+   },
+   "required": [
+    "target",
+    "radius",
+    "theta",
+    "phi"
+   ],
+   "additionalProperties": false,
+   "description": "A camera that orbits a point: where it looks, how far from it, and the two angles of the orbit."
+  },
+  "ViewRide": {
+   "type": "object",
+   "properties": {
+    "target": {
+     "type": "string",
+     "description": "What the camera rides: a live or recorded track's id as the viewer's `data-tracks` lists it, a run's aircraft `<aircraft id>@<run id>`, or a body or unit of the document by its feature id or name.",
+     "pattern": "\\S"
+    },
+    "view": {
+     "$ref": "#/$defs/RideView",
+     "description": "chase: behind and above it; cockpit: at it, looking where it points; orbit: circling it at the chase distance."
+    }
+   },
+   "required": [
+    "target",
+    "view"
+   ],
+   "additionalProperties": false,
+   "description": "What a view's camera rides: applying the view starts the ride; the viewer says so when the thing is not drawn then."
   },
   "VolumeFeature": {
    "type": "object",

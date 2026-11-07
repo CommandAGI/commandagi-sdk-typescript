@@ -2950,6 +2950,17 @@ export type MountingHole = {
   depth?: number;
 };
 
+/** A camera kept under a name (`ThreeDDocument.views`): `<view>` in code. */
+export type NamedView = {
+  /** The view's key in code. */
+  id: string;
+  /** The view's name in the Views menu. */
+  name: string;
+  camera: ViewCamera;
+  /** What the camera rides when the view is applied; absent: it rides nothing. */
+  ride?: ViewRide;
+};
+
 /** A free note with an optional leader line from an anchor to the text box. */
 export type Note = {
   type: "note";
@@ -3766,6 +3777,9 @@ export type RibFeature = {
    */
   declaredBy?: CodeFeature;
 };
+
+/** How a ridden camera stands to what it rides (docs/worlds-and-runs.md § the Matrix's cameras). */
+export type RideView = "chase" | "cockpit" | "orbit";
 
 /** Where a rod's end is held. */
 export type RodEnd = {
@@ -5196,6 +5210,49 @@ export type Vec3 = [number, number, number];
  * @maxItems 3
  */
 export type Vec32 = [number, number, number];
+
+/** A camera that orbits a point: where it looks, how far from it, and the two angles of the orbit. */
+export type ViewCamera = {
+  /**
+   * The point the camera looks at.
+   * @unit mm
+   * @minItems 3
+   * @maxItems 3
+   */
+  target: [number, number, number];
+  /**
+   * The camera's distance from that point.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  radius: number;
+  /**
+   * The angle about the vertical axis.
+   * @unit rad
+   */
+  theta: number;
+  /**
+   * The angle down from the vertical axis.
+   * @unit rad
+   * @minimum 0
+   * @maximum 3.141592653589793
+   */
+  phi: number;
+};
+
+/**
+ * What a view's camera rides: applying the view starts the ride; the viewer says so when the thing is not drawn then.
+ */
+export type ViewRide = {
+  /**
+   * What the camera rides: a live or recorded track's id as the viewer's `data-tracks` lists it, a run's aircraft `<aircraft id>@<run id>`, or a body or unit of the document by its feature id or name.
+   */
+  target: string;
+  /**
+   * chase: behind and above it; cockpit: at it, looking where it points; orbit: circling it at the chase distance.
+   */
+  view: RideView;
+};
 
 /**
  * A **scalar/label voxel volume** — CT/MRI/microscopy/segmentation grids (NIfTI/NRRD/DICOM). The field is normalized 0..1 and downsampled to a display-friendly grid on import (large clinical volumes don't fit a JSON doc verbatim). Rendered as three orthogonal MPR slice planes or a marching-cubes isosurface.

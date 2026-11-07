@@ -17,6 +17,7 @@ import type {
   FeatureControlFrame,
   LinearDimension,
   Mate,
+  NamedView,
   Note,
   PermittedFinding,
   PartEngineering,
@@ -83,6 +84,8 @@ export declare namespace JSX {
     unit: PlacedUnit;
     /** A captured place drawn as Gaussian splats (`captures`): captured data, never live. */
     capture: PlacedCapture;
+    /** A camera kept under a name (`views`), and what it rides when the view is applied. */
+    view: NamedView;
     /** An annotation: the tag is its type, each attribute the field of the same name. */
     linearDimension: Omit<LinearDimension, "type">;
     radialDimension: Omit<RadialDimension, "type">;
