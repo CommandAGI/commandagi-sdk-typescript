@@ -67,7 +67,7 @@ test("a firmware release states its digest, SBOM, device and revisions; a rollou
 });
 
 test("a world's unit says its serial and its hardware revision", () => {
-  const w = declarationOf({ default: el("world", { name: "fleet", kind: "physical" }, el("unit", { uid: "cam-1", name: "cam", device: "d.tsx", serial: "CAM-000123", revision: "B", position: [0, 0, 0], rotation: 0 })) }).document!;
+  const w = declarationOf({ default: el("world", { name: "fleet" }, el("unit", { uid: "cam-1", name: "cam", device: "d.tsx", serial: "CAM-000123", revision: "B", position: [0, 0, 0], rotation: 0 })) }).document!;
   assert.deepEqual((w.document as { units: unknown[] }).units[0], { uid: "cam-1", name: "cam", device: "d.tsx", serial: "CAM-000123", revision: "B", position: [0, 0, 0], rotation: 0 });
   assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(w.document as never)), w.document);
 });
