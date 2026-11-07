@@ -40,7 +40,7 @@ test("a world in JSX declares its world: units, space and a scene's bodies are e
     default: () =>
       el(
         "world",
-        { name: "Shop", kind: "physical" },
+        { name: "Shop" },
         el("group", { uid: "shelf", name: "machine shelf", size_mm: [2440, 760, 2600], position: [0, 3600, 0], rotation: 0 }),
         el("group", { uid: "shelf-1", name: "level 1", group: "shelf", size_mm: [2440, 760, 650], position: [0, 3600, 150], rotation: 0 }),
         el("unit", { uid: "cnc-01", name: "router", device: "../../devices/cnc/definition.tsx", group: "shelf-1", position: [-900, 3600, 150], rotation: 0 }),
@@ -53,25 +53,25 @@ test("a world in JSX declares its world: units, space and a scene's bodies are e
   assert.equal((shelved.units as Record<string, unknown>[])[0].group, "shelf-1");
   assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(shelved as never)), shelved, "a group both ways");
   assert.throws(
-    () => declarationOf({ default: el("world", { name: "W", kind: "physical" }, el("group", { uid: "g", name: "g", device: "d" })) }),
+    () => declarationOf({ default: el("world", { name: "W" }, el("group", { uid: "g", name: "g", device: "d" })) }),
     /<group uid="g">: device is not read/,
   );
-  assert.throws(() => declarationOf({ default: el("world", { name: "W", kind: "physical" }, el("group", { uid: "g" })) }), /<group uid="g"> needs name/);
+  assert.throws(() => declarationOf({ default: el("world", { name: "W" }, el("group", { uid: "g" })) }), /<group uid="g"> needs name/);
 
   // A world's model and the parts of it a run moves are attributes of <world>: the model a ref, the links its records.
   const links = [{ node: "ram", joint: { unit: "press-1", channel: "axes", name: "z", type: "prismatic", axis: "z", origin_mm: [0, 0, 0], home: 0 } }];
-  const posed = documentOf({ default: () => el("world", { name: "Press", kind: "physical", model: "press.3d.tsx", links }) }).document;
-  assert.deepEqual(posed, { name: "Press", kind: "physical", model: "press.3d.tsx", links, units: [] });
+  const posed = documentOf({ default: () => el("world", { name: "Press", model: "press.3d.tsx", links }) }).document;
+  assert.deepEqual(posed, { name: "Press", model: "press.3d.tsx", links, units: [] });
   assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(posed as never)), posed, "a model's links both ways");
   // A world's follow policies (docs/follow.md) are an attribute of <world>.
   const policies = [{ id: "sim-control", kind: "follow", robot: "arm", reality: "physical", leader: { unit: "arm", run: "twin" }, hz: 30 }];
-  const followed = documentOf({ default: () => el("world", { name: "Cell", kind: "physical", policies }) }).document;
-  assert.deepEqual(followed, { name: "Cell", kind: "physical", policies, units: [] });
+  const followed = documentOf({ default: () => el("world", { name: "Cell", policies }) }).document;
+  assert.deepEqual(followed, { name: "Cell", policies, units: [] });
   assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(followed as never)), followed, "a world's policies both ways");
 
-  const world_ = (...children: unknown[]) => () => declarationOf({ default: el("world", { name: "W", kind: "physical" }, ...children) });
-  assert.throws(() => declarationOf({ default: el("world", { name: "W" }) }), /<world> needs kind/);
-  assert.throws(() => declarationOf({ default: el("world", { name: "W", kind: "real" }) }), /physical" or "simulation", said explicitly/);
+  const world_ = (...children: unknown[]) => () => declarationOf({ default: el("world", { name: "W" }, ...children) });
+  assert.deepEqual(documentOf({ default: () => el("world", { name: "W" }) }).document, { name: "W", units: [] });
+  assert.throws(() => declarationOf({ default: el("world", { name: "W", kind: "real" }) }), /physical" or "simulation", not "real"/);
   assert.throws(world_(el("unit", { uid: "a", name: "a", device: "d.json", speed: 3 })), /<unit uid="a">: speed is not read/);
   assert.throws(world_(el("unit", { uid: "a", name: "a", device: "d" }), el("unit", { uid: "a", name: "b", device: "d" })), /two <unit> in <world> have uid "a"/);
   assert.throws(world_(el("body", { id: "b" })), /<body> stands in <scene>, not in <world>/);
@@ -110,7 +110,7 @@ test("bounds and interlocks are elements: a <bound> folds into its channel, an <
   assert.throws(() => declarationOf({ default: el("device", { name: "A" }, el("channel", { id: "c", bounds: [] })) }), /each bound as a <bound channel="c">/);
   assert.throws(() => declarationOf({ default: el("device", { name: "A", interlocks: [] }) }), /each interlock as an <interlock> element/);
   const world = documentOf({
-    default: el("world", { name: "Unit", kind: "physical" }, el("unit", { uid: "tray", name: "tray", device: "d" }), el("interlock", { name: "shuttle-needs-hatch-open", unit: "tray", channel: "shuttle", requires: [{ unit: "hatch", channel: "gate", field: "open", eq: true }], why: "the tray would strike the gate" })),
+    default: el("world", { name: "Unit" }, el("unit", { uid: "tray", name: "tray", device: "d" }), el("interlock", { name: "shuttle-needs-hatch-open", unit: "tray", channel: "shuttle", requires: [{ unit: "hatch", channel: "gate", field: "open", eq: true }], why: "the tray would strike the gate" })),
   }).document as Record<string, unknown>;
   assert.deepEqual(world.interlocks, [{ name: "shuttle-needs-hatch-open", unit: "tray", channel: "shuttle", requires: [{ unit: "hatch", channel: "gate", field: "open", eq: true }], why: "the tray would strike the gate" }]);
   assert.deepEqual(ONTOLOGY.world.fromTree(ONTOLOGY.world.toTree(world as never)), world, "a world's interlocks both ways");

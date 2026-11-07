@@ -5,7 +5,7 @@
  *
  *   // worlds/shop/world.tsx
  *   export default () => (
- *     <world name="Shop" kind="physical">
+ *     <world name="Shop">
  *       <unit uid="arm" name="arm" device="../../devices/so-101/definition.tsx" position={[0, 0, 0]} rotation={0} />
  *     </world>
  *   );
@@ -13,7 +13,7 @@
  * A record is an element and its fields are the element's attributes, verbatim; a list of records is the parent's
  * children (`units` → `<unit>`, `channels` → `<channel>`, a scene's `bodies` → `<body>`). The tags:
  *
- *   <world name kind description? from? model?    world.tsx             <space origin_mm size_mm>, <group uid …>,
+ *   <world name description? from? model?         world.tsx             <space origin_mm size_mm>, <group uid …>,
  *          links? policies?>                                                     <unit uid …>, <view …>, <scene …> (<body id …>),
  *                                                                                  <interlock name unit channel requires why …>
  *   <device name … firmware? revision?>           definition.tsx        <channel id dir medium format transport …>,
@@ -118,7 +118,8 @@ export interface FollowPolicy {
 
 export interface WorldDoc {
   name: string;
-  kind: "physical" | "simulation";
+  /** A simulation world's mark while those are converted to designs; a world with none names real things. */
+  kind?: "physical" | "simulation";
   units: Record<string, unknown>[];
   policies?: FollowPolicy[];
   /** Interlocks between its units, each an `<interlock>` element. */
@@ -132,7 +133,7 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
   noun: "a world",
   root: "world",
   tags: {
-    world: { parents: [], required: ["name", "kind"], attrs: WORLD_FIELDS },
+    world: { parents: [], required: ["name"], attrs: WORLD_FIELDS },
     space: { parents: ["world"], single: true, required: ["origin_mm", "size_mm"], attrs: ["origin_mm", "size_mm"] },
     group: { parents: ["world"], key: "uid", required: ["uid", "name"], attrs: GROUP_FIELDS },
     unit: { parents: ["world"], key: "uid", required: ["uid", "name", "device"], attrs: UNIT_FIELDS },
@@ -142,11 +143,11 @@ export const worldVocabulary: Vocabulary<WorldDoc> = {
     interlock: { parents: ["world"], key: "name", required: ["name", "unit", "channel", "requires", "why"], attrs: INTERLOCK_FIELDS },
   },
   fromTree(t) {
-    if (t.attrs.kind !== "physical" && t.attrs.kind !== "simulation") throw new Error(`<world> kind is "physical" or "simulation", said explicitly, not ${JSON.stringify(t.attrs.kind)}`);
+    if (t.attrs.kind !== undefined && t.attrs.kind !== "physical" && t.attrs.kind !== "simulation") throw new Error(`<world> kind is "physical" or "simulation", not ${JSON.stringify(t.attrs.kind)}`);
     const space = childrenOf(t, "space")[0], view = childrenOf(t, "view")[0], scene = childrenOf(t, "scene")[0];
     const bodies = scene ? childrenOf(scene, "body") : [], groups = childrenOf(t, "group"), interlocks = childrenOf(t, "interlock");
     return {
-      ...(own(t.attrs, WORLD_FIELDS) as { name: string; kind: "physical" | "simulation" }),
+      ...(own(t.attrs, WORLD_FIELDS) as { name: string; kind?: "physical" | "simulation" }),
       ...(space ? { space: { ...space.attrs } } : {}),
       ...(groups.length ? { groups: groups.map((g) => ({ ...g.attrs })) } : {}),
       units: childrenOf(t, "unit").map((u) => ({ ...u.attrs })),
