@@ -122,6 +122,7 @@ export * from "./documents.js";
 export * from "./ontology.js";
 export * from "./tasks.js";
 export * from "./mounts.js";
+export * from "./connectors.js";
 export * from "./scripts.js";
 export * from "./agents.js";
 export * from "./routing.js";
