@@ -5269,6 +5269,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "fdm-printing",
     "sla-printing",
     "sls-printing",
+    "mjf-printing",
     "welding",
     "grinding",
     "glass-working",

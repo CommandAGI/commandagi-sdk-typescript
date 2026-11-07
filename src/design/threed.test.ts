@@ -99,7 +99,7 @@ test("a feature element whose fields do not fit its type is refused with the op 
   const engineering = (process: string, more = {}) => ({ partNumber: "X", material: "6061-T6", process, ...more });
   assert.throws(read(jsx("body", { id: "b4", engineering: engineering("sheet-metal") }), jsx("body", { id: "b6", engineering: engineering("cnc-milling", { notes: "x" }) }), jsx("extrude", { id: "e1", profile, distance: -1, operation: "new" })), {
     message: [
-      '<body id="b4">: engineering/process: must be one of other, manual, cnc-milling, cnc-turning, laser-cutting, waterjet-cutting, sheet-metal-bending, extrusion, casting, injection-moulding, fdm-printing, sla-printing, sls-printing, welding, grinding, glass-working, saw-cutting, purchased, reference (got "sheet-metal")',
+      '<body id="b4">: engineering/process: must be one of other, manual, cnc-milling, cnc-turning, laser-cutting, waterjet-cutting, sheet-metal-bending, extrusion, casting, injection-moulding, fdm-printing, sla-printing, sls-printing, mjf-printing, welding, grinding, glass-working, saw-cutting, purchased, reference (got "sheet-metal")',
       '<body id="b6">: engineering/notes: is not one of its fields',
       '<extrude id="e1">: distance: must be greater than 0 (got -1)',
     ].join("\n"),
@@ -221,8 +221,10 @@ test("a body's engineering data, a joint, a mate and a sheet are typed elements 
   assert.throws(refused(jsx("joint", { id: "j1", kind: "fixed", a: "base" })), { message: '<joint id="j1">: anchor: is required' });
   assert.throws(refused(jsx("body", { id: "base", engineering: { process: "magic", suppliers: [{ sku: "x" }] } })), {
     message:
-      '<body id="base">: engineering/process: must be one of other, manual, cnc-milling, cnc-turning, laser-cutting, waterjet-cutting, sheet-metal-bending, extrusion, casting, injection-moulding, fdm-printing, sla-printing, sls-printing, welding, grinding, glass-working, saw-cutting, purchased, reference (got "magic"); engineering/suppliers/0/name: is required',
+      '<body id="base">: engineering/process: must be one of other, manual, cnc-milling, cnc-turning, laser-cutting, waterjet-cutting, sheet-metal-bending, extrusion, casting, injection-moulding, fdm-printing, sla-printing, sls-printing, mjf-printing, welding, grinding, glass-working, saw-cutting, purchased, reference (got "magic"); engineering/suppliers/0/name: is required',
   });
+  // HP Multi Jet Fusion is a process of its own, not SLS.
+  assert.doesNotThrow(refused(jsx("body", { id: "pa12", engineering: { process: "mjf-printing", material: "PA12" } })));
   assert.throws(refused(jsx("slot", { name: "dynamics", value: { joints: [] } })), { message: '<slot name="dynamics">: joints are written as <joint> elements' });
   assert.throws(refused(jsx("slot", { name: "drawings", value: [] })), /drawings is not a slot/);
   assert.throws(refused(jsx("joint", joint), jsx("joint", joint)), /two <joint> elements are called j1/);
