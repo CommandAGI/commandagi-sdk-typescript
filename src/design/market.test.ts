@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { declarationOf, jsx, MARKET } from "./index.js";
+import { declarationOf, jsx, MARKET, optionSymbol, parseOption } from "./index.js";
 
 const el = (tag: string, props: Record<string, unknown> = {}, ...children: unknown[]) => jsx(tag, { ...props, ...(children.length ? { children } : {}) });
 const declared = (root: unknown) => declarationOf({ default: () => root }).document!;
@@ -125,4 +125,28 @@ test("a bracket is an <order> with takeProfit and stopLoss; each exit's outcome 
   assert.deepEqual(declared(el("market", {}, el("cancel", cancel))).document, { records: [{ kind: "cancel", ...cancel }] });
   assert.throws(() => declared(el("market", {}, el("order", { ...order, stopLoss: 180 }))), /<order> stopLoss is decimal text \("185\.09"\), not a number/);
   assert.throws(() => declared(el("market", {}, el("order", { ...order, takeProfit: "1.9e2" }))), /<order> takeProfit is decimal text \("185\.09"\), not "1\.9e2"/);
+});
+
+test("an option contract is one sym in one spelling: optionSymbol writes it, parseOption reads it, any other spelling is refused by name", () => {
+  const call = "AAPL 2026-12-18 C 200";
+  assert.equal(optionSymbol({ underlying: "AAPL", expiry: "2026-12-18", right: "call", strike: 200 }), call);
+  assert.equal(optionSymbol({ underlying: "SPY", expiry: "2027-01-15", right: "P", strike: "450.50", multiplier: 10 }), "SPY 2027-01-15 P 450.5 x10");
+  assert.equal(optionSymbol({ underlying: "AAPL", expiry: "2026-12-18", right: "C", strike: "200", multiplier: "100" }), call, "100 is not written");
+  assert.deepEqual(parseOption(call), { underlying: "AAPL", expiry: "2026-12-18", right: "C", strike: "200", multiplier: "100" });
+  assert.equal(parseOption("BTC/USD"), null, "a symbol with no space is not a contract");
+  for (const [sym, words] of [
+    ["AAPL 2026-12-18 C 200.50", /strike is written 200\.5, not 200\.50/],
+    ["AAPL 2026-12-18 call 200", /right is C \(a call\) or P \(a put\), not "call"/],
+    ["AAPL 2026-02-30 C 200", /expiry is a date, YYYY-MM-DD, not "2026-02-30"/],
+    ["AAPL 2026-12-18 C 200 x100", /a multiplier of 100 is not written: AAPL 2026-12-18 C 200 is that contract/],
+    ["AAPL 2026-12-18 C 0", /strike is decimal text above 0/],
+    ["AAPL Dec-18 200C", /an option contract is <underlying> <expiry YYYY-MM-DD> <C\|P> <strike>/],
+  ] as const)
+    assert.throws(() => parseOption(sym), words);
+  // In a recording: a contract's quote and its order (with what it opens); a sym spelled otherwise is refused.
+  const t = "2026-10-01T13:30:00.000Z";
+  const order = { t, id: "o-a1b2c3d4e5f6", sym: call, side: "buy", qty: "2", type: "limit", limit: "3.1", effect: "open", tif: "day", venue: "tradier-sandbox", mode: "paper", by: "person:ada", grant: "g-paper" };
+  const doc = declared(el("market", {}, el("quote", { t, sym: call, last: "3.1" }), el("order", order)));
+  assert.deepEqual(doc.document, { records: [{ kind: "quote", t, sym: call, last: "3.1" }, { kind: "order", ...order }] });
+  assert.throws(() => declared(el("market", {}, el("quote", { t, sym: "AAPL 2026-12-18 C 200.0", last: "3.1" }))), /<quote> sym: an option's strike is written 200, not 200\.0/);
 });

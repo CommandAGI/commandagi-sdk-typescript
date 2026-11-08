@@ -13,6 +13,10 @@ Removed
 
 Added
 
+- Option contracts in a market recording (`market.ts`): a contract is one `sym` in one spelling,
+  `AAPL 2026-12-18 C 200` (the underlying, the expiry, C or P, the strike, and `x<multiplier>` only when it is not
+  100). `optionSymbol` writes it, `parseOption` reads it (an `OptionContract`), and a `sym` with a space spelled any
+  other way is refused by name. An `<order>` and an `<amend>` may say `effect` (`open` or `close`).
 - Opportunities and experiments (`opportunities.ts`; CommandAGI's docs/market-manager.md): a `<name>.opportunity.tsx`
   declares one `<opportunity title kind stage status source deadline value currency eligibility folder owner counterparty
   channel handle about>` (a collaborator, a partnership or a listing) with its `<contact>`, `<action>`, `<evidence>`,
