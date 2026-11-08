@@ -43,6 +43,8 @@ test("a product that does not read is refused with why", () => {
   const v = { sku: "a", name: "b", priceCents: 100 };
   const d = { code: "SAVE5", amountCents: 500 };
   assert.throws(bad({ name: "x", kind: "service" }, v), /kind is physical or digital/);
+  assert.throws(bad({ ...phys, taxCode: "txcd_1" }, v), /taxCode is a Stripe product tax code like txcd_99999999/);
+  assert.equal(declarationOf({ default: el("product", { ...phys, taxCode: "txcd_99999999" }, el("variant", v)) }).document!.document.taxCode, "txcd_99999999");
   assert.throws(bad({ ...dig, shipping: SHIPPING }, { ...v, file: "f.zip" }), /is digital: it ships nothing/);
   assert.throws(bad(dig, v), /is digital: file names the file it sells/);
   assert.throws(bad(dig, { ...v, file: "f.zip", deposit: { percent: 10 } }), /is digital: it takes no deposit/);

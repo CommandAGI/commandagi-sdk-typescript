@@ -33,7 +33,7 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 export const PRODUCT_FILE = /\.product\.(?:[jt]sx|py|rs)$/i;
 export const PRODUCT_KINDS = ["physical", "digital"] as const;
 export const PRODUCT_STATUSES = ["draft", "active", "archived"] as const;
-export const PRODUCT_FIELDS = ["name", "kind", "slug", "subtitle", "description", "images", "status", "shipping", "fulfilment", "quantityTerms", "embodimentKind"] as const;
+export const PRODUCT_FIELDS = ["name", "kind", "slug", "subtitle", "description", "images", "status", "shipping", "fulfilment", "quantityTerms", "embodimentKind", "taxCode"] as const;
 export const VARIANT_FIELDS = ["sku", "name", "priceCents", "compareAtCents", "stock", "options", "weightGrams", "file", "deposit"] as const;
 export const DISCOUNT_FIELDS = ["code", "percent", "amountCents", "startsAt", "endsAt", "usageLimit"] as const;
 
@@ -69,6 +69,7 @@ export interface ProductDoc {
   fulfilment?: Record<string, unknown>;
   quantityTerms?: Record<string, unknown>;
   embodimentKind?: string;
+  taxCode?: string;
   variants: ProductVariant[];
   discounts: ProductDiscount[];
 }
@@ -224,6 +225,10 @@ export function productOf(t: DocTree): ProductDoc {
   if (a.embodimentKind !== undefined) {
     if (!text(a.embodimentKind, 80)) throw new Error(`${at} embodimentKind is a short text (at most 80), not ${said(a.embodimentKind)}`);
     out.embodimentKind = a.embodimentKind;
+  }
+  if (a.taxCode !== undefined) {
+    if (typeof a.taxCode !== "string" || !/^txcd_[0-9]{8}$/.test(a.taxCode)) throw new Error(`${at} taxCode is a Stripe product tax code like txcd_99999999, not ${said(a.taxCode)}`);
+    out.taxCode = a.taxCode;
   }
   const variants = t.children.filter((c) => c.tag === "variant");
   // A file not finished yet may hold none; the checkout refuses a product that sells nothing.
