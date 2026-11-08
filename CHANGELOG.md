@@ -25,6 +25,11 @@ Added
   deposit>`, the body of the platform's goods door. `kind` is `physical` (a shipping policy, an optional weight and a
   pre-order `deposit`: `{ percent }` or `{ cents }`) or `digital` (each variant's `file`). `GOODS`, `goodVocabulary`,
   `goodOf`, `variantOf`, `depositOf`, the types `GoodDoc`, `GoodVariant`, `GoodDeposit`. Each refusal is by name.
+- Optimizations (`optimize.ts`; CommandAGI's docs/optimization.md): a `<name>.optimize.tsx` declares one `<optimize name
+  medium brief message audience generator candidates rounds budget seed>` with a `<glance>` (text) or `<clip>` (video),
+  `<objective name combine>` for `quality`, `distribution` and `impact` (never one score), each with its
+  `<evaluator id kind model gate rubric approachM data metric>`, a `<select rule gate order tiebreak>` and an optional
+  `<publish to>`. `OPTIMIZE`, `optimizeVocabulary`, `optimizeOf`, `OptimizeDoc`. Each refusal is by name.
 - A fact a company or a brand does not know is `{ unknown: "<why>" }` in its attribute, and one it knows only roughly
   `{ about: <value> }` (`facts.ts`: `isUnknown`, `isAbout`, `factMarker`). Any attribute takes either, a required one
   too; absent stays "the file says nothing". A malformed marker is refused by name.

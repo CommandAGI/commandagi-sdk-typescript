@@ -124,6 +124,7 @@ export * from "./tasks.js";
 export * from "./mounts.js";
 export * from "./goods.js";
 export * from "./opportunities.js";
+export * from "./optimize.js";
 export * from "./connectors.js";
 export * from "./scripts.js";
 export * from "./agents.js";
