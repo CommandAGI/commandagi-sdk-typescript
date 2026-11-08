@@ -13,6 +13,13 @@ Removed
 
 Added
 
+- Opportunities and experiments (`opportunities.ts`; CommandAGI's docs/market-manager.md): a `<name>.opportunity.tsx`
+  declares one `<opportunity title kind stage status source deadline value currency eligibility folder owner counterparty
+  channel handle about>` (a collaborator, a partnership or a listing) with its `<contact>`, `<action>`, `<evidence>`,
+  `<move>` and `<draft>`; a `<name>.experiment.tsx` one `<experiment>` with its `<arm>`, `<objective>` (quality,
+  distribution, impact) and `<decision>`. `OPPORTUNITIES`, `OPPORTUNITY_STAGES`, `stagesOf`, `closesKind`,
+  `opportunityOf`, `experimentOf`. Each refusal is by name: a listing is never `submitted` or `live` without an approved
+  draft, and an experiment never measures distribution alone.
 - Goods (`goods.ts`; CommandAGI's docs/formats.md § a good in code): a `<name>.good.tsx` declares one `<good name kind
   slug subtitle description images status shipping>` with `<variant sku name priceCents inventoryQty weightGrams file
   deposit>`, the body of the platform's goods door. `kind` is `physical` (a shipping policy, an optional weight and a
