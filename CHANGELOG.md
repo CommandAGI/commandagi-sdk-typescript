@@ -13,6 +13,11 @@ Removed
 
 Added
 
+- Goods (`goods.ts`; CommandAGI's docs/formats.md § a good in code): a `<name>.good.tsx` declares one `<good name kind
+  slug subtitle description images status shipping>` with `<variant sku name priceCents inventoryQty weightGrams file
+  deposit>`, the body of the platform's goods door. `kind` is `physical` (a shipping policy, an optional weight and a
+  pre-order `deposit`: `{ percent }` or `{ cents }`) or `digital` (each variant's `file`). `GOODS`, `goodVocabulary`,
+  `goodOf`, `variantOf`, `depositOf`, the types `GoodDoc`, `GoodVariant`, `GoodDeposit`. Each refusal is by name.
 - A fact a company or a brand does not know is `{ unknown: "<why>" }` in its attribute, and one it knows only roughly
   `{ about: <value> }` (`facts.ts`: `isUnknown`, `isAbout`, `factMarker`). Any attribute takes either, a required one
   too; absent stays "the file says nothing". A malformed marker is refused by name.
