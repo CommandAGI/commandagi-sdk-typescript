@@ -24,11 +24,17 @@ Added
   distribution, impact) and `<decision>`. `OPPORTUNITIES`, `OPPORTUNITY_STAGES`, `stagesOf`, `closesKind`,
   `opportunityOf`, `experimentOf`. Each refusal is by name: a listing is never `submitted` or `live` without an approved
   draft, and an experiment never measures distribution alone.
-- Goods (`goods.ts`; CommandAGI's docs/formats.md § a good in code): a `<name>.good.tsx` declares one `<good name kind
-  slug subtitle description images status shipping>` with `<variant sku name priceCents inventoryQty weightGrams file
-  deposit>`, the body of the platform's goods door. `kind` is `physical` (a shipping policy, an optional weight and a
-  pre-order `deposit`: `{ percent }` or `{ cents }`) or `digital` (each variant's `file`). `GOODS`, `goodVocabulary`,
-  `goodOf`, `variantOf`, `depositOf`, the types `GoodDoc`, `GoodVariant`, `GoodDeposit`. Each refusal is by name.
+- Products (`products.ts`; CommandAGI's docs/formats.md § a product in code): a `<name>.product.tsx` declares one
+  `<product name kind slug subtitle description images status shipping fulfilment quantityTerms embodimentKind>` with
+  `<variant sku name priceCents compareAtCents stock options weightGrams file deposit>` and `<discount code percent
+  amountCents startsAt endsAt usageLimit>`. `kind` is `physical` (a shipping policy, stock, an optional weight and a
+  pre-order `deposit`: `{ percent }` or `{ cents }`) or `digital` (each variant's `file`). `PRODUCTS`,
+  `productVocabulary`, `productOf`, `variantOf`, `discountOf`, `depositOf`, `PRODUCT_FILE`, `PRODUCT_KINDS`,
+  `PRODUCT_STATUSES`, `PRODUCT_FIELDS`, `VARIANT_FIELDS`, `DISCOUNT_FIELDS`, the types `ProductDoc`, `ProductVariant`,
+  `ProductDiscount`, `ProductDeposit`. Each refusal is by name.
+- Carts (`carts.ts`; CommandAGI's docs/formats.md § a cart in code): `Carts/<seller>.cart.tsx` declares one `<cart
+  seller>` with `<item sku qty>` (a product variant) and `<offer listing qty>` (an offer that is not a product). A cart
+  names no price. `CARTS`, `cartVocabulary`, `cartOf`, `CART_FILE`, the types `CartDoc`, `CartItem`, `CartOffer`.
 - Optimizations (`optimize.ts`; CommandAGI's docs/optimization.md): a `<name>.optimize.tsx` declares one `<optimize name
   medium brief message audience generator candidates rounds budget seed>` with a `<glance>` (text) or `<clip>` (video),
   `<objective name combine>` for `quality`, `distribution` and `impact` (never one score), each with its
