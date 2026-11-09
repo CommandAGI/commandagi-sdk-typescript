@@ -1595,7 +1595,7 @@ export const SDK_SCHEMA = {
           {
             name: "routeNets",
             tool: "pcb_route_nets",
-            doc: "Route what is open of the nets named ({ nets }; all when none) with their net classes' rules, from the copper they have, on the copper layers given ({ layers }; default the two outer layers, through vias), and write the traces into the board's code. { ripUp: true } removes the nets' copper first. The result names each connection left unrouted; `complete` is false while one is.",
+            doc: "Route what is open of the nets named ({ nets }; all when none) with their net classes' rules, from the copper they have, on the copper layers given ({ layers }; default every copper layer that holds no plane, through vias), and write the traces into the board's code. { ripUp: true } removes the nets' copper first. The result names each connection left unrouted; `complete` is false while one is.",
             params: [
               {
                 name: "fileId",
@@ -3390,7 +3390,7 @@ export class Eda {
   placeGroup(fileId: string, opts: Args = {}): Promise<unknown> {
     return this.t.call("pcb_place_group", { ...prune({ fileId: fileId }), ...opts });
   }
-  /** Route what is open of the nets named ({ nets }; all when none) with their net classes' rules, from the copper they have, on the copper layers given ({ layers }; default the two outer layers, through vias), and write the traces into the board's code. { ripUp: true } removes the nets' copper first. The result names each connection left unrouted; `complete` is false while one is. */
+  /** Route what is open of the nets named ({ nets }; all when none) with their net classes' rules, from the copper they have, on the copper layers given ({ layers }; default every copper layer that holds no plane, through vias), and write the traces into the board's code. { ripUp: true } removes the nets' copper first. The result names each connection left unrouted; `complete` is false while one is. */
   routeNets(fileId: string, opts: Args = {}): Promise<unknown> {
     return this.t.call("pcb_route_nets", { ...prune({ fileId: fileId }), ...opts });
   }
@@ -4389,7 +4389,7 @@ export const CLI_COMMANDS: readonly Command[] = [
     tool: "pcb_route_nets",
     params: [{ name: "fileId" }],
     spread: true,
-    doc: "Route what is open of the nets named ({ nets }; all when none) with their net classes' rules, from the copper they have, on the copper layers given ({ layers }; default the two outer layers, through vias), and write the traces into the board's code. { ripUp: true } removes the nets' copper first. The result names each connection left unrouted; `complete` is false while one is.",
+    doc: "Route what is open of the nets named ({ nets }; all when none) with their net classes' rules, from the copper they have, on the copper layers given ({ layers }; default every copper layer that holds no plane, through vias), and write the traces into the board's code. { ripUp: true } removes the nets' copper first. The result names each connection left unrouted; `complete` is false while one is.",
   },
   {
     group: "eda",
