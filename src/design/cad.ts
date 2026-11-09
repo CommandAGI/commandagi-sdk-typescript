@@ -165,11 +165,21 @@ interface SketchPoint {
   x: number;
   y: number;
 }
-type SketchSegment =
+type SketchSegment = (
   | { id: string; type: "line"; a: string; b: string }
   | { id: string; type: "circle"; center: string; radius: number }
-  | { id: string; type: "arc"; center: string; start: string; end: string; radius: number };
+  | { id: string; type: "arc"; center: string; start: string; end: string; radius: number }
+) & { of?: string };
 type SegmentInit = SketchSegment extends infer S ? (S extends { id: string } ? Omit<S, "id"> : never) : never;
+/**
+ * The segment each side names in a region's reference, one per side, when it is not the side's own id: a side split
+ * in the editor names the side it was cut from, and every side of that call names the id it had, since the builder
+ * numbers its segments in the order it draws them. So a profile's `regions` reference keeps naming its region after
+ * the file is read again.
+ */
+type Sides = { of?: (string | null)[] };
+/** A profile's regions: an index into the sketch's closed regions, or a region's reference (`"s5+s6+s7+s8"`). */
+type Regions = { regions?: (number | string)[] };
 
 /** What a sketch declares: points and segments in the plane's own millimetres. No constraints are solved. */
 export class SketchBuilder {
@@ -181,9 +191,9 @@ export class SketchBuilder {
     this.points[id] = { id, x, y };
     return id;
   }
-  private seg(s: SegmentInit): void {
+  private seg(s: SegmentInit, of?: string | null): void {
     const id = `s${++this.n}`;
-    this.segments[id] = { ...s, id } as SketchSegment;
+    this.segments[id] = { ...s, id, ...(of ? { of } : {}) } as SketchSegment;
   }
   /** A point by itself: where a line the editor draws starts. */
   point(at: Vec2): this {
@@ -191,17 +201,19 @@ export class SketchBuilder {
     return this;
   }
   /** An open polyline through these points. */
-  line(points: Vec2[]): this {
+  line(points: Vec2[], o: Sides = {}): this {
     if (points.length < 2) throw new Error("a line needs at least two points");
+    sidesOf("line", o, points.length - 1);
     const ids = points.map(([x, y]) => this.at(x, y));
-    ids.slice(1).forEach((b, i) => this.seg({ type: "line", a: ids[i]!, b }));
+    ids.slice(1).forEach((b, i) => this.seg({ type: "line", a: ids[i]!, b }, o.of?.[i]));
     return this;
   }
   /** A closed polyline through these points. */
-  polygon(points: Vec2[]): this {
+  polygon(points: Vec2[], o: Sides = {}): this {
     if (points.length < 3) throw new Error("a polygon needs at least three points");
+    sidesOf("polygon", o, points.length);
     const ids = points.map(([x, y]) => this.at(x, y));
-    ids.forEach((a, i) => this.seg({ type: "line", a, b: ids[(i + 1) % ids.length]! }));
+    ids.forEach((a, i) => this.seg({ type: "line", a, b: ids[(i + 1) % ids.length]! }, o.of?.[i]));
     return this;
   }
   /** A rectangle, centred on `center` (default the origin) or from `corner`. */
@@ -248,6 +260,10 @@ export class SketchBuilder {
   }
 }
 
+function sidesOf(what: string, o: Sides, sides: number): void {
+  if (o.of !== undefined && o.of.length !== sides) throw new Error(`${what}: of names ${o.of.length} sides, and it has ${sides}`);
+}
+
 /**
  * Declare a sketch on a datum plane, or on a plane `offset` mm along its normal (which declares a
  * `datumPlane` feature the sketch is wired to).
@@ -268,10 +284,10 @@ export function sketch(
   return new SketchRef(s, ref.id);
 }
 
-/** Extrude a sketch's closed regions `distance` along the plane's normal. */
+/** Extrude a sketch's closed regions (`regions`, or each outer loop) `distance` along the plane's normal. */
 export function extrude(
   profile: SketchRef,
-  o: { distance: number; symmetric?: boolean; reverse?: boolean; regions?: number[] } & SolidOpts,
+  o: { distance: number; symmetric?: boolean; reverse?: boolean } & Regions & SolidOpts,
 ): Body {
   return feature(
     "extrude()",
@@ -288,12 +304,12 @@ export function extrude(
   );
 }
 
-/** Revolve a sketch about a datum axis, `angle` degrees (default a full turn). */
-export function revolve(profile: SketchRef, o: { axis: AxisName; angle?: number } & SolidOpts): Body {
+/** Revolve a sketch's closed regions (`regions`, or each outer loop) about a datum axis, `angle` degrees (default a full turn). */
+export function revolve(profile: SketchRef, o: { axis: AxisName; angle?: number } & Regions & SolidOpts): Body {
   return feature(
     "revolve()",
     "revolve",
-    { profile, axis: axisRef(o.axis), angle: rad(o.angle ?? 360), operation: o.operation ?? "new" },
+    { profile, axis: axisRef(o.axis), angle: rad(o.angle ?? 360), ...(o.regions ? { regions: o.regions } : {}), operation: o.operation ?? "new" },
     { name: o.name, after: afterIds(o) },
   );
 }

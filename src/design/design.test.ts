@@ -32,6 +32,7 @@ import {
   partFields,
   partTypeFor,
   replicadModule,
+  revolve,
   schSymbolTypeFor,
   sketch,
   subtract,
@@ -87,6 +88,21 @@ test("a part: primitives, a cut with its target wired first, sketches, offsets a
   const ex = Object.values(g.nodes).find((n) => n.type === "extrude")!;
   assert.deepEqual(ex.inputs.profile, wireTo(sk.id));
   assert.equal(ex.inputs.distance, 8);
+});
+
+// The call form takes what the element form takes (docs/formats.md, `<sketch>`): a profile's regions by index or by
+// reference, and a side's source, so a split side's reference survives the builder's numbering.
+test("extrude and revolve take a profile's regions; a polygon's sides may name the segments they were cut from", () => {
+  const g = part("P", () => {
+    const s = sketch("XY", (b) => b.polygon([[0, 0], [10, 0], [10, 5], [10, 10], [0, 10]], { of: ["s6", "s7", "s7", "s8", "s9"] }));
+    return [extrude(s, { distance: 2, regions: ["s6+s7+s8+s9", 0] }), revolve(s, { axis: "Y", regions: [1] })];
+  }).ir;
+  const ex = Object.values(g.nodes).find((n) => n.type === "extrude")!;
+  assert.deepEqual(ex.inputs.regions, ["s6+s7+s8+s9", 0]);
+  assert.deepEqual(Object.values(g.nodes).find((n) => n.type === "revolve")!.inputs.regions, [1]);
+  const segments = (Object.values(g.nodes).find((n) => n.type === "sketch")!.inputs.sketch as { segments: Record<string, { of?: string }> }).segments;
+  assert.deepEqual(Object.values(segments).map((x) => x.of), ["s6", "s7", "s7", "s8", "s9"]);
+  assert.throws(() => part("Q", () => extrude(sketch("XY", (b) => b.polygon([[0, 0], [1, 0], [0, 1]], { of: ["a"] })), { distance: 1 })), /polygon: of names 1 sides, and it has 3/);
 });
 
 test("hole() is a cylinder cut entering at a point along -axis", () => {
