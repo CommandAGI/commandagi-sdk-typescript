@@ -117,6 +117,29 @@ test("an arm-design study in JSX: its varied links, offset and tip by id, the wo
   assert.throws(() => declarationOf({ default: el("study", { kind: "arm-design", part: "definition.tsx" }, el("step", { id: "a", joint: "j", from: 0, to: 1 })) }), /<step> belongs to a step-response study, not to a arm-design one/);
 });
 
+test("a strategy-search study in JSX: its interventions and contingencies by id, the decision rule, the recorded sweep", () => {
+  const file = el(
+    "study",
+    { kind: "strategy-search", part: "Trade war/Trade war.3d.tsx" },
+    el("intervention", { id: "tariff" }),
+    el("intervention", { id: "subsidy", title: "Subsidy" }),
+    el("contingency", { id: "calm", weight: 0.7 }),
+    el("contingency", { id: "shock", weight: 0.3 }),
+    el("rule", { kind: "minimax-regret", goal: "max", tie: "best-worst-case" }),
+    el("sweep", { ref: "sweeps/gdp.records.jsonl", quantity: "gdp.delta" }),
+  );
+  const doc = declarationOf({ default: () => file }).document!.document as Record<string, unknown>;
+  assert.deepEqual(doc, {
+    kind: "strategy-search",
+    part: "Trade war/Trade war.3d.tsx",
+    interventions: [{ id: "tariff" }, { id: "subsidy", title: "Subsidy" }],
+    contingencies: [{ id: "calm", weight: 0.7 }, { id: "shock", weight: 0.3 }],
+    rule: { kind: "minimax-regret", goal: "max", tie: "best-worst-case" },
+    sweep: { ref: "sweeps/gdp.records.jsonl", quantity: "gdp.delta" },
+  });
+  assert.deepEqual(STUDY.study.fromTree(STUDY.study.toTree(doc as never)), doc, "both ways");
+});
+
 test("a step-response study in JSX: its steps by id, the gains to try by joint, the window; a criterion names its step", () => {
   const file = el(
     "study",

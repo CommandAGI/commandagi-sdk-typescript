@@ -32,7 +32,8 @@
  *     loadCase?, step? }], revise?: [{ parameter, min, max }], steps?: [{ id, joint, from, to }], gains?: [{ joint, kp?,
  *     kv? }], tune?: [{ joint, kp?: [low, high], kv?: [low, high] }], response?: { duration, dt?, band? }, vary?: [{ id,
  *     field?, joint?, axis, values }], workspace?: { min, max, step, down? }, payload?: { mass, gravity }, obstacles?: [{ id, min,
- *     max, wall? }], objectives?: [{ quantity, goal }] }
+ *     max, wall? }], objectives?: [{ quantity, goal }], interventions?: [{ id, title? }], contingencies?: [{ id, weight?,
+ *     title? }], rule?: { kind, goal, tie }, sweep?: { ref, quantity } }
  */
 import { registerVocabulary, type DocTree, type TagRule, type Vocabulary } from "./documents.js";
 
@@ -178,7 +179,33 @@ registerStudyKind("arm-design", {
   objective: { rule: { parents: ["study"], key: "quantity", required: ["quantity", "goal"], attrs: ["quantity", "goal"] }, field: "objectives", list: true },
 });
 
-export type StudyDocument = { kind: string; part: string; [field: string]: unknown };
+/**
+ * A strategy-search study (`kind="strategy-search"`): the best intervention across contingencies, read from a recorded
+ * sweep of trials (one value of `<sweep quantity>` for each intervention in each contingency; the `trial` events of
+ * the records file `<sweep ref>` names, a ref from the study's folder). `part` is the geoeconomics trial design the
+ * sweep was run on. `<rule kind goal tie>` chooses the decision rule, nothing assumes it: `kind` `expected-value`
+ * (the mean of a quantity weighted by the contingencies' `weight`s) or `minimax-regret` (the lowest largest distance
+ * from the best value in a contingency; weights unused), `goal` `max` or `min`, and `tie` how scores equal within
+ * 1e-9 are settled: `declared-order`, `lowest-id` or `best-worst-case`. The run reports each intervention's value,
+ * regret and score per contingency.
+ *
+ *   <study kind="strategy-search" part="Trade war/Trade war.3d.tsx">
+ *     <intervention id="tariff" />
+ *     <intervention id="subsidy" />
+ *     <contingency id="calm" weight={0.7} />
+ *     <contingency id="shock" weight={0.3} />
+ *     <rule kind="minimax-regret" goal="max" tie="best-worst-case" />
+ *     <sweep ref="sweeps/gdp.records.jsonl" quantity="gdp.delta" />
+ *   </study>
+ */
+registerStudyKind("strategy-search", {
+  intervention: { rule: { parents: ["study"], key: "id", required: ["id"], attrs: ["id", "title"] }, field: "interventions", list: true },
+  contingency: { rule: { parents: ["study"], key: "id", required: ["id"], attrs: ["id", "weight", "title"] }, field: "contingencies", list: true },
+  rule: { rule: { parents: ["study"], single: true, required: ["kind", "goal", "tie"], attrs: ["kind", "goal", "tie"] }, field: "rule" },
+  sweep: { rule: { parents: ["study"], single: true, required: ["ref", "quantity"], attrs: ["ref", "quantity"] }, field: "sweep" },
+});
+
+export type StudyDocument ={ kind: string; part: string; [field: string]: unknown };
 
 const nothing = (v: unknown) => v === undefined || v === null;
 
