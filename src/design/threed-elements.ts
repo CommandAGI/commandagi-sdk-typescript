@@ -3638,8 +3638,10 @@ export type ProductItem = {
 /** A profile drawn from a sketch's solved closed regions. */
 export type ProfileRef = {
   sketch: string;
-  /** Indices into the sketch's detected closed regions; omit/empty = all. */
-  regions?: number[];
+  /**
+   * The sketch's closed regions to take: an index into them, or a region's reference (a string built from the ids of its segments, which keeps naming it after an unrelated edit); omit/empty = each outer loop.
+   */
+  regions?: (string | number)[];
 };
 
 /**
@@ -4270,6 +4272,10 @@ export type SketchSegment = {
   b: string;
   construction?: boolean;
   from?: string;
+  /**
+   * The segment this one is a piece of, when a split cut it from that segment: a region's reference keeps naming the source.
+   */
+  of?: string;
 } | {
   id: string;
   type: "circle";
@@ -4277,6 +4283,10 @@ export type SketchSegment = {
   radius: number;
   construction?: boolean;
   from?: string;
+  /**
+   * The segment this one is a piece of, when a split cut it from that segment: a region's reference keeps naming the source.
+   */
+  of?: string;
 } | {
   id: string;
   type: "arc";
@@ -4287,6 +4297,10 @@ export type SketchSegment = {
   radius: number;
   construction?: boolean;
   from?: string;
+  /**
+   * The segment this one is a piece of, when a split cut it from that segment: a region's reference keeps naming the source.
+   */
+  of?: string;
 } | {
   id: string;
   type: "spline";
@@ -4301,6 +4315,10 @@ export type SketchSegment = {
    */
   nurbs?: NurbsSpec;
   from?: string;
+  /**
+   * The segment this one is a piece of, when a split cut it from that segment: a region's reference keeps naming the source.
+   */
+  of?: string;
 } | {
   id: string;
   type: "ellipse";
@@ -4311,6 +4329,10 @@ export type SketchSegment = {
   minorRadius: number;
   construction?: boolean;
   from?: string;
+  /**
+   * The segment this one is a piece of, when a split cut it from that segment: a region's reference keeps naming the source.
+   */
+  of?: string;
 } | {
   id: string;
   type: "ellipseArc";
@@ -4323,6 +4345,10 @@ export type SketchSegment = {
   end: string;
   construction?: boolean;
   from?: string;
+  /**
+   * The segment this one is a piece of, when a split cut it from that segment: a region's reference keeps naming the source.
+   */
+  of?: string;
 };
 
 export type SketchSolveStatus = "ok" | "over" | "under" | "inconsistent";

@@ -7346,9 +7346,16 @@ export const THREED_SCHEMA: SchemaDocument = {
     "regions": {
      "type": "array",
      "items": {
-      "type": "number"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       }
+      ]
      },
-     "description": "Indices into the sketch's detected closed regions; omit/empty = all."
+     "description": "The sketch's closed regions to take: an index into them, or a region's reference (a string built from the ids of its segments, which keeps naming it after an unrelated edit); omit/empty = each outer loop."
     }
    },
    "required": [
@@ -8667,6 +8674,10 @@ export const THREED_SCHEMA: SchemaDocument = {
       },
       "from": {
        "type": "string"
+      },
+      "of": {
+       "type": "string",
+       "description": "The segment this one is a piece of, when a split cut it from that segment: a region's reference keeps naming the source."
       }
      },
      "required": [
@@ -8698,6 +8709,10 @@ export const THREED_SCHEMA: SchemaDocument = {
       },
       "from": {
        "type": "string"
+      },
+      "of": {
+       "type": "string",
+       "description": "The segment this one is a piece of, when a split cut it from that segment: a region's reference keeps naming the source."
       }
      },
      "required": [
@@ -8736,6 +8751,10 @@ export const THREED_SCHEMA: SchemaDocument = {
       },
       "from": {
        "type": "string"
+      },
+      "of": {
+       "type": "string",
+       "description": "The segment this one is a piece of, when a split cut it from that segment: a region's reference keeps naming the source."
       }
      },
      "required": [
@@ -8777,6 +8796,10 @@ export const THREED_SCHEMA: SchemaDocument = {
       },
       "from": {
        "type": "string"
+      },
+      "of": {
+       "type": "string",
+       "description": "The segment this one is a piece of, when a split cut it from that segment: a region's reference keeps naming the source."
       }
      },
      "required": [
@@ -8812,6 +8835,10 @@ export const THREED_SCHEMA: SchemaDocument = {
       },
       "from": {
        "type": "string"
+      },
+      "of": {
+       "type": "string",
+       "description": "The segment this one is a piece of, when a split cut it from that segment: a region's reference keeps naming the source."
       }
      },
      "required": [
@@ -8855,6 +8882,10 @@ export const THREED_SCHEMA: SchemaDocument = {
       },
       "from": {
        "type": "string"
+      },
+      "of": {
+       "type": "string",
+       "description": "The segment this one is a piece of, when a split cut it from that segment: a region's reference keeps naming the source."
       }
      },
      "required": [
