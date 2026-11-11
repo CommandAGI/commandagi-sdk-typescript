@@ -13,6 +13,9 @@ Removed
 
 Added
 
+- A script's `<publish rule when>` (`scripts.ts`; CommandAGI's docs/scripts.md): the script's own records folded into
+  plain files of its owner's Drive by a rule of the ontology, by program and with no model. `PUBLISH_RULES` is
+  `capital` (a capital faucet's cycle files); one publish of a rule a script; `ScriptDoc.publishes` is always a list.
 - Option contracts in a market recording (`market.ts`): a contract is one `sym` in one spelling,
   `AAPL 2026-12-18 C 200` (the underlying, the expiry, C or P, the strike, and `x<multiplier>` only when it is not
   100). `optionSymbol` writes it, `parseOption` reads it (an `OptionContract`), and a `sym` with a space spelled any

@@ -37,6 +37,7 @@ test("a script in JSX: a class is a component, an instance is one element, and t
     discovers: [],
     judges: [],
     params: [],
+    publishes: [],
   });
   assert.deepEqual(SCRIPTS.script.fromTree(SCRIPTS.script.toTree(doc as never)), doc, "both ways");
   const full = scriptWithDefaults(doc as never);
@@ -47,13 +48,25 @@ test("a script in JSX: a class is a component, an instance is one element, and t
 
 test("an empty script, its file name, and a part that names another stream", () => {
   const { document } = declarationOf({ default: el("script") });
-  assert.deepEqual(document!.document, { sources: [], tails: [], derives: [], wakes: [], discovers: [], judges: [], params: [] });
-  assert.deepEqual(SCRIPTS.script.empty!("script"), { sources: [], tails: [], derives: [], wakes: [], discovers: [], judges: [], params: [] });
+  assert.deepEqual(document!.document, { sources: [], tails: [], derives: [], wakes: [], discovers: [], judges: [], params: [], publishes: [] });
+  assert.deepEqual(SCRIPTS.script.empty!("script"), { sources: [], tails: [], derives: [], wakes: [], discovers: [], judges: [], params: [], publishes: [] });
   for (const name of ["nvidia.script.tsx", "a.script.jsx", "b.script.py", "c.script.rs"]) assert.ok(SCRIPT_FILE.test(name), name);
   for (const name of ["monitor.tsx", "script.tsx", "nvidia.tsx"]) assert.ok(!SCRIPT_FILE.test(name), name);
   const ticks = declarationOf({ default: el("script", {}, el("source", { id: "q", adapter: "fred", every: "1h", stream: "ticks" })) });
   assert.equal(scriptWithDefaults(ticks.document!.document as never).sources[0]!.stream, "ticks");
   assert.throws(() => declarationOf({ default: el("script", {}, el("source", { id: "q", adapter: "fred", every: "1h", stream: "Ticks!" })) }), /stream is a word/);
+});
+
+test("a publish folds the script's records by a rule of the ontology: one a rule, its when a record predicate", () => {
+  const one = (attrs: Record<string, unknown>, again = false) => () =>
+    declarationOf({ default: el("script", {}, el("publish", attrs), ...(again ? [el("publish", attrs)] : [])) });
+  const doc = one({ rule: "capital", when: { class: "*.topic" } })().document!.document as never;
+  assert.deepEqual((doc as { publishes: unknown }).publishes, [{ rule: "capital", when: { class: "*.topic" } }]);
+  assert.deepEqual(SCRIPTS.script.fromTree(SCRIPTS.script.toTree(doc)), doc, "both ways");
+  assert.deepEqual(scriptWithDefaults(one({ rule: "capital" })().document!.document as never).publishes, [{ rule: "capital", when: null }]);
+  assert.throws(one({ rule: "news" }), /rule is "capital", not "news"/);
+  assert.throws(one({ rule: "capital" }, true), /two <publish> in <script> have rule "capital"/);
+  assert.throws(one({ rule: "capital", when: 3 }), /when/);
 });
 
 test("a tail names a file: a script, a run's records file or a series, never a folder", () => {

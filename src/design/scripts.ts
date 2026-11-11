@@ -1,7 +1,8 @@
 /**
  * SCRIPTS IN JSX — a `<name>.script.tsx`: one script, anywhere in a Drive (docs/scripts.md, in the CommandAGI
  * repository). A script is a code file that declares what it reads (`<source>`) and the files it tails (`<tail of>`,
- * `<derive>`, `<wake when>`, `<discover>`); its run, beside the file, holds the records its parts append. Its id is the
+ * `<derive>`, `<wake when>`, `<discover>`) and the files it publishes (`<publish rule>`); its run, beside the file, holds
+ * the records its parts append. Its id is the
  * file's own path in the account's Drive, so the file never names itself, and a folder may hold several scripts.
  *
  *   // entities/corporations/corporation.tsx — a class of things is a component in an ordinary code file
@@ -20,13 +21,15 @@
  * source is named by its `id` in its script, a tail by the file it tails (`of`: a ref from this script's folder to a
  * script file, a run's `records.jsonl`, or a statistics series by its id, `fred:DGS10`), a wake by its place. A wake
  * wakes the agent on the script's own records (`when`, a record predicate) or on a clock (`every="7d"`: a weekly brief).
- * `stream` names the stream of the run a part appends to (absent: `records`).
+ * `stream` names the stream of the run a part appends to (absent: `records`). A publish folds the script's own records
+ * into plain files of its owner's Drive by a rule of the ontology, by program and with no model (`capital`: a capital
+ * faucet's cycle files, docs/capital.md § files); `when` says which records (absent: every record the rule knows).
  *
  * Nothing adds a default: what the file does not say, the document does not have (`via`, `readme`, `exit`, `host`,
  * `mode`, `retain`, `since`, `session`, `snapshot`, `profile`, `keep`, `maxCostPerDay`, `unit`, `stream`).
  * `scriptWithDefaults` gives the document as the platform reads it (`via: "worker"`, `mode: "poll"`, `stream:
  * "records"`, the others null; a stream source's `retain` "derived", a poll's null). A script's lists (`sameAs`,
- * `sources`, `tails`, `derives`, `wakes`, `discovers`, `judges`, `params`) are always there, empty when the file has none. Who may
+ * `sources`, `tails`, `derives`, `wakes`, `discovers`, `judges`, `params`, `publishes`) are always there, empty when the file has none. Who may
  * read the run is the file's own Drive visibility, not a word of the file.
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
@@ -45,6 +48,9 @@ export const VISIBILITIES = ["private", "unlisted", "public"] as const;
 export type Visibility = (typeof VISIBILITIES)[number];
 export const WAKE_FIELDS = ["when", "every", "prompt", "agent", "maxSpend"] as const;
 export const SCRIPT_JUDGE_FIELDS = ["id", "of", "rubric", "model"] as const;
+export const PUBLISH_FIELDS = ["rule", "when"] as const;
+/** The rules a publish folds records by: `capital`, a capital faucet's cycle files (docs/capital.md § files). */
+export const PUBLISH_RULES = ["capital"] as const;
 /** What a judge judges: each turn of the thread's agents, or each turn on a mounted task. */
 export const SCRIPT_JUDGE_OF = ["turn", "task"] as const;
 export const DERIVE_FIELDS = ["id", "op", "inputs", "params", "since", "stream"] as const;
@@ -202,6 +208,16 @@ export interface ScriptJudge {
   /** A model of the catalog (`fireworks/glm-5p3`). */
   model: string;
 }
+/**
+ * A publish: the script's own records folded into plain files of its owner's Drive by a rule of the ontology, by
+ * program (no model). `capital` keeps a capital faucet's cycle files in the script's folder and their events, by
+ * docs/capital.md § files. One publish of a rule a script.
+ */
+export interface ScriptPublish {
+  rule: (typeof PUBLISH_RULES)[number];
+  /** Which of the script's records it folds (a record predicate); absent: every record the rule knows. */
+  when?: WhenCondition | WhenCondition[];
+}
 /** A template's parameter, as a dashboard template's `<param>` is. */
 export interface ScriptParam {
   id: string;
@@ -227,6 +243,7 @@ export interface ScriptDoc {
   discovers: ScriptDiscover[];
   judges: ScriptJudge[];
   params: ScriptParam[];
+  publishes: ScriptPublish[];
 }
 
 const UNIT_SECONDS: Record<string, number> = { s: 1, m: 60, h: 3600, d: 86400 };
@@ -427,12 +444,20 @@ function scriptOf(t: DocTree): ScriptDoc {
     return said(c.attrs, SCRIPT_JUDGE_FIELDS) as unknown as ScriptJudge;
   });
   const params = parts("param").map(paramOf);
+  const publishes = parts("publish").map((c) => {
+    oneOf(c, "rule", PUBLISH_RULES);
+    if (c.attrs.when !== undefined) {
+      const bad = whenShape(c.attrs.when);
+      if (bad) throw new Error(`<publish rule="${c.attrs.rule as string}"> when: ${bad}`);
+    }
+    return said(c.attrs, PUBLISH_FIELDS) as unknown as ScriptPublish;
+  });
   const ids = new Set<string>();
   for (const p of params) {
     if (ids.has(p.id)) throw new Error(`<param id="${p.id}"> is declared twice`);
     ids.add(p.id);
   }
-  return { ...said(t.attrs, SCRIPT_FIELDS), sources: parts("source").map(sourceOf), tails, derives, wakes, discovers: parts("discover").map(discoverOf), judges, params };
+  return { ...said(t.attrs, SCRIPT_FIELDS), sources: parts("source").map(sourceOf), tails, derives, wakes, discovers: parts("discover").map(discoverOf), judges, params, publishes };
 }
 
 function paramOf(c: DocTree): ScriptParam {
@@ -484,6 +509,7 @@ export const scriptVocabulary: Vocabulary<ScriptDoc> = {
     discover: { parents: ["script"], required: ["slug", "class"], attrs: DISCOVER_FIELDS },
     judge: { parents: ["script"], key: "id", required: ["id", "of", "rubric", "model"], attrs: SCRIPT_JUDGE_FIELDS },
     param: { parents: ["script"], key: "id", required: ["id", "type"], attrs: SCRIPT_PARAM_FIELDS },
+    publish: { parents: ["script"], key: "rule", required: ["rule"], attrs: PUBLISH_FIELDS },
   },
   // A tail names a file by its ref: the platform checks that the file is there and has a run.
   fromTree: scriptOf,
@@ -499,10 +525,11 @@ export const scriptVocabulary: Vocabulary<ScriptDoc> = {
         ...(m.discovers ?? []).map((d) => ({ tag: "discover", attrs: attrsOf(d, DISCOVER_FIELDS), children: [] })),
         ...(m.judges ?? []).map((j) => ({ tag: "judge", attrs: attrsOf(j, SCRIPT_JUDGE_FIELDS), children: [] })),
         ...(m.params ?? []).map((p) => ({ tag: "param", attrs: attrsOf(p, SCRIPT_PARAM_FIELDS), children: [] })),
+        ...(m.publishes ?? []).map((p) => ({ tag: "publish", attrs: attrsOf(p, PUBLISH_FIELDS), children: [] })),
       ],
     };
   },
-  empty: () => ({ sources: [], tails: [], derives: [], wakes: [], discovers: [], judges: [], params: [] }),
+  empty: () => ({ sources: [], tails: [], derives: [], wakes: [], discovers: [], judges: [], params: [], publishes: [] }),
 };
 
 registerVocabulary(scriptVocabulary);
@@ -525,5 +552,6 @@ export function scriptWithDefaults(m: ScriptDoc) {
     discovers: (m.discovers ?? []).map((d) => ({ into: d.into ?? "./", of: d.of === undefined ? [] : typeof d.of === "string" ? [d.of] : d.of, when: d.when ?? null, slug: d.slug, class: d.class, props: d.props ?? {}, name: d.name ?? null, max: d.max ?? 10, visibility: d.visibility ?? null })),
     judges: (m.judges ?? []).map((j) => ({ id: j.id, of: j.of, rubric: j.rubric, model: j.model })),
     params: (m.params ?? []).map((p) => ({ id: p.id, type: p.type, label: p.label ?? null, default: p.default ?? null, required: p.required ?? true, choices: p.choices ?? null, accept: p.accept ?? null })),
+    publishes: (m.publishes ?? []).map((p) => ({ rule: p.rule, when: p.when ?? null })),
   };
 }
