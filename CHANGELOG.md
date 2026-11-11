@@ -13,6 +13,10 @@ Removed
 
 Added
 
+- The company's legal profile (`company-profile.ts`): `<Company website>`, `<Address kind line1 line2 city region
+  postal country source>`, `<Stock kind authorized issued reserved par source>` and `<Owner name holder percent since
+  source>`, read as the document's `website`, `addresses`, `stock` and `owners` (docs/company-substrate.md § the legal
+  profile in the main repository).
 - A script's `<publish rule when>` (`scripts.ts`; CommandAGI's docs/scripts.md): the script's own records folded into
   plain files of its owner's Drive by a rule of the ontology, by program and with no model. `PUBLISH_RULES` is
   `capital` (a capital faucet's cycle files); one publish of a rule a script; `ScriptDoc.publishes` is always a list.

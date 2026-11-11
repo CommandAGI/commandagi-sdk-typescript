@@ -50,10 +50,12 @@ import { factMarker } from "./facts.js";
 import { childElements, isElement, type DesignElement } from "./jsx-runtime.js";
 import { COMPANY_FINANCE_MANY, COMPANY_FINANCE_ONE, FINANCE_TAGS, financeOf } from "./business-finance.js";
 import { FILING_PAPER_PROPS, FORMATION_LISTS, FORMATION_TAGS, formationOf } from "./company-formation.js";
+import { PROFILE_COMPANY_PROPS, PROFILE_LISTS, PROFILE_TAGS, profileOf } from "./company-profile.js";
 import { PEOPLE_OPS_TAGS, teamOf } from "./people-ops.js";
 
 export * from "./business-finance.js";
 export { RegisteredAgent } from "./company-formation.js";
+export { Address, Stock, Owner } from "./company-profile.js";
 import { COMPANY_GOVERNANCE_MANY, COMPANY_GOVERNANCE_ONE, GOVERNANCE_TAGS, PAPER_VOTE_PROPS, governanceOf, votesOf } from "./company-governance.js";
 import { COMPANY_DEALS_MANY, COMPANY_DEALS_ONE, DEALS_TAGS, dealsOf } from "./company-deals.js";
 
@@ -96,10 +98,10 @@ export interface TagSpec {
 /** The vocabulary: each tag's attributes and children (what the document's fields are). */
 export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   Company: {
-    props: { name: "text", about: "text", postalAddress: "text", files: "texts", dashboard: "text" },
+    props: { name: "text", about: "text", postalAddress: "text", files: "texts", dashboard: "text", ...PROFILE_COMPANY_PROPS },
     required: ["name"],
     one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE, team: "Team", ...COMPANY_GOVERNANCE_ONE, relationships: "Relationships", ...COMPANY_DEALS_ONE },
-    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", rounds: "Round", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS, brands: "Brand", ...COMPANY_GOVERNANCE_MANY, products: "Product", ...COMPANY_DEALS_MANY },
+    many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", rounds: "Round", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS, ...PROFILE_LISTS, brands: "Brand", ...COMPANY_GOVERNANCE_MANY, products: "Product", ...COMPANY_DEALS_MANY },
   },
   ...EQUITY_TAGS,
   Entity: {
@@ -128,6 +130,8 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   Signature: { props: { party: "text", signer: "text", capacity: "text", date: "text", method: "text", evidence: "text" }, required: ["party"] },
   Version: { props: { file: "text", date: "text", note: "text" }, required: ["file"] },
   ...FORMATION_TAGS,
+  // The legal profile: addresses by purpose, classes of stock, beneficial owners (company-profile.ts).
+  ...PROFILE_TAGS,
   // A brand of the company: its own `.brand.tsx`, by ref (docs/company-substrate.md § the brand surface).
   Brand: { props: { file: "text" }, required: ["file"] },
   // What the company sells or makes: who makes it and who sells it (the merchant of record), when they differ.
@@ -299,6 +303,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     ...(papers.length ? { papers } : {}),
     ...(finance ? { finance } : {}),
     ...formationOf(node),
+    ...profileOf(node),
     ...(rounds.length ? { rounds } : {}),
     ...(one.team ? { team: teamOf(one.team) } : {}),
     ...(brands.length ? { brands } : {}),
