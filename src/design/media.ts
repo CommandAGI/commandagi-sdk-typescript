@@ -978,6 +978,7 @@ export const SONG_EFFECT_KINDS = [
   "gain", "pan", "width", "eq", "filter", "compressor", "multiband", "limiter", "gate", "transient", "deesser", "saturate", "exciter",
   "delay", "chorus", "flanger", "phaser", "tremolo", "vibrato", "reverb", "convolve", "duck", "vocoder",
   "pitchShift", "harmonizer", "autotune", "shimmer", "bitcrush", "ringMod", "frequencyShift", "waveshape", "tapeStop", "stutter", "reverse", "lofi", "granular", "spectralFreeze", "haas", "autopan", "rotary", "denoise", "declick", "dehum", "dcBlock", "polarity", "loudnessMatch", "clipper", "dynamicEq", "upwardCompressor", "expander",
+  "voiceRemove", "voiceIsolate",
 ] as const;
 const VOICE_ITEMS = ["notes", "use", "rest", "harmonize", "accompany", "counterpoint", "drums"] as const;
 /**
