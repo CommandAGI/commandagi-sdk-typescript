@@ -130,9 +130,12 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   opens; both write each edit back): `<video>` with `<track>`, `<clip src="media/take.mp4" start in out>` (media
   stay files, named by path), `<composition src="Intro.vid.tsx" start in out inputs>` (another video, drawn live from
   its own code), `<artboard src="Poster.draw.tsx" start duration view fit>` (a drawing's page, drawn live),
-  `<title>`, `<transition>`, `<effect>`, `<keyframe>` and `<marker>`; `<song tempo
-  timeSignature>` with `<track>`, `<synth>`, the effects (`<gain>`, `<filter>`, `<delay>`, `<reverb>`, `<eq>`),
-  `<clip>` and `<note pitch="C4" start duration velocity>`. Seconds on a video's timeline, beats in a song.
+  `<title>`, `<transition>`, `<effect>`, `<keyframe>` and `<marker>`; `<song key meter
+  tempo>` with its structure and performance (`<player>` with an `<instrument kind preset>`, `<motif>`, `<section
+  harmony>` with `<voice>`s of `<notes>`, `<use motif transform>`, `<counterpoint>`, `<accompany>` and `<drums>`,
+  `<phrase dynamics>`, `<groove>`, `<room>`, `<bus>`, `<master>`) and its typed notes (`<track>` with a `<synth>`, a
+  `<sampler>` or an `<instrument>`, the sound kernel's effects by kind (`<eq>`, `<compressor>`, `<reverb>` …),
+  `<clip>` and `<note pitch="C4" start duration velocity>`). Seconds on a video's timeline, beats in a song.
 - **A 3D document in JSX** (a `<name>.3d.tsx` the CommandAGI 3D editor opens and edits): a `<part>` (or
   `<assembly>`) with `<parameter>`, `<plane>`, one element per feature named by its type (`<sketch>`,
   `<extrude>`, `<revolve>`, `<fillet>`, `<hole>`, `<linearPattern>`, `<transform>` …), a sketch's `<point>`,

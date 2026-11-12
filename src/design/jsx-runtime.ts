@@ -14,13 +14,15 @@ export interface DesignElement {
   readonly props: Record<string, unknown> & { children?: unknown };
   /** Where the element was written (`__source`), when the compiler said. */
   readonly source?: unknown;
+  /** The element's `key` attribute. JSX keeps it out of the props; a song and its sections read it as their key. */
+  readonly key?: unknown;
 }
 
 export const Fragment = Symbol.for("commandagi.design.fragment");
 
 type Component = (props: Record<string, unknown>) => unknown;
 
-export function jsx(type: string | Component | typeof Fragment, props: Record<string, unknown> | null, _key?: unknown): unknown {
+export function jsx(type: string | Component | typeof Fragment, props: Record<string, unknown> | null, key?: unknown): unknown {
   let p = props ?? {};
   let source: unknown;
   if ("__source" in p || "__self" in p) {
@@ -31,7 +33,12 @@ export function jsx(type: string | Component | typeof Fragment, props: Record<st
   if (type === Fragment) return p.children ?? null;
   if (typeof type === "function") return type(p);
   if (typeof type !== "string") throw new Error("a JSX element's type is a tag name or a component function");
-  return { $$design: "element", type, props: p, ...(source === undefined ? {} : { source }) } satisfies DesignElement;
+  if ("key" in p) {
+    const { key: own, ...rest } = p;
+    key ??= own;
+    p = rest;
+  }
+  return { $$design: "element", type, props: p, ...(source === undefined ? {} : { source }), ...(key === undefined ? {} : { key }) } satisfies DesignElement;
 }
 export const jsxs = jsx;
 export const jsxDEV = jsx;

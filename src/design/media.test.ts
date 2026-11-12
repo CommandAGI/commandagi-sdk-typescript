@@ -104,7 +104,7 @@ test("a <song> declares the chain synth → effects → track → master, with e
   const tree = jsx("song", {
     name: "Loop",
     tempo: 96,
-    timeSignature: "3/4",
+    meter: "3/4",
     children: [
       jsx("track", {
         name: "Keys",
@@ -133,7 +133,7 @@ test("a <song> declares the chain synth → effects → track → master, with e
   assert.equal(pitchOf("F#3"), 54);
   assert.equal(pitchName(61), "C#4");
   const song = (...children: unknown[]) => () => declarationOf({ default: jsx("song", { children: [jsx("track", { children })] }) });
-  assert.throws(song(jsx("clip", {})), /need a <synth>/);
+  assert.throws(song(jsx("clip", {})), /need a <synth>, a <sampler> or an <instrument>/);
   assert.throws(song(jsx("synth", {}), jsx("clip", { children: [jsx("note", { pitch: "H2" })] })), /pitch is a MIDI number/);
   assert.throws(song(jsx("sampler", {})), /<sampler> names its sound file/);
 });
@@ -162,7 +162,7 @@ test("a <song> holds audio clips (a sound file by path, played by the track's pl
   assert.throws(song({}, jsx("clip", { src: "/abs/tone.wav" })), /relative to this file/);
   assert.throws(song({}, jsx("clip", { src: "take.mp4" })), /not a sound file/);
   assert.throws(song({}, jsx("synth", {}), jsx("clip", { src: "tone.wav" })), /an audio clip \(src\) goes on a track without one/);
-  assert.throws(song({}, jsx("clip", { src: "tone.wav" }), jsx("clip", {})), /need a <synth> or a <sampler>/);
+  assert.throws(song({}, jsx("clip", { src: "tone.wav" }), jsx("clip", {})), /need a <synth>, a <sampler> or an <instrument>/);
   assert.throws(song({}, jsx("sampler", { src: "a.wav", root: "Q" })), /root is the pitch/);
   assert.throws(song({ cycleStart: 4 }), /names both/);
   assert.throws(song({ cycleStart: 4, cycleEnd: 4 }), /comes after/);
@@ -405,4 +405,75 @@ test("a speaker track makes the speaker's turns its clips, and denoise and loudn
   assert.throws(track({ kind: "audio", speaker: "Ann", src: "a.wav" }), /names the speaker, its turns/);
   assert.throws(track({ speaker: "Ann", turns: pass, src: "a.wav" }), /a speaker's track is an audio track/);
   assert.throws(track({ kind: "audio", speaker: "Ann", turns: { in: 0, out: 1, turns: [{ who: "Ann", from: 1, to: 0 }] }, src: "a.wav" }), /from before to/);
+});
+
+test("a <song> declares its structure as score nodes beside its tracks: attributes as written, what each holds in order", () => {
+  const tree = jsx("song", {
+    name: "Air",
+    key: "D minor",
+    meter: "2+2+3/8",
+    tempo: 72,
+    style: "baroque",
+    seed: 7,
+    children: [
+      jsx("player", {
+        name: "violin",
+        family: "strings",
+        place: { azimuth: -20, distance: 3 },
+        __source: 3,
+        children: [jsx("instrument", { kind: "string", preset: "violin" }), jsx("reverb", { preset: "hall", mix: 0.2 }), jsx("send", { bus: "hall", gainDb: -12 })],
+      }),
+      jsx("motif", { name: "head", notes: "1:8 2 3 5:4." }),
+      jsx("section", {
+        name: "A",
+        bars: 4,
+        key: "F",
+        harmony: "i | iv | V7 | i",
+        children: [
+          jsx("phrase", { bars: "1-4", dynamics: "p < f" }),
+          jsx("voice", { player: "violin", role: "melody", children: [jsx("use", { motif: "head", transform: [{ op: "transpose", steps: 2 }] }), jsx("notes", { line: "1:1" })] }),
+        ],
+      }),
+      jsx("bus", { name: "hall", children: [jsx("reverb", { preset: "hall", mix: 1 })] }),
+      jsx("room", { size: [8, 12, 5], rt60: { low: 1.2, mid: 1, high: 0.7 } }),
+      jsx("master", { targetLufs: -16, children: [jsx("compressor", { ratio: 2 })] }),
+      jsx("track", {
+        name: "Bell",
+        place: { azimuth: 30, distance: 4 },
+        out: "hall",
+        children: [jsx("instrument", { kind: "modal", preset: "glockenspiel" }), jsx("compressor", { thresholdDb: -20 }), jsx("reverb", { mix: 0.4, predelay: 0.02 }), jsx("send", { bus: "hall", gainDb: -6 }), jsx("clip", { children: [jsx("note", { pitch: "D5" })] })],
+      }),
+    ],
+  });
+  const { graph: g } = declarationOf({ default: tree });
+  const master = g.nodes.master!.inputs;
+  assert.deepEqual(master.timeSig, { num: 7, den: 8 });
+  assert.equal(master.meter, "2+2+3/8");
+  assert.deepEqual([master.key, master.style, master.seed], ["D minor", "baroque", 7]);
+  assert.deepEqual(master.score, ["player_violin", "motif_head", "section_A", "bus_hall", "room", "master_2"]);
+  assert.deepEqual(g.nodes.player_violin, {
+    id: "player_violin",
+    type: "score.player",
+    inputs: { name: "violin", family: "strings", place: { azimuth: -20, distance: 3 }, children: ["instrument", "reverb", "send"] },
+    meta: { source: 3 },
+  });
+  assert.deepEqual(g.nodes.instrument!.inputs, { kind: "string", preset: "violin" });
+  assert.deepEqual(g.nodes.section_A!.inputs.children, ["phrase", "voice_violin"]);
+  assert.equal(g.nodes.section_A!.inputs.key, "F", "a key written as a prop or as the third argument of jsx is the section's key");
+  assert.deepEqual(g.nodes.voice_violin!.inputs, { player: "violin", role: "melody", children: ["use_head", "notes"] });
+  assert.deepEqual(g.nodes.use_head!.inputs, { motif: "head", transform: [{ op: "transpose", steps: 2 }] });
+  assert.deepEqual(g.nodes.master_2!.inputs, { targetLufs: -16, children: ["compressor"] });
+  // A track's chain holds the kernel's effects as it holds the studio's; a kind's own fields pass as written.
+  assert.deepEqual(g.nodes.inst_Bell!.inputs.spec, { kind: "modal", preset: "glockenspiel" });
+  assert.deepEqual(g.nodes.fx_Bell_compressor!.inputs.spec, { type: "compressor", thresholdDb: -20 });
+  assert.deepEqual(g.nodes.fx_Bell_reverb!.inputs.spec, { type: "reverb", decay: 1.8, mix: 0.4, predelay: 0.02 });
+  assert.deepEqual([g.nodes.track_Bell!.inputs.place, g.nodes.track_Bell!.inputs.out, g.nodes.track_Bell!.inputs.sends], [{ azimuth: 30, distance: 4 }, "hall", [{ bus: "hall", gainDb: -6 }]]);
+
+  const song = (...children: unknown[]) => () => declarationOf({ default: jsx("song", { children }) });
+  assert.throws(song(jsx("voice", { player: "violin" })), /<voice> is not read in a <song>/);
+  assert.throws(song(jsx("section", { name: "A", chords: "i" })), /prop chords is not read on a <section>/);
+  assert.throws(song(jsx("section", { name: "A", children: [jsx("voice", { player: "v", children: [jsx("note", { pitch: 60 })] })] })), /<note> is not read in a <voice>/);
+  assert.throws(song(jsx("track", { children: [jsx("instrument", { release: 1 })] })), /an instrument names its kind \(.*\) or a preset/);
+  assert.throws(song(jsx("motif", { name: "m", notes: "1:4" }, "x")), /prop key is not read on a <motif>/);
+  assert.equal(declarationOf({ default: jsx("song", { children: [] }, "A minor") }).graph.nodes.master!.inputs.key, "A minor");
 });

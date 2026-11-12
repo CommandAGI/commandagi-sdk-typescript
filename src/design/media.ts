@@ -26,7 +26,7 @@
  *   );
  *
  *   export default () => (
- *     <song name="Loop" tempo={120} timeSignature="4/4" bars={8} cycleStart={0} cycleEnd={16}>
+ *     <song name="Loop" tempo={120} meter="4/4" bars={8} cycleStart={0} cycleEnd={16}>
  *       <track name="Keys">
  *         <synth wave="triangle" />
  *         <clip name="Keys 1" start={0} length={4}>
@@ -40,6 +40,29 @@
  *         <sampler src="media/tone.wav" root="A4" />
  *         <clip name="Bells 1" start={0} length={4} />
  *       </track>
+ *     </song>
+ *   );
+ *
+ * A song also declares its structure and performance, beside its tracks or in place of them: its `key`, `<player>`s
+ * (each with an `<instrument kind preset>` of the sound kernel), `<motif>`s, `<section>`s with their harmony,
+ * `<voice>`s (`<notes>`, `<use motif transform>`, `<counterpoint>`, `<accompany>`, `<harmonize>`, `<drums>`),
+ * `<phrase>`s, a `<groove>`, the `<room>`, `<bus>`es and the `<master>` (`SONG_STRUCTURE` names every tag, its
+ * attributes and what it holds). Each is one `score.<tag>` node with its attributes as written; the music app reads
+ * them as a score and performs it. A track's chain and a player, a bus or the master hold the kernel's effects by
+ * kind (`SONG_EFFECT_KINDS`: `<compressor thresholdDb={-18} />`).
+ *
+ *   export default () => (
+ *     <song name="Air" key="D minor" meter="3/4" tempo={84}>
+ *       <player name="violin" family="strings">
+ *         <instrument kind="string" preset="violin" />
+ *       </player>
+ *       <motif name="head" notes="1:8 2 3 5:4." />
+ *       <section name="A" bars={2} harmony="i | V7">
+ *         <voice player="violin">
+ *           <use motif="head" />
+ *           <notes line="5:4 4 3 2" />
+ *         </voice>
+ *       </section>
  *     </song>
  *   );
  *
@@ -914,17 +937,17 @@ export const SONG_EFFECTS: Readonly<Record<string, { type: string; name: string;
   eq: { type: "fx.eq", name: "EQ", spec: { lowGain: 0, midGain: 0, highGain: 0 } },
 };
 export const SONG_TRACK = { volumeDb: 0, pan: 0, mute: false, solo: false } as const;
-export const SONG_MASTER = { volumeDb: 0, tempo: 120, timeSignature: "4/4", bars: 8 } as const;
+export const SONG_MASTER = { volumeDb: 0, tempo: 120, meter: "4/4", bars: 8 } as const;
 /** A sampler's defaults: the file sounds at its root pitch (A4) at full gain. */
 export const SAMPLER = { root: 69, gain: 1 } as const;
 /** An audio clip's defaults: from the file's start (`in`, seconds), at its own level (`volume`). */
 export const AUDIO_CLIP = { in: 0, volume: 1, loop: false } as const;
 
-/** A time signature written "3/4" → { num: 3, den: 4 }. */
-export function timeSignatureOf(v: unknown): { num: number; den: number } | null {
-  const m = typeof v === "string" ? /^\s*(\d+)\s*\/\s*(\d+)\s*$/.exec(v) : null;
+/** A meter written "3/4" → { num: 3, den: 4 }; one in groups ("2+2+3/8") counts them: { num: 7, den: 8 }. */
+export function meterOf(v: unknown): { num: number; den: number } | null {
+  const m = typeof v === "string" ? /^\s*(\d+(?:\s*\+\s*\d+)*)\s*\/\s*(\d+)\s*$/.exec(v) : null;
   if (!m) return null;
-  const num = Number(m[1]), den = Number(m[2]);
+  const num = m[1]!.split("+").reduce((sum, n) => sum + Number(n), 0), den = Number(m[2]);
   return num >= 1 && num <= 32 && [1, 2, 4, 8, 16, 32].includes(den) ? { num, den } : null;
 }
 
@@ -954,18 +977,93 @@ function soundSrc(el: DesignElement): string {
 /** A file's name without its folder and extension: an audio clip's name when it gives none. */
 const stemOf = (src: string) => src.replace(/^.*\//, "").replace(/\.[^.]+$/, "");
 
+/** The sound kernel's effect kinds: each is a tag of a song (`<compressor thresholdDb={-18} />`). */
+export const SONG_EFFECT_KINDS = [
+  "gain", "pan", "width", "eq", "filter", "compressor", "multiband", "limiter", "gate", "transient", "deesser", "saturate", "exciter",
+  "delay", "chorus", "flanger", "phaser", "tremolo", "vibrato", "reverb", "convolve",
+] as const;
+const VOICE_ITEMS = ["notes", "use", "rest", "harmonize", "accompany", "counterpoint", "drums"] as const;
 /**
- * Declare a song (`<song>` and its tracks) as the music studio's own op graph. A track plays a `<synth>` or a
- * `<sampler>` (an instrument: its `<clip>`s hold notes), or holds audio clips (`<clip src>`: a sound file placed on
- * the song, played by the track's player); effects follow the instrument or the player.
+ * A song's structure and performance, by tag: the attributes each takes (`null`: its own kind's, passed to the sound
+ * kernel as they are) and the tags it holds. Each element is one node `score.<tag>` whose inputs are its attributes as
+ * written and `children`, the ids of what it holds in order; the music app reads them as a score.
+ */
+export const SONG_STRUCTURE: Readonly<Record<string, { fields: readonly string[] | null; holds: readonly string[] }>> = {
+  song: { fields: [], holds: ["track", "player", "motif", "groove", "section", "room", "master", "bus"] },
+  player: { fields: ["name", "family", "range", "place", "desks", "rules", "gainDb"], holds: ["instrument", "send", ...SONG_EFFECT_KINDS] },
+  instrument: { fields: null, holds: [] },
+  send: { fields: ["bus", "gainDb"], holds: [] },
+  bus: { fields: ["name", "gainDb", "pan", "out"], holds: ["send", ...SONG_EFFECT_KINDS] },
+  motif: { fields: ["name", "notes"], holds: [] },
+  groove: { fields: ["swing", "unit", "narrows", "offsets", "accents", "bars"], holds: [] },
+  section: { fields: ["name", "like", "bars", "key", "meter", "tempo", "harmony", "pickup", "repeat", "tension", "dynamics"], holds: ["ending", "tempo", "phrase", "voice", "groove"] },
+  ending: { fields: ["pass", "bars", "harmony"], holds: ["voice"] },
+  tempo: { fields: ["at", "to", "over", "shape"], holds: [] },
+  phrase: { fields: ["bars", "dynamics", "players"], holds: [] },
+  voice: { fields: ["player", "name", "octave", "range", "role", "transform"], holds: VOICE_ITEMS },
+  notes: { fields: ["at", "line", "transform"], holds: [] },
+  use: { fields: ["at", "motif", "transform", "times"], holds: [] },
+  rest: { fields: ["at", "bars", "beats"], holds: [] },
+  harmonize: { fields: ["at", "part", "of", "under", "bars"], holds: [] },
+  accompany: { fields: ["at", "pattern", "voices", "voicing", "bars"], holds: [] },
+  counterpoint: { fields: ["at", "against", "species", "above", "bars"], holds: [] },
+  drums: { fields: ["at", "pattern", "kit", "per", "fill", "bars"], holds: [] },
+  room: { fields: ["size", "rt60", "level"], holds: [] },
+  master: { fields: ["targetLufs", "ceilingDb"], holds: SONG_EFFECT_KINDS },
+  ...Object.fromEntries(SONG_EFFECT_KINDS.map((k) => [k, { fields: null, holds: [] }])),
+};
+/** What a song says about itself beside its transport: the fields of a score. */
+const SONG_SCORE = ["key", "style", "seed", "form", "rules", "tuningHz"] as const;
+
+/** An element's attributes as written (no children). */
+function written(el: DesignElement, without: readonly string[] = []): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(el.props)) if (k !== "children" && v !== undefined && !without.includes(k)) out[k] = v;
+  return out;
+}
+
+/** Declare one element of a song's structure (and what it holds) as `score.<tag>` nodes. → its node's id. */
+function declareStructure(el: DesignElement, parent: string, nodes: Record<string, IRNode>, id: (base: string) => string): string {
+  const spec = SONG_STRUCTURE[el.type];
+  const holds = SONG_STRUCTURE[parent]!.holds;
+  if (!spec || !holds.includes(el.type)) throw new Error(`<${el.type}> is not read in a <${parent}> (it holds ${holds.map((t) => `<${t}>`).join(", ") || "nothing"})`);
+  if (spec.fields) refuseUnknown(el, spec.fields);
+  const inputs = written(el);
+  // JSX keeps `key` out of the props: a section's key is read from the element.
+  if (el.key !== undefined) {
+    if (!spec.fields?.includes("key")) throw new Error(`${where(el)}: prop key is not read on a <${el.type}>`);
+    inputs.key = el.key;
+  }
+  const label = inputs.name ?? inputs.player ?? inputs.motif;
+  const nid = id(typeof label === "string" ? `${el.type}_${label}` : el.type);
+  const children = childElements(el.props.children).map((c) => declareStructure(c, el.type, nodes, id));
+  if (children.length) inputs.children = children;
+  // The node takes its place before what it holds.
+  const held = children.map((c) => [c, nodes[c]!] as const);
+  for (const [c] of held) delete nodes[c];
+  nodes[nid] = node(nid, `score.${el.type}`, inputs, undefined, metaOf(el));
+  for (const [c, n] of held) nodes[c] = n;
+  return nid;
+}
+
+/**
+ * Declare a song (`<song>`) as the music studio's own op graph.
+ *
+ * Notes typed by hand are on tracks: a `<track>` plays a `<synth>`, a `<sampler>` or an `<instrument kind>` of the sound
+ * kernel (its `<clip>`s hold notes), or holds audio clips (`<clip src>`: a sound file placed on the song, played by
+ * the track's player); effects follow the instrument or the player, and a `<send bus>` feeds a bus.
+ *
+ * Structure and performance are declared beside them (`SONG_STRUCTURE`): the song's `key`, `<player>`s, `<motif>`s,
+ * `<section>`s with their harmony, `<voice>`s and `<phrase>`s, a `<groove>`, the `<room>`, `<bus>`es and the `<master>`.
  */
 export function declareSong(root: DesignElement): Declaration {
-  refuseUnknown(root, ["name", "cycleStart", "cycleEnd", ...Object.keys(SONG_MASTER)]);
+  refuseUnknown(root, ["name", "cycleStart", "cycleEnd", ...Object.keys(SONG_MASTER), ...SONG_SCORE]);
   const name = str(root, "name") ?? "Song";
   const tempo = root.props.tempo === undefined ? [{ atBeat: 0, bpm: SONG_MASTER.tempo }] : tempoOf(root.props.tempo);
   if (!tempo) throw new Error(`<song>: tempo is beats per minute (120), or [{ atBeat: 0, bpm: 120 }, …] sorted by beat`);
-  const timeSig = timeSignatureOf(root.props.timeSignature ?? SONG_MASTER.timeSignature);
-  if (!timeSig) throw new Error(`<song>: timeSignature is "beats/unit" ("4/4", "6/8")`);
+  const meter = str(root, "meter") ?? SONG_MASTER.meter;
+  const timeSig = meterOf(meter);
+  if (!timeSig) throw new Error(`<song>: meter is "beats/unit" ("4/4", "6/8", "2+2+3/8")`);
   const nodes: Record<string, IRNode> = {};
   const id = idMaker();
   id("master");
@@ -976,23 +1074,33 @@ export function declareSong(root: DesignElement): Declaration {
     timeSig,
     bars: num(root, "bars", { min: 1 }) ?? SONG_MASTER.bars,
   };
+  // A meter in groups is more than its count of beats: the score reads it as written.
+  if (meter.includes("+")) master.meter = meter.replace(/\s+/g, "");
+  for (const k of SONG_SCORE) if (root.props[k] !== undefined) master[k] = root.props[k];
+  // JSX keeps `key` out of the props: the song's key is read from the element.
+  if (root.key !== undefined) master.key = root.key;
   const cycleStart = num(root, "cycleStart", { min: 0 }), cycleEnd = num(root, "cycleEnd", { min: 0 });
   if ((cycleStart === undefined) !== (cycleEnd === undefined)) throw new Error(`<song>: a cycle names both its cycleStart and its cycleEnd (beats)`);
   if (cycleStart !== undefined && cycleEnd !== undefined) {
     if (!(cycleEnd > cycleStart)) throw new Error(`<song>: cycleEnd (${cycleEnd}) comes after cycleStart (${cycleStart})`);
     master.cycle = { start: cycleStart, end: cycleEnd };
   }
+  const score: string[] = [];
   let order = 0;
   for (const tr of childElements(root.props.children)) {
-    if (tr.type !== "track") throw new Error(`<${tr.type}> is not read in a <song> (it holds <track>)`);
-    refuseUnknown(tr, ["name", "colorIndex", ...Object.keys(SONG_TRACK)]);
+    if (tr.type !== "track") {
+      score.push(declareStructure(tr, "song", nodes, id));
+      continue;
+    }
+    refuseUnknown(tr, ["name", "colorIndex", "place", "out", ...Object.keys(SONG_TRACK)]);
     const trackName = str(tr, "name") ?? `Track ${order + 1}`;
     const trackId = id(`track_${trackName}`);
     const children = childElements(tr.props.children);
     // A track without an instrument that holds anything is an audio track: its player comes first in the chain.
-    const audioTrack = children.length > 0 && !children.some((el) => el.type === "synth" || el.type === "sampler");
+    const audioTrack = children.length > 0 && !children.some((el) => el.type === "synth" || el.type === "sampler" || el.type === "instrument");
     let upstream: string | null = null;
     const clips: string[] = [];
+    const sends: { bus: string; gainDb: number }[] = [];
     let instrument: string | null = null;
     let player: string | null = null;
     if (audioTrack) {
@@ -1002,38 +1110,49 @@ export function declareSong(root: DesignElement): Declaration {
     }
     for (const el of children) {
       const fx = SONG_EFFECTS[el.type];
-      if (el.type === "synth" || el.type === "sampler") {
-        if (instrument) throw new Error(`${where(tr)}: a track plays one instrument (a <synth> or a <sampler>)`);
-        const env: Record<string, number> = {};
+      if (el.type === "synth" || el.type === "sampler" || el.type === "instrument") {
+        if (instrument) throw new Error(`${where(tr)}: a track plays one instrument (a <synth>, a <sampler> or an <instrument>)`);
         let spec: Record<string, unknown>;
-        if (el.type === "synth") {
-          refuseUnknown(el, ["name", ...Object.keys(SYNTH), ...Object.keys(ENVELOPE)]);
-          spec = { kind: "synth" };
-          spec.wave = str(el, "wave", WAVES) ?? SYNTH.wave;
-          for (const k of ["gain", "detune", "voices", "transpose"] as const) spec[k] = num(el, k) ?? SYNTH[k];
+        if (el.type === "instrument") {
+          if (!str(el, "kind") && !str(el, "preset")) throw new Error(`${where(el)}: an instrument names its kind (kind="string", "modal", "wind", "additive", "fm", "subtractive", "sampler", "drums") or a preset (preset="violin")`);
+          spec = written(el, ["name"]);
         } else {
-          refuseUnknown(el, ["name", "src", "root", "gain", ...Object.keys(ENVELOPE)]);
-          const baseNote = el.props.root === undefined ? SAMPLER.root : pitchOf(el.props.root);
-          if (baseNote === null) throw new Error(`<sampler>: root is the pitch the file sounds at, a MIDI number (0–127) or a name ("A4"), not ${JSON.stringify(el.props.root)}`);
-          spec = { kind: "sampler", src: soundSrc(el), baseNote, gain: num(el, "gain", { min: 0 }) ?? SAMPLER.gain };
+          const env: Record<string, number> = {};
+          if (el.type === "synth") {
+            refuseUnknown(el, ["name", ...Object.keys(SYNTH), ...Object.keys(ENVELOPE)]);
+            spec = { kind: "synth" };
+            spec.wave = str(el, "wave", WAVES) ?? SYNTH.wave;
+            for (const k of ["gain", "detune", "voices", "transpose"] as const) spec[k] = num(el, k) ?? SYNTH[k];
+          } else {
+            refuseUnknown(el, ["name", "src", "root", "gain", ...Object.keys(ENVELOPE)]);
+            const baseNote = el.props.root === undefined ? SAMPLER.root : pitchOf(el.props.root);
+            if (baseNote === null) throw new Error(`<sampler>: root is the pitch the file sounds at, a MIDI number (0–127) or a name ("A4"), not ${JSON.stringify(el.props.root)}`);
+            spec = { kind: "sampler", src: soundSrc(el), baseNote, gain: num(el, "gain", { min: 0 }) ?? SAMPLER.gain };
+          }
+          for (const [k, d] of Object.entries(ENVELOPE)) env[k] = num(el, k, { min: 0 }) ?? d;
+          spec.env = env;
         }
-        for (const [k, d] of Object.entries(ENVELOPE)) env[k] = num(el, k, { min: 0 }) ?? d;
-        spec.env = env;
         instrument = id(`inst_${trackName}`);
         nodes[instrument] = node(instrument, "instrument", { name: str(el, "name") ?? trackName, spec }, undefined, metaOf(el));
         upstream = instrument;
-      } else if (fx) {
+      } else if ((SONG_EFFECT_KINDS as readonly string[]).includes(el.type)) {
         if (!upstream) throw new Error(`<${el.type}> comes after the track's instrument (the chain runs instrument → effects → track)`);
-        refuseUnknown(el, ["name", ...Object.keys(fx.spec)]);
+        // The studio's five effects have its fields with their defaults; a kind's other fields are the sound kernel's.
         const spec: Record<string, unknown> = { type: el.type };
-        for (const [k, d] of Object.entries(fx.spec))
+        for (const [k, d] of Object.entries(fx?.spec ?? {}))
           spec[k] = typeof d === "number" ? (num(el, k) ?? d) : (str(el, k, ["lowpass", "highpass", "bandpass"]) ?? d);
+        Object.assign(spec, written(el, ["name", ...Object.keys(fx?.spec ?? {})]));
         const fid = id(`fx_${trackName}_${el.type}`);
-        nodes[fid] = node(fid, fx.type, { name: str(el, "name") ?? fx.name, spec, audio: wire(upstream, "audio") }, undefined, metaOf(el));
+        nodes[fid] = node(fid, `fx.${el.type}`, { name: str(el, "name") ?? fx?.name ?? el.type[0]!.toUpperCase() + el.type.slice(1), spec, audio: wire(upstream, "audio") }, undefined, metaOf(el));
         upstream = fid;
+      } else if (el.type === "send") {
+        refuseUnknown(el, ["bus", "gainDb"]);
+        const bus = str(el, "bus");
+        if (!bus) throw new Error(`${where(tr)}: a <send> names its bus (bus="hall")`);
+        sends.push({ bus, gainDb: num(el, "gainDb") ?? 0 });
       } else if (el.type === "clip" && player && el.props.src !== undefined) {
         refuseUnknown(el, ["name", "src", "start", "length", "in", "volume", "loop"]);
-        if (childElements(el.props.children).length) throw new Error(`${where(el)}: an audio clip holds no notes (notes go in a clip on a track with a <synth> or a <sampler>)`);
+        if (childElements(el.props.children).length) throw new Error(`${where(el)}: an audio clip holds no notes (notes go in a clip on a track with an instrument)`);
         const src = soundSrc(el);
         const clipName = str(el, "name") ?? stemOf(src);
         const cid = id(`clip_${clipName}`);
@@ -1072,12 +1191,12 @@ export function declareSong(root: DesignElement): Declaration {
         }
         nodes[cid] = node(cid, "midiClip", { name: clipName, start: num(el, "start", { min: 0 }) ?? 0, length: num(el, "length", { min: 0 }) ?? 4, notes, loop: bool(el, "loop") ?? false }, undefined, metaOf(el, sources));
         clips.push(cid);
-      } else throw new Error(`<${el.type}> is not read on a <track> (it holds a <synth> or a <sampler>, effects (${Object.keys(SONG_EFFECTS).join(", ")}) and <clip>)`);
+      } else throw new Error(`<${el.type}> is not read on a <track> (it holds a <synth>, a <sampler> or an <instrument>, effects (${SONG_EFFECT_KINDS.join(", ")}), <send> and <clip>)`);
     }
     if (instrument) clips.forEach((c, i) => (nodes[instrument!]!.inputs[`midi.${i + 1}`] = wire(c, "midi")));
     if (player) {
       const notes = clips.find((c) => nodes[c]!.type === "midiClip");
-      if (notes) throw new Error(`${where(tr)}: its clips need a <synth> or a <sampler> to play them`);
+      if (notes) throw new Error(`${where(tr)}: its clips need a <synth>, a <sampler> or an <instrument> to play them`);
       clips.forEach((c, i) => (nodes[player!]!.inputs[`audio.${i + 1}`] = wire(c, "audio")));
     }
     const trackInputs: Record<string, unknown> = {
@@ -1087,12 +1206,16 @@ export function declareSong(root: DesignElement): Declaration {
       mute: bool(tr, "mute") ?? SONG_TRACK.mute,
       solo: bool(tr, "solo") ?? SONG_TRACK.solo,
       colorIndex: num(tr, "colorIndex", { min: 0 }) ?? order,
+      ...(tr.props.place !== undefined ? { place: tr.props.place } : {}),
+      ...(str(tr, "out") !== undefined ? { out: str(tr, "out") } : {}),
+      ...(sends.length ? { sends } : {}),
       ...(upstream ? { audio: wire(upstream, "audio") } : {}),
     };
     nodes[trackId] = node(trackId, "track", trackInputs, undefined, metaOf(tr, {}, { order }));
     master[`audio.${order + 1}`] = wire(trackId, "audio");
     order++;
   }
+  if (score.length) master.score = score;
   nodes.master = node("master", "master", master, undefined, metaOf(root));
   const graph: IRGraph = { id: slug(`music_${name}`), nodes, outputs: ["master"], meta: { domain: "music", name } };
   return new Declaration("music", JSON.parse(JSON.stringify(graph)) as IRGraph);
