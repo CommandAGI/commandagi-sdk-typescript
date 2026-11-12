@@ -1,6 +1,6 @@
 // A video or a song in JSX declares the media editors' own graphs. Pinned here: a clip's media is a source node
 // named by its relative path (never inlined), out becomes a duration, titles carry their text; a song's chain is
-// synth → effects → track → master with notes inline; an element's __source rides on its node (meta.source) and on
+// instrument → effects → track → master with notes inline; an element's __source rides on its node (meta.source) and on
 // what the node holds (meta.sources); what the vocabulary cannot say is refused by name.
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -100,7 +100,7 @@ test("a clip's <intro> and <outro> are its intro and outro animations (animIn, a
   assert.throws(titled(jsx("outro", {})), /<outro> names its preset/);
 });
 
-test("a <song> declares the chain synth → effects → track → master, with each clip's notes inline", () => {
+test("a <song> declares the chain instrument → effects → track → master, with each clip's notes inline", () => {
   const tree = jsx("song", {
     name: "Loop",
     tempo: 96,
@@ -109,7 +109,7 @@ test("a <song> declares the chain synth → effects → track → master, with e
       jsx("track", {
         name: "Keys",
         children: [
-          jsx("synth", { wave: "triangle", attack: 0.02 }),
+          jsx("instrument", { kind: "subtractive", oscillators: [{ shape: "triangle" }], attack: 0.02 }),
           jsx("reverb", { mix: 0.5 }),
           jsx("clip", { start: 4, children: [jsx("note", { pitch: "C4", start: 0, duration: 1, __source: 9 }), jsx("note", { pitch: 64, start: 1 })] }),
         ],
@@ -124,6 +124,9 @@ test("a <song> declares the chain synth → effects → track → master, with e
   assert.deepEqual(g.nodes.track_Keys!.inputs.audio, wireTo("fx_Keys_reverb", "audio"));
   assert.deepEqual(g.nodes.fx_Keys_reverb!.inputs.audio, wireTo("inst_Keys", "audio"));
   assert.deepEqual(g.nodes.inst_Keys!.inputs["midi.1"], wireTo("clip_Keys_1", "midi"));
+  // An instrument's and an effect's fields are the sound kernel's, as written: no default is added here.
+  assert.deepEqual(g.nodes.inst_Keys!.inputs.spec, { kind: "subtractive", oscillators: [{ shape: "triangle" }], attack: 0.02 });
+  assert.deepEqual(g.nodes.fx_Keys_reverb!.inputs, { name: "Reverb", spec: { kind: "reverb", mix: 0.5 }, audio: wireTo("inst_Keys", "audio") });
   const clip = g.nodes.clip_Keys_1!;
   assert.deepEqual(clip.inputs.notes, [
     { id: "clip_Keys_1_n1", pitch: 60, start: 0, dur: 1, vel: 0.8 },
@@ -133,21 +136,24 @@ test("a <song> declares the chain synth → effects → track → master, with e
   assert.equal(pitchOf("F#3"), 54);
   assert.equal(pitchName(61), "C#4");
   const song = (...children: unknown[]) => () => declarationOf({ default: jsx("song", { children: [jsx("track", { children })] }) });
-  assert.throws(song(jsx("clip", {})), /need a <synth>, a <sampler> or an <instrument>/);
-  assert.throws(song(jsx("synth", {}), jsx("clip", { children: [jsx("note", { pitch: "H2" })] })), /pitch is a MIDI number/);
-  assert.throws(song(jsx("sampler", {})), /<sampler> names its sound file/);
+  assert.throws(song(jsx("clip", {})), /need an <instrument>/);
+  assert.throws(song(jsx("instrument", { preset: "grandPiano" }), jsx("clip", { children: [jsx("note", { pitch: "H2" })] })), /pitch is a MIDI number/);
+  assert.throws(song(jsx("instrument", { preset: "grandPiano" }), jsx("instrument", { preset: "harp" })), /a track plays one instrument/);
+  // The two tags the kernel's kinds replaced are not read.
+  assert.throws(song(jsx("synth", {})), /<synth> is not read on a <track>/);
+  assert.throws(song(jsx("sampler", { src: "a.wav" })), /<sampler> is not read on a <track>/);
 });
 
-test("a <song> holds audio clips (a sound file by path, played by the track's player), a sampler and a cycle", () => {
+test("a <song> holds audio clips (a sound file by path, played by the track's player), a sampler of the kernel and a cycle", () => {
   const tree = jsx("song", {
     cycleStart: 4,
     cycleEnd: 12,
     children: [
       jsx("track", {
         name: "Tone",
-        children: [jsx("gain", { gain: 0.5 }), jsx("clip", { src: "media/tone.wav", start: 2, length: 3, in: 0.25, volume: 0.8, __source: 7 }), jsx("clip", { src: "media/tone.wav", name: "Again", start: 8 })],
+        children: [jsx("gain", { gainDb: -6 }), jsx("clip", { src: "media/tone.wav", start: 2, length: 3, in: 0.25, volume: 0.8, __source: 7 }), jsx("clip", { src: "media/tone.wav", name: "Again", start: 8 })],
       }),
-      jsx("track", { name: "Bells", children: [jsx("sampler", { src: "media/tone.wav", root: "C5", release: 1, __source: 8 }), jsx("clip", { children: [jsx("note", { pitch: "E5" })] })] }),
+      jsx("track", { name: "Bells", children: [jsx("instrument", { kind: "sampler", zones: [{ src: "media/tone.wav", root: 72 }], release: 1, __source: 8 }), jsx("clip", { children: [jsx("note", { pitch: "E5" })] })] }),
     ],
   });
   const { graph: g } = declarationOf({ default: tree });
@@ -156,14 +162,14 @@ test("a <song> holds audio clips (a sound file by path, played by the track's pl
   assert.deepEqual(g.nodes.fx_Tone_gain!.inputs.audio, wireTo("player_Tone", "audio"), "the chain runs player → effects → track");
   assert.deepEqual(g.nodes.clip_tone!.inputs, { name: "tone", src: "media/tone.wav", start: 2, length: 3, offsetSeconds: 0.25, gain: 0.8, loop: false });
   assert.deepEqual(g.nodes.clip_tone!.meta, { source: 7 });
-  assert.deepEqual(g.nodes.inst_Bells!.inputs.spec, { kind: "sampler", src: "media/tone.wav", baseNote: 72, gain: 1, env: { attack: 0.01, decay: 0.15, sustain: 0.6, release: 1 } });
+  assert.deepEqual(g.nodes.inst_Bells!.inputs.spec, { kind: "sampler", zones: [{ src: "media/tone.wav", root: 72 }], release: 1 });
+  assert.deepEqual(g.nodes.fx_Tone_gain!.inputs.spec, { kind: "gain", gainDb: -6 });
   assert.deepEqual(g.nodes.inst_Bells!.inputs["midi.1"], wireTo("clip_Bells_1", "midi"));
   const song = (props: Record<string, unknown>, ...children: unknown[]) => () => declarationOf({ default: jsx("song", { ...props, children: [jsx("track", { children })] }) });
   assert.throws(song({}, jsx("clip", { src: "/abs/tone.wav" })), /relative to this file/);
   assert.throws(song({}, jsx("clip", { src: "take.mp4" })), /not a sound file/);
-  assert.throws(song({}, jsx("synth", {}), jsx("clip", { src: "tone.wav" })), /an audio clip \(src\) goes on a track without one/);
-  assert.throws(song({}, jsx("clip", { src: "tone.wav" }), jsx("clip", {})), /need a <synth>, a <sampler> or an <instrument>/);
-  assert.throws(song({}, jsx("sampler", { src: "a.wav", root: "Q" })), /root is the pitch/);
+  assert.throws(song({}, jsx("instrument", { preset: "grandPiano" }), jsx("clip", { src: "tone.wav" })), /an audio clip \(src\) goes on a track without one/);
+  assert.throws(song({}, jsx("clip", { src: "tone.wav" }), jsx("clip", {})), /need an <instrument>/);
   assert.throws(song({ cycleStart: 4 }), /names both/);
   assert.throws(song({ cycleStart: 4, cycleEnd: 4 }), /comes after/);
 });
@@ -463,10 +469,10 @@ test("a <song> declares its structure as score nodes beside its tracks: attribut
   assert.deepEqual(g.nodes.voice_violin!.inputs, { player: "violin", role: "melody", children: ["use_head", "notes"] });
   assert.deepEqual(g.nodes.use_head!.inputs, { motif: "head", transform: [{ op: "transpose", steps: 2 }] });
   assert.deepEqual(g.nodes.master_2!.inputs, { targetLufs: -16, children: ["compressor"] });
-  // A track's chain holds the kernel's effects as it holds the studio's; a kind's own fields pass as written.
+  // A track's chain holds the kernel's effects; a kind's own fields pass as written.
   assert.deepEqual(g.nodes.inst_Bell!.inputs.spec, { kind: "modal", preset: "glockenspiel" });
-  assert.deepEqual(g.nodes.fx_Bell_compressor!.inputs.spec, { type: "compressor", thresholdDb: -20 });
-  assert.deepEqual(g.nodes.fx_Bell_reverb!.inputs.spec, { type: "reverb", decay: 1.8, mix: 0.4, predelay: 0.02 });
+  assert.deepEqual(g.nodes.fx_Bell_compressor!.inputs.spec, { kind: "compressor", thresholdDb: -20 });
+  assert.deepEqual(g.nodes.fx_Bell_reverb!.inputs.spec, { kind: "reverb", mix: 0.4, predelay: 0.02 });
   assert.deepEqual([g.nodes.track_Bell!.inputs.place, g.nodes.track_Bell!.inputs.out, g.nodes.track_Bell!.inputs.sends], [{ azimuth: 30, distance: 4 }, "hall", [{ bus: "hall", gainDb: -6 }]]);
 
   const song = (...children: unknown[]) => () => declarationOf({ default: jsx("song", { children }) });

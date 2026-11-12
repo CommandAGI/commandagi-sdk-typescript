@@ -133,8 +133,8 @@ kernel, solver, router or renderer; the editor that opens your file evaluates wh
   `<title>`, `<transition>`, `<effect>`, `<keyframe>` and `<marker>`; `<song key meter
   tempo>` with its structure and performance (`<player>` with an `<instrument kind preset>`, `<motif>`, `<section
   harmony>` with `<voice>`s of `<notes>`, `<use motif transform>`, `<counterpoint>`, `<accompany>` and `<drums>`,
-  `<phrase dynamics>`, `<groove>`, `<room>`, `<bus>`, `<master>`) and its typed notes (`<track>` with a `<synth>`, a
-  `<sampler>` or an `<instrument>`, the sound kernel's effects by kind (`<eq>`, `<compressor>`, `<reverb>` …),
+  `<phrase dynamics>`, `<groove>`, `<room>`, `<bus>`, `<master>`) and its typed notes (`<track>` with an
+  `<instrument kind preset>`, the sound kernel's effects by kind (`<eq>`, `<compressor>`, `<reverb>` …),
   `<clip>` and `<note pitch="C4" start duration velocity>`). Seconds on a video's timeline, beats in a song.
 - **A 3D document in JSX** (a `<name>.3d.tsx` the CommandAGI 3D editor opens and edits): a `<part>` (or
   `<assembly>`) with `<parameter>`, `<plane>`, one element per feature named by its type (`<sketch>`,
