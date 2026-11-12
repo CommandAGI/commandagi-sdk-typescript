@@ -977,6 +977,7 @@ export const NOTE_EXPRESSION = ["articulation", "pitchCurve", "ampCurve", "timbr
 export const SONG_EFFECT_KINDS = [
   "gain", "pan", "width", "eq", "filter", "compressor", "multiband", "limiter", "gate", "transient", "deesser", "saturate", "exciter",
   "delay", "chorus", "flanger", "phaser", "tremolo", "vibrato", "reverb", "convolve", "duck", "vocoder",
+  "pitchShift", "harmonizer", "autotune", "shimmer", "bitcrush", "ringMod", "frequencyShift", "waveshape", "tapeStop", "stutter", "reverse", "lofi", "granular", "spectralFreeze", "haas", "autopan", "rotary", "denoise", "declick", "dehum", "dcBlock", "polarity", "loudnessMatch", "clipper", "dynamicEq", "upwardCompressor", "expander",
 ] as const;
 const VOICE_ITEMS = ["notes", "use", "rest", "harmonize", "accompany", "counterpoint", "drums"] as const;
 /**
@@ -1124,11 +1125,15 @@ export function declareSong(root: DesignElement): Declaration {
         if (!bus) throw new Error(`${where(tr)}: a <send> names its bus (bus="hall")`);
         sends.push({ bus, gainDb: num(el, "gainDb") ?? 0 });
       } else if (el.type === "clip" && player && el.props.src !== undefined) {
-        refuseUnknown(el, ["name", "src", "start", "length", "in", "volume", "loop"]);
+        refuseUnknown(el, ["name", "src", "start", "length", "in", "volume", "loop", "stretch", "stretchMode", "reverse"]);
         if (childElements(el.props.children).length) throw new Error(`${where(el)}: an audio clip holds no notes (notes go in a clip on a track with an instrument)`);
         const src = soundSrc(el);
         const clipName = str(el, "name") ?? stemOf(src);
         const cid = id(`clip_${clipName}`);
+        // The clip's own operations, said only when written: the sound kernel stretches the span or turns it round.
+        const stretch = num(el, "stretch", { min: 0.25, max: 4 });
+        const stretchMode = str(el, "stretchMode", ["vocoder", "wsola"]);
+        const reverse = bool(el, "reverse");
         nodes[cid] = node(
           cid,
           "sample",
@@ -1140,6 +1145,9 @@ export function declareSong(root: DesignElement): Declaration {
             offsetSeconds: num(el, "in", { min: 0 }) ?? AUDIO_CLIP.in,
             gain: num(el, "volume", { min: 0 }) ?? AUDIO_CLIP.volume,
             loop: bool(el, "loop") ?? AUDIO_CLIP.loop,
+            ...(stretch !== undefined ? { stretch } : {}),
+            ...(stretchMode !== undefined ? { stretchMode } : {}),
+            ...(reverse !== undefined ? { reverse } : {}),
           },
           undefined,
           metaOf(el),
