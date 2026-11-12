@@ -21,6 +21,10 @@ Added (media)
 - A song's effects `<voiceRemove />` (the lead voice taken out of a recording: an instrumental) and `<voiceIsolate />`
   (the voice kept alone), the sound kernel's two outputs of one separation; their fields are the kernel's (`amount`,
   `method`, the weights, `width`, `lowHz`, `highHz`, `percussion`, `latency`, `history`).
+- The sound kernel's instrument kinds `wavetable`, `granular`, `stack` and `fx`, and the drum machines as a `drums`
+  instrument's `kit` (`"808"`, `"909"`), are `<instrument kind …>` with their fields as written: `<instrument
+  kind="fx" sound="riser" />`, `<instrument kind="stack" layers={[{ instrument: { preset: "taiko" }, gainDb: -3 }]} />`.
+  An instrument with no kind names the kinds in its refusal.
 - A song's `<note>` may say its expression, passed to the sound kernel as written: `articulation`, `pitchCurve`,
   `ampCurve` and `timbreCurve` (points `[seconds, value]` over the note's own time) and `params` (the per-note values
   its instrument reads). Its `pitch` may be a number with a fraction (a note read from a recording). `NOTE_EXPRESSION`
