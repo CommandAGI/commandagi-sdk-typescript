@@ -133,6 +133,10 @@ test("a <song> declares the chain instrument → effects → track → master, w
     { id: "clip_Keys_1_n2", pitch: 64, start: 1, dur: 1, vel: 0.8 },
   ]);
   assert.deepEqual(clip.meta, { sources: { "note:clip_Keys_1_n1": 9 } });
+  // A note may sound between two keys and carry its expression, passed as written.
+  const bent = declarationOf({ default: jsx("song", { children: [jsx("track", { name: "T", children: [jsx("instrument", { preset: "violin" }), jsx("clip", { children: [jsx("note", { pitch: 60.25, start: 0, articulation: "legato", ampCurve: [[0, 0.5], [0.2, 1]], pitchCurve: [[0, -20], [0.1, 0]], params: { tone: 2 } })] })] })] }) });
+  assert.deepEqual(bent.graph.nodes.clip_T_1!.inputs.notes, [{ id: "clip_T_1_n1", pitch: 60.25, start: 0, dur: 1, vel: 0.8, articulation: "legato", ampCurve: [[0, 0.5], [0.2, 1]], pitchCurve: [[0, -20], [0.1, 0]], params: { tone: 2 } }]);
+  assert.throws(() => declarationOf({ default: jsx("song", { children: [jsx("track", { children: [jsx("instrument", { preset: "violin" }), jsx("clip", { children: [jsx("note", { pitch: 60, bend: 2 })] })] })] }) }), /prop bend is not read on a <note>/);
   assert.equal(pitchOf("F#3"), 54);
   assert.equal(pitchName(61), "C#4");
   const song = (...children: unknown[]) => () => declarationOf({ default: jsx("song", { children: [jsx("track", { children })] }) });

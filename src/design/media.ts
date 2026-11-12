@@ -964,6 +964,15 @@ function soundSrc(el: DesignElement): string {
 /** A file's name without its folder and extension: an audio clip's name when it gives none. */
 const stemOf = (src: string) => src.replace(/^.*\//, "").replace(/\.[^.]+$/, "");
 
+/** Where and how hard a song's note is played. */
+const NOTE_PLACE = ["pitch", "start", "duration", "velocity"] as const;
+/**
+ * What a song's note may say beside them, passed to the sound kernel as written: an `articulation`, curves over the
+ * note's own time as `[seconds, value]` points (`pitchCurve` in cents, `ampCurve` as a gain, `timbreCurve` 0 to 1) and
+ * `params`, the per-note values its instrument reads (`{ tone: 2 }`).
+ */
+export const NOTE_EXPRESSION = ["articulation", "pitchCurve", "ampCurve", "timbreCurve", "params"] as const;
+
 /** The sound kernel's effect kinds: each is a tag of a song (`<compressor thresholdDb={-18} />`). */
 export const SONG_EFFECT_KINDS = [
   "gain", "pan", "width", "eq", "filter", "compressor", "multiband", "limiter", "gate", "transient", "deesser", "saturate", "exciter",
@@ -1142,15 +1151,17 @@ export function declareSong(root: DesignElement): Declaration {
         refuseUnknown(el, ["name", "start", "length", "loop"]);
         const clipName = str(el, "name") ?? `${trackName} ${clips.length + 1}`;
         const cid = id(`clip_${clipName}`);
-        const notes: { id: string; pitch: number; start: number; dur: number; vel: number }[] = [];
+        const notes: { id: string; pitch: number; start: number; dur: number; vel: number; [expression: string]: unknown }[] = [];
         const sources: Record<string, unknown> = {};
         for (const n of childElements(el.props.children)) {
           if (n.type !== "note") throw new Error(`<${n.type}> is not read in a <clip> (it holds <note>)`);
-          refuseUnknown(n, ["pitch", "start", "duration", "velocity"]);
-          const pitch = pitchOf(n.props.pitch);
+          refuseUnknown(n, [...NOTE_PLACE, ...NOTE_EXPRESSION]);
+          // A song's note may sound between two keys (a note read from a recording): a number with a fraction.
+          const given = n.props.pitch;
+          const pitch = typeof given === "number" && Number.isFinite(given) && given >= 0 && given <= 127 ? given : pitchOf(given);
           if (pitch === null) throw new Error(`<note>: pitch is a MIDI number (0–127) or a name ("C4", "F#3"), not ${JSON.stringify(n.props.pitch)}`);
           const nid = `${cid}_n${notes.length + 1}`;
-          notes.push({ id: nid, pitch, start: num(n, "start", { min: 0 }) ?? 0, dur: num(n, "duration", { min: 0 }) ?? 1, vel: num(n, "velocity", { min: 0, max: 1 }) ?? 0.8 });
+          notes.push({ id: nid, pitch, start: num(n, "start", { min: 0 }) ?? 0, dur: num(n, "duration", { min: 0 }) ?? 1, vel: num(n, "velocity", { min: 0, max: 1 }) ?? 0.8, ...written(n, NOTE_PLACE) });
           sources[`note:${nid}`] = sourceMeta(n);
         }
         nodes[cid] = node(cid, "midiClip", { name: clipName, start: num(el, "start", { min: 0 }) ?? 0, length: num(el, "length", { min: 0 }) ?? 4, notes, loop: bool(el, "loop") ?? false }, undefined, metaOf(el, sources));
