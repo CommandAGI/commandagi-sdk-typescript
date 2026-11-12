@@ -55,7 +55,7 @@ import { PEOPLE_OPS_TAGS, teamOf } from "./people-ops.js";
 
 export * from "./business-finance.js";
 export { RegisteredAgent } from "./company-formation.js";
-export { Address, Stock, Owner } from "./company-profile.js";
+export { Address, Listing, Stock, Owner } from "./company-profile.js";
 import { COMPANY_GOVERNANCE_MANY, COMPANY_GOVERNANCE_ONE, GOVERNANCE_TAGS, PAPER_VOTE_PROPS, governanceOf, votesOf } from "./company-governance.js";
 import { COMPANY_DEALS_MANY, COMPANY_DEALS_ONE, DEALS_TAGS, dealsOf } from "./company-deals.js";
 
@@ -130,7 +130,7 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   Signature: { props: { party: "text", signer: "text", capacity: "text", date: "text", method: "text", evidence: "text" }, required: ["party"] },
   Version: { props: { file: "text", date: "text", note: "text" }, required: ["file"] },
   ...FORMATION_TAGS,
-  // The legal profile: addresses by purpose, classes of stock, beneficial owners (company-profile.ts).
+  // The legal profile: addresses by purpose, listings, classes of stock, beneficial owners (company-profile.ts).
   ...PROFILE_TAGS,
   // A brand of the company: its own `.brand.tsx`, by ref (docs/company-substrate.md § the brand surface).
   Brand: { props: { file: "text" }, required: ["file"] },
