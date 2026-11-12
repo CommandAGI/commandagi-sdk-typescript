@@ -976,7 +976,7 @@ export const NOTE_EXPRESSION = ["articulation", "pitchCurve", "ampCurve", "timbr
 /** The sound kernel's effect kinds: each is a tag of a song (`<compressor thresholdDb={-18} />`). */
 export const SONG_EFFECT_KINDS = [
   "gain", "pan", "width", "eq", "filter", "compressor", "multiband", "limiter", "gate", "transient", "deesser", "saturate", "exciter",
-  "delay", "chorus", "flanger", "phaser", "tremolo", "vibrato", "reverb", "convolve",
+  "delay", "chorus", "flanger", "phaser", "tremolo", "vibrato", "reverb", "convolve", "duck", "vocoder",
 ] as const;
 const VOICE_ITEMS = ["notes", "use", "rest", "harmonize", "accompany", "counterpoint", "drums"] as const;
 /**
