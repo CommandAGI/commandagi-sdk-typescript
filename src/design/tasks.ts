@@ -70,6 +70,7 @@ export const TASK_FIELDS = [
   "dueAt",
   "closedAt",
   "threadId",
+  "taskKey",
   "createdBy",
   "readme",
   "expires",
