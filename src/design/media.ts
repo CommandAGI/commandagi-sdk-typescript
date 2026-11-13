@@ -54,7 +54,7 @@
  *   export default () => (
  *     <song name="Air" key="D minor" meter="3/4" tempo={84}>
  *       <player name="violin" family="strings">
- *         <instrument kind="string" preset="violin" />
+ *         <instrument kind="measured" preset="violin" />
  *       </player>
  *       <motif name="head" notes="1:8 2 3 5:4." />
  *       <section name="A" bars={2} harmony="i | V7">
@@ -1109,7 +1109,7 @@ export function declareSong(root: DesignElement): Declaration {
     for (const el of children) {
       if (el.type === "instrument") {
         if (instrument) throw new Error(`${where(tr)}: a track plays one instrument`);
-        if (!str(el, "kind") && !str(el, "preset")) throw new Error(`${where(el)}: an instrument names its kind (kind="string", "modal", "wind", "additive", "fm", "subtractive", "sampler", "drums", "wavetable", "granular", "stack", "fx") or a preset (preset="violin")`);
+        if (!str(el, "kind") && !str(el, "preset")) throw new Error(`${where(el)}: an instrument names its kind (kind="string", "modal", "wind", "additive", "measured", "fm", "subtractive", "sampler", "drums", "wavetable", "granular", "stack", "fx") or a preset (preset="violin")`);
         instrument = id(`inst_${trackName}`);
         nodes[instrument] = node(instrument, "instrument", { name: str(el, "name") ?? trackName, spec: written(el, ["name"]) }, undefined, metaOf(el));
         upstream = instrument;

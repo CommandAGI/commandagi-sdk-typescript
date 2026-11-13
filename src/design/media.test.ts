@@ -431,7 +431,7 @@ test("a <song> declares its structure as score nodes beside its tracks: attribut
         family: "strings",
         place: { azimuth: -20, distance: 3 },
         __source: 3,
-        children: [jsx("instrument", { kind: "string", preset: "violin" }), jsx("reverb", { preset: "hall", mix: 0.2 }), jsx("send", { bus: "hall", gainDb: -12 })],
+        children: [jsx("instrument", { kind: "measured", preset: "violin" }), jsx("reverb", { preset: "hall", mix: 0.2 }), jsx("send", { bus: "hall", gainDb: -12 })],
       }),
       jsx("motif", { name: "head", notes: "1:8 2 3 5:4." }),
       jsx("section", {
@@ -451,7 +451,7 @@ test("a <song> declares its structure as score nodes beside its tracks: attribut
         name: "Bell",
         place: { azimuth: 30, distance: 4 },
         out: "hall",
-        children: [jsx("instrument", { kind: "modal", preset: "glockenspiel" }), jsx("compressor", { thresholdDb: -20 }), jsx("reverb", { mix: 0.4, predelay: 0.02 }), jsx("send", { bus: "hall", gainDb: -6 }), jsx("clip", { children: [jsx("note", { pitch: "D5" })] })],
+        children: [jsx("instrument", { kind: "measured", preset: "glockenspiel" }), jsx("compressor", { thresholdDb: -20 }), jsx("reverb", { mix: 0.4, predelay: 0.02 }), jsx("send", { bus: "hall", gainDb: -6 }), jsx("clip", { children: [jsx("note", { pitch: "D5" })] })],
       }),
     ],
   });
@@ -467,14 +467,14 @@ test("a <song> declares its structure as score nodes beside its tracks: attribut
     inputs: { name: "violin", family: "strings", place: { azimuth: -20, distance: 3 }, children: ["instrument", "reverb", "send"] },
     meta: { source: 3 },
   });
-  assert.deepEqual(g.nodes.instrument!.inputs, { kind: "string", preset: "violin" });
+  assert.deepEqual(g.nodes.instrument!.inputs, { kind: "measured", preset: "violin" });
   assert.deepEqual(g.nodes.section_A!.inputs.children, ["phrase", "voice_violin"]);
   assert.equal(g.nodes.section_A!.inputs.key, "F", "a key written as a prop or as the third argument of jsx is the section's key");
   assert.deepEqual(g.nodes.voice_violin!.inputs, { player: "violin", role: "melody", children: ["use_head", "notes"] });
   assert.deepEqual(g.nodes.use_head!.inputs, { motif: "head", transform: [{ op: "transpose", steps: 2 }] });
   assert.deepEqual(g.nodes.master_2!.inputs, { targetLufs: -16, children: ["compressor"] });
   // A track's chain holds the kernel's effects; a kind's own fields pass as written.
-  assert.deepEqual(g.nodes.inst_Bell!.inputs.spec, { kind: "modal", preset: "glockenspiel" });
+  assert.deepEqual(g.nodes.inst_Bell!.inputs.spec, { kind: "measured", preset: "glockenspiel" });
   assert.deepEqual(g.nodes.fx_Bell_compressor!.inputs.spec, { kind: "compressor", thresholdDb: -20 });
   assert.deepEqual(g.nodes.fx_Bell_reverb!.inputs.spec, { kind: "reverb", mix: 0.4, predelay: 0.02 });
   assert.deepEqual([g.nodes.track_Bell!.inputs.place, g.nodes.track_Bell!.inputs.out, g.nodes.track_Bell!.inputs.sends], [{ azimuth: 30, distance: 4 }, "hall", [{ bus: "hall", gainDb: -6 }]]);
