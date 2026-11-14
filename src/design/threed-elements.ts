@@ -314,6 +314,11 @@ export type CaptureGeoPose = {
   headingDeg?: number;
 };
 
+/**
+ * A cell's chemistry: alkaline 1.5 V, lithium (Li-FeS2) 1.5 V, NiMH 1.2 V, Li-ion and Li-polymer 3.7 V, LiFePO4 3.2 V nominal.
+ */
+export type CellChemistry = "alkaline" | "lithium" | "nimh" | "li-ion" | "li-polymer" | "lifepo4";
+
 export type ChamferFeature = {
   type: "chamfer";
   /**
@@ -3067,6 +3072,19 @@ export type ParamRect = {
   vMax: number;
 };
 
+/** THE CELLS OF A BATTERY OR A HOLDER: how many, in series, of which chemistry and size. */
+export type PartCells = {
+  /**
+   * The cells in series.
+   * @minimum 1
+   */
+  count: number;
+  /** Their chemistry: its nominal cell voltage (IEC 60086, IEC 61951-2, IEC 61960, IEC 62620). */
+  chemistry: CellChemistry;
+  /** Their size, as the standard names it ("AA", "AAA", "18650"); a pouch states none. */
+  size?: string;
+};
+
 /**
  * A part's engineering data: its material grade and finish, how it is made or who sells it, and the logistics a declared check may require (docs/formats.md § logistics).
  */
@@ -3115,6 +3133,22 @@ export type PartEngineering = {
   envelope?: boolean;
   /** The real part's mounting holes, in the body's own frame: read when the body is an `envelope`. */
   mountingHoles?: MountingHole[];
+  /**
+   * A reference body (`process: "reference"`) where the bought part's cable leaves it (a servo's lead, a battery's lead, a module's plug): the board-fit gate's cables check runs the lead from its connector on the board to here.
+   */
+  lead?: boolean;
+  /**
+   * What a person must see of the part from outside (a display's active area, a lamp's lens, a light sensor's window): the board-fit gate's visible check looks along it, in the body's own frame.
+   */
+  view?: PartView;
+  /**
+   * The cells a battery or a battery holder takes: the board-fit gate's cells check holds them to the board's power record.
+   */
+  cells?: PartCells;
+  /**
+   * The body passes light (a clear PMMA, PC or PETG window, a light pipe): the board-fit gate's sight lines pass through it.
+   */
+  clear?: boolean;
 };
 
 /** A mass that was weighed or read from a datasheet. It stands in place of volume × density. */
@@ -3153,6 +3187,39 @@ export type PartNeed = {
    * @exclusiveMinimum 0
    */
   multiple?: number;
+};
+
+/**
+ * WHAT IS SEEN OF A PART: a display's active area (`diameter`, or `size` across its frame's other two axes, for a window at least that large), or a lens or a window that sees within a cone (`coneDeg`, its half angle).
+ */
+export type PartView = {
+  /**
+   * The middle of the area or the lens, in the body's own frame.
+   * @unit mm
+   */
+  at: Vec3;
+  /** The way it looks, in the body's own frame (an axis of that frame). */
+  facing: Vec3;
+  /**
+   * A round active area's diameter.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  diameter?: number;
+  /**
+   * A rectangular active area: its sizes along the frame's two axes other than `facing`'s, in their order (x, y, z).
+   * @unit mm
+   * @minItems 2
+   * @maxItems 2
+   */
+  size?: [number, number];
+  /**
+   * The half angle of the cone a lens or a sensor sees within.
+   * @unit deg
+   * @minimum 0
+   * @maximum 90
+   */
+  coneDeg?: number;
 };
 
 export type PathPatternFeature = {

@@ -728,6 +728,18 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "Where a captured place's frame stands on the Earth: its origin (WGS84, the height above the ellipsoid) and the heading of its +y axis."
   },
+  "CellChemistry": {
+   "type": "string",
+   "enum": [
+    "alkaline",
+    "lithium",
+    "nimh",
+    "li-ion",
+    "li-polymer",
+    "lifepo4"
+   ],
+   "description": "A cell's chemistry: alkaline 1.5 V, lithium (Li-FeS2) 1.5 V, NiMH 1.2 V, Li-ion and Li-polymer 3.7 V, LiFePO4 3.2 V nominal."
+  },
   "ChamferFeature": {
    "type": "object",
    "properties": {
@@ -6301,6 +6313,30 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "The rectangle of parameter space a chart occupies. Half-open in the periodic direction."
   },
+  "PartCells": {
+   "type": "object",
+   "properties": {
+    "count": {
+     "type": "integer",
+     "description": "The cells in series.",
+     "minimum": 1
+    },
+    "chemistry": {
+     "$ref": "#/$defs/CellChemistry",
+     "description": "Their chemistry: its nominal cell voltage (IEC 60086, IEC 61951-2, IEC 61960, IEC 62620)."
+    },
+    "size": {
+     "type": "string",
+     "description": "Their size, as the standard names it (\"AA\", \"AAA\", \"18650\"); a pouch states none."
+    }
+   },
+   "required": [
+    "count",
+    "chemistry"
+   ],
+   "additionalProperties": false,
+   "description": "THE CELLS OF A BATTERY OR A HOLDER: how many, in series, of which chemistry and size."
+  },
   "PartEngineering": {
    "type": "object",
    "properties": {
@@ -6396,6 +6432,22 @@ export const THREED_SCHEMA: SchemaDocument = {
       "$ref": "#/$defs/MountingHole"
      },
      "description": "The real part's mounting holes, in the body's own frame: read when the body is an `envelope`."
+    },
+    "lead": {
+     "type": "boolean",
+     "description": "A reference body (`process: \"reference\"`) where the bought part's cable leaves it (a servo's lead, a battery's lead, a module's plug): the board-fit gate's cables check runs the lead from its connector on the board to here."
+    },
+    "view": {
+     "$ref": "#/$defs/PartView",
+     "description": "What a person must see of the part from outside (a display's active area, a lamp's lens, a light sensor's window): the board-fit gate's visible check looks along it, in the body's own frame."
+    },
+    "cells": {
+     "$ref": "#/$defs/PartCells",
+     "description": "The cells a battery or a battery holder takes: the board-fit gate's cells check holds them to the board's power record."
+    },
+    "clear": {
+     "type": "boolean",
+     "description": "The body passes light (a clear PMMA, PC or PETG window, a light pipe): the board-fit gate's sight lines pass through it."
     }
    },
    "additionalProperties": false,
@@ -6448,6 +6500,49 @@ export const THREED_SCHEMA: SchemaDocument = {
    },
    "additionalProperties": false,
    "description": "WHAT ONE ORDER NEEDS OF A PART BEYOND `qty × N` (docs/formats.md § logistics, the need): true of the part whatever the order, so the design states it. need(N) = (qty × N + spares) plus attrition, rounded up to `multiple`. A count loses whole parts (its attrition rounds up to one); a measure (a unit other than `each`, or a share) loses its share."
+  },
+  "PartView": {
+   "type": "object",
+   "properties": {
+    "at": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The middle of the area or the lens, in the body's own frame.",
+     "x-unit": "mm"
+    },
+    "facing": {
+     "$ref": "#/$defs/Vec3",
+     "description": "The way it looks, in the body's own frame (an axis of that frame)."
+    },
+    "diameter": {
+     "type": "number",
+     "description": "A round active area's diameter.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "size": {
+     "type": "array",
+     "items": {
+      "type": "number"
+     },
+     "minItems": 2,
+     "maxItems": 2,
+     "description": "A rectangular active area: its sizes along the frame's two axes other than `facing`'s, in their order (x, y, z).",
+     "x-unit": "mm"
+    },
+    "coneDeg": {
+     "type": "number",
+     "description": "The half angle of the cone a lens or a sensor sees within.",
+     "x-unit": "deg",
+     "minimum": 0,
+     "maximum": 90
+    }
+   },
+   "required": [
+    "at",
+    "facing"
+   ],
+   "additionalProperties": false,
+   "description": "WHAT IS SEEN OF A PART: a display's active area (`diameter`, or `size` across its frame's other two axes, for a window at least that large), or a lens or a window that sees within a cone (`coneDeg`, its half angle)."
   },
   "PathPatternFeature": {
    "type": "object",
