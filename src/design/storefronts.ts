@@ -26,9 +26,10 @@
  * `uber`, `commandagi` …), `seller` the seller's name, `sellerRecord` a ref to its record, `sellerId` its id at the
  * venue, `hold` how long a quoted price holds at checkout (`"10 minutes"`). `<Offers listings read?>` names the
  * store's mirrored listings (a CSV) and the script that keeps them; each `<Offer>` is one offer, by its `name`:
- * `kind` `service` or `good`, `price` (`"25.00 USD"`), `unit`, classification `codes` (`<scheme>:<code>`) and `tags`.
+ * `kind` `service` or `good`, `price` (`"25.00 USD"`), `unit`, classification `codes` (product schemes, `./classification.ts`) and `tags`.
  * The Python SDK's `storefronts.py` and the Rust SDK's `storefronts.rs` declare the same document.
  */
+import { PRODUCT_SCHEMES, classificationProblem } from "./classification.js";
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
 
 /** A storefront's file: `<name>.storefront.tsx` (or `.jsx`, `.py`, `.rs`). */
@@ -69,7 +70,6 @@ export interface StorefrontDoc {
 export const STOREFRONT_VENUE = /^[a-z0-9][a-z0-9-]{0,39}$/;
 export const STOREFRONT_HOLD = /^[1-9]\d{0,3} (second|minute|hour|day)s?$/;
 export const STOREFRONT_PRICE = /^\d+(\.\d+)? [A-Z]{3}$/;
-export const STOREFRONT_CODE = /^[a-z0-9-]+:[A-Za-z0-9.\-]+$/;
 
 const said = (v: unknown) => (v === undefined ? "undefined" : JSON.stringify(v));
 const text = (v: unknown, max: number): v is string => typeof v === "string" && v.trim().length > 0 && v.length <= max;
@@ -91,16 +91,11 @@ export function storefrontOfferOf(a: Record<string, unknown>): StorefrontOffer {
     out.price = a.price;
   }
   optionalText(a, "unit", 40, at, out as unknown as Record<string, unknown>);
-  if (a.codes !== undefined) {
-    if (!Array.isArray(a.codes) || a.codes.length > 20 || !a.codes.every((c) => typeof c === "string" && STOREFRONT_CODE.test(c)))
-      throw new Error(`${at} codes is a list of at most 20 classification codes, each <scheme>:<code> ("unspsc:43211500"), not ${said(a.codes)}`);
-    out.codes = [...(a.codes as string[])];
-  }
-  if (a.tags !== undefined) {
-    if (!Array.isArray(a.tags) || a.tags.length > 20 || !a.tags.every((t) => text(t, 40)))
-      throw new Error(`${at} tags is a list of at most 20 short texts (at most 40 each), not ${said(a.tags)}`);
-    out.tags = [...(a.tags as string[])];
-  }
+  // What kind of offer it is (./classification.ts): product schemes and free tags, by the one grammar.
+  const classification = classificationProblem(a.codes, a.tags, PRODUCT_SCHEMES);
+  if (classification) throw new Error(`${at} ${classification}`);
+  if (a.codes !== undefined) out.codes = [...(a.codes as string[])];
+  if (a.tags !== undefined) out.tags = [...(a.tags as string[])];
   return out;
 }
 

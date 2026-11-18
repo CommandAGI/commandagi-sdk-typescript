@@ -45,6 +45,12 @@ test("a product that does not read is refused with why", () => {
   assert.throws(bad({ name: "x", kind: "service" }, v), /kind is physical or digital/);
   assert.throws(bad({ ...phys, taxCode: "txcd_1" }, v), /taxCode is a Stripe product tax code like txcd_99999999/);
   assert.equal(declarationOf({ default: el("product", { ...phys, taxCode: "txcd_99999999" }, el("variant", v)) }).document!.document.taxCode, "txcd_99999999");
+  // Classification (docs/formats.md § classification): product schemes only, tags as they are kept.
+  assert.throws(bad({ ...phys, codes: ["naics:541511"] }, v), /"naics:541511" is a business code; here a code is of unspsc, gs1, hs/);
+  assert.throws(bad({ ...phys, codes: ["unspsc:432"] }, v), /a UNSPSC code is 2, 4, 6 or 8 digits/);
+  assert.throws(bad({ ...phys, tags: ["3D Printing"] }, v), /write the tag as "3d printing"/);
+  const classified = declarationOf({ default: el("product", { ...phys, codes: ["unspsc:43232100", "hs:847989"], tags: ["robotics"] }, el("variant", v)) }).document!.document;
+  assert.deepEqual([classified.codes, classified.tags], [["unspsc:43232100", "hs:847989"], ["robotics"]]);
   assert.throws(bad({ ...dig, shipping: SHIPPING }, { ...v, file: "f.zip" }), /is digital: it ships nothing/);
   assert.throws(bad(dig, v), /is digital: file names the file it sells/);
   assert.throws(bad(dig, { ...v, file: "f.zip", deposit: { percent: 10 } }), /is digital: it takes no deposit/);

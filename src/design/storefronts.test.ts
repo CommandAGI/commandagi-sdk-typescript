@@ -58,7 +58,7 @@ test("a storefront that does not read is refused with why", () => {
   assert.throws(bad({ ...at, url: "http://x" }), /url is an https:\/\/ address/);
   assert.throws(bad(at, el(Offer, { name: "A", kind: "service", price: "25 dollars" })), /price is an amount and an ISO currency/);
   assert.throws(bad(at, el(Offer, { name: "A", kind: "thing" })), /kind is service or good/);
-  assert.throws(bad(at, el(Offer, { name: "A", kind: "good", codes: ["43211500"] })), /codes is a list of at most 20 classification codes/);
+  assert.throws(bad(at, el(Offer, { name: "A", kind: "good", codes: ["43211500"] })), /codes: "43211500" is not a code: write it as scheme:code/);
   assert.throws(bad(at, el(Offer, { name: "A", kind: "good" }), el(Offer, { name: "A", kind: "good" })), /two <Offer> in <Storefront> have name "A"/);
   assert.throws(bad(at, el(Offers, { listings: "a.csv" }), el(Offers, { listings: "b.csv" })), /<Storefront> has one <Offers>/);
   assert.throws(bad({ name: "Shop", venue: "ebay" }), /needs seller/);

@@ -4,7 +4,7 @@
  *
  *   // Shop/Helmet files.product.tsx
  *   export default () => (
- *     <product name="Helmet files" kind="digital" status="active">
+ *     <product name="Helmet files" kind="digital" status="active" codes={["unspsc:43232100"]} tags={["3d printing", "helmet"]}>
  *       <variant sku="helmet-stl" name="STL pack" priceCents={1500} file="./helmet.zip" />
  *     </product>
  *   );
@@ -24,16 +24,18 @@
  * variant a pre-order: `{ percent }` (1 to 99) or `{ cents }` (at least 50, less than the price) is paid now, and the
  * balance when the seller says the product is ready. A `<discount>` takes `percent` or `amountCents` off, between
  * `startsAt` and `endsAt` (ISO 8601; a date-time with no offset is UTC), for at most `usageLimit` orders. Each
- * `<variant>` is one record, by its `sku`; each `<discount>` one, by its `code`. The Python SDK's `products.py` and the
+ * `<variant>` is one record, by its `sku`; each `<discount>` one, by its `code`. `codes` (product schemes: unspsc, gs1,
+ * hs) and `tags` say what kind of product it is (`./classification.ts`; docs/formats.md § classification). The Python SDK's `products.py` and the
  * Rust SDK's `products.rs` declare the same document.
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
+import { PRODUCT_SCHEMES, classificationProblem } from "./classification.js";
 
 /** A product's file: `<name>.product.tsx` (or `.jsx`, `.py`, `.rs`). */
 export const PRODUCT_FILE = /\.product\.(?:[jt]sx|py|rs)$/i;
 export const PRODUCT_KINDS = ["physical", "digital"] as const;
 export const PRODUCT_STATUSES = ["draft", "active", "archived"] as const;
-export const PRODUCT_FIELDS = ["name", "kind", "slug", "subtitle", "description", "images", "status", "shipping", "fulfilment", "quantityTerms", "embodimentKind", "taxCode"] as const;
+export const PRODUCT_FIELDS = ["name", "kind", "slug", "subtitle", "description", "images", "status", "shipping", "fulfilment", "quantityTerms", "embodimentKind", "taxCode", "codes", "tags"] as const;
 export const VARIANT_FIELDS = ["sku", "name", "priceCents", "compareAtCents", "stock", "options", "weightGrams", "file", "deposit"] as const;
 export const DISCOUNT_FIELDS = ["code", "percent", "amountCents", "startsAt", "endsAt", "usageLimit"] as const;
 
@@ -70,6 +72,10 @@ export interface ProductDoc {
   quantityTerms?: Record<string, unknown>;
   embodimentKind?: string;
   taxCode?: string;
+  /** Product codes as scheme:code (unspsc, gs1, hs): what kind of product it is. */
+  codes?: string[];
+  /** Free words the seller chooses: lower case, trimmed. */
+  tags?: string[];
   variants: ProductVariant[];
   discounts: ProductDiscount[];
 }
@@ -230,6 +236,10 @@ export function productOf(t: DocTree): ProductDoc {
     if (typeof a.taxCode !== "string" || !/^txcd_[0-9]{8}$/.test(a.taxCode)) throw new Error(`${at} taxCode is a Stripe product tax code like txcd_99999999, not ${said(a.taxCode)}`);
     out.taxCode = a.taxCode;
   }
+  const classification = classificationProblem(a.codes, a.tags, PRODUCT_SCHEMES);
+  if (classification) throw new Error(`${at} ${classification}`);
+  if (a.codes !== undefined) out.codes = [...(a.codes as string[])];
+  if (a.tags !== undefined) out.tags = [...(a.tags as string[])];
   const variants = t.children.filter((c) => c.tag === "variant");
   // A file not finished yet may hold none; the checkout refuses a product that sells nothing.
   if (variants.length > 50) throw new Error(`${at} sells at most 50 <variant>s, not ${variants.length}`);

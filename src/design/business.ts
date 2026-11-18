@@ -6,7 +6,7 @@
  *   import { Company, Entity, Registration, Books, CapTable, People, Calendar, Matters, Subsidiary, Paper } from "commandagi/design";
  *
  *   export default () => (
- *     <Company name="Northwind Survey" about="Drone surveys." files={["Northwind Survey/"]}>
+ *     <Company name="Northwind Survey" about="Drone surveys." codes={["naics:541370"]} tags={["drone survey"]} files={["Northwind Survey/"]}>
  *       <Entity jurisdiction="US-DE" form="llc" name="Northwind Survey LLC" formed="2024-01-31" fiscalYearEnd="12-31" />
  *       <Books journal="Northwind Survey/books/main.journal" />
  *       <CapTable ocf="Northwind Survey/captable/" />
@@ -14,6 +14,9 @@
  *       <Registration kind="tax-id" jurisdiction="US" id="12-3456789" issued="2024-02-05" />
  *     </Company>
  *   );
+ *
+ * `codes` and `tags` say what kind of business it is (`./classification.ts`): standard codes as scheme:code and free
+ * words. The compliance register matches an industry's obligations against its business codes (naics, nace …).
  *
  * The standard's parts REF their files: the books stay an hledger journal and the cap table an Open Cap Table Format
  * folder, because those open formats are the faithful records. The company is on the standard when it names any of
@@ -26,7 +29,7 @@
  *     <Signature party signer capacity date method evidence/>  <Version file date note/>
  *                                                                      a typed document (docs/company-substrate.md)
  *
- *   <Product id name about maker seller status file/>                    a product: who makes it, who sells it (merchant
+ *   <Product id name about codes tags maker seller status file/>         a product: who makes it, who sells it (merchant
  *                                                                      of record); `<Relationships file/>` its suppliers'
  *                                                                      and funders' relationships.csv, by ref
  *
@@ -60,6 +63,7 @@ import { COMPANY_GOVERNANCE_MANY, COMPANY_GOVERNANCE_ONE, GOVERNANCE_TAGS, PAPER
 import { COMPANY_DEALS_MANY, COMPANY_DEALS_ONE, DEALS_TAGS, dealsOf } from "./company-deals.js";
 
 import { EQUITY_TAGS, roundsOf } from "./business-equity.js";
+import { PRODUCT_SCHEMES, classificationProblem } from "./classification.js";
 
 export { Round, Investment, EQUITY_TAGS, roundsOf } from "./business-equity.js";
 
@@ -98,7 +102,7 @@ export interface TagSpec {
 /** The vocabulary: each tag's attributes and children (what the document's fields are). */
 export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   Company: {
-    props: { name: "text", about: "text", postalAddress: "text", files: "texts", dashboard: "text", ...PROFILE_COMPANY_PROPS },
+    props: { name: "text", about: "text", codes: "texts", tags: "texts", postalAddress: "text", files: "texts", dashboard: "text", ...PROFILE_COMPANY_PROPS },
     required: ["name"],
     one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE, team: "Team", ...COMPANY_GOVERNANCE_ONE, relationships: "Relationships", ...COMPANY_DEALS_ONE },
     many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", rounds: "Round", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS, ...PROFILE_LISTS, brands: "Brand", ...COMPANY_GOVERNANCE_MANY, products: "Product", ...COMPANY_DEALS_MANY },
@@ -135,7 +139,7 @@ export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   // A brand of the company: its own `.brand.tsx`, by ref (docs/company-substrate.md § the brand surface).
   Brand: { props: { file: "text" }, required: ["file"] },
   // What the company sells or makes: who makes it and who sells it (the merchant of record), when they differ.
-  Product: { props: { id: "text", name: "text", about: "text", maker: "text", seller: "text", status: "text", file: "text" }, required: ["name"] },
+  Product: { props: { id: "text", name: "text", about: "text", codes: "texts", tags: "texts", maker: "text", seller: "text", status: "text", file: "text" }, required: ["name"] },
   // The company's relationships (suppliers, manufacturers, funders, channels): one relationships.csv, by ref.
   Relationships: { props: { file: "text" }, required: ["file"] },
   // Seats, the compliance register, IP, insurance and votes (company-governance.ts).
@@ -253,6 +257,15 @@ function sourcesOf(node: BusinessNode, at = "", out: Record<string, unknown> = {
   return out;
 }
 
+/** A node's `codes` and `tags`, checked (docs/formats.md § classification): only what it writes. */
+function classifiedFields(node: BusinessNode, schemes: readonly string[] | null, at: string): Record<string, unknown> {
+  const { codes, tags } = node.props;
+  const problem = classificationProblem(codes, tags, schemes);
+  if (problem) throw new Error(`${at} ${problem}`);
+  return { ...(codes !== undefined ? { codes } : {}), ...(tags !== undefined ? { tags } : {}) };
+}
+const classified = (node: BusinessNode, schemes: readonly string[] | null, at: string) => ({ ...node.props, ...classifiedFields(node, schemes, at) });
+
 /** A company document from a `<Company>` (docs/formats.md § companies). */
 export function companyOf(node: BusinessNode): Record<string, unknown> {
   const p = node.props, one = node.one;
@@ -278,7 +291,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
   const on = ["books", "captable", "people", "calendar", "matters"].some((f) => one[f]) || registrations.length > 0;
   const subsidiaries = node.many.subsidiaries!.map((x) => ({ ...x.props }));
   const brands = node.many.brands!.map((x) => ({ ...x.props }));
-  const products = node.many.products!.map((x) => ({ ...x.props }));
+  const products = node.many.products!.map((x) => classified(x, PRODUCT_SCHEMES, `<Product name="${x.props.name}">`));
   const papers = node.many.papers!.map((x) => ({
     ...x.props,
     ...(x.many.signatures!.length ? { signatures: x.many.signatures!.map((n) => ({ ...n.props })) } : {}),
@@ -291,6 +304,7 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     format: "commandagi-company",
     name: p.name,
     about: p.about ?? "",
+    ...classifiedFields(node, null, "<Company>"),
     ...(p.postalAddress !== undefined ? { postalAddress: p.postalAddress } : {}),
     files: p.files ?? [],
     dashboard: p.dashboard ?? null,

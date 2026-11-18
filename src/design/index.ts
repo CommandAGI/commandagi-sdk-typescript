@@ -84,6 +84,7 @@ export { fromTscircuit } from "./tscircuit.js";
 export { schSymbolTypeFor, SHEET_PARTS } from "./sheet.js";
 export { PART_FIELDS, FACET_FIELDS, partFields, type PartFields, type SupplierOffer as PartSupplierOffer } from "./part-fields.js";
 export * from "./business.js";
+export * from "./classification.js";
 export * from "./people-ops.js";
 export * from "./company-governance.js";
 export * from "./company-deals.js";
