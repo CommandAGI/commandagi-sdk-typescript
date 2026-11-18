@@ -12,13 +12,14 @@ const DIGIKEY = {
   venue: "digikey",
   seller: "DigiKey",
   url: "https://www.digikey.com",
+  checkout: "agent",
   hold: "10 minutes",
   mirror: { listings: "Inventory/listings.csv", read: "Inventory/read.mjs" },
   offers: [],
 };
 
 test("a relisted store in JSX: <Storefront> with its <Offers>", () => {
-  const file = el(Storefront, { name: "DigiKey", venue: "digikey", seller: "DigiKey", url: "https://www.digikey.com", hold: "10 minutes", __source: 0 }, el(Offers, { listings: "Inventory/listings.csv", read: "Inventory/read.mjs", __source: 1 }));
+  const file = el(Storefront, { name: "DigiKey", venue: "digikey", seller: "DigiKey", url: "https://www.digikey.com", checkout: "agent", hold: "10 minutes", __source: 0 }, el(Offers, { listings: "Inventory/listings.csv", read: "Inventory/read.mjs", __source: 1 }));
   const { graph, document } = declarationOf({ default: () => file });
   assert.deepEqual(graph.nodes, {});
   assert.equal(document!.format, "storefront");
@@ -54,6 +55,7 @@ test("a storefront that does not read is refused with why", () => {
   const bad = (attrs: Record<string, unknown>, ...kids: unknown[]) => () => declarationOf({ default: el(Storefront, attrs, ...kids) });
   assert.throws(bad({ ...at, holder: "acct:org:org-commandagi" }), /holder is not read/);
   assert.throws(bad({ ...at, venue: "eBay" }), /venue is the platform's word/);
+  assert.throws(bad({ ...at, checkout: "cart" }), /checkout is agent or seller/);
   assert.throws(bad({ ...at, hold: "ten minutes" }), /hold is a term like "10 minutes"/);
   assert.throws(bad({ ...at, url: "http://x" }), /url is an https:\/\/ address/);
   assert.throws(bad(at, el(Offer, { name: "A", kind: "service", price: "25 dollars" })), /price is an amount and an ISO currency/);

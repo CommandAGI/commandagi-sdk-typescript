@@ -8,7 +8,7 @@
  *   // relisting/digikey/digikey.storefront.tsx: a mirrored store, its listings kept by a script
  *   import { Storefront, Offers } from "commandagi/design";
  *   export default () => (
- *     <Storefront name="DigiKey" venue="digikey" seller="DigiKey" url="https://www.digikey.com" hold="10 minutes">
+ *     <Storefront name="DigiKey" venue="digikey" seller="DigiKey" url="https://www.digikey.com" checkout="agent" hold="10 minutes">
  *       <Offers listings="Inventory/listings.csv" read="Inventory/read.mjs" />
  *     </Storefront>
  *   );
@@ -24,7 +24,9 @@
  *
  * `venue` is the platform the store is on (`amazon`, `ebay`, `aliexpress`, `digikey`, `mouser`, `lcsc`, `alibaba`,
  * `uber`, `commandagi` …), `seller` the seller's name, `sellerRecord` a ref to its record, `sellerId` its id at the
- * venue, `hold` how long a quoted price holds at checkout (`"10 minutes"`). `<Offers listings read?>` names the
+ * venue, `checkout` who completes a relisted purchase (`agent`: the holder buys or books it for the person; `seller`:
+ * the person is sent to the seller's own checkout), `hold` how long an `agent` offer's quoted price holds at checkout
+ * (`"10 minutes"`). `<Offers listings read?>` names the
  * store's mirrored listings (a CSV) and the script that keeps them; each `<Offer>` is one offer, by its `name`:
  * `kind` `service` or `good`, `price` (`"25.00 USD"`), `unit`, classification `codes` (product schemes, `./classification.ts`) and `tags`.
  * The Python SDK's `storefronts.py` and the Rust SDK's `storefronts.rs` declare the same document.
@@ -37,10 +39,11 @@ export const STOREFRONT_FILE = /\.storefront\.(?:[jt]sx|py|rs)$/i;
 export const Storefront = "Storefront";
 export const Offers = "Offers";
 export const Offer = "Offer";
-export const STOREFRONT_FIELDS = ["name", "venue", "seller", "sellerRecord", "sellerId", "url", "source", "hold"] as const;
+export const STOREFRONT_FIELDS = ["name", "venue", "seller", "sellerRecord", "sellerId", "url", "source", "checkout", "hold"] as const;
 export const STOREFRONT_MIRROR_FIELDS = ["listings", "read"] as const;
 export const STOREFRONT_OFFER_FIELDS = ["name", "kind", "price", "unit", "codes", "tags"] as const;
 export const STOREFRONT_OFFER_KINDS = ["service", "good"] as const;
+export const STOREFRONT_CHECKOUTS = ["agent", "seller"] as const;
 
 export interface StorefrontOffer {
   name: string;
@@ -62,6 +65,7 @@ export interface StorefrontDoc {
   sellerId?: string;
   url?: string;
   source?: string;
+  checkout?: (typeof STOREFRONT_CHECKOUTS)[number];
   hold?: string;
   mirror?: StorefrontMirror;
   offers: StorefrontOffer[];
@@ -115,6 +119,10 @@ export function storefrontOf(t: DocTree): StorefrontDoc {
     out.url = a.url;
   }
   optionalText(a, "source", 500, at, rec);
+  if (a.checkout !== undefined) {
+    if (!(STOREFRONT_CHECKOUTS as readonly unknown[]).includes(a.checkout)) throw new Error(`${at} checkout is ${STOREFRONT_CHECKOUTS.join(" or ")}, not ${said(a.checkout)}`);
+    out.checkout = a.checkout as StorefrontDoc["checkout"];
+  }
   if (a.hold !== undefined) {
     if (typeof a.hold !== "string" || !STOREFRONT_HOLD.test(a.hold)) throw new Error(`${at} hold is a term like "10 minutes" (seconds, minutes, hours or days), not ${said(a.hold)}`);
     out.hold = a.hold;
