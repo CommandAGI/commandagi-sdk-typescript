@@ -102,7 +102,7 @@ export interface TagSpec {
 /** The vocabulary: each tag's attributes and children (what the document's fields are). */
 export const BUSINESS_TAGS: Readonly<Record<string, TagSpec>> = {
   Company: {
-    props: { name: "text", about: "text", codes: "texts", tags: "texts", postalAddress: "text", files: "texts", dashboard: "text", ...PROFILE_COMPANY_PROPS },
+    props: { name: "text", about: "text", codes: "texts", tags: "texts", postalAddress: "text", files: "texts", dashboard: "text", banner: "text", ...PROFILE_COMPANY_PROPS },
     required: ["name"],
     one: { entity: "Entity", books: "Books", captable: "CapTable", people: "People", calendar: "Calendar", matters: "Matters", ...COMPANY_FINANCE_ONE, team: "Team", ...COMPANY_GOVERNANCE_ONE, relationships: "Relationships", ...COMPANY_DEALS_ONE },
     many: { registrations: "Registration", subsidiaries: "Subsidiary", papers: "Paper", rounds: "Round", ...COMPANY_FINANCE_MANY, ...FORMATION_LISTS, ...PROFILE_LISTS, brands: "Brand", ...COMPANY_GOVERNANCE_MANY, products: "Product", ...COMPANY_DEALS_MANY },
@@ -308,6 +308,8 @@ export function companyOf(node: BusinessNode): Record<string, unknown> {
     ...(p.postalAddress !== undefined ? { postalAddress: p.postalAddress } : {}),
     files: p.files ?? [],
     dashboard: p.dashboard ?? null,
+    // The banner of the company's profile: a ref to a picture (relative to the file) or a colour (`#1f6feb`).
+    ...(p.banner !== undefined ? { banner: p.banner } : {}),
     entity,
     standard: on
       ? { enabled: true, books: ref("books", "journal"), captable: ref("captable", "ocf"), people: ref("people", "folder"), calendar: ref("calendar", "folder"), registrations, matters: ref("matters", "folder") }

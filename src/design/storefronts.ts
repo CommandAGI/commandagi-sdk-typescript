@@ -24,7 +24,8 @@
  *
  * `venue` is the platform the store is on (`amazon`, `ebay`, `aliexpress`, `digikey`, `mouser`, `lcsc`, `alibaba`,
  * `uber`, `commandagi` …), `seller` the seller's name, `sellerRecord` a ref to its record, `sellerId` its id at the
- * venue, `checkout` who completes a relisted purchase (`agent`: the holder buys or books it for the person; `seller`:
+ * venue, `banner` the banner of its profile (a ref to a picture, relative to the file, or a colour such as `#1f6feb`),
+ * `checkout` who completes a relisted purchase (`agent`: the holder buys or books it for the person; `seller`:
  * the person is sent to the seller's own checkout), `hold` how long an `agent` offer's quoted price holds at checkout
  * (`"10 minutes"`). `<Offers listings read?>` names the
  * store's mirrored listings (a CSV) and the script that keeps them; each `<Offer>` is one offer, by its `name`:
@@ -39,7 +40,7 @@ export const STOREFRONT_FILE = /\.storefront\.(?:[jt]sx|py|rs)$/i;
 export const Storefront = "Storefront";
 export const Offers = "Offers";
 export const Offer = "Offer";
-export const STOREFRONT_FIELDS = ["name", "venue", "seller", "sellerRecord", "sellerId", "url", "source", "checkout", "hold"] as const;
+export const STOREFRONT_FIELDS = ["name", "venue", "seller", "sellerRecord", "sellerId", "url", "source", "banner", "checkout", "hold"] as const;
 export const STOREFRONT_MIRROR_FIELDS = ["listings", "read"] as const;
 export const STOREFRONT_OFFER_FIELDS = ["name", "kind", "price", "unit", "codes", "tags"] as const;
 export const STOREFRONT_OFFER_KINDS = ["service", "good"] as const;
@@ -65,6 +66,8 @@ export interface StorefrontDoc {
   sellerId?: string;
   url?: string;
   source?: string;
+  /** The profile's banner: a ref to a picture (relative to the file, or an address), or a colour (`#1f6feb`). */
+  banner?: string;
   checkout?: (typeof STOREFRONT_CHECKOUTS)[number];
   hold?: string;
   mirror?: StorefrontMirror;
@@ -119,6 +122,7 @@ export function storefrontOf(t: DocTree): StorefrontDoc {
     out.url = a.url;
   }
   optionalText(a, "source", 500, at, rec);
+  optionalText(a, "banner", 500, at, rec);
   if (a.checkout !== undefined) {
     if (!(STOREFRONT_CHECKOUTS as readonly unknown[]).includes(a.checkout)) throw new Error(`${at} checkout is ${STOREFRONT_CHECKOUTS.join(" or ")}, not ${said(a.checkout)}`);
     out.checkout = a.checkout as StorefrontDoc["checkout"];

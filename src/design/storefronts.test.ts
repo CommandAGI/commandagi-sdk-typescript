@@ -50,6 +50,15 @@ test("a service store in JSX: one <Offer> by its name, with its price, unit, cod
   assert.deepEqual(STOREFRONTS.storefront.fromTree(STOREFRONTS.storefront.toTree(want as never)), want, "both ways");
 });
 
+test("a banner is a ref to a picture or a colour, carried as written", () => {
+  for (const banner of ["brand/banner.png", "#1f6feb"]) {
+    const doc = declarationOf({ default: el(Storefront, { name: "Rides", venue: "uber", seller: "Uber", banner, __source: 0 }) }).document!.document as { banner?: string };
+    assert.equal(doc.banner, banner);
+    assert.equal((STOREFRONTS.storefront.toTree(doc as never).attrs as { banner?: string }).banner, banner, "written back as the attribute");
+  }
+  assert.throws(() => declarationOf({ default: el(Storefront, { name: "Rides", venue: "uber", seller: "Uber", banner: 7, __source: 0 }) }), /banner is a short text/);
+});
+
 test("a storefront that does not read is refused with why", () => {
   const at = { name: "Shop", venue: "ebay", seller: "A seller" };
   const bad = (attrs: Record<string, unknown>, ...kids: unknown[]) => () => declarationOf({ default: el(Storefront, attrs, ...kids) });
