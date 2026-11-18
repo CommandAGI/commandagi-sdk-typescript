@@ -62,6 +62,11 @@ Removed
 
 Added
 
+- Storefronts (`storefronts.ts`; CommandAGI's docs/formats.md § a storefront in code): `<name>.storefront.tsx` declares
+  one `<Storefront name venue seller sellerRecord? sellerId? url? source? hold?>` its holder lists, with at most one
+  `<Offers listings read?>` (a mirrored store's listings and the script that keeps them) and any `<Offer name kind
+  price? unit? codes? tags?>` (`kind` service or good, `price` "25.00 USD", `codes` `<scheme>:<code>`). The holder is
+  the account whose Drive holds the file, never an attribute. `STOREFRONTS`, `storefrontOf`, `STOREFRONT_FILE`.
 - The company's legal profile (`company-profile.ts`): `<Company website>`, `<Address kind line1 line2 city region
   postal country source>`, `<Stock kind authorized issued reserved par source>` and `<Owner name holder percent since
   source>`, read as the document's `website`, `addresses`, `stock` and `owners` (docs/company-substrate.md § the legal
