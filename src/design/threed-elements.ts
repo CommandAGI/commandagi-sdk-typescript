@@ -643,7 +643,7 @@ export type ConicalSurface = {
   axis: Vec3;
 };
 
-export type ConstraintKind = "coincident" | "parallel" | "perpendicular" | "distance" | "angle" | "horizontal" | "vertical" | "tangent" | "equal" | "pointOnLine" | "midpoint" | "pointOnCircle" | "symmetric" | "horizontalDistance" | "verticalDistance" | "radius";
+export type ConstraintKind = "coincident" | "parallel" | "perpendicular" | "distance" | "angle" | "concentric" | "horizontal" | "vertical" | "tangent" | "equal" | "pointOnLine" | "midpoint" | "pointOnCircle" | "symmetric" | "horizontalDistance" | "verticalDistance" | "radius" | "collinear" | "diameter";
 
 /**
  * What a run records of a contact pair at each frame: how many points touch, the normal force on `a` (N), how fast `a` slides over `b` there (m/s; 0 while it sticks), and where it is touched (the force-weighted centre of the points).

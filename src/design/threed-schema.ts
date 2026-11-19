@@ -1441,6 +1441,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "perpendicular",
     "distance",
     "angle",
+    "concentric",
     "horizontal",
     "vertical",
     "tangent",
@@ -1451,7 +1452,9 @@ export const THREED_SCHEMA: SchemaDocument = {
     "symmetric",
     "horizontalDistance",
     "verticalDistance",
-    "radius"
+    "radius",
+    "collinear",
+    "diameter"
    ]
   },
   "ContactReport": {
