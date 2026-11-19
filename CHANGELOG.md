@@ -8,6 +8,8 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- `factory-flow.ts`: a station's `energy_j` (joules a batch) and `cell` (the design a level below that measures its cycle
+  time, failures and energy, and owns them once measured).
 - `factory-flow.ts`: a factory in a design's scene, the `flow` system (CommandAGI's docs/formats.md § simulations, A
   factory): its types (`FlowSystem`, `FlowStation` …), `checkFlowSystem` (an unknown or missing field, a number that is
   not one, a name that points nowhere, in the engine's words) and `machinesFor` (the sizing formula).

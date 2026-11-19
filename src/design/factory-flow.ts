@@ -29,6 +29,13 @@ export interface FlowStation {
   cycle_cv?: FlowNumber; batch?: FlowNumber; setup_s?: FlowNumber; yield?: FlowNumber;
   /** Failures, one way or the other: `availability` (with `mttr_s`, 20 cycles when absent), or `mtbf_s` with `mttr_s`. */
   availability?: FlowNumber; mtbf_s?: FlowNumber; mttr_s?: FlowNumber;
+  /** Joules one batch takes. */
+  energy_j?: FlowNumber;
+  /**
+   * The station's cell, a design a level below: run for `seconds`, it measures the cycle time, failures and energy from
+   * running totals of its scene (equations), and those become the station's values, owned by the cell (`measured`).
+   */
+  cell?: { design: string; seconds: number; cycles: string; energy_j?: string; faults?: string; down_s?: string; measured?: Record<string, unknown> & { reality: "simulation" | "physical"; of: string } };
 }
 export interface FlowProduct {
   id: string; label?: string; route: Array<string | { station: string; cycle_s?: FlowNumber }>; sink: string;
@@ -46,7 +53,7 @@ export interface FlowSystem {
 type FactoryPart = "system" | "station" | "product" | "source" | "sink" | "shifts";
 export const FACTORY_FIELDS: Record<FactoryPart, { needs: string[]; may: string[] }> = {
   system: { needs: ["id", "kind", "products", "stations", "sources", "sinks"], may: ["seed", "time_scale", "window_s", "shifts", "record"] },
-  station: { needs: ["id", "machines", "cycle_s", "buffer"], may: ["label", "at", "cycle_cv", "batch", "setup_s", "availability", "mtbf_s", "mttr_s", "yield"] },
+  station: { needs: ["id", "machines", "cycle_s", "buffer"], may: ["label", "at", "cycle_cv", "batch", "setup_s", "availability", "mtbf_s", "mttr_s", "yield", "energy_j", "cell"] },
   product: { needs: ["id", "route", "sink"], may: ["label", "demand_per_period", "color"] },
   source: { needs: ["id", "product"], may: ["label", "at", "per_hour", "arrivals"] },
   sink: { needs: ["id"], may: ["label", "at"] },
@@ -58,7 +65,7 @@ const NUMBERS: Record<string, string> = {
   setup_s: "the seconds a change of product takes, 0 or more", yield: "the share of parts that survive, above 0 and at most 1",
   availability: "the share of time it is not under repair, above 0 and at most 1", mtbf_s: "the mean operating seconds between failures, more than 0",
   mttr_s: "the mean seconds a repair takes, more than 0", per_hour: "the parts it releases in a working hour, more than 0",
-  demand_per_period: "the parts wanted in one shift period, more than 0",
+  demand_per_period: "the parts wanted in one shift period, more than 0", energy_j: "the joules one batch takes, 0 or more",
 };
 const isNumber = (v: unknown) => (typeof v === "number" && Number.isFinite(v)) || (typeof v === "string" && /^\$[A-Za-z_]\w*$/.test(v));
 
