@@ -24,7 +24,7 @@ export interface SceneAgent {
   /** Lower case letters, digits and `-`; the agent is `agent:<id>`. */
   id: string;
   units: SceneAgentUnit[];
-  /** `openrouter/<model>`; absent: the host's default model. */
+  /** `<route>/<model>` on a route of the agent runtime (openrouter, deepinfra, deepseek, dashscope: CommandAGI's docs/agent-clis.md § an agent in a scene); absent: `deepseek/deepseek-flash`. */
   model?: string;
   /** What the design tells it, added to its prompt. */
   instructions?: string;
