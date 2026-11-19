@@ -8,6 +8,9 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- `factory-flow.ts`: a factory in a design's scene, the `flow` system (CommandAGI's docs/formats.md § simulations, A
+  factory): its types (`FlowSystem`, `FlowStation` …), `checkFlowSystem` (an unknown or missing field, a number that is
+  not one, a name that points nowhere, in the engine's words) and `machinesFor` (the sizing formula).
 - `<Storefront banner>` and `<Company banner>`: the banner of the profile, a ref to a picture (relative to the file, or an
   address) or a colour (`#1f6feb`). A file that names none keeps the colour its name gives.
 - `<Storefront checkout>`: who completes a relisted purchase, `agent` (the holder buys or books it for the person, and its price holds)
