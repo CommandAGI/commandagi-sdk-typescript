@@ -19,7 +19,7 @@
  *
  * The tags (each attribute is the field of the same name; nothing is renamed):
  *   <part name> | <assembly name>             the document; <assembly> opens in the assembly mode (`isAssembly`)
- *   <parameter name value unit comment min max step tolerance bindings>    a parameter; `bindings` [{ target, field }];
+ *   <parameter name value expression unit comment min max step tolerance bindings>    a parameter; `bindings` [{ target, field }];
  *                                             `tolerance` { upper, lower } | { class: "k5" } | { basic: true }
  *                                             (`./tolerances.ts`), what a fit or stack-up check reads
  *   <part builtinPlanes={[…]}>                the built-in planes the document has (plane_xy, plane_xz, plane_yz);
@@ -150,7 +150,7 @@ export const BUILTIN_PLANES = {
 } as const;
 /** The document's view fields a root element may hold (the graph's `meta`), beside `name`. */
 const VIEW_ATTRS = new Set(["semanticVisibility"]);
-const PARAM_FIELDS = ["value", "unit", "comment", "min", "max", "step", "tolerance"];
+const PARAM_FIELDS = ["value", "expression", "unit", "comment", "min", "max", "step", "tolerance"];
 /** Document fields a <slot> may not hold: they have elements of their own, or are the graph itself. */
 const NOT_SLOTS = new Set(["id", "name", "units", "planes", "features", "parameters", "presentation", "isAssembly", "bodyMeta", "semanticVisibility", "drawings", "checks", "accepted", "permitted", "fasteners", "tactile", "ports", "items", "assemblySteps", "library", "products", "placements", "captures", "views", "annotations"]);
 /** The annotations of a 3D document, by tag: each tag is its annotation's `type` (`3d-core/annotations.ts`). */

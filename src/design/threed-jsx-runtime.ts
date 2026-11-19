@@ -55,7 +55,7 @@ export declare namespace JSX {
     part: DocumentProps;
     assembly: DocumentProps;
     /** A parameter: `bindings` drive the named fields of features. */
-    parameter: { name: string; value: number; unit?: string; comment?: string; min?: number; max?: number; step?: number; bindings?: { target: string; field: string }[] };
+    parameter: { name: string; value: number; expression?: string; unit?: string; comment?: string; min?: number; max?: number; step?: number; bindings?: { target: string; field: string }[] };
     /** A datum plane. */
     plane: { id: string; name?: string; origin: Vec3; normal: Vec3; xAxis?: Vec3 };
     /** A body's own data: its name, its look (`material`) and what it is (`engineering`). */
