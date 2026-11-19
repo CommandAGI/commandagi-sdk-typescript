@@ -119,6 +119,7 @@ export { jsx, jsxs, Fragment, isElement, type DesignElement } from "./jsx-runtim
 export { declareVideo, declareSong, fromMedia, mediaKind, pitchOf, pitchName, tempoOf, meterOf, MEDIA_ROOTS, SONG_STRUCTURE, SONG_EFFECT_KINDS } from "./media.js";
 export * from "./footage.js";
 export * from "./factory-flow.js";
+export * from "./scene-agents.js";
 export { readWorkbook, readPage, readDeck, readOffice, isOfficeRoot, inlineHtml, richText, OFFICE_ROOTS, DECK_TYPES } from "./office.js";
 export * from "./documents.js";
 export * from "./ontology.js";

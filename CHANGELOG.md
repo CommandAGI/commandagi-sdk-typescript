@@ -8,6 +8,9 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- `scene-agents.ts`: the agents a design's scene attaches to its robots or their joints (CommandAGI's docs/formats.md §
+  simulations, Agents in a scene): `SceneAgent` and `checkSceneAgents` (an unknown field, a malformed or repeated id, a
+  unit that is no robot or joint of the scene, in the engine's words).
 - `factory-flow.ts`: a station's `energy_j` (joules a batch) and `cell` (the design a level below that measures its cycle
   time, failures and energy, and owns them once measured).
 - `factory-flow.ts`: a factory in a design's scene, the `flow` system (CommandAGI's docs/formats.md § simulations, A
