@@ -2072,6 +2072,13 @@ export const THREED_SCHEMA: SchemaDocument = {
      "x-unit": "mm",
      "default": 10
     },
+    "angle": {
+     "type": "number",
+     "description": "A plane at an angle: the base turned about its own x axis (through its origin) by this angle, before the offset, which then runs along the turned normal.",
+     "x-unit": "rad",
+     "minimum": -3.141592653589793,
+     "maximum": 3.141592653589793
+    },
     "id": {
      "type": "string"
     },
