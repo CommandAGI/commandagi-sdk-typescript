@@ -734,6 +734,9 @@ export type CopyBodyFeature = {
   declaredBy?: CodeFeature;
 };
 
+/** A corner relief: none, a square, a round hole, or a tear (a narrow round). */
+export type CornerRelief = "none" | "square" | "round" | "tear";
+
 /** A dimension to inspect, with its tolerance. */
 export type CriticalDimension = {
   name: string;
@@ -1650,8 +1653,19 @@ export type DynamicsJoint = {
 /** AN END CAP: a plate that closes the open end of a frame member, on its end face. */
 export type EndCapFeature = {
   type: "endCap";
-  /** The member's end face. */
-  face: TopoTarget;
+  /** The member's end face; or name the member below. */
+  face?: TopoTarget;
+  /** The frame member feature whose member's end is capped, in place of a picked face. */
+  member?: string;
+  /**
+   * Which of its lines (by id); without one, every free end of the frame (an end no other member reaches) is capped.
+   */
+  segment?: string;
+  /**
+   * Which end of the named line.
+   * @default "end"
+   */
+  end?: "start" | "end" | "both";
   /**
    * The plate's thickness.
    * @unit mm
@@ -2061,7 +2075,10 @@ export type FootprintPad = {
 /**
  * How two frame members meet at a corner of the sketch: cut at the bisector, one butting on the other, or untrimmed.
  */
-export type FrameCorner = "none" | "miter" | "butt";
+export type FrameCorner = "none" | "butt" | "miter";
+
+/** How a member's end meets another member's side. */
+export type FrameJoint = "none" | "trim" | "cope" | "butt";
 
 /**
  * FRAME MEMBERS: a structural section swept along lines of a sketch, one body per line, trimmed where two meet.
@@ -2087,6 +2104,11 @@ export type FrameMemberFeature = {
    * @default "miter"
    */
   corner?: FrameCorner;
+  /**
+   * How a member's end meets members it does not meet end to end: an end on another member's side (a T), or a corner of three or more members, where the first member and any in line with it run through. `trim`: the end is cut flat at the other's near face; `cope`: the other's outer shape is cut out of the end; `butt`: the end stops at the other's near face without reaching into its corner (square, as cut); `none`: untrimmed.
+   * @default "trim"
+   */
+  joint?: FrameJoint;
   /**
    * The section turned about the member's axis.
    * @unit rad
@@ -2128,6 +2150,8 @@ export type FullRoundFeature = {
    */
   declaredBy?: CodeFeature;
 };
+
+export type GaugeTable = "steel" | "stainless" | "aluminium" | "custom";
 
 /**
  * A **3D Gaussian-Splat volume** — the headline volumetric primitive: a cloud of anisotropic translucent gaussians (position + per-axis scale + orientation + color/opacity), the representation of choice for photoreal capture (video/scan → navigable scene) and volumetric science visualization. Imported from a gaussian PLY (or `.splat`); the DC spherical-harmonic term is baked to an RGB color on import.
@@ -2991,7 +3015,7 @@ export type MaterialDef = {
 /** Material-condition modifier applied to a tolerance value or a datum reference. */
 export type MaterialModifier = "M" | "L" | "S";
 
-export type MaterialPreset = "aluminum" | "anodized-aluminum" | "steel" | "stainless-steel" | "plastic" | "abs" | "pbt" | "pc" | "petg" | "pla" | "brass" | "copper" | "chrome" | "rubber" | "glass" | "pcb" | "custom";
+export type MaterialPreset = "steel" | "custom" | "aluminum" | "anodized-aluminum" | "stainless-steel" | "plastic" | "abs" | "pbt" | "pc" | "petg" | "pla" | "brass" | "copper" | "chrome" | "rubber" | "glass" | "pcb";
 
 export type MeshBodyFeature = {
   type: "meshBody";
@@ -3291,7 +3315,7 @@ export type OfferDates = {
   incoming?: string;
 };
 
-export type OffsetCap = "butt" | "round" | "square";
+export type OffsetCap = "square" | "round" | "butt";
 
 export type OffsetFacesFeature = {
   type: "offsetFaces";
@@ -3321,7 +3345,7 @@ export type OffsetFacesFeature = {
   declaredBy?: CodeFeature;
 };
 
-export type OffsetJoin = "miter" | "round" | "bevel";
+export type OffsetJoin = "round" | "miter" | "bevel";
 
 /** OFFSET A SURFACE: a new surface body at a distance from a surface body, along its normal. */
 export type OffsetSurfaceFeature = {
@@ -4386,6 +4410,71 @@ export type SheetBaseFeature = {
   declaredBy?: CodeFeature;
 };
 
+/**
+ * CONVERT TO SHEET METAL: a thin-walled part (a shelled box, a bent solid) made a sheet-metal part. From the face picked, its wall is the base; each wall joined to the base along a straight edge, by a sharp edge or a cylindrical bend, becomes an edge flange; where two walls meet at a sharp corner, the corner is ripped. The walls must be planar and of one thickness.
+ */
+export type SheetConvertFeature = {
+  type: "sheetConvert";
+  /** A face of the base wall (its inside or outside). */
+  face: TopoTarget;
+  /**
+   * The bend radius where a wall meets the base at a sharp edge; the rules' (else the thickness) when omitted. A cylindrical bend keeps its own.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  bendRadius?: number;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
+/**
+ * A CORNER'S RELIEF, set on one corner: where the bends of two flanges (by their features' ids) meet, this relief in place of the rules'. It makes no geometry of its own.
+ */
+export type SheetCornerFeature = {
+  type: "sheetCorner";
+  /**
+   * The two flanges whose bends meet at the corner.
+   * @minItems 2
+   * @maxItems 2
+   */
+  flanges: [string, string];
+  /**
+   * The relief at this corner.
+   * @default "round"
+   */
+  relief?: CornerRelief;
+  /**
+   * Its size; the rules' (or bend radius + thickness) when omitted.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  size?: number;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
 export type SheetFlangeFeature = {
   type: "sheetFlange";
   /** Straight boundary edge to flange from. */
@@ -4489,6 +4578,27 @@ export type SheetFoldFeature = {
   declaredBy?: CodeFeature;
 };
 
+/** One gauge of a custom table. */
+export type SheetGauge = {
+  /** Its name ("16", "1/16"). */
+  gauge: string;
+  /**
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  thickness: number;
+  /**
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  bendRadius?: number;
+  /**
+   * @minimum 0
+   * @maximum 1
+   */
+  kFactor?: number;
+};
+
 /** A HEM: the sheet's edge bent right back on itself (180°), leaving `gap` between the two layers. */
 export type SheetHemFeature = {
   type: "sheetHem";
@@ -4572,6 +4682,47 @@ export type SheetMetalFeature = {
    * @minimum 0
    */
   reliefDepth?: number;
+  /**
+   * The relief cut where two flanges' bends meet at a corner of the sheet.
+   * @default "none"
+   */
+  cornerRelief?: CornerRelief;
+  /**
+   * The corner relief's size: a square's side, a round's radius, a tear's width; bend radius + thickness when omitted.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  cornerReliefSize?: number;
+  /**
+   * The gauge table the sheet's thickness is read from: a material's built-in table (`@commandagi/3d-core/sheet-metal` GAUGES), or `custom`, the rows of `gauges`. With `gauge`, the gauge's row sets the thickness (and the bend radius and K-factor where the row gives them); without, `thickness` holds.
+   */
+  gaugeTable?: GaugeTable;
+  /** The gauge, as its table names it ("16"). */
+  gauge?: string;
+  /** The rows of a custom gauge table (imported from a CSV: gauge, thickness, bend radius, K-factor). */
+  gauges?: SheetGauge[];
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
+/**
+ * REFOLD: the bends an unfold flattened, bent again, with what was cut across them while they were flat.
+ */
+export type SheetRefoldFeature = {
+  type: "sheetRefold";
+  /** The unfold whose bends are bent again. */
+  unfold: string;
   id: string;
   name: string;
   suppressed?: boolean;
@@ -5832,6 +5983,10 @@ export type UnfoldFeature = {
    * @maximum 1
    */
   kFactor?: number;
+  /**
+   * Only these bends (flange, hem, fold or convert features, by id) are flattened; the rest stay bent. Every bend when omitted.
+   */
+  bends?: string[];
   id: string;
   name: string;
   suppressed?: boolean;
@@ -6205,6 +6360,12 @@ export type TransformProps = Omit<TransformFeature, "type" | "error" | "declared
 /** `<sheetMetal>`: the SheetMetalFeature fields, by the same names. */
 export type SheetMetalProps = Omit<SheetMetalFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
 
+/** `<sheetCorner>`: the SheetCornerFeature fields, by the same names. */
+export type SheetCornerProps = Omit<SheetCornerFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
+/** `<sheetConvert>`: the SheetConvertFeature fields, by the same names. */
+export type SheetConvertProps = Omit<SheetConvertFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
 /** `<sheetBase>`: the SheetBaseFeature fields, by the same names. */
 export type SheetBaseProps = Omit<SheetBaseFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
 
@@ -6219,6 +6380,9 @@ export type SheetFoldProps = Omit<SheetFoldFeature, "type" | "error" | "declared
 
 /** `<unfold>`: the UnfoldFeature fields, by the same names. */
 export type UnfoldProps = Omit<UnfoldFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
+/** `<sheetRefold>`: the SheetRefoldFeature fields, by the same names. */
+export type SheetRefoldProps = Omit<SheetRefoldFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
 
 /** `<frameMember>`: the FrameMemberFeature fields, by the same names. */
 export type FrameMemberProps = Omit<FrameMemberFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
@@ -6353,11 +6517,14 @@ export interface ThreeDFeatureElements {
   hole: HoleProps;
   transform: TransformProps;
   sheetMetal: SheetMetalProps;
+  sheetCorner: SheetCornerProps;
+  sheetConvert: SheetConvertProps;
   sheetBase: SheetBaseProps;
   sheetFlange: SheetFlangeProps;
   sheetHem: SheetHemProps;
   sheetFold: SheetFoldProps;
   unfold: UnfoldProps;
+  sheetRefold: SheetRefoldProps;
   frameMember: FrameMemberProps;
   endCap: EndCapProps;
   wrapText: WrapTextProps;
