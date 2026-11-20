@@ -646,7 +646,7 @@ export type ConicalSurface = {
   axis: Vec3;
 };
 
-export type ConstraintKind = "coincident" | "parallel" | "perpendicular" | "distance" | "angle" | "concentric" | "tangent" | "horizontal" | "vertical" | "equal" | "pointOnLine" | "midpoint" | "pointOnCircle" | "symmetric" | "horizontalDistance" | "verticalDistance" | "radius" | "collinear" | "diameter" | "pointLineDistance" | "arcLength";
+export type ConstraintKind = "coincident" | "parallel" | "perpendicular" | "distance" | "angle" | "concentric" | "tangent" | "horizontal" | "vertical" | "equal" | "pointOnLine" | "midpoint" | "pointOnCircle" | "symmetric" | "horizontalDistance" | "verticalDistance" | "radius" | "collinear" | "diameter" | "pointLineDistance" | "arcLength" | "conicRho";
 
 /**
  * What a run records of a contact pair at each frame: how many points touch, the normal force on `a` (N), how fast `a` slides over `b` there (m/s; 0 while it sticks), and where it is touched (the force-weighted centre of the points).
@@ -4726,6 +4726,12 @@ export type Sketch = {
   /** Live projections of model edges. Absent on a sketch that has none. */
   projections?: { [key: string]: SketchProjection };
   projectionOrder?: string[];
+  /** Equation curves. Absent on a sketch that has none. */
+  equations?: { [key: string]: SketchEquation };
+  equationOrder?: string[];
+  /** Texts. Absent on a sketch that has none. */
+  texts?: { [key: string]: SketchText };
+  textOrder?: string[];
   segments: { [key: string]: SketchSegment };
   constraints: { [key: string]: SketchConstraint };
   pointOrder: string[];
@@ -4749,6 +4755,29 @@ export type SketchConstraint = {
    * A DRIVEN (reference) dimension: measured from the geometry and shown, never solved. Only a dimensional kind can be one. `solveSketch` does not send it to the backend and lists it in the result's `driven`; absent (the default, and every sketch written before 2026-09-11) means driving.
    */
   reference?: boolean;
+};
+
+/**
+ * AN EQUATION CURVE: x(t) and y(t), arithmetic of `t` in the document's expression grammar (`../expressions.ts`: + - * / ^, sin, cos, sqrt, pi …), drawn as the spline through `points` even steps of t from `from` to `to`. The record is what the file holds; the spline and its points are made from it on every rebuild (their `from` names it), so editing the equation redraws the curve. A curve whose last point meets its first is closed.
+ */
+export type SketchEquation = {
+  id: string;
+  /** The horizontal coordinate as arithmetic of `t`, in millimetres. */
+  x: string;
+  /** The vertical coordinate as arithmetic of `t`, in millimetres. */
+  y: string;
+  /** The first value of t. */
+  from: number;
+  /** The last value of t. */
+  to: number;
+  /**
+   * How many points the curve passes through, its ends included.
+   * @minimum 3
+   * @maximum 500
+   */
+  points: number;
+  /** Drawn as construction (reference) geometry. */
+  construction?: boolean;
 };
 
 export type SketchFeature = {
@@ -4931,6 +4960,23 @@ export type SketchSegment = {
 };
 
 export type SketchSolveStatus = "ok" | "over" | "under" | "inconsistent";
+
+/**
+ * A TEXT: the outlines of `text` in the typeface `font`, placed by two of the sketch's own points: `anchor`, the start of its baseline, and `along`, a letter height further along the baseline. The text's place, angle and size are then those points' (a dimension between them is the size; one on the line between them, the angle). `contours` are the outlines at a letter height of 1, baseline from the origin along +x, kept so the outlines are made again from the two points on every rebuild with no font at hand; the outline lines and points are made from them (their `from` names it). Changing the words or the typeface writes new contours.
+ */
+export type SketchText = {
+  id: string;
+  /** The words. */
+  text: string;
+  /** The typeface's id (the editor's bundled faces). */
+  font: string;
+  /** The point the baseline starts at. */
+  anchor: string;
+  /** The point one letter height along the baseline from `anchor`. */
+  along: string;
+  /** Each closed outline as flat `[x0, y0, x1, y1, …]` at a letter height of 1. */
+  contours: number[][];
+};
 
 /** GPU-compressed mip payload retained from KTX2 decoding. */
 export type SourceCompressedTexture = {
@@ -6348,7 +6394,7 @@ export interface ThreeDFeatureElements {
   copperPour: CopperPourProps;
 }
 
-/** The elements of a <sketch>: a point, a segment by its type, a constraint, a projection. */
+/** The elements of a <sketch>: a point, a segment by its type, a constraint, a projection, an equation curve, a text. */
 export interface SketchElements {
   point: SketchPoint;
   line: Omit<Extract<SketchSegment, { type: "line" }>, "type">;
@@ -6359,4 +6405,6 @@ export interface SketchElements {
   ellipseArc: Omit<Extract<SketchSegment, { type: "ellipseArc" }>, "type">;
   constraint: SketchConstraint;
   projection: SketchProjection;
+  equation: SketchEquation;
+  text: SketchText;
 }

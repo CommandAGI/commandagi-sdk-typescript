@@ -1486,7 +1486,8 @@ export const THREED_SCHEMA: SchemaDocument = {
     "collinear",
     "diameter",
     "pointLineDistance",
-    "arcLength"
+    "arcLength",
+    "conicRho"
    ]
   },
   "ContactReport": {
@@ -9489,6 +9490,34 @@ export const THREED_SCHEMA: SchemaDocument = {
       "type": "string"
      }
     },
+    "equations": {
+     "type": "object",
+     "properties": {},
+     "additionalProperties": {
+      "$ref": "#/$defs/SketchEquation"
+     },
+     "description": "Equation curves. Absent on a sketch that has none."
+    },
+    "equationOrder": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "texts": {
+     "type": "object",
+     "properties": {},
+     "additionalProperties": {
+      "$ref": "#/$defs/SketchText"
+     },
+     "description": "Texts. Absent on a sketch that has none."
+    },
+    "textOrder": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
     "segments": {
      "type": "object",
      "properties": {},
@@ -9570,6 +9599,50 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A constraint references entities by id. `entities` holds point/segment ids in the order the kind's `operands` declare (`../geometry/constraints.ts`); `value` holds the dimension for dimensional kinds (distance in the sketch's length unit, angle in radians, radius in the length unit)."
+  },
+  "SketchEquation": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "x": {
+     "type": "string",
+     "description": "The horizontal coordinate as arithmetic of `t`, in millimetres."
+    },
+    "y": {
+     "type": "string",
+     "description": "The vertical coordinate as arithmetic of `t`, in millimetres."
+    },
+    "from": {
+     "type": "number",
+     "description": "The first value of t."
+    },
+    "to": {
+     "type": "number",
+     "description": "The last value of t."
+    },
+    "points": {
+     "type": "integer",
+     "description": "How many points the curve passes through, its ends included.",
+     "minimum": 3,
+     "maximum": 500
+    },
+    "construction": {
+     "type": "boolean",
+     "description": "Drawn as construction (reference) geometry."
+    }
+   },
+   "required": [
+    "id",
+    "x",
+    "y",
+    "from",
+    "to",
+    "points"
+   ],
+   "additionalProperties": false,
+   "description": "AN EQUATION CURVE: x(t) and y(t), arithmetic of `t` in the document's expression grammar (`../expressions.ts`: + - * / ^, sin, cos, sqrt, pi …), drawn as the spline through `points` even steps of t from `from` to `to`. The record is what the file holds; the spline and its points are made from it on every rebuild (their `from` names it), so editing the equation redraws the curve. A curve whose last point meets its first is closed."
   },
   "SketchFeature": {
    "type": "object",
@@ -10085,6 +10158,50 @@ export const THREED_SCHEMA: SchemaDocument = {
     "under",
     "inconsistent"
    ]
+  },
+  "SketchText": {
+   "type": "object",
+   "properties": {
+    "id": {
+     "type": "string"
+    },
+    "text": {
+     "type": "string",
+     "description": "The words."
+    },
+    "font": {
+     "type": "string",
+     "description": "The typeface's id (the editor's bundled faces)."
+    },
+    "anchor": {
+     "type": "string",
+     "description": "The point the baseline starts at."
+    },
+    "along": {
+     "type": "string",
+     "description": "The point one letter height along the baseline from `anchor`."
+    },
+    "contours": {
+     "type": "array",
+     "items": {
+      "type": "array",
+      "items": {
+       "type": "number"
+      }
+     },
+     "description": "Each closed outline as flat `[x0, y0, x1, y1, …]` at a letter height of 1."
+    }
+   },
+   "required": [
+    "id",
+    "text",
+    "font",
+    "anchor",
+    "along",
+    "contours"
+   ],
+   "additionalProperties": false,
+   "description": "A TEXT: the outlines of `text` in the typeface `font`, placed by two of the sketch's own points: `anchor`, the start of its baseline, and `along`, a letter height further along the baseline. The text's place, angle and size are then those points' (a dimension between them is the size; one on the line between them, the angle). `contours` are the outlines at a letter height of 1, baseline from the origin along +x, kept so the outlines are made again from the two points on every rebuild with no font at hand; the outline lines and points are made from them (their `from` names it). Changing the words or the typeface writes new contours."
   },
   "SourceCompressedTexture": {
    "type": "object",

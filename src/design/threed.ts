@@ -141,7 +141,7 @@ import { toleranceProblem, type DimensionTolerance } from "./tolerances.js";
 export const THREED_FEATURES: readonly string[] = Object.keys(THREED_SCHEMA.roots);
 const FEATURES = new Set(THREED_FEATURES);
 /** Tags with a meaning of their own: never a `<feature type>`. */
-const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "joint", "contact", "mate", "sheet", "check", "accept", "permitted", "fastener", "tactile", "port", "item", "assemble", "library", "product", "unit", "capture", "view", "point", "constraint", "projection", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input", "linearDimension", "radialDimension", "sizeDimension", "angularDimension", "note", "datumFeature", "datumTarget", "featureControlFrame", "surfaceFinish"]);
+const NOT_FEATURES = new Set(["feature", "part", "assembly", "parameter", "plane", "body", "slot", "joint", "contact", "mate", "sheet", "check", "accept", "permitted", "fastener", "tactile", "port", "item", "assemble", "library", "product", "unit", "capture", "view", "point", "constraint", "projection", "equation", "text", "line", "circle", "arc", "spline", "ellipse", "ellipseArc", "input", "linearDimension", "radialDimension", "sizeDimension", "angularDimension", "note", "datumFeature", "datumTarget", "featureControlFrame", "surfaceFinish"]);
 /** A sketch's segment kinds, by tag. */
 export const SKETCH_SEGMENTS: readonly string[] = ["line", "circle", "arc", "spline", "ellipse", "ellipseArc"];
 const SEGMENTS = new Set(SKETCH_SEGMENTS);
@@ -245,6 +245,8 @@ function sketchOf(el: DesignElement): { sketch: Record<string, unknown>; sources
   const segments: Record<string, unknown> = {};
   const constraints: Record<string, unknown> = {};
   const projections: Record<string, unknown> = {};
+  const equations: Record<string, unknown> = {};
+  const texts: Record<string, unknown> = {};
   const sources: Record<string, unknown> = {};
   const taken = new Set<string>();
   const claim = (child: DesignElement, kind: string): string => {
@@ -273,7 +275,19 @@ function sketchOf(el: DesignElement): { sketch: Record<string, unknown>; sources
     } else if (child.type === "projection") {
       const id = claim(child, "projection");
       projections[id] = fields(child);
-    } else throw new Error(`${where(el)}: <${child.type}> is not read in a sketch (point, ${SKETCH_SEGMENTS.join(", ")}, constraint, projection)`);
+    } else if (child.type === "equation") {
+      const id = claim(child, "equation");
+      const f = fields(child);
+      if (typeof f.x !== "string" || typeof f.y !== "string" || typeof f.from !== "number" || typeof f.to !== "number" || typeof f.points !== "number")
+        throw new Error(`${where(el)} ${where(child)}: an equation curve has x and y (arithmetic of t), from, to and points`);
+      equations[id] = { id, ...f };
+    } else if (child.type === "text") {
+      const id = claim(child, "text");
+      const f = fields(child);
+      if (typeof f.text !== "string" || typeof f.anchor !== "string" || typeof f.along !== "string" || !Array.isArray(f.contours))
+        throw new Error(`${where(el)} ${where(child)}: a text has its words, its anchor and along points and its contours`);
+      texts[id] = { id, ...f };
+    } else throw new Error(`${where(el)}: <${child.type}> is not read in a sketch (point, ${SKETCH_SEGMENTS.join(", ")}, constraint, projection, equation, text)`);
   }
   for (const [id, s] of Object.entries(segments)) {
     for (const k of ["a", "b", "center", "start", "end", "focus"]) {
@@ -292,6 +306,20 @@ function sketchOf(el: DesignElement): { sketch: Record<string, unknown>; sources
   if (Object.keys(projections).length) {
     sketch.projections = projections;
     sketch.projectionOrder = Object.keys(projections);
+  }
+  if (Object.keys(equations).length) {
+    sketch.equations = equations;
+    sketch.equationOrder = Object.keys(equations);
+  }
+  if (Object.keys(texts).length) {
+    for (const [id, t] of Object.entries(texts)) {
+      for (const k of ["anchor", "along"]) {
+        const pt = (t as Record<string, unknown>)[k];
+        if (typeof pt !== "string" || !points[pt]) throw new Error(`${where(el)}: text ${id}'s ${k} names no point of the sketch (${JSON.stringify(pt)})`);
+      }
+    }
+    sketch.texts = texts;
+    sketch.textOrder = Object.keys(texts);
   }
   return { sketch, sources };
 }

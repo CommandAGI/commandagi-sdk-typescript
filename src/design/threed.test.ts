@@ -514,3 +514,27 @@ test("a <part>'s groups and rollback are the left-hand list's, and name only its
   assert.throws(root({ rollback: "z" }), /rollback: "z" is not a feature of this document/);
   assert.throws(root({ groups: [{ id: "g", name: "G", members: ["z"] }] }), /member "z" is not a feature of this document/);
 });
+
+test("a sketch's equation curve and text are records of it: read as written, a text's points named in the sketch", () => {
+  const doc = (anchor: string) =>
+    jsx("part", {
+      name: "Marks",
+      children: [
+        jsx("sketch", {
+          id: "s1",
+          plane: { type: "datum", plane: "plane_xy" },
+          children: [
+            jsx("point", { id: "a", x: 0, y: 0 }),
+            jsx("point", { id: "b", x: 8, y: 0 }),
+            jsx("equation", { id: "eq", x: "5 * cos(t)", y: "5 * sin(t)", from: 0, to: 6.283185307179586, points: 25 }),
+            jsx("text", { id: "t", text: "VC", font: "liberation-sans", anchor, along: "b", contours: [[0, 0, 0.5, 0, 0.5, 0.7]] }),
+          ],
+        }),
+      ],
+    });
+  const sk = declarationOf({ default: () => doc("a") }).graph.nodes.s1!.inputs.sketch as Record<string, unknown>;
+  assert.deepEqual(sk.equationOrder, ["eq"]);
+  assert.deepEqual((sk.equations as Record<string, unknown>).eq, { id: "eq", x: "5 * cos(t)", y: "5 * sin(t)", from: 0, to: 6.283185307179586, points: 25 });
+  assert.deepEqual(sk.textOrder, ["t"]);
+  assert.throws(() => declarationOf({ default: () => doc("nowhere") }).graph, /text t's anchor names no point of the sketch/);
+});
