@@ -1428,10 +1428,10 @@ export type DrawingSheet = {
   /** The sheet's name in the list of drawings. */
   name?: string;
   /**
-   * The paper, landscape (ISO 216).
+   * The paper, landscape: ISO 216 (A4 … A0) or ANSI/ASME Y14.1 (ANSI A, 11 × 8.5 in, … ANSI E, 44 × 34 in).
    * @default "A3"
    */
-  size?: "A4" | "A3" | "A2" | "A1" | "A0";
+  size?: "A4" | "A3" | "A2" | "A1" | "A0" | "ANSI A" | "ANSI B" | "ANSI C" | "ANSI D" | "ANSI E";
   /**
    * Sheet millimetres per model millimetre: 1 is 1:1, 0.5 is 1:2, 2 is 2:1.
    * @exclusiveMinimum 0
@@ -1467,6 +1467,10 @@ export type DrawingSheet = {
    * @default true
    */
   overallDimensions?: boolean;
+  /**
+   * A parts list (ISO 7573) on the title block: one row per kind of body shown (item, part number, name, material, quantity), and a balloon with the item's number on a leader to each kind, in the sheet's iso view, else its first view.
+   */
+  partsList?: boolean;
   /** What the title block says that the document does not. */
   title?: DrawingTitle;
 };

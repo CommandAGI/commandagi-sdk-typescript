@@ -201,6 +201,7 @@ test("a body's engineering data, a joint, a mate and a sheet are typed elements 
     jsx("joint", { ...joint, __source: 4 }),
     jsx("joint", { id: "j2", kind: "screw", a: "arm", anchor: [0, 0, 0], pitch: 2 }),
     jsx("sheet", { id: "sheet1", views: [{ id: "front", view: "front" }, { id: "top", view: "top" }], title: { drawnBy: "JV" } }),
+    jsx("sheet", { id: "sheet2", size: "ANSI B", partsList: true, views: [{ id: "iso", view: "iso" }] }),
   );
   assert.deepEqual(n.bodyMeta!.inputs, { base: { engineering } });
   // The joints are the `joints` port of the document's dynamics, beside what its slot holds.
@@ -209,7 +210,10 @@ test("a body's engineering data, a joint, a mate and a sheet are typed elements 
   assert.deepEqual(n.drawings, {
     id: "drawings",
     type: "3d.drawings",
-    inputs: { value: [{ id: "sheet1", views: [{ id: "front", view: "front" }, { id: "top", view: "top" }], title: { drawnBy: "JV" }, size: "A3", scale: 1, projection: "first-angle", hiddenLines: true, holeCallouts: true, overallDimensions: true }] },
+    inputs: { value: [{ id: "sheet1", views: [{ id: "front", view: "front" }, { id: "top", view: "top" }], title: { drawnBy: "JV" }, size: "A3", scale: 1, projection: "first-angle", hiddenLines: true, holeCallouts: true, overallDimensions: true },
+      // An ANSI paper, and a parts list with its balloons.
+      { id: "sheet2", size: "ANSI B", partsList: true, views: [{ id: "iso", view: "iso" }], scale: 1, projection: "first-angle", hiddenLines: true, holeCallouts: true, overallDimensions: true },
+    ] },
   });
   const mate = { id: "m1", kind: "concentric", a: "p1", b: "p2", axis: "Z" };
   assert.deepEqual(read("assembly", jsx("mate", mate)).assembly, { id: "assembly", type: "3d.assembly", inputs: { mates: [mate] } });
