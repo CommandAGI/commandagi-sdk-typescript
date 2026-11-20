@@ -646,7 +646,7 @@ export type ConicalSurface = {
   axis: Vec3;
 };
 
-export type ConstraintKind = "coincident" | "parallel" | "perpendicular" | "distance" | "angle" | "concentric" | "tangent" | "horizontal" | "vertical" | "equal" | "pointOnLine" | "midpoint" | "pointOnCircle" | "symmetric" | "horizontalDistance" | "verticalDistance" | "radius" | "collinear" | "diameter" | "pointLineDistance" | "arcLength" | "conicRho";
+export type ConstraintKind = "coincident" | "parallel" | "perpendicular" | "distance" | "angle" | "concentric" | "tangent" | "horizontal" | "vertical" | "equal" | "pointOnLine" | "midpoint" | "pointOnCircle" | "symmetric" | "horizontalDistance" | "verticalDistance" | "radius" | "collinear" | "diameter" | "pointLineDistance" | "arcLength" | "conicRho" | "ordinateX" | "ordinateY" | "axisAngle" | "chamferDistance";
 
 /**
  * What a run records of a contact pair at each frame: how many points touch, the normal force on `a` (N), how fast `a` slides over `b` there (m/s; 0 while it sticks), and where it is touched (the force-weighted centre of the points).
@@ -5009,13 +5009,13 @@ export type SketchPoint = {
 export type SketchProjection = {
   id: string;
   /**
-   * The model edge this follows, signature-matched across rebuilds like every other reference. Absent on a section, which follows a whole body.
+   * The model edge this follows, signature-matched across rebuilds like every other reference. On a section, the one FACE it cuts (the curves where that face crosses the sketch's plane), or absent: the whole body.
    */
   ref?: TopoRef;
   /** The feature that built the body — the timeline dependency, exactly as for a pin. */
   feature?: string;
   /**
-   * AN INTERSECTION, not a projection: the curves where the body `feature` built crosses the sketch's plane, cut again on every rebuild. It needs `feature` and names no `ref`.
+   * AN INTERSECTION, not a projection: the curves where the body `feature` built (or the face of it `ref` names) crosses the sketch's plane, cut again on every rebuild. It needs `feature`.
    */
   section?: boolean;
   /** Generate as construction (reference) geometry rather than profile geometry. */
@@ -5119,7 +5119,9 @@ export type SketchText = {
   id: string;
   /** The words. */
   text: string;
-  /** The typeface's id (the editor's bundled faces). */
+  /**
+   * The typeface: a bundled face's id (`liberation-sans`, `noto-serif`, `noto-sans-mono`), or a font file in the design's folder by its path from there (`.ttf`, `.otf` or `.woff`). The outlines are kept in `contours`: the face is read only to make or change the text.
+   */
   font: string;
   /** The point the baseline starts at. */
   anchor: string;

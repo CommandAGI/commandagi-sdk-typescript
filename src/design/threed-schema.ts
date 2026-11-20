@@ -1490,7 +1490,11 @@ export const THREED_SCHEMA: SchemaDocument = {
     "diameter",
     "pointLineDistance",
     "arcLength",
-    "conicRho"
+    "conicRho",
+    "ordinateX",
+    "ordinateY",
+    "axisAngle",
+    "chamferDistance"
    ]
   },
   "ContactReport": {
@@ -10147,7 +10151,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "ref": {
      "$ref": "#/$defs/TopoRef",
-     "description": "The model edge this follows, signature-matched across rebuilds like every other reference. Absent on a section, which follows a whole body."
+     "description": "The model edge this follows, signature-matched across rebuilds like every other reference. On a section, the one FACE it cuts (the curves where that face crosses the sketch's plane), or absent: the whole body."
     },
     "feature": {
      "type": "string",
@@ -10155,7 +10159,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "section": {
      "type": "boolean",
-     "description": "AN INTERSECTION, not a projection: the curves where the body `feature` built crosses the sketch's plane, cut again on every rebuild. It needs `feature` and names no `ref`."
+     "description": "AN INTERSECTION, not a projection: the curves where the body `feature` built (or the face of it `ref` names) crosses the sketch's plane, cut again on every rebuild. It needs `feature`."
     },
     "construction": {
      "type": "boolean",
@@ -10443,7 +10447,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "font": {
      "type": "string",
-     "description": "The typeface's id (the editor's bundled faces)."
+     "description": "The typeface: a bundled face's id (`liberation-sans`, `noto-serif`, `noto-sans-mono`), or a font file in the design's folder by its path from there (`.ttf`, `.otf` or `.woff`). The outlines are kept in `contours`: the face is read only to make or change the text."
     },
     "anchor": {
      "type": "string",
