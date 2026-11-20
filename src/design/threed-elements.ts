@@ -1691,7 +1691,7 @@ export type EndCapFeature = {
 };
 
 /**
- * EXTEND A SURFACE: grow a surface body past its open edges, each tangent to the surface where the edge is (a ruled strip along the face's own direction, joined to the body).
+ * EXTEND A SURFACE: grow a surface body past its open edges, each face continued along its own surface (the natural extension: a plane stays the plane, a cylinder goes on round, a B-spline goes on as its last span), joined to the body. An edge is a side of its face's parameter rectangle.
  */
 export type ExtendSurfaceFeature = {
   type: "extendSurface";
@@ -4106,6 +4106,30 @@ export type RadialDimension = {
   formats?: ValueFormats;
 };
 
+/**
+ * REPLACE A FACE of a solid by a surface: the faces next to it are continued along their own surfaces to the surface, and the surface closes the body there. The body grows to it or is cut back to it.
+ */
+export type ReplaceFaceFeature = {
+  type: "replaceFace";
+  /** The face replaced. */
+  face: TopoTarget;
+  /** The surface body it is replaced by, by id (it stays a body of its own). */
+  surface: string;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
 export type RevolveFeature = {
   type: "revolve";
   /** The sketch regions to revolve. */
@@ -5947,15 +5971,17 @@ export type TransformFeature = {
   declaredBy?: CodeFeature;
 };
 
-/** TRIM A SURFACE: cut a surface body by a plane or a face and keep one side. */
+/** TRIM A SURFACE: cut a surface body by a plane, a flat face or another surface, and keep one side. */
 export type TrimSurfaceFeature = {
   type: "trimSurface";
   /** The surface body to trim, by id. */
   body: string;
-  /** What cuts it: a construction plane, a base plane or a flat face. */
-  tool: PlaneRef;
+  /** What cuts it, when it is a plane: a construction plane, a base plane or a flat face. */
+  tool?: PlaneRef;
+  /** What cuts it, when it is another surface body (in place of `tool`), by id. */
+  toolBody?: string;
   /**
-   * Keep the side the tool's normal points away from (the other side is kept when false).
+   * Keep the side the tool's normal points to (the other side is kept when false).
    * @default true
    */
   keepFront?: boolean;
@@ -6005,12 +6031,14 @@ export type UnfoldFeature = {
 };
 
 /**
- * UNTRIM A SURFACE: fill the openings cut into a surface body's faces (each face's holes are taken away).
+ * UNTRIM A SURFACE: fill its openings. With no `edges`, each face's own holes are taken away; with `edges`, each opening whose boundary holds one of them (a loop of open edges, which may run along several faces: a box with no lid) is closed by a face, flat when the loop is, else a filling surface through it.
  */
 export type UntrimSurfaceFeature = {
   type: "untrimSurface";
   /** The surface body, by id. */
   body: string;
+  /** An open edge of each opening to fill. */
+  edges?: TopoRef[];
   id: string;
   name: string;
   suppressed?: boolean;
@@ -6434,6 +6462,9 @@ export type ExtendSurfaceProps = Omit<ExtendSurfaceFeature, "type" | "error" | "
 /** `<stitch>`: the StitchFeature fields, by the same names. */
 export type StitchProps = Omit<StitchFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
 
+/** `<replaceFace>`: the ReplaceFaceFeature fields, by the same names. */
+export type ReplaceFaceProps = Omit<ReplaceFaceFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
 /** `<offsetSurface>`: the OffsetSurfaceFeature fields, by the same names. */
 export type OffsetSurfaceProps = Omit<OffsetSurfaceFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
 
@@ -6543,6 +6574,7 @@ export interface ThreeDFeatureElements {
   untrimSurface: UntrimSurfaceProps;
   extendSurface: ExtendSurfaceProps;
   stitch: StitchProps;
+  replaceFace: ReplaceFaceProps;
   offsetSurface: OffsetSurfaceProps;
   split: SplitProps;
   scale: ScaleProps;

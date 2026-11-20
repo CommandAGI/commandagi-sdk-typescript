@@ -56,6 +56,7 @@ export const THREED_SCHEMA: SchemaDocument = {
   "untrimSurface": "UntrimSurfaceFeature",
   "extendSurface": "ExtendSurfaceFeature",
   "stitch": "StitchFeature",
+  "replaceFace": "ReplaceFaceFeature",
   "offsetSurface": "OffsetSurfaceFeature",
   "split": "SplitFeature",
   "scale": "ScaleFeature",
@@ -3599,7 +3600,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "name"
    ],
    "additionalProperties": false,
-   "description": "EXTEND A SURFACE: grow a surface body past its open edges, each tangent to the surface where the edge is (a ruled strip along the face's own direction, joined to the body)."
+   "description": "EXTEND A SURFACE: grow a surface body past its open edges, each face continued along its own surface (the natural extension: a plane stays the plane, a cylinder goes on round, a B-spline goes on as its last span), joined to the body. An edge is a side of its face's parameter rectangle."
   },
   "ExternalPartRef": {
    "type": "object",
@@ -8407,6 +8408,58 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "Diameter (Ø) or radius (R) of a circular feature — center + a rim point, or an explicit value."
   },
+  "ReplaceFaceFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "replaceFace"
+    },
+    "face": {
+     "$ref": "#/$defs/TopoTarget",
+     "description": "The face replaced.",
+     "x-pick": "face"
+    },
+    "surface": {
+     "type": "string",
+     "description": "The surface body it is replaced by, by id (it stays a body of its own).",
+     "x-pick": "body"
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "face",
+    "surface",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "REPLACE A FACE of a solid by a surface: the faces next to it are continued along their own surfaces to the surface, and the surface closes the body there. The body grows to it or is cut back to it."
+  },
   "RevolveFeature": {
    "type": "object",
    "properties": {
@@ -12257,12 +12310,17 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "tool": {
      "$ref": "#/$defs/PlaneRef",
-     "description": "What cuts it: a construction plane, a base plane or a flat face.",
+     "description": "What cuts it, when it is a plane: a construction plane, a base plane or a flat face.",
      "x-pick": "plane"
+    },
+    "toolBody": {
+     "type": "string",
+     "description": "What cuts it, when it is another surface body (in place of `tool`), by id.",
+     "x-pick": "body"
     },
     "keepFront": {
      "type": "boolean",
-     "description": "Keep the side the tool's normal points away from (the other side is kept when false).",
+     "description": "Keep the side the tool's normal points to (the other side is kept when false).",
      "default": true
     },
     "id": {
@@ -12293,12 +12351,11 @@ export const THREED_SCHEMA: SchemaDocument = {
    "required": [
     "type",
     "body",
-    "tool",
     "id",
     "name"
    ],
    "additionalProperties": false,
-   "description": "TRIM A SURFACE: cut a surface body by a plane or a face and keep one side."
+   "description": "TRIM A SURFACE: cut a surface body by a plane, a flat face or another surface, and keep one side."
   },
   "UnfoldFeature": {
    "type": "object",
@@ -12368,6 +12425,14 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "The surface body, by id.",
      "x-pick": "body"
     },
+    "edges": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/TopoRef"
+     },
+     "description": "An open edge of each opening to fill.",
+     "x-pick": "edge"
+    },
     "id": {
      "type": "string"
     },
@@ -12400,7 +12465,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     "name"
    ],
    "additionalProperties": false,
-   "description": "UNTRIM A SURFACE: fill the openings cut into a surface body's faces (each face's holes are taken away)."
+   "description": "UNTRIM A SURFACE: fill its openings. With no `edges`, each face's own holes are taken away; with `edges`, each opening whose boundary holds one of them (a loop of open edges, which may run along several faces: a box with no lid) is closed by a face, flat when the loop is, else a filling surface through it."
   },
   "UnwrapChart": {
    "type": "object",
