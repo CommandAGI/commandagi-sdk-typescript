@@ -29,8 +29,14 @@ export const THREED_SCHEMA: SchemaDocument = {
   "draft": "DraftFeature",
   "hole": "HoleFeature",
   "transform": "TransformFeature",
+  "sheetMetal": "SheetMetalFeature",
+  "sheetBase": "SheetBaseFeature",
   "sheetFlange": "SheetFlangeFeature",
+  "sheetHem": "SheetHemFeature",
+  "sheetFold": "SheetFoldFeature",
   "unfold": "UnfoldFeature",
+  "frameMember": "FrameMemberFeature",
+  "endCap": "EndCapFeature",
   "wrapText": "WrapTextFeature",
   "deleteFace": "DeleteFaceFeature",
   "fullRound": "FullRoundFeature",
@@ -3079,6 +3085,64 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "A joint between two bodies: its kind, its axis, its limits and the two references it binds. `<joint>` in code."
   },
+  "EndCapFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "endCap"
+    },
+    "face": {
+     "$ref": "#/$defs/TopoTarget",
+     "description": "The member's end face.",
+     "x-pick": "face"
+    },
+    "thickness": {
+     "type": "number",
+     "description": "The plate's thickness.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0,
+     "default": 3
+    },
+    "inside": {
+     "type": "boolean",
+     "description": "Set the plate into the tube's opening, flush with the end, instead of on the end."
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "face",
+    "thickness",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "AN END CAP: a plate that closes the open end of a frame member, on its end face."
+  },
   "ExternalPartRef": {
    "type": "object",
    "properties": {
@@ -3543,8 +3607,8 @@ export const THREED_SCHEMA: SchemaDocument = {
       "area": {
        "type": "string",
        "enum": [
-        "square",
         "rectangular",
+        "square",
         "circular"
        ]
       },
@@ -3730,6 +3794,15 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "A FITTED flattening, stored as a tensor-product Bernstein map over the chart's own (u,v) rectangle."
   },
+  "FlangePosition": {
+   "type": "string",
+   "enum": [
+    "outside",
+    "materialInside",
+    "materialOutside"
+   ],
+   "description": "Where an edge flange's bend sits against the edge it is built on."
+  },
   "FootprintPad": {
    "type": "object",
    "properties": {
@@ -3767,6 +3840,102 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "ONE PAD of a component's footprint, in the copper-layer plane's own (u,v) millimetres relative to the placement origin."
+  },
+  "FrameCorner": {
+   "type": "string",
+   "enum": [
+    "none",
+    "miter",
+    "butt"
+   ],
+   "description": "How two frame members meet at a corner of the sketch: cut at the bisector, one butting on the other, or untrimmed."
+  },
+  "FrameMemberFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "frameMember"
+    },
+    "sketch": {
+     "type": "string",
+     "description": "The sketch whose lines the members run along (their centre lines).",
+     "x-pick": "sketch"
+    },
+    "segments": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "The lines, by id; every line of the sketch when omitted."
+    },
+    "profile": {
+     "$ref": "#/$defs/FrameProfile",
+     "description": "The section.",
+     "default": "squareTube"
+    },
+    "size": {
+     "type": "string",
+     "description": "The standard size, as the profile library names it (width × height × wall, or diameter × wall).",
+     "default": "40x40x3"
+    },
+    "corner": {
+     "$ref": "#/$defs/FrameCorner",
+     "description": "How members meet at a shared end.",
+     "default": "miter"
+    },
+    "rotate": {
+     "type": "number",
+     "description": "The section turned about the member's axis.",
+     "x-unit": "rad"
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "sketch",
+    "profile",
+    "size",
+    "corner",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "FRAME MEMBERS: a structural section swept along lines of a sketch, one body per line, trimmed where two meet."
+  },
+  "FrameProfile": {
+   "type": "string",
+   "enum": [
+    "angle",
+    "squareTube",
+    "rectTube",
+    "channel",
+    "roundTube"
+   ],
+   "description": "A weldment's structural section (`@commandagi/3d-core/weldment` PROFILES holds the standard sizes)."
   },
   "FullRoundFeature": {
    "type": "object",
@@ -6204,8 +6373,8 @@ export const THREED_SCHEMA: SchemaDocument = {
   "OffsetCap": {
    "type": "string",
    "enum": [
-    "round",
     "butt",
+    "round",
     "square"
    ]
   },
@@ -8041,6 +8210,62 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false
   },
+  "SheetBaseFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "sheetBase"
+    },
+    "profile": {
+     "$ref": "#/$defs/ProfileRef",
+     "description": "The closed sketch regions the sheet takes.",
+     "x-pick": "profile"
+    },
+    "thickness": {
+     "type": "number",
+     "description": "The sheet's thickness; the rules' when omitted.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "reverse": {
+     "type": "boolean",
+     "description": "Make the sheet on the other side of the sketch plane."
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "profile",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "A BASE FLANGE: the first sheet of a sheet-metal part, a closed sketch profile made as thick as the rules' sheet."
+  },
   "SheetFlangeFeature": {
    "type": "object",
    "properties": {
@@ -8076,7 +8301,24 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "bendRadius": {
      "type": "number",
-     "description": "Inner bend radius (mm); defaults to the thickness when omitted.",
+     "description": "Inner bend radius (mm); the rules' when omitted, else the thickness.",
+     "x-unit": "mm",
+     "minimum": 0
+    },
+    "position": {
+     "$ref": "#/$defs/FlangePosition",
+     "description": "Where the bend sits: \"outside\" adds the bend beyond the edge; \"materialInside\" sets the edge back so the wall's outer face is where the edge was; \"materialOutside\" so its inner face is.",
+     "default": "outside"
+    },
+    "startOffset": {
+     "type": "number",
+     "description": "How far the flange starts in from the edge's first end.",
+     "x-unit": "mm",
+     "minimum": 0
+    },
+    "endOffset": {
+     "type": "number",
+     "description": "How far the flange stops short of the edge's other end.",
      "x-unit": "mm",
      "minimum": 0
     },
@@ -8114,6 +8356,238 @@ export const THREED_SCHEMA: SchemaDocument = {
     "name"
    ],
    "additionalProperties": false
+  },
+  "SheetFoldFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "sheetFold"
+    },
+    "sketch": {
+     "type": "string",
+     "description": "The sketch whose line the sheet bends along.",
+     "x-pick": "sketch"
+    },
+    "line": {
+     "type": "string",
+     "description": "The line of the sketch, by its id; the sketch's first line when omitted."
+    },
+    "angle": {
+     "type": "number",
+     "description": "The bend angle.",
+     "x-unit": "rad",
+     "exclusiveMinimum": 0,
+     "maximum": 3.141592653589793,
+     "default": 1.5707963267948966
+    },
+    "bendRadius": {
+     "type": "number",
+     "description": "Inner bend radius; the rules' when omitted.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "flip": {
+     "type": "boolean",
+     "description": "Move the sheet on the other side of the line."
+    },
+    "reverse": {
+     "type": "boolean",
+     "description": "Bend to the other face of the sheet."
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "sketch",
+    "angle",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "A FOLD: a flat sheet bent along a line of a sketch drawn on it; the bend's middle is on the line."
+  },
+  "SheetHemFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "sheetHem"
+    },
+    "edge": {
+     "$ref": "#/$defs/TopoTarget",
+     "description": "The straight edge to hem; the side of the sheet it is on is the side the hem folds to.",
+     "x-pick": "edge"
+    },
+    "length": {
+     "type": "number",
+     "description": "The length of the folded-back layer.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0,
+     "default": 8
+    },
+    "gap": {
+     "type": "number",
+     "description": "The gap between the sheet and its folded-back layer (twice the hem's inner radius).",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0,
+     "default": 1
+    },
+    "thickness": {
+     "type": "number",
+     "description": "Sheet thickness; the rules' when omitted.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "edge",
+    "length",
+    "gap",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "A HEM: the sheet's edge bent right back on itself (180°), leaving `gap` between the two layers."
+  },
+  "SheetMetalFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "sheetMetal"
+    },
+    "thickness": {
+     "type": "number",
+     "description": "The sheet's thickness.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0,
+     "default": 2
+    },
+    "bendRadius": {
+     "type": "number",
+     "description": "The inner bend radius.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0,
+     "default": 2
+    },
+    "kFactor": {
+     "type": "number",
+     "description": "Where the neutral fibre lies through the thickness (0 inside, 1 outside): bend allowance = angle × (radius + K × thickness).",
+     "minimum": 0,
+     "maximum": 1,
+     "default": 0.44,
+     "x-step": 0.01
+    },
+    "relief": {
+     "$ref": "#/$defs/SheetRelief",
+     "description": "The relief cut at each end of a bend that does not run the whole edge: none, a rectangle, or a slot with a round end.",
+     "default": "rectangular"
+    },
+    "reliefWidth": {
+     "type": "number",
+     "description": "The relief's width along the bend; the thickness when omitted.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0
+    },
+    "reliefDepth": {
+     "type": "number",
+     "description": "How far the relief runs past the bend; the thickness when omitted.",
+     "x-unit": "mm",
+     "minimum": 0
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "thickness",
+    "bendRadius",
+    "kFactor",
+    "relief",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "SHEET-METAL RULES: the sheet's thickness, bend radius, K-factor and bend relief, one element of the part (`<sheetMetal>`). Every sheet-metal feature of the part reads them where it states no value of its own; a part holds at most one. It makes no geometry."
+  },
+  "SheetRelief": {
+   "type": "string",
+   "enum": [
+    "none",
+    "rectangular",
+    "obround"
+   ]
   },
   "ShellFeature": {
    "type": "object",
@@ -10708,10 +11182,9 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "kFactor": {
      "type": "number",
-     "description": "K-factor for bend-allowance (neutral-fibre) computation; default 0.44.",
+     "description": "K-factor for bend-allowance (neutral-fibre) computation; the rules' when omitted, else 0.44.",
      "minimum": 0,
      "maximum": 1,
-     "default": 0.44,
      "x-widget": "slider",
      "x-step": 0.01
     },
@@ -10745,7 +11218,8 @@ export const THREED_SCHEMA: SchemaDocument = {
     "id",
     "name"
    ],
-   "additionalProperties": false
+   "additionalProperties": false,
+   "description": "THE FLAT PATTERN: every base flange, edge flange, hem and fold of the part developed flat (each bend becomes its bend allowance). Suppressed, the part is folded again."
   },
   "UnwrapChart": {
    "type": "object",

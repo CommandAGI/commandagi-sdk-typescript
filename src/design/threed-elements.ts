@@ -1521,6 +1521,35 @@ export type DynamicsJoint = {
   };
 };
 
+/** AN END CAP: a plate that closes the open end of a frame member, on its end face. */
+export type EndCapFeature = {
+  type: "endCap";
+  /** The member's end face. */
+  face: TopoTarget;
+  /**
+   * The plate's thickness.
+   * @unit mm
+   * @exclusiveMinimum 0
+   * @default 3
+   */
+  thickness?: number;
+  /** Set the plate into the tube's opening, flush with the end, instead of on the end. */
+  inside?: boolean;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
 /**
  * A LINKED (not embedded) part reference. Unlike ImportFeature — which copies the foreign STEP/IGES bytes into the document — an `ExternalPartRef` only records *where* to find another Drive file (by id or name) and reloads it on open. This keeps a part reusable across assemblies and lets a part edit propagate to every place it's used. The reference system (`cad/references.ts`) turns these into `FileRef`s (`role:"part"`); the editor resolves + meshes them. Foreign solids carry an `importer` ("step"/"iges") so the resolver knows to run the import path rather than run a `.3d.tsx`.
  */
@@ -1762,7 +1791,7 @@ export type FeatureControlFrame = {
   /** A tolerance per unit length or area: its size, the area's shape and its second size. */
   perUnit?: {
     size: number;
-    area?: "square" | "rectangular" | "circular";
+    area?: "rectangular" | "square" | "circular";
     second?: number;
   };
   /**
@@ -1841,6 +1870,9 @@ export type FittedChartMap = {
   residual: number;
 };
 
+/** Where an edge flange's bend sits against the edge it is built on. */
+export type FlangePosition = "outside" | "materialInside" | "materialOutside";
+
 /**
  * ONE PAD of a component's footprint, in the copper-layer plane's own (u,v) millimetres relative to the placement origin.
  */
@@ -1862,6 +1894,58 @@ export type FootprintPad = {
    */
   size?: [number, number];
 };
+
+/**
+ * How two frame members meet at a corner of the sketch: cut at the bisector, one butting on the other, or untrimmed.
+ */
+export type FrameCorner = "none" | "miter" | "butt";
+
+/**
+ * FRAME MEMBERS: a structural section swept along lines of a sketch, one body per line, trimmed where two meet.
+ */
+export type FrameMemberFeature = {
+  type: "frameMember";
+  /** The sketch whose lines the members run along (their centre lines). */
+  sketch: string;
+  /** The lines, by id; every line of the sketch when omitted. */
+  segments?: string[];
+  /**
+   * The section.
+   * @default "squareTube"
+   */
+  profile?: FrameProfile;
+  /**
+   * The standard size, as the profile library names it (width × height × wall, or diameter × wall).
+   * @default "40x40x3"
+   */
+  size?: string;
+  /**
+   * How members meet at a shared end.
+   * @default "miter"
+   */
+  corner?: FrameCorner;
+  /**
+   * The section turned about the member's axis.
+   * @unit rad
+   */
+  rotate?: number;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
+/** A weldment's structural section (`@commandagi/3d-core/weldment` PROFILES holds the standard sizes). */
+export type FrameProfile = "angle" | "squareTube" | "rectTube" | "channel" | "roundTube";
 
 export type FullRoundFeature = {
   type: "fullRound";
@@ -3024,7 +3108,7 @@ export type OfferDates = {
   incoming?: string;
 };
 
-export type OffsetCap = "round" | "butt" | "square";
+export type OffsetCap = "butt" | "round" | "square";
 
 export type OffsetFacesFeature = {
   type: "offsetFaces";
@@ -4044,6 +4128,36 @@ export type ScaleFeature = {
   declaredBy?: CodeFeature;
 };
 
+/**
+ * A BASE FLANGE: the first sheet of a sheet-metal part, a closed sketch profile made as thick as the rules' sheet.
+ */
+export type SheetBaseFeature = {
+  type: "sheetBase";
+  /** The closed sketch regions the sheet takes. */
+  profile: ProfileRef;
+  /**
+   * The sheet's thickness; the rules' when omitted.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  thickness?: number;
+  /** Make the sheet on the other side of the sketch plane. */
+  reverse?: boolean;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
 export type SheetFlangeFeature = {
   type: "sheetFlange";
   /** Straight boundary edge to flange from. */
@@ -4070,11 +4184,28 @@ export type SheetFlangeFeature = {
    */
   thickness?: number;
   /**
-   * Inner bend radius (mm); defaults to the thickness when omitted.
+   * Inner bend radius (mm); the rules' when omitted, else the thickness.
    * @unit mm
    * @minimum 0
    */
   bendRadius?: number;
+  /**
+   * Where the bend sits: "outside" adds the bend beyond the edge; "materialInside" sets the edge back so the wall's outer face is where the edge was; "materialOutside" so its inner face is.
+   * @default "outside"
+   */
+  position?: FlangePosition;
+  /**
+   * How far the flange starts in from the edge's first end.
+   * @unit mm
+   * @minimum 0
+   */
+  startOffset?: number;
+  /**
+   * How far the flange stops short of the edge's other end.
+   * @unit mm
+   * @minimum 0
+   */
+  endOffset?: number;
   id: string;
   name: string;
   suppressed?: boolean;
@@ -4089,6 +4220,146 @@ export type SheetFlangeFeature = {
    */
   declaredBy?: CodeFeature;
 };
+
+/** A FOLD: a flat sheet bent along a line of a sketch drawn on it; the bend's middle is on the line. */
+export type SheetFoldFeature = {
+  type: "sheetFold";
+  /** The sketch whose line the sheet bends along. */
+  sketch: string;
+  /** The line of the sketch, by its id; the sketch's first line when omitted. */
+  line?: string;
+  /**
+   * The bend angle.
+   * @unit rad
+   * @maximum 3.141592653589793
+   * @exclusiveMinimum 0
+   * @default 1.5707963267948966
+   */
+  angle?: number;
+  /**
+   * Inner bend radius; the rules' when omitted.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  bendRadius?: number;
+  /** Move the sheet on the other side of the line. */
+  flip?: boolean;
+  /** Bend to the other face of the sheet. */
+  reverse?: boolean;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
+/** A HEM: the sheet's edge bent right back on itself (180°), leaving `gap` between the two layers. */
+export type SheetHemFeature = {
+  type: "sheetHem";
+  /** The straight edge to hem; the side of the sheet it is on is the side the hem folds to. */
+  edge: TopoTarget;
+  /**
+   * The length of the folded-back layer.
+   * @unit mm
+   * @exclusiveMinimum 0
+   * @default 8
+   */
+  length?: number;
+  /**
+   * The gap between the sheet and its folded-back layer (twice the hem's inner radius).
+   * @unit mm
+   * @exclusiveMinimum 0
+   * @default 1
+   */
+  gap?: number;
+  /**
+   * Sheet thickness; the rules' when omitted.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  thickness?: number;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
+/**
+ * SHEET-METAL RULES: the sheet's thickness, bend radius, K-factor and bend relief, one element of the part (`<sheetMetal>`). Every sheet-metal feature of the part reads them where it states no value of its own; a part holds at most one. It makes no geometry.
+ */
+export type SheetMetalFeature = {
+  type: "sheetMetal";
+  /**
+   * The sheet's thickness.
+   * @unit mm
+   * @exclusiveMinimum 0
+   * @default 2
+   */
+  thickness?: number;
+  /**
+   * The inner bend radius.
+   * @unit mm
+   * @exclusiveMinimum 0
+   * @default 2
+   */
+  bendRadius?: number;
+  /**
+   * Where the neutral fibre lies through the thickness (0 inside, 1 outside): bend allowance = angle × (radius + K × thickness).
+   * @minimum 0
+   * @maximum 1
+   * @default 0.44
+   */
+  kFactor?: number;
+  /**
+   * The relief cut at each end of a bend that does not run the whole edge: none, a rectangle, or a slot with a round end.
+   * @default "rectangular"
+   */
+  relief?: SheetRelief;
+  /**
+   * The relief's width along the bend; the thickness when omitted.
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  reliefWidth?: number;
+  /**
+   * How far the relief runs past the bend; the thickness when omitted.
+   * @unit mm
+   * @minimum 0
+   */
+  reliefDepth?: number;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
+export type SheetRelief = "none" | "rectangular" | "obround";
 
 export type ShellFeature = {
   type: "shell";
@@ -5200,13 +5471,15 @@ export type TransformFeature = {
   declaredBy?: CodeFeature;
 };
 
+/**
+ * THE FLAT PATTERN: every base flange, edge flange, hem and fold of the part developed flat (each bend becomes its bend allowance). Suppressed, the part is folded again.
+ */
 export type UnfoldFeature = {
   type: "unfold";
   /**
-   * K-factor for bend-allowance (neutral-fibre) computation; default 0.44.
+   * K-factor for bend-allowance (neutral-fibre) computation; the rules' when omitted, else 0.44.
    * @minimum 0
    * @maximum 1
-   * @default 0.44
    */
   kFactor?: number;
   id: string;
@@ -5551,11 +5824,29 @@ export type HoleProps = Omit<HoleFeature, "type" | "error" | "declaredBy" | "nam
 /** `<transform>`: the TransformFeature fields, by the same names. */
 export type TransformProps = Omit<TransformFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
 
+/** `<sheetMetal>`: the SheetMetalFeature fields, by the same names. */
+export type SheetMetalProps = Omit<SheetMetalFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
+/** `<sheetBase>`: the SheetBaseFeature fields, by the same names. */
+export type SheetBaseProps = Omit<SheetBaseFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
 /** `<sheetFlange>`: the SheetFlangeFeature fields, by the same names. */
 export type SheetFlangeProps = Omit<SheetFlangeFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
 
+/** `<sheetHem>`: the SheetHemFeature fields, by the same names. */
+export type SheetHemProps = Omit<SheetHemFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
+/** `<sheetFold>`: the SheetFoldFeature fields, by the same names. */
+export type SheetFoldProps = Omit<SheetFoldFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
 /** `<unfold>`: the UnfoldFeature fields, by the same names. */
 export type UnfoldProps = Omit<UnfoldFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
+/** `<frameMember>`: the FrameMemberFeature fields, by the same names. */
+export type FrameMemberProps = Omit<FrameMemberFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
+/** `<endCap>`: the EndCapFeature fields, by the same names. */
+export type EndCapProps = Omit<EndCapFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
 
 /** `<wrapText>`: the WrapTextFeature fields, by the same names. */
 export type WrapTextProps = Omit<WrapTextFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
@@ -5666,8 +5957,14 @@ export interface ThreeDFeatureElements {
   draft: DraftProps;
   hole: HoleProps;
   transform: TransformProps;
+  sheetMetal: SheetMetalProps;
+  sheetBase: SheetBaseProps;
   sheetFlange: SheetFlangeProps;
+  sheetHem: SheetHemProps;
+  sheetFold: SheetFoldProps;
   unfold: UnfoldProps;
+  frameMember: FrameMemberProps;
+  endCap: EndCapProps;
   wrapText: WrapTextProps;
   deleteFace: DeleteFaceProps;
   fullRound: FullRoundProps;
