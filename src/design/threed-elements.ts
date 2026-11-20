@@ -178,6 +178,9 @@ export type AxisRef = {
   type: "datumAxis";
   axis: "X" | "Y" | "Z";
 } | {
+  type: "datum";
+  axis: string;
+} | {
   type: "sketchLine";
   sketch: string;
   segment: string;
@@ -643,7 +646,7 @@ export type ConicalSurface = {
   axis: Vec3;
 };
 
-export type ConstraintKind = "coincident" | "parallel" | "perpendicular" | "distance" | "angle" | "concentric" | "horizontal" | "vertical" | "tangent" | "equal" | "pointOnLine" | "midpoint" | "pointOnCircle" | "symmetric" | "horizontalDistance" | "verticalDistance" | "radius" | "collinear" | "diameter";
+export type ConstraintKind = "coincident" | "parallel" | "perpendicular" | "distance" | "angle" | "concentric" | "tangent" | "horizontal" | "vertical" | "equal" | "pointOnLine" | "midpoint" | "pointOnCircle" | "symmetric" | "horizontalDistance" | "verticalDistance" | "radius" | "collinear" | "diameter";
 
 /**
  * What a run records of a contact pair at each frame: how many points touch, the normal force on `a` (N), how fast `a` slides over `b` there (m/s; 0 while it sticks), and where it is touched (the force-weighted centre of the points).
@@ -914,6 +917,48 @@ export type CylindricalSurface = {
   axis: Vec3;
 };
 
+/**
+ * A CONSTRUCTION AXIS: a line a revolve, a pattern or a coil turns about, or a plane goes through (`axis={{ type: "datum", axis: <id> }}`). It makes no body.
+ */
+export type DatumAxisFeature = {
+  type: "datumAxis";
+  /**
+   * How the axis is placed.
+   * @default "edge"
+   */
+  method?: DatumAxisMethod;
+  /** The cylinder, cone or torus whose axis it is; the flat face it is at right angles to. */
+  face?: TopoRef;
+  /** The straight edge it lies along. */
+  edge?: TopoRef;
+  /** The first plane. */
+  plane?: PlaneRef;
+  /** The second plane. */
+  plane2?: PlaneRef;
+  /** The point it goes through (perpendicular), the first of two points. */
+  point?: PointRef;
+  /** The second point. */
+  point2?: PointRef;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
+/**
+ * How a construction axis is placed: cylinder the axis of a cylinder, cone or torus (`face`) perpendicular at right angles to a flat face (`face`), through a point (`point`) twoPlanes where two planes meet (`plane`, `plane2`) twoPoints through two points (`point`, `point2`) edge along a straight edge (`edge`)
+ */
+export type DatumAxisMethod = "edge" | "cylinder" | "perpendicular" | "twoPlanes" | "twoPoints";
+
 /** A datum-feature label (the boxed letter A/B/C… with a leader/triangle to the referenced feature). */
 export type DatumFeature = {
   type: "datumFeature";
@@ -935,16 +980,46 @@ export type DatumFeature = {
 
 export type DatumPlaneFeature = {
   type: "datumPlane";
-  /** Offset from a base plane along its normal. */
-  base: string;
   /**
-   * How far from the base plane, along its normal.
+   * How the plane is placed.
+   * @default "offset"
+   */
+  method?: DatumPlaneMethod;
+  /**
+   * The plane it starts from: the plane offset or turned; the first of a midplane's two; the plane a tangent plane's angle and a perpendicular plane's right angle are measured from; else the plane whose x axis it keeps where it can.
+   */
+  base: string;
+  /** The second plane of a midplane. */
+  base2?: string;
+  /** The edge it goes through (two edges, perpendicular), or is at right angles to (along a path). */
+  edge?: TopoRef;
+  /** The second edge it goes through. */
+  edge2?: TopoRef;
+  /** The axis it goes through. */
+  axis?: AxisRef;
+  /** A point it goes through. */
+  point?: PointRef;
+  /** The second point it goes through. */
+  point2?: PointRef;
+  /** The third point it goes through. */
+  point3?: PointRef;
+  /** The cylinder, cone or sphere it touches. */
+  face?: TopoRef;
+  /**
+   * Where along the edge, as a fraction of its length from its start.
+   * @minimum 0
+   * @maximum 1
+   * @default 0.5
+   */
+  along?: number;
+  /**
+   * How far the plane is moved along its own normal.
    * @unit mm
    * @default 10
    */
   offset?: number;
   /**
-   * A plane at an angle: the base turned about its own x axis (through its origin) by this angle, before the offset, which then runs along the turned normal.
+   * Offset: the base turned about its own x axis (through its origin) by this angle, before the offset, which then runs along the turned normal (a plane at an angle). Tangent: where on the face it touches, turned about the face's axis from the base's normal.
    * @unit rad
    * @minimum -3.141592653589793
    * @maximum 3.141592653589793
@@ -964,6 +1039,53 @@ export type DatumPlaneFeature = {
    */
   declaredBy?: CodeFeature;
 };
+
+/**
+ * How a construction plane is placed: offset `base` moved along its normal (and turned about its x axis by `angle`: a plane at an angle) midplane halfway between `base` and `base2` (two parallel planes: between them; two that meet: the plane that halves the angle between them) twoEdges through two straight edges that lie in one plane (`edge`, `edge2`) axisPoint through an axis (`axis`) and a point off it (`point`) threePoints through three points (`point`, `point2`, `point3`) tangent touching a cylinder, cone or sphere (`face`), at `angle` about its axis from `base`'s normal alongPath at right angles to an edge (`edge`), at the fraction `along` of its length perpendicular through a straight edge (`edge`), at right angles to `base` Every method then moves the plane `offset` along its own normal.
+ */
+export type DatumPlaneMethod = "offset" | "perpendicular" | "midplane" | "twoEdges" | "axisPoint" | "threePoints" | "tangent" | "alongPath";
+
+/**
+ * A CONSTRUCTION POINT: a point a plane or an axis goes through (`{ type: "datum", point: <id> }`). It makes no body.
+ */
+export type DatumPointFeature = {
+  type: "datumPoint";
+  /**
+   * How the point is placed.
+   * @default "vertex"
+   */
+  method?: DatumPointMethod;
+  /** The point it is at. */
+  point?: PointRef;
+  /** The edge: the one a plane cuts, or the circle or arc whose centre it is. */
+  edge?: TopoRef;
+  /** The sphere whose centre it is (in place of an edge). */
+  face?: TopoRef;
+  /** The (first) plane. */
+  plane?: PlaneRef;
+  /** The second plane. */
+  plane2?: PlaneRef;
+  /** The third plane. */
+  plane3?: PlaneRef;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
+/**
+ * How a construction point is placed: vertex at a point (`point`: a body's corner, another construction point, or coordinates) edgePlane where an edge (`edge`) meets a plane (`plane`); the edge's line where it is straight threePlanes where three planes meet (`plane`, `plane2`, `plane3`) center at the centre of a circle or an arc (`edge`), or of a sphere (`face`)
+ */
+export type DatumPointMethod = "vertex" | "edgePlane" | "threePlanes" | "center";
 
 /**
  * A datum reference in a feature-control frame: a letter and its material modifier. A common datum is its letters joined by a hyphen (`A-B`), or `common` when one of its datums carries a modifier of its own.
@@ -1551,6 +1673,38 @@ export type EndCapFeature = {
 };
 
 /**
+ * EXTEND A SURFACE: grow a surface body past its open edges, each tangent to the surface where the edge is (a ruled strip along the face's own direction, joined to the body).
+ */
+export type ExtendSurfaceFeature = {
+  type: "extendSurface";
+  /**
+   * The open edges to extend.
+   * @minItems 1
+   */
+  edges: TopoRef[];
+  /**
+   * How far each is extended.
+   * @unit mm
+   * @exclusiveMinimum 0
+   * @default 5
+   */
+  distance?: number;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
+/**
  * A LINKED (not embedded) part reference. Unlike ImportFeature — which copies the foreign STEP/IGES bytes into the document — an `ExternalPartRef` only records *where* to find another Drive file (by id or name) and reloads it on open. This keeps a part reusable across assemblies and lets a part edit propagate to every place it's used. The reference system (`cad/references.ts`) turns these into `FileRef`s (`role:"part"`); the editor resolves + meshes them. Foreign solids carry an `importer` ("step"/"iges") so the resolver knows to run the import path rather than run a `.3d.tsx`.
  */
 export type ExternalPartRef = {
@@ -1653,6 +1807,11 @@ export type ExtrudeFeature = {
   through?: boolean;
   /** "Up to face": extrude until the profile reaches this target face's plane. */
   upToFace?: TopoTarget;
+  /**
+   * A SURFACE, not a solid: the profile's edges (the outer edges of its closed regions, or the sketch's open chain when it has no closed region) are moved along the direction, and the faces they sweep are a body of their own with no inside. A surface is always a new body.
+   * @default false
+   */
+  surface?: boolean;
   /**
    * How the solid combines with the bodies before it.
    * @default "new"
@@ -2179,10 +2338,25 @@ export type HoleFeature = {
    */
   through?: boolean;
   /**
-   * Plain, counterbored or countersunk.
+   * Plain, counterbored, countersunk, or tapped (drilled at the thread's tap drill and threaded).
    * @default "simple"
    */
   style?: HoleStyle;
+  /**
+   * A tapped hole's thread: an ISO metric coarse thread ("M6") or a Unified one ("1/4-20", "#10-24"), from the shipped tables (`./hole-sizes.ts` tappedHole). It gives `diameter` (the tap drill), the thread's major diameter and its pitch.
+   */
+  thread?: string;
+  /**
+   * How deep the thread goes from the face (default: the whole hole).
+   * @unit mm
+   * @exclusiveMinimum 0
+   */
+  threadDepth?: number;
+  /**
+   * The thread is cosmetic (the hole is drilled at the tap drill and the thread is drawn and called out, not cut), or modelled (its helix is cut into the wall).
+   * @default "cosmetic"
+   */
+  threadKind?: "cosmetic" | "modeled";
   /**
    * Counterbore/countersink head diameter.
    * @unit mm
@@ -2225,7 +2399,7 @@ export type HoleFeature = {
   declaredBy?: CodeFeature;
 };
 
-export type HoleStyle = "simple" | "counterbore" | "countersink";
+export type HoleStyle = "simple" | "counterbore" | "countersink" | "tapped";
 
 /** What a host code part writes and reads (`<code host={…}>`; docs/formats.md § a host code part). */
 export type HostCode = {
@@ -2541,6 +2715,11 @@ export type LoftFeature = {
   ruled?: boolean;
   /** Join the last section back to the first. */
   closed?: boolean;
+  /**
+   * A SURFACE, not a solid: a skin through the sections' outer edges (or each sketch's open chain), with no end caps and no inside, a body of its own. A surface is always a new body.
+   * @default false
+   */
+  surface?: boolean;
   /**
    * How the solid combines with the bodies before it.
    * @default "new"
@@ -3140,6 +3319,32 @@ export type OffsetFacesFeature = {
 
 export type OffsetJoin = "miter" | "round" | "bevel";
 
+/** OFFSET A SURFACE: a new surface body at a distance from a surface body, along its normal. */
+export type OffsetSurfaceFeature = {
+  type: "offsetSurface";
+  /** The surface body to offset, by id. */
+  body: string;
+  /**
+   * How far along its normal (negative: the other way).
+   * @unit mm
+   * @default 2
+   */
+  distance?: number;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
 /** A packed part's size and mass. */
 export type PackagedSize = {
   /**
@@ -3621,6 +3826,20 @@ export type PointCloudFeature = {
 };
 
 /**
+ * A point a construction feature goes through: a corner of a body (a vertex picked), a construction point (a `datumPoint` feature, by id), or a fixed point in model coordinates.
+ */
+export type PointRef = {
+  type: "vertex";
+  ref: TopoRef;
+} | {
+  type: "datum";
+  point: string;
+} | {
+  type: "at";
+  at: Vec3;
+};
+
+/**
  * A PORT: where a rod's end can be held on a body: a pad, a solder joint, a terminal, a socket, a breadboard's row of sockets (`count` of them, named `<id>1` … `<id><count>` along `dir`). `<port>` in code. A socket holds an end coaxial on its axis, no deeper than `depth`, until it is pulled out with more than `retention`.
  */
 export type Port = {
@@ -3875,6 +4094,11 @@ export type RevolveFeature = {
   angle?: number;
   /** Turn the other way. */
   reverse?: boolean;
+  /**
+   * A SURFACE, not a solid: the profile's edges (the outer edges of its closed regions, or the sketch's open chain) turned about the axis, a body of their own with no inside. A surface is always a new body.
+   * @default false
+   */
+  surface?: boolean;
   /**
    * How the solid combines with the bodies before it.
    * @default "new"
@@ -4556,7 +4780,7 @@ export type SketchPin = {
 };
 
 /** WHICH POINT of the target, once it is flattened onto the sketch plane. */
-export type SketchPinAnchor = "vertex" | "centroid" | "center" | "minU" | "maxU" | "minV" | "maxV" | "minU_minV" | "maxU_minV" | "minU_maxV" | "maxU_maxV";
+export type SketchPinAnchor = "vertex" | "center" | "centroid" | "minU" | "maxU" | "minV" | "maxV" | "minU_minV" | "maxU_minV" | "minU_maxV" | "maxU_maxV";
 
 /**
  * WHICH b-rep thing a pin follows. Bodies are named by the FEATURE that produced them (lineage is what survives a parametric edit — a signature match would drift the moment the body moves, which is exactly when a pin has to keep holding). Sub-shapes reuse the document's signature-matched TopoRef, the same handle every other feature uses to say "that face".
@@ -4912,6 +5136,38 @@ export type SplitFeature = {
   declaredBy?: CodeFeature;
 };
 
+/**
+ * STITCH SURFACES: join surface bodies that share their edges into one body. When the joined faces close a volume, the body is a solid.
+ */
+export type StitchFeature = {
+  type: "stitch";
+  /**
+   * The surface bodies to join, by id.
+   * @minItems 1
+   */
+  bodies: string[];
+  /**
+   * How far apart two edges may be and still be joined.
+   * @unit mm
+   * @exclusiveMinimum 0
+   * @default 0.01
+   */
+  tolerance?: number;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
 /** THE STOCK A MADE PART USES, AS ITS SUPPLIER SELLS IT: `make.stock`. */
 export type StockMaterial = {
   /** What is bought ("PETG filament, 1 kg spool", "6061-T6 plate 300 x 300 x 10"). */
@@ -5150,6 +5406,11 @@ export type SweepFeature = {
    */
   twist?: number;
   /**
+   * A SURFACE, not a solid: the profile's outer edges (or the sketch's open chain) swept along the path, a body of its own with no inside and no end caps. A surface is always a new body.
+   * @default false
+   */
+  surface?: boolean;
+  /**
    * How the solid combines with the bodies before it.
    * @default "new"
    */
@@ -5237,11 +5498,17 @@ export type TerminalBinding = {
 export type ThickenFeature = {
   type: "thicken";
   /**
-   * Uniform offset on every body (positive grows, negative shrinks).
+   * The bodies to thicken, by id (a surface becomes a solid of this thickness). Absent: every body, each grown (or, negative, shrunk) evenly.
+   */
+  bodies?: string[];
+  /**
+   * How thick, along the surface's normal (negative: the other side); for a solid, the uniform offset.
    * @unit mm
    * @default 1
    */
   distance?: number;
+  /** A surface thickens to both sides of itself, half each way. */
+  symmetric?: boolean;
   id: string;
   name: string;
   suppressed?: boolean;
@@ -5471,6 +5738,33 @@ export type TransformFeature = {
   declaredBy?: CodeFeature;
 };
 
+/** TRIM A SURFACE: cut a surface body by a plane or a face and keep one side. */
+export type TrimSurfaceFeature = {
+  type: "trimSurface";
+  /** The surface body to trim, by id. */
+  body: string;
+  /** What cuts it: a construction plane, a base plane or a flat face. */
+  tool: PlaneRef;
+  /**
+   * Keep the side the tool's normal points away from (the other side is kept when false).
+   * @default true
+   */
+  keepFront?: boolean;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
 /**
  * THE FLAT PATTERN: every base flange, edge flange, hem and fold of the part developed flat (each bend becomes its bend allowance). Suppressed, the part is folded again.
  */
@@ -5482,6 +5776,28 @@ export type UnfoldFeature = {
    * @maximum 1
    */
   kFactor?: number;
+  id: string;
+  name: string;
+  suppressed?: boolean;
+  /** Populated by rebuild when this feature fails. */
+  error?: string;
+  /**
+   * THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as "whatever came before".
+   */
+  consumes?: string[];
+  /**
+   * DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written.
+   */
+  declaredBy?: CodeFeature;
+};
+
+/**
+ * UNTRIM A SURFACE: fill the openings cut into a surface body's faces (each face's holes are taken away).
+ */
+export type UntrimSurfaceFeature = {
+  type: "untrimSurface";
+  /** The surface body, by id. */
+  body: string;
   id: string;
   name: string;
   suppressed?: boolean;
@@ -5815,6 +6131,12 @@ export type MirrorProps = Omit<MirrorFeature, "type" | "error" | "declaredBy" | 
 /** `<datumPlane>`: the DatumPlaneFeature fields, by the same names. */
 export type DatumPlaneProps = Omit<DatumPlaneFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
 
+/** `<datumAxis>`: the DatumAxisFeature fields, by the same names. */
+export type DatumAxisProps = Omit<DatumAxisFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
+/** `<datumPoint>`: the DatumPointFeature fields, by the same names. */
+export type DatumPointProps = Omit<DatumPointFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
 /** `<draft>`: the DraftFeature fields, by the same names. */
 export type DraftProps = Omit<DraftFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
 
@@ -5877,6 +6199,21 @@ export type OffsetFacesProps = Omit<OffsetFacesFeature, "type" | "error" | "decl
 
 /** `<thicken>`: the ThickenFeature fields, by the same names. */
 export type ThickenProps = Omit<ThickenFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
+/** `<trimSurface>`: the TrimSurfaceFeature fields, by the same names. */
+export type TrimSurfaceProps = Omit<TrimSurfaceFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
+/** `<untrimSurface>`: the UntrimSurfaceFeature fields, by the same names. */
+export type UntrimSurfaceProps = Omit<UntrimSurfaceFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
+/** `<extendSurface>`: the ExtendSurfaceFeature fields, by the same names. */
+export type ExtendSurfaceProps = Omit<ExtendSurfaceFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
+/** `<stitch>`: the StitchFeature fields, by the same names. */
+export type StitchProps = Omit<StitchFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
+
+/** `<offsetSurface>`: the OffsetSurfaceFeature fields, by the same names. */
+export type OffsetSurfaceProps = Omit<OffsetSurfaceFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
 
 /** `<split>`: the SplitFeature fields, by the same names. */
 export type SplitProps = Omit<SplitFeature, "type" | "error" | "declaredBy" | "name"> & { name?: string };
@@ -5954,6 +6291,8 @@ export interface ThreeDFeatureElements {
   pathPattern: PathPatternProps;
   mirror: MirrorProps;
   datumPlane: DatumPlaneProps;
+  datumAxis: DatumAxisProps;
+  datumPoint: DatumPointProps;
   draft: DraftProps;
   hole: HoleProps;
   transform: TransformProps;
@@ -5975,6 +6314,11 @@ export interface ThreeDFeatureElements {
   combine: CombineProps;
   offsetFaces: OffsetFacesProps;
   thicken: ThickenProps;
+  trimSurface: TrimSurfaceProps;
+  untrimSurface: UntrimSurfaceProps;
+  extendSurface: ExtendSurfaceProps;
+  stitch: StitchProps;
+  offsetSurface: OffsetSurfaceProps;
   split: SplitProps;
   scale: ScaleProps;
   rib: RibProps;

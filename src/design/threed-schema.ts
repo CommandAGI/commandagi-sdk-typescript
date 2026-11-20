@@ -26,6 +26,8 @@ export const THREED_SCHEMA: SchemaDocument = {
   "pathPattern": "PathPatternFeature",
   "mirror": "MirrorFeature",
   "datumPlane": "DatumPlaneFeature",
+  "datumAxis": "DatumAxisFeature",
+  "datumPoint": "DatumPointFeature",
   "draft": "DraftFeature",
   "hole": "HoleFeature",
   "transform": "TransformFeature",
@@ -47,6 +49,11 @@ export const THREED_SCHEMA: SchemaDocument = {
   "combine": "CombineFeature",
   "offsetFaces": "OffsetFacesFeature",
   "thicken": "ThickenFeature",
+  "trimSurface": "TrimSurfaceFeature",
+  "untrimSurface": "UntrimSurfaceFeature",
+  "extendSurface": "ExtendSurfaceFeature",
+  "stitch": "StitchFeature",
+  "offsetSurface": "OffsetSurfaceFeature",
   "split": "SplitFeature",
   "scale": "ScaleFeature",
   "rib": "RibFeature",
@@ -482,6 +489,23 @@ export const THREED_SCHEMA: SchemaDocument = {
         "Y",
         "Z"
        ]
+      }
+     },
+     "required": [
+      "type",
+      "axis"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "type": "string",
+       "const": "datum"
+      },
+      "axis": {
+       "type": "string"
       }
      },
      "required": [
@@ -1448,9 +1472,9 @@ export const THREED_SCHEMA: SchemaDocument = {
     "distance",
     "angle",
     "concentric",
+    "tangent",
     "horizontal",
     "vertical",
-    "tangent",
     "equal",
     "pointOnLine",
     "midpoint",
@@ -2017,6 +2041,117 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "A cylinder: `S(u,v) = origin + R(cos u·x + sin u·y) + v·axis`. `u` is an ANGLE, `v` a length — OCC's own convention, and the reason \"we already have uv, sketch in it\" measures wrong: a step in `u` is `R` millimetres, not one."
   },
+  "DatumAxisFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "datumAxis"
+    },
+    "method": {
+     "$ref": "#/$defs/DatumAxisMethod",
+     "description": "How the axis is placed.",
+     "default": "edge"
+    },
+    "face": {
+     "$ref": "#/$defs/TopoRef",
+     "description": "The cylinder, cone or torus whose axis it is; the flat face it is at right angles to.",
+     "x-pick": "face",
+     "x-showIf": {
+      "method": [
+       "cylinder",
+       "perpendicular"
+      ]
+     }
+    },
+    "edge": {
+     "$ref": "#/$defs/TopoRef",
+     "description": "The straight edge it lies along.",
+     "x-pick": "edge",
+     "x-showIf": {
+      "method": "edge"
+     }
+    },
+    "plane": {
+     "$ref": "#/$defs/PlaneRef",
+     "description": "The first plane.",
+     "x-pick": "plane",
+     "x-showIf": {
+      "method": "twoPlanes"
+     }
+    },
+    "plane2": {
+     "$ref": "#/$defs/PlaneRef",
+     "description": "The second plane.",
+     "x-pick": "plane",
+     "x-showIf": {
+      "method": "twoPlanes"
+     }
+    },
+    "point": {
+     "$ref": "#/$defs/PointRef",
+     "description": "The point it goes through (perpendicular), the first of two points.",
+     "x-pick": "point",
+     "x-showIf": {
+      "method": [
+       "perpendicular",
+       "twoPoints"
+      ]
+     }
+    },
+    "point2": {
+     "$ref": "#/$defs/PointRef",
+     "description": "The second point.",
+     "x-pick": "point",
+     "x-showIf": {
+      "method": "twoPoints"
+     }
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "method",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "A CONSTRUCTION AXIS: a line a revolve, a pattern or a coil turns about, or a plane goes through (`axis={{ type: \"datum\", axis: <id> }}`). It makes no body."
+  },
+  "DatumAxisMethod": {
+   "type": "string",
+   "enum": [
+    "edge",
+    "cylinder",
+    "perpendicular",
+    "twoPlanes",
+    "twoPoints"
+   ],
+   "description": "How a construction axis is placed: cylinder the axis of a cylinder, cone or torus (`face`) perpendicular at right angles to a flat face (`face`), through a point (`point`) twoPlanes where two planes meet (`plane`, `plane2`) twoPoints through two points (`point`, `point2`) edge along a straight edge (`edge`)"
+  },
   "DatumFeature": {
    "type": "object",
    "properties": {
@@ -2067,23 +2202,117 @@ export const THREED_SCHEMA: SchemaDocument = {
      "type": "string",
      "const": "datumPlane"
     },
+    "method": {
+     "$ref": "#/$defs/DatumPlaneMethod",
+     "description": "How the plane is placed.",
+     "default": "offset"
+    },
     "base": {
      "type": "string",
-     "description": "Offset from a base plane along its normal.",
+     "description": "The plane it starts from: the plane offset or turned; the first of a midplane's two; the plane a tangent plane's angle and a perpendicular plane's right angle are measured from; else the plane whose x axis it keeps where it can.",
      "x-pick": "datum"
+    },
+    "base2": {
+     "type": "string",
+     "description": "The second plane of a midplane.",
+     "x-pick": "datum",
+     "x-showIf": {
+      "method": "midplane"
+     }
+    },
+    "edge": {
+     "$ref": "#/$defs/TopoRef",
+     "description": "The edge it goes through (two edges, perpendicular), or is at right angles to (along a path).",
+     "x-pick": "edge",
+     "x-showIf": {
+      "method": [
+       "twoEdges",
+       "alongPath",
+       "perpendicular"
+      ]
+     }
+    },
+    "edge2": {
+     "$ref": "#/$defs/TopoRef",
+     "description": "The second edge it goes through.",
+     "x-pick": "edge",
+     "x-showIf": {
+      "method": "twoEdges"
+     }
+    },
+    "axis": {
+     "$ref": "#/$defs/AxisRef",
+     "description": "The axis it goes through.",
+     "x-pick": "axis",
+     "x-showIf": {
+      "method": "axisPoint"
+     }
+    },
+    "point": {
+     "$ref": "#/$defs/PointRef",
+     "description": "A point it goes through.",
+     "x-pick": "point",
+     "x-showIf": {
+      "method": [
+       "axisPoint",
+       "threePoints"
+      ]
+     }
+    },
+    "point2": {
+     "$ref": "#/$defs/PointRef",
+     "description": "The second point it goes through.",
+     "x-pick": "point",
+     "x-showIf": {
+      "method": "threePoints"
+     }
+    },
+    "point3": {
+     "$ref": "#/$defs/PointRef",
+     "description": "The third point it goes through.",
+     "x-pick": "point",
+     "x-showIf": {
+      "method": "threePoints"
+     }
+    },
+    "face": {
+     "$ref": "#/$defs/TopoRef",
+     "description": "The cylinder, cone or sphere it touches.",
+     "x-pick": "face",
+     "x-showIf": {
+      "method": "tangent"
+     }
+    },
+    "along": {
+     "type": "number",
+     "description": "Where along the edge, as a fraction of its length from its start.",
+     "minimum": 0,
+     "maximum": 1,
+     "default": 0.5,
+     "x-step": 0.05,
+     "x-showIf": {
+      "method": "alongPath"
+     }
     },
     "offset": {
      "type": "number",
-     "description": "How far from the base plane, along its normal.",
+     "description": "How far the plane is moved along its own normal.",
      "x-unit": "mm",
      "default": 10
     },
     "angle": {
      "type": "number",
-     "description": "A plane at an angle: the base turned about its own x axis (through its origin) by this angle, before the offset, which then runs along the turned normal.",
+     "description": "Offset: the base turned about its own x axis (through its origin) by this angle, before the offset, which then runs along the turned normal (a plane at an angle). Tangent: where on the face it touches, turned about the face's axis from the base's normal.",
      "x-unit": "rad",
      "minimum": -3.141592653589793,
-     "maximum": 3.141592653589793
+     "maximum": 3.141592653589793,
+     "x-showIf": {
+      "method": [
+       null,
+       "offset",
+       "tangent"
+      ]
+     }
     },
     "id": {
      "type": "string"
@@ -2118,6 +2347,130 @@ export const THREED_SCHEMA: SchemaDocument = {
     "name"
    ],
    "additionalProperties": false
+  },
+  "DatumPlaneMethod": {
+   "type": "string",
+   "enum": [
+    "offset",
+    "perpendicular",
+    "midplane",
+    "twoEdges",
+    "axisPoint",
+    "threePoints",
+    "tangent",
+    "alongPath"
+   ],
+   "description": "How a construction plane is placed: offset `base` moved along its normal (and turned about its x axis by `angle`: a plane at an angle) midplane halfway between `base` and `base2` (two parallel planes: between them; two that meet: the plane that halves the angle between them) twoEdges through two straight edges that lie in one plane (`edge`, `edge2`) axisPoint through an axis (`axis`) and a point off it (`point`) threePoints through three points (`point`, `point2`, `point3`) tangent touching a cylinder, cone or sphere (`face`), at `angle` about its axis from `base`'s normal alongPath at right angles to an edge (`edge`), at the fraction `along` of its length perpendicular through a straight edge (`edge`), at right angles to `base` Every method then moves the plane `offset` along its own normal."
+  },
+  "DatumPointFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "datumPoint"
+    },
+    "method": {
+     "$ref": "#/$defs/DatumPointMethod",
+     "description": "How the point is placed.",
+     "default": "vertex"
+    },
+    "point": {
+     "$ref": "#/$defs/PointRef",
+     "description": "The point it is at.",
+     "x-pick": "point",
+     "x-showIf": {
+      "method": "vertex"
+     }
+    },
+    "edge": {
+     "$ref": "#/$defs/TopoRef",
+     "description": "The edge: the one a plane cuts, or the circle or arc whose centre it is.",
+     "x-pick": "edge",
+     "x-showIf": {
+      "method": [
+       "edgePlane",
+       "center"
+      ]
+     }
+    },
+    "face": {
+     "$ref": "#/$defs/TopoRef",
+     "description": "The sphere whose centre it is (in place of an edge).",
+     "x-pick": "face",
+     "x-showIf": {
+      "method": "center"
+     }
+    },
+    "plane": {
+     "$ref": "#/$defs/PlaneRef",
+     "description": "The (first) plane.",
+     "x-pick": "plane",
+     "x-showIf": {
+      "method": [
+       "edgePlane",
+       "threePlanes"
+      ]
+     }
+    },
+    "plane2": {
+     "$ref": "#/$defs/PlaneRef",
+     "description": "The second plane.",
+     "x-pick": "plane",
+     "x-showIf": {
+      "method": "threePlanes"
+     }
+    },
+    "plane3": {
+     "$ref": "#/$defs/PlaneRef",
+     "description": "The third plane.",
+     "x-pick": "plane",
+     "x-showIf": {
+      "method": "threePlanes"
+     }
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "method",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "A CONSTRUCTION POINT: a point a plane or an axis goes through (`{ type: \"datum\", point: <id> }`). It makes no body."
+  },
+  "DatumPointMethod": {
+   "type": "string",
+   "enum": [
+    "vertex",
+    "edgePlane",
+    "threePlanes",
+    "center"
+   ],
+   "description": "How a construction point is placed: vertex at a point (`point`: a body's corner, another construction point, or coordinates) edgePlane where an edge (`edge`) meets a plane (`plane`); the edge's line where it is straight threePlanes where three planes meet (`plane`, `plane2`, `plane3`) center at the centre of a circle or an arc (`edge`), or of a sphere (`face`)"
   },
   "DatumReference": {
    "type": "object",
@@ -3143,6 +3496,64 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "AN END CAP: a plate that closes the open end of a frame member, on its end face."
   },
+  "ExtendSurfaceFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "extendSurface"
+    },
+    "edges": {
+     "type": "array",
+     "items": {
+      "$ref": "#/$defs/TopoRef"
+     },
+     "description": "The open edges to extend.",
+     "x-pick": "edge",
+     "minItems": 1
+    },
+    "distance": {
+     "type": "number",
+     "description": "How far each is extended.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0,
+     "default": 5
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "edges",
+    "distance",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "EXTEND A SURFACE: grow a surface body past its open edges, each tangent to the surface where the edge is (a ruled strip along the face's own direction, joined to the body)."
+  },
   "ExternalPartRef": {
    "type": "object",
    "properties": {
@@ -3375,10 +3786,21 @@ export const THREED_SCHEMA: SchemaDocument = {
       "through": false
      }
     },
+    "surface": {
+     "type": "boolean",
+     "description": "A SURFACE, not a solid: the profile's edges (the outer edges of its closed regions, or the sketch's open chain when it has no closed region) are moved along the direction, and the faces they sweep are a body of their own with no inside. A surface is always a new body.",
+     "default": false
+    },
     "operation": {
      "$ref": "#/$defs/BooleanMode",
      "description": "How the solid combines with the bodies before it.",
-     "default": "new"
+     "default": "new",
+     "x-showIf": {
+      "surface": [
+       false,
+       null
+      ]
+     }
     },
     "id": {
      "type": "string"
@@ -4472,8 +4894,37 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "style": {
      "$ref": "#/$defs/HoleStyle",
-     "description": "Plain, counterbored or countersunk.",
+     "description": "Plain, counterbored, countersunk, or tapped (drilled at the thread's tap drill and threaded).",
      "default": "simple"
+    },
+    "thread": {
+     "type": "string",
+     "description": "A tapped hole's thread: an ISO metric coarse thread (\"M6\") or a Unified one (\"1/4-20\", \"#10-24\"), from the shipped tables (`./hole-sizes.ts` tappedHole). It gives `diameter` (the tap drill), the thread's major diameter and its pitch.",
+     "x-pick": "thread",
+     "x-showIf": {
+      "style": "tapped"
+     }
+    },
+    "threadDepth": {
+     "type": "number",
+     "description": "How deep the thread goes from the face (default: the whole hole).",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0,
+     "x-showIf": {
+      "style": "tapped"
+     }
+    },
+    "threadKind": {
+     "type": "string",
+     "enum": [
+      "cosmetic",
+      "modeled"
+     ],
+     "description": "The thread is cosmetic (the hole is drilled at the tap drill and the thread is drawn and called out, not cut), or modelled (its helix is cut into the wall).",
+     "default": "cosmetic",
+     "x-showIf": {
+      "style": "tapped"
+     }
     },
     "headDiameter": {
      "type": "number",
@@ -4552,7 +5003,8 @@ export const THREED_SCHEMA: SchemaDocument = {
    "enum": [
     "simple",
     "counterbore",
-    "countersink"
+    "countersink",
+    "tapped"
    ]
   },
   "HostCode": {
@@ -5174,10 +5626,21 @@ export const THREED_SCHEMA: SchemaDocument = {
      "type": "boolean",
      "description": "Join the last section back to the first."
     },
+    "surface": {
+     "type": "boolean",
+     "description": "A SURFACE, not a solid: a skin through the sections' outer edges (or each sketch's open chain), with no end caps and no inside, a body of its own. A surface is always a new body.",
+     "default": false
+    },
     "operation": {
      "$ref": "#/$defs/BooleanMode",
      "description": "How the solid combines with the bodies before it.",
-     "default": "new"
+     "default": "new",
+     "x-showIf": {
+      "surface": [
+       false,
+       null
+      ]
+     }
     },
     "id": {
      "type": "string"
@@ -6442,6 +6905,59 @@ export const THREED_SCHEMA: SchemaDocument = {
     "bevel"
    ]
   },
+  "OffsetSurfaceFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "offsetSurface"
+    },
+    "body": {
+     "type": "string",
+     "description": "The surface body to offset, by id.",
+     "x-pick": "body"
+    },
+    "distance": {
+     "type": "number",
+     "description": "How far along its normal (negative: the other way).",
+     "x-unit": "mm",
+     "default": 2
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "body",
+    "distance",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "OFFSET A SURFACE: a new surface body at a distance from a surface body, along its normal."
+  },
   "PackagedSize": {
    "type": "object",
    "properties": {
@@ -7367,6 +7883,62 @@ export const THREED_SCHEMA: SchemaDocument = {
    "additionalProperties": false,
    "description": "A raw point cloud — scan points, SWC point sets, or a splat stripped of covariance."
   },
+  "PointRef": {
+   "anyOf": [
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "type": "string",
+       "const": "vertex"
+      },
+      "ref": {
+       "$ref": "#/$defs/TopoRef"
+      }
+     },
+     "required": [
+      "type",
+      "ref"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "type": "string",
+       "const": "datum"
+      },
+      "point": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "type",
+      "point"
+     ],
+     "additionalProperties": false
+    },
+    {
+     "type": "object",
+     "properties": {
+      "type": {
+       "type": "string",
+       "const": "at"
+      },
+      "at": {
+       "$ref": "#/$defs/Vec3"
+      }
+     },
+     "required": [
+      "type",
+      "at"
+     ],
+     "additionalProperties": false
+    }
+   ],
+   "description": "A point a construction feature goes through: a corner of a body (a vertex picked), a construction point (a `datumPoint` feature, by id), or a fixed point in model coordinates."
+  },
   "Port": {
    "type": "object",
    "properties": {
@@ -7793,10 +8365,21 @@ export const THREED_SCHEMA: SchemaDocument = {
      "type": "boolean",
      "description": "Turn the other way."
     },
+    "surface": {
+     "type": "boolean",
+     "description": "A SURFACE, not a solid: the profile's edges (the outer edges of its closed regions, or the sketch's open chain) turned about the axis, a body of their own with no inside. A surface is always a new body.",
+     "default": false
+    },
     "operation": {
      "$ref": "#/$defs/BooleanMode",
      "description": "How the solid combines with the bodies before it.",
-     "default": "new"
+     "default": "new",
+     "x-showIf": {
+      "surface": [
+       false,
+       null
+      ]
+     }
     },
     "id": {
      "type": "string"
@@ -9057,8 +9640,8 @@ export const THREED_SCHEMA: SchemaDocument = {
    "type": "string",
    "enum": [
     "vertex",
-    "centroid",
     "center",
+    "centroid",
     "minU",
     "maxU",
     "minV",
@@ -10069,6 +10652,63 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false
   },
+  "StitchFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "stitch"
+    },
+    "bodies": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "The surface bodies to join, by id.",
+     "x-pick": "body",
+     "minItems": 1
+    },
+    "tolerance": {
+     "type": "number",
+     "description": "How far apart two edges may be and still be joined.",
+     "x-unit": "mm",
+     "exclusiveMinimum": 0,
+     "default": 0.01
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "bodies",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "STITCH SURFACES: join surface bodies that share their edges into one body. When the joined faces close a volume, the body is a solid."
+  },
   "StockMaterial": {
    "type": "object",
    "properties": {
@@ -10583,10 +11223,21 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "How far the profile turns about the path from its start to its end, evenly along its length (a twisted bar, a cable's lay), on top of the frame: \"minimal\", \"frenet\" or \"up\". For a path that is an open, smooth curve.",
      "x-unit": "rad"
     },
+    "surface": {
+     "type": "boolean",
+     "description": "A SURFACE, not a solid: the profile's outer edges (or the sketch's open chain) swept along the path, a body of its own with no inside and no end caps. A surface is always a new body.",
+     "default": false
+    },
     "operation": {
      "$ref": "#/$defs/BooleanMode",
      "description": "How the solid combines with the bodies before it.",
-     "default": "new"
+     "default": "new",
+     "x-showIf": {
+      "surface": [
+       false,
+       null
+      ]
+     }
     },
     "id": {
      "type": "string"
@@ -10735,11 +11386,23 @@ export const THREED_SCHEMA: SchemaDocument = {
      "type": "string",
      "const": "thicken"
     },
+    "bodies": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "The bodies to thicken, by id (a surface becomes a solid of this thickness). Absent: every body, each grown (or, negative, shrunk) evenly.",
+     "x-pick": "body"
+    },
     "distance": {
      "type": "number",
-     "description": "Uniform offset on every body (positive grows, negative shrinks).",
+     "description": "How thick, along the surface's normal (negative: the other side); for a solid, the uniform offset.",
      "x-unit": "mm",
      "default": 1
+    },
+    "symmetric": {
+     "type": "boolean",
+     "description": "A surface thickens to both sides of itself, half each way."
     },
     "id": {
      "type": "string"
@@ -11173,6 +11836,63 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false
   },
+  "TrimSurfaceFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "trimSurface"
+    },
+    "body": {
+     "type": "string",
+     "description": "The surface body to trim, by id.",
+     "x-pick": "body"
+    },
+    "tool": {
+     "$ref": "#/$defs/PlaneRef",
+     "description": "What cuts it: a construction plane, a base plane or a flat face.",
+     "x-pick": "plane"
+    },
+    "keepFront": {
+     "type": "boolean",
+     "description": "Keep the side the tool's normal points away from (the other side is kept when false).",
+     "default": true
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "body",
+    "tool",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "TRIM A SURFACE: cut a surface body by a plane or a face and keep one side."
+  },
   "UnfoldFeature": {
    "type": "object",
    "properties": {
@@ -11220,6 +11940,52 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "THE FLAT PATTERN: every base flange, edge flange, hem and fold of the part developed flat (each bend becomes its bend allowance). Suppressed, the part is folded again."
+  },
+  "UntrimSurfaceFeature": {
+   "type": "object",
+   "properties": {
+    "type": {
+     "type": "string",
+     "const": "untrimSurface"
+    },
+    "body": {
+     "type": "string",
+     "description": "The surface body, by id.",
+     "x-pick": "body"
+    },
+    "id": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "suppressed": {
+     "type": "boolean"
+    },
+    "error": {
+     "type": "string",
+     "description": "Populated by rebuild when this feature fails."
+    },
+    "consumes": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     },
+     "description": "THE BODY-STATE EDGE — the explicit form of what a timeline used to supply implicitly as \"whatever came before\"."
+    },
+    "declaredBy": {
+     "$ref": "#/$defs/CodeFeature",
+     "description": "DECLARED BY A CODE PART — set only in memory, on a feature a CodeFeature's file declared when the part was opened (`app-3d-design` `model/code-parts.ts`). It holds the code feature as it is stored; a save writes that back in place of every feature it declared, so nothing a file declares is ever written."
+    }
+   },
+   "required": [
+    "type",
+    "body",
+    "id",
+    "name"
+   ],
+   "additionalProperties": false,
+   "description": "UNTRIM A SURFACE: fill the openings cut into a surface body's faces (each face's holes are taken away)."
   },
   "UnwrapChart": {
    "type": "object",

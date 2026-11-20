@@ -498,3 +498,15 @@ test("each annotation is an element whose tag is its type: the elements, whateve
     message: '<slot name="annotations">: annotations is not a slot (its items are written as their own elements: <linearDimension>, <radialDimension>, <sizeDimension>, <angularDimension>, <note>, <datumFeature>, <datumTarget>, <featureControlFrame>, <surfaceFinish>)',
   });
 });
+
+test("a <part>'s groups and rollback are the left-hand list's, and name only its features", () => {
+  const children = [jsx("box", { id: "a" }), jsx("box", { id: "b" }), jsx("box", { id: "c" })];
+  const root = (props: Record<string, unknown>) => () => declarationOf({ default: jsx("part", { name: "P", children, ...props }) });
+  assert.deepEqual(root({ groups: [{ id: "g1", name: "Blocks", members: ["a", "b"], collapsed: true }], rollback: "b" })().graph.meta?.presentation, {
+    order: ["a", "b", "c"],
+    groups: [{ id: "g1", name: "Blocks", members: ["a", "b"], collapsed: true }],
+    rollback: "b",
+  });
+  assert.throws(root({ rollback: "z" }), /rollback: "z" is not a feature of this document/);
+  assert.throws(root({ groups: [{ id: "g", name: "G", members: ["z"] }] }), /member "z" is not a feature of this document/);
+});

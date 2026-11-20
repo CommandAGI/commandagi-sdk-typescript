@@ -8,6 +8,12 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- 3D documents: surfaces (`surface` on `<extrude>`, `<revolve>`, `<sweep>`, `<loft>`; `<trimSurface>`,
+  `<untrimSurface>`, `<extendSurface>`, `<stitch>`, `<offsetSurface>`; `<thicken bodies>`), construction geometry
+  (`<datumPlane method>` with midplane, two edges, axis and point, three points, tangent, along an edge and
+  perpendicular; `<datumAxis>`; `<datumPoint>`; an axis `{ type: "datum", axis }` and a point `PointRef`), a tapped
+  hole (`<hole style="tapped" thread threadDepth threadKind>`), and the history's groups and rollback marker on the root
+  (`<part groups rollback>`).
 - `scene-agents.ts`: the agents a design's scene attaches to its robots or their joints (CommandAGI's docs/formats.md §
   simulations, Agents in a scene): `SceneAgent` and `checkSceneAgents` (an unknown field, a malformed or repeated id, a
   unit that is no robot or joint of the scene, in the engine's words).

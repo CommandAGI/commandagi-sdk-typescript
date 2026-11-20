@@ -24,6 +24,9 @@
  *                                             (`./tolerances.ts`), what a fit or stack-up check reads
  *   <part builtinPlanes={[…]}>                the built-in planes the document has (plane_xy, plane_xz, plane_yz);
  *                                             absent: all three, `builtinPlanes={[]}`: none
+ *   <part groups={[…]} rollback="…">          the left-hand list's named groups of features ({ id, name, members,
+ *                                             collapsed }) and the feature its history is rolled back to
+ *                                             (`presentation.groups`, `presentation.rollback`)
  *   <plane id name origin normal xAxis>       a datum plane
  *   <FEATURE id name …fields>                 a feature: the tag is its type (extrude, revolve, fillet, chamfer,
  *                                             hole, linearPattern, circularPattern, mirror, transform, box, …);
@@ -300,7 +303,7 @@ function sketchOf(el: DesignElement): { sketch: Record<string, unknown>; sources
 export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id: string; nodes: Record<string, Node>; meta: Record<string, unknown> } {
   if (!isThreeD(root)) throw new Error("a 3D document is one <part> or <assembly> element");
   for (const k of Object.keys(root.props))
-    if (!["children", "key", "name", "id", "builtinPlanes"].includes(k) && !VIEW_ATTRS.has(k)) throw new Error(`${where(root)}: prop ${k} is not read on a 3D document`);
+    if (!["children", "key", "name", "id", "builtinPlanes", "groups", "rollback"].includes(k) && !VIEW_ATTRS.has(k)) throw new Error(`${where(root)}: prop ${k} is not read on a 3D document`);
   const builtins = builtinPlanesOf(root);
   const name = typeof root.props.name === "string" && root.props.name ? root.props.name : fallbackName;
   const nodes: Record<string, Node> = {};
@@ -473,9 +476,37 @@ export function declareThreeD(root: DesignElement, fallbackName = "Part"): { id:
   const view: Record<string, unknown> = { name, units: "mm" };
   for (const k of VIEW_ATTRS) if (root.props[k] !== undefined) view[k] = plain(root.props[k], `${where(root)} ${k}`);
   if (root.type === "assembly") view.isAssembly = true;
-  if (order.length) view.presentation = { order };
+  const presentation = presentationOf(root, order);
+  if (presentation) view.presentation = presentation;
   const id = typeof root.props.id === "string" && root.props.id ? root.props.id : `3d-${slug(name).toLowerCase()}`;
   return { id, nodes, meta: view };
+}
+
+/**
+ * The left-hand list: the order of the feature elements, the root's `groups` (named bands of features, each
+ * `{ id, name, members, collapsed? }`) and its `rollback` (the feature the history is rolled back to). A group's member
+ * or a rollback that names no feature is refused by name.
+ */
+function presentationOf(root: DesignElement, order: string[]): Record<string, unknown> | null {
+  const out: Record<string, unknown> = {};
+  if (order.length) out.order = order;
+  const features = new Set(order);
+  const groups = root.props.groups;
+  if (groups !== undefined) {
+    if (!Array.isArray(groups)) throw new Error(`${where(root)} groups: a list of { id, name, members, collapsed? }`);
+    out.groups = groups.map((g, i) => {
+      const at = `${where(root)} groups[${i}]`;
+      if (!g || typeof g !== "object" || typeof g.id !== "string" || !g.id || typeof g.name !== "string" || !Array.isArray(g.members)) throw new Error(`${at}: a group is { id, name, members, collapsed? }`);
+      for (const m of g.members) if (typeof m !== "string" || !features.has(m)) throw new Error(`${at}: member ${JSON.stringify(m)} is not a feature of this document`);
+      return { id: g.id, name: g.name, members: [...g.members], ...(g.collapsed === true ? { collapsed: true } : {}) };
+    });
+  }
+  const rollback = root.props.rollback;
+  if (rollback !== undefined) {
+    if (typeof rollback !== "string" || !features.has(rollback)) throw new Error(`${where(root)} rollback: ${JSON.stringify(rollback)} is not a feature of this document`);
+    out.rollback = rollback;
+  }
+  return Object.keys(out).length ? out : null;
 }
 
 /**
