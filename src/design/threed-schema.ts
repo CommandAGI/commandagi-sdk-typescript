@@ -4302,7 +4302,7 @@ export const THREED_SCHEMA: SchemaDocument = {
      },
      "description": "The lines, by id; every line of the sketch when omitted."
     },
-    "profile": {
+    "section": {
      "$ref": "#/$defs/FrameProfile",
      "description": "The section.",
      "default": "squareTube"
@@ -4350,7 +4350,7 @@ export const THREED_SCHEMA: SchemaDocument = {
    "required": [
     "type",
     "sketch",
-    "profile",
+    "section",
     "size",
     "corner",
     "id",

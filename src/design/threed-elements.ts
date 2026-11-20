@@ -2076,7 +2076,7 @@ export type FrameMemberFeature = {
    * The section.
    * @default "squareTube"
    */
-  profile?: FrameProfile;
+  section?: FrameProfile;
   /**
    * The standard size, as the profile library names it (width × height × wall, or diameter × wall).
    * @default "40x40x3"
