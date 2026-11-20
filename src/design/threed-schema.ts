@@ -1484,7 +1484,9 @@ export const THREED_SCHEMA: SchemaDocument = {
     "verticalDistance",
     "radius",
     "collinear",
-    "diameter"
+    "diameter",
+    "pointLineDistance",
+    "arcLength"
    ]
   },
   "ContactReport": {
@@ -9800,11 +9802,15 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "ref": {
      "$ref": "#/$defs/TopoRef",
-     "description": "The model edge this follows, signature-matched across rebuilds like every other reference."
+     "description": "The model edge this follows, signature-matched across rebuilds like every other reference. Absent on a section, which follows a whole body."
     },
     "feature": {
      "type": "string",
      "description": "The feature that built the body — the timeline dependency, exactly as for a pin."
+    },
+    "section": {
+     "type": "boolean",
+     "description": "AN INTERSECTION, not a projection: the curves where the body `feature` built crosses the sketch's plane, cut again on every rebuild. It needs `feature` and names no `ref`."
     },
     "construction": {
      "type": "boolean",
@@ -9816,8 +9822,7 @@ export const THREED_SCHEMA: SchemaDocument = {
     }
    },
    "required": [
-    "id",
-    "ref"
+    "id"
    ],
    "additionalProperties": false,
    "description": "A LIVE PROJECTION of one model edge onto this sketch's plane — \"use that hole's circle here\"."

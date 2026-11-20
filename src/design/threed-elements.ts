@@ -646,7 +646,7 @@ export type ConicalSurface = {
   axis: Vec3;
 };
 
-export type ConstraintKind = "coincident" | "parallel" | "perpendicular" | "distance" | "angle" | "concentric" | "tangent" | "horizontal" | "vertical" | "equal" | "pointOnLine" | "midpoint" | "pointOnCircle" | "symmetric" | "horizontalDistance" | "verticalDistance" | "radius" | "collinear" | "diameter";
+export type ConstraintKind = "coincident" | "parallel" | "perpendicular" | "distance" | "angle" | "concentric" | "tangent" | "horizontal" | "vertical" | "equal" | "pointOnLine" | "midpoint" | "pointOnCircle" | "symmetric" | "horizontalDistance" | "verticalDistance" | "radius" | "collinear" | "diameter" | "pointLineDistance" | "arcLength";
 
 /**
  * What a run records of a contact pair at each frame: how many points touch, the normal force on `a` (N), how fast `a` slides over `b` there (m/s; 0 while it sticks), and where it is touched (the force-weighted centre of the points).
@@ -4828,10 +4828,16 @@ export type SketchPoint = {
 /** A LIVE PROJECTION of one model edge onto this sketch's plane — "use that hole's circle here". */
 export type SketchProjection = {
   id: string;
-  /** The model edge this follows, signature-matched across rebuilds like every other reference. */
-  ref: TopoRef;
+  /**
+   * The model edge this follows, signature-matched across rebuilds like every other reference. Absent on a section, which follows a whole body.
+   */
+  ref?: TopoRef;
   /** The feature that built the body — the timeline dependency, exactly as for a pin. */
   feature?: string;
+  /**
+   * AN INTERSECTION, not a projection: the curves where the body `feature` built crosses the sketch's plane, cut again on every rebuild. It needs `feature` and names no `ref`.
+   */
+  section?: boolean;
   /** Generate as construction (reference) geometry rather than profile geometry. */
   construction?: boolean;
   /** Human label captured at creation, for the panel ("Extrude1 edge"). */
