@@ -7670,6 +7670,24 @@ export const THREED_SCHEMA: SchemaDocument = {
       "uncommissioned"
      ],
      "description": "`manual`: a person works it (its channels bind no driver); `uncommissioned`: no bench has checked its driver yet."
+    },
+    "inputs": {
+     "type": "object",
+     "properties": {},
+     "additionalProperties": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       }
+      ]
+     },
+     "description": "The values it runs its definition at, by the definition's `params` (docs/formats.md § factories, a unit's inputs): one machine definition, many units at their own sizes."
     }
    },
    "required": [
