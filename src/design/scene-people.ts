@@ -101,13 +101,15 @@ export interface MastGoal extends GoalBase { do: "mast"; out: number }
 export interface CoupleGoal extends GoalBase { do: "couple"; body: string; pin: XYZ; axle?: XY; legs?: string }
 export interface UncoupleGoal extends GoalBase { do: "uncouple" }
 export interface StopGoal extends GoalBase { do: "stop" }
-export type Goal = WalkGoal | StepGoal | TurnGoal | SitGoal | StandGoal | IdleGoal | ReachGoal | TakeGoal | PutGoal | PushGoal | JackGoal | PressGoal | InspectGoal | HandGoal | RideGoal | GetOffGoal | DriveGoal | DockGoal | LiftGoal | MastGoal | CoupleGoal | UncoupleGoal | StopGoal;
+/** A robot's program of skills (a G1's: steps of `{ id, dur, … }`, g1-skills compilePlan), which its skills executor runs. */
+export interface ProgramGoal extends GoalBase { do: "program"; program: { steps: { id: string; dur: number }[] } }
+export type Goal = WalkGoal | StepGoal | TurnGoal | SitGoal | StandGoal | IdleGoal | ReachGoal | TakeGoal | PutGoal | PushGoal | JackGoal | PressGoal | InspectGoal | HandGoal | RideGoal | GetOffGoal | DriveGoal | DockGoal | LiftGoal | MastGoal | CoupleGoal | UncoupleGoal | StopGoal | ProgramGoal;
 /** Each goal's own fields, beside `do`, `plan` and `task`. One table, the same in the three SDKs. */
 export const GOAL_FIELDS = {
   walk: ["route", "speed"], step: ["to", "heading"], turn: ["heading"], sit: ["seat", "facing"], stand: [],
   idle: ["activity", "seconds", "at", "with"], reach: ["at", "hand", "seconds"],
   take: ["body", "hands"], put: ["at"], push: ["body", "handle"], jack: ["body", "handle"], press: ["at"], inspect: ["body", "seconds"], hand: ["body", "to"], ride: ["body", "at", "standing"], "get-off": ["to"],
-  drive: ["route", "speed", "reverse"], dock: ["at", "heading", "speed", "reverse"], lift: ["height", "load"], mast: ["out"], couple: ["body", "pin", "axle", "legs"], uncouple: [], stop: [],
+  drive: ["route", "speed", "reverse"], dock: ["at", "heading", "speed", "reverse"], lift: ["height", "load"], mast: ["out"], couple: ["body", "pin", "axle", "legs"], uncouple: [], stop: [], program: ["program"],
 } as const;
 /** The goals that act on a body, and the vehicles' goals. */
 export const BODY_GOALS = ["take", "push", "jack", "inspect", "hand", "ride"] as const;
@@ -215,6 +217,10 @@ export function goalProblem(g: unknown): string | null {
   for (const k of Object.keys(g)) if (k !== "do" && k !== "plan" && k !== "task" && !own.includes(k)) return `${kind} has no field ${k} (it has ${[...own, "plan", "task"].join(", ")})`;
   if (g.task !== undefined && !text(g.task)) return "task is a text (the dispatcher's token)";
   if ((VEHICLE_GOALS as readonly string[]).includes(kind)) return vehicleGoalProblem(g, kind);
+  if (kind === "program") {
+    const p = g.program;
+    return isObj(p) && Array.isArray(p.steps) && p.steps.length > 0 && p.steps.every((x) => isObj(x) && text(x.id) && num(x.dur)) ? null : "program is a program of steps ({ id, dur, … }: g1-skills.js compilePlan)";
+  }
   if (kind === "walk" && !(Array.isArray(g.route) && g.route.length >= 1 && g.route.length <= 64 && g.route.every(point(2))))
     return "walk needs a route: 1 to 64 points [x, y] (metres)";
   if (g.speed !== undefined && !(num(g.speed) && g.speed > 0 && g.speed <= 1.6)) return "walk speed is metres a second, above 0 and at most 1.6";
