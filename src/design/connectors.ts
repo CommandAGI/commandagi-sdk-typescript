@@ -41,7 +41,8 @@
  *                 up to `total`, or by a token with `next`, the next page's token read from each answer). A path below
  *                 a folder that no other folder matches is listed from its nearest folder.
  *   <request>     another request a folder's entries read, bound to `as`.
- *   <here>        the fields of the folder itself (title, author, licence, source, credit): its files inherit them.
+ *   <here>        the fields of the folder itself (title, author, licence, source, credit, picture): its files inherit them.
+ *                 `picture` is the source's own picture of an entry: a url, absolute or under the base, on a declared host.
  *   <each>        for each value at `in` (a binding, then a pointer: `$/gltf`, `a/include`), bound to `as`; `where`
  *                 with `is` keeps the ones whose pointer equals the value, with `not` the others.
  *   <dir>         a folder of the level: `name` (may hold "/"), its fields, `id` (what a deeper level reads of it as
@@ -52,7 +53,7 @@
  * A text attribute is a template: `{a}` is a binding's key (an object's property name, a list's index), `{a/name}` a
  * pointer into its value, `{$/x}` into the folder's answer, `{slug}` a segment the path bound, `{@}` the `id` of the
  * folder's own entry; `|keys`, `|join:<sep>`, `|base`, `|stem`, `|ext`, `|text`, `|name` (one name: its "/" made "-"), `|lower`,
- * `|first`, `|unique` transform a value. The Python SDK's `connectors.py` and the Rust SDK's
+ * `|first`, `|unique`, `|fit:<px>` (of a list of images `{ url, width }`, the narrowest at least px wide) transform a value. The Python SDK's `connectors.py` and the Rust SDK's
  * `connectors.rs` declare the same document.
  */
 import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.js";
@@ -61,7 +62,7 @@ import { registerVocabulary, type DocTree, type Vocabulary } from "./documents.j
 export const CONNECTOR_FILE = /\.connector\.(?:[jt]sx|py|rs)$/i;
 
 /** The fields an entry carries for a person who places it: what it is and whose, under which licence, from where. */
-export const PROVENANCE_FIELDS = ["title", "author", "licence", "source", "credit"] as const;
+export const PROVENANCE_FIELDS = ["title", "author", "licence", "source", "credit", "picture"] as const;
 export type ProvenanceField = (typeof PROVENANCE_FIELDS)[number];
 export type Provenance = Partial<Record<ProvenanceField, string>>;
 

@@ -24,7 +24,7 @@ const EXAMPLE = {
     {
       path: "models",
       get: "/assets?type=models",
-      produce: [{ kind: "each", in: "$", as: "a", produce: [{ kind: "dir", name: "{a}", title: "{a/name}", author: "{a/authors|keys|join:, }" }] }],
+      produce: [{ kind: "each", in: "$", as: "a", produce: [{ kind: "dir", name: "{a}", title: "{a/name}", author: "{a/authors|keys|join:, }", picture: "{a/thumbnail_url}" }] }],
     },
     {
       path: "models/{slug}",
@@ -53,7 +53,7 @@ test("a connector in JSX: each element is its record, its fields the attributes,
     el("credential", { service: "data-gov", field: "API_KEY", query: "api_key", optional: true }),
     el("licence", { value: "CC0", spdx: "CC0-1.0" }),
     el("folder", { path: "" }, el("dir", { name: "models" })),
-    el("folder", { path: "models", get: "/assets?type=models", __source: 1 }, el("each", { in: "$", as: "a" }, el("dir", { name: "{a}", title: "{a/name}", author: "{a/authors|keys|join:, }" }))),
+    el("folder", { path: "models", get: "/assets?type=models", __source: 1 }, el("each", { in: "$", as: "a" }, el("dir", { name: "{a}", title: "{a/name}", author: "{a/authors|keys|join:, }", picture: "{a/thumbnail_url}" }))),
     el(
       "folder",
       { path: "models/{slug}", get: "/files/{slug}" },
