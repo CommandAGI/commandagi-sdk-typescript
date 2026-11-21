@@ -47,6 +47,8 @@ export interface OpsOp {
   id: string; station: string; cycle_s: OpsNumber; cycle_cv?: OpsNumber; ideal_s?: OpsNumber; setup_s?: OpsNumber; energy_j?: OpsNumber;
   consumes?: OpsLine[]; needs?: string; load_s?: OpsNumber; inspect?: { yield: OpsNumber; reject?: string; rework?: string; max_rework?: OpsNumber };
   rework?: boolean; then?: string; body?: OpsBody; cell?: OpsCell;
+  /** A batch op (an oven, a washer): it works up to `batch` entities at once, one cycle a load; it starts full, or with `batch_min` once its oldest has waited `batch_wait_s`. */
+  batch?: OpsNumber; batch_min?: OpsNumber; batch_wait_s?: OpsNumber;
 }
 export interface OpsRouting { item: string; to: string; ops: OpsOp[] }
 export interface OpsOrder { id: string; label?: string; item: string; qty: OpsNumber; release_s?: OpsNumber; due_s?: OpsNumber; priority?: OpsNumber }
@@ -69,7 +71,7 @@ export const PLANT_FIELDS: Record<PlantPart, { needs: string[]; may: string[] }>
   resource: { needs: ["id", "kind", "skills"], may: ["label", "members", "count", "physical"] },
   station: { needs: ["id", "in", "out"], may: ["label", "units", "machines", "mtbf_s", "mttr_s", "repair", "maintenance", "tool", "plc", "zone"] },
   routing: { needs: ["item", "to", "ops"], may: [] },
-  op: { needs: ["id", "station", "cycle_s"], may: ["cycle_cv", "ideal_s", "setup_s", "consumes", "needs", "load_s", "inspect", "rework", "then", "body", "energy_j", "cell"] },
+  op: { needs: ["id", "station", "cycle_s"], may: ["cycle_cv", "ideal_s", "setup_s", "consumes", "needs", "load_s", "inspect", "rework", "then", "body", "energy_j", "cell", "batch", "batch_min", "batch_wait_s"] },
   order: { needs: ["id", "item", "qty"], may: ["label", "release_s", "due_s", "priority"] },
   inbound: { needs: ["id", "item", "qty", "to"], may: ["label", "at_s", "every_s", "first_s"] },
   outbound: { needs: ["id", "item", "qty", "from"], may: ["label", "at_s", "every_s", "first_s"] },
@@ -79,7 +81,7 @@ export const PLANT_FIELDS: Record<PlantPart, { needs: string[]; may: string[] }>
 const NUMBERS: Record<string, string> = {
   capacity: "a whole number from 1 to 100000", machines: "a whole number from 1 to 1000", qty: "a whole number from 1 to 100000",
   cycle_s: "the seconds one entity takes, more than 0", setup_s: "seconds, 0 or more", mtbf_s: "the mean operating seconds between failures, more than 0",
-  mttr_s: "the mean seconds a repair takes, more than 0", energy_j: "the joules one entity takes, 0 or more", lot: "a whole number from 1 to 100000",
+  mttr_s: "the mean seconds a repair takes, more than 0", energy_j: "the joules one entity takes, 0 or more", lot: "a whole number from 1 to 100000", batch: "a whole number from 1 to 10000", batch_wait_s: "seconds, 0 or more",
   reorder_at: "a whole number from 0 to 100000", travel_s: "seconds, 0 or more", transit_s: "the seconds an entity rides it, more than 0",
 };
 const isNumber = (v: unknown) => (typeof v === "number" && Number.isFinite(v)) || (typeof v === "string" && /^\$[A-Za-z_]\w*$/.test(v));
@@ -128,10 +130,13 @@ export function checkOperationsSystem(spec: OperationsSystem): OperationsSystem 
     for (const op of r.ops as Rec[]) {
       const where = `${at} op ${String(op.id)}`;
       fields(op, "op", where);
+      if (op.batch === undefined && (op.batch_min !== undefined || op.batch_wait_s !== undefined)) no(`${where}: batch_min and batch_wait_s belong to a batch op (batch)`);
       if (!stationIds.has(op.station)) no(`${where}: station ${JSON.stringify(op.station)} is not one of the stations`);
       lines(op.consumes, `${where}: consumes`);
       if (op.needs !== undefined) skill(op.needs, where);
     }
+    const first = (r.ops as Rec[]).find((o) => !o.rework);
+    if (first && first.batch !== undefined && first.batch !== 1) no(`${at}: its first op ${String(first.id)} makes its entities one by one; a batch op (batch) comes after it`);
   });
   for (const x of orders) if (!made.has(x.item)) no(`order ${String(x.id)}: no routing makes ${JSON.stringify(x.item)}`);
   for (const x of inbound) {
