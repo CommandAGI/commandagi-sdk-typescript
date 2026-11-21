@@ -58,8 +58,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "yieldStrengthMPa": 240,
   "tensileStrengthMPa": 260,
   "poissonsRatio": 0.33,
-  "source": "Aalco Metals datasheet, Aluminium Alloy 6061 - T6 Extrusions; designations and Poisson's ratio from Wikipedia, 6061 aluminium alloy",
-  "sourceUrl": "https://www.aalco.co.uk/datasheets/Aluminium-Alloy-6061-T6-Extrusions_145.ashx ; https://en.wikipedia.org/wiki/6061_aluminium_alloy",
+  "restitution": 0.57,
+  "source": "Aalco Metals datasheet, Aluminium Alloy 6061 - T6 Extrusions; designations and Poisson's ratio from Wikipedia, 6061 aluminium alloy; Baca, Brake, Reu and Aragon, SAND2016-5693 (the data of Brake, Reu and Aragon, A Comprehensive Set of Impact Data for Common Aerospace Metals, J. Comput. Nonlinear Dynam. 12(6), 2017)",
+  "sourceUrl": "https://www.aalco.co.uk/datasheets/Aluminium-Alloy-6061-T6-Extrusions_145.ashx ; https://en.wikipedia.org/wiki/6061_aluminium_alloy ; https://www.osti.gov/servlets/purl/1561711",
   "observedAt": "2026-10-13"
  },
  {
@@ -72,8 +73,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 70,
   "yieldStrengthMPa": 250,
   "tensileStrengthMPa": 295,
-  "source": "Aalco Metals datasheet, Aluminium Alloy 6082 - T6 Extrusions",
-  "sourceUrl": "https://www.aalco.co.uk/datasheets/Aluminium-Alloy-6082-T6-Extrusions_338.ashx",
+  "restitution": 0.57,
+  "source": "Aalco Metals datasheet, Aluminium Alloy 6082 - T6 Extrusions; Baca, Brake, Reu and Aragon, SAND2016-5693 (the data of Brake, Reu and Aragon, A Comprehensive Set of Impact Data for Common Aerospace Metals, J. Comput. Nonlinear Dynam. 12(6), 2017)",
+  "sourceUrl": "https://www.aalco.co.uk/datasheets/Aluminium-Alloy-6082-T6-Extrusions_338.ashx ; https://www.osti.gov/servlets/purl/1561711",
   "observedAt": "2026-10-13"
  },
  {
@@ -85,8 +87,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "yieldStrengthMPa": 205,
   "tensileStrengthMPa": 245,
   "poissonsRatio": 0.33,
-  "source": "MISUMI FA catalog (2014), page 2-514, Mechanical Properties of Aluminum Extrusions (HFS series, JIS Standard (Reference)); density and Poisson's ratio: mfgrobots.com, JIS Grade A6N01 Aluminium",
-  "sourceUrl": "https://in.misumi-ec.com/pdf/fa/2014/p2_513_519_521_523_525.pdf ; https://www.mfgrobots.com/Article/material/metal/34456.html",
+  "restitution": 0.57,
+  "source": "MISUMI FA catalog (2014), page 2-514, Mechanical Properties of Aluminum Extrusions (HFS series, JIS Standard (Reference)); density and Poisson's ratio: mfgrobots.com, JIS Grade A6N01 Aluminium; Baca, Brake, Reu and Aragon, SAND2016-5693 (the data of Brake, Reu and Aragon, A Comprehensive Set of Impact Data for Common Aerospace Metals, J. Comput. Nonlinear Dynam. 12(6), 2017)",
+  "sourceUrl": "https://in.misumi-ec.com/pdf/fa/2014/p2_513_519_521_523_525.pdf ; https://www.mfgrobots.com/Article/material/metal/34456.html ; https://www.osti.gov/servlets/purl/1561711",
   "observedAt": "2026-10-24"
  },
  {
@@ -100,8 +103,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "yieldStrengthMPa": 430,
   "tensileStrengthMPa": 510,
   "poissonsRatio": 0.33,
-  "source": "Wikipedia, 7075 aluminium alloy; EN designation from GLEICH Aluminium technical data sheet EN AW-7075",
-  "sourceUrl": "https://en.wikipedia.org/wiki/7075_aluminium_alloy ; https://gleich.de/wp-content/uploads/2021/03/en_en_aw_7075-02-19.pdf",
+  "restitution": 0.85,
+  "source": "Wikipedia, 7075 aluminium alloy; EN designation from GLEICH Aluminium technical data sheet EN AW-7075; Ruiz-Angulo, Roshankhah and Hunt, Surface deformation and rebound for normal single-particle collisions in a surrounding fluid, J. Fluid Mech. 871, 2019, doi:10.1017/jfm.2019.349",
+  "sourceUrl": "https://en.wikipedia.org/wiki/7075_aluminium_alloy ; https://gleich.de/wp-content/uploads/2021/03/en_en_aw_7075-02-19.pdf ; https://par.nsf.gov/servlets/purl/10110440",
   "observedAt": "2026-10-13"
  },
  {
@@ -143,8 +147,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "yieldStrengthMPa": 230,
   "tensileStrengthMPa": 540,
   "poissonsRatio": 0.27,
-  "source": "Aalco Metals datasheet, Stainless Steel 1.4301 (304) Sheet and Plate; Poisson's ratio from Wikipedia, SAE 304 stainless steel",
-  "sourceUrl": "https://www.aalco.co.uk/datasheets/Stainless-Steel-14301-304-Sheet-and-Plate-Quarto-Plate--CPP-Plate_343.ashx ; https://en.wikipedia.org/wiki/SAE_304_stainless_steel",
+  "restitution": 0.7,
+  "source": "Aalco Metals datasheet, Stainless Steel 1.4301 (304) Sheet and Plate; Poisson's ratio from Wikipedia, SAE 304 stainless steel; Baca, Brake, Reu and Aragon, SAND2016-5693 (the data of Brake, Reu and Aragon, A Comprehensive Set of Impact Data for Common Aerospace Metals, J. Comput. Nonlinear Dynam. 12(6), 2017)",
+  "sourceUrl": "https://www.aalco.co.uk/datasheets/Stainless-Steel-14301-304-Sheet-and-Plate-Quarto-Plate--CPP-Plate_343.ashx ; https://en.wikipedia.org/wiki/SAE_304_stainless_steel ; https://www.osti.gov/servlets/purl/1561711",
   "observedAt": "2026-10-13"
  },
  {
@@ -157,8 +162,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 193,
   "yieldStrengthMPa": 240,
   "tensileStrengthMPa": 530,
-  "source": "Aalco Metals datasheet, Stainless Steel 1.4404 (316L) Sheet and Plate",
-  "sourceUrl": "https://www.aalco.co.uk/datasheets/Stainless-Steel-14404-316L-Sheet-and-Plate-Quarto-Plate--CPP-Plate_346.ashx",
+  "restitution": 0.63,
+  "source": "Aalco Metals datasheet, Stainless Steel 1.4404 (316L) Sheet and Plate; Radil and Palazzolo, Influence of Temperature and Impact Velocity on the Coefficient of Restitution, NASA TM-106485, 1994",
+  "sourceUrl": "https://www.aalco.co.uk/datasheets/Stainless-Steel-14404-316L-Sheet-and-Plate-Quarto-Plate--CPP-Plate_346.ashx ; https://ntrs.nasa.gov/api/citations/19950004401/downloads/19950004401.pdf",
   "observedAt": "2026-10-13"
  },
  {
@@ -171,8 +177,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "yieldStrengthMPa": 235,
   "tensileStrengthMPa": 360,
   "poissonsRatio": 0.3,
-  "source": "thyssenkrupp Materials Services material data sheet, Hot rolled non-alloyed structural steel S235Jxx (MX/TIS 11.2016); Poisson's ratio from EN 1993-1-1:2005 (Eurocode 3), 3.2.6(1)",
-  "sourceUrl": "https://ucpcdn.thyssenkrupp.com/_legacy/UCPthyssenkruppBAMXFrance/assets.files/product_pdf/carbon_flat_steel_/plates_and_slabs_carbon_steel/s235jr_1_0038_11_2016_engl.pdf",
+  "restitution": 0.6,
+  "source": "thyssenkrupp Materials Services material data sheet, Hot rolled non-alloyed structural steel S235Jxx (MX/TIS 11.2016); Poisson's ratio from EN 1993-1-1:2005 (Eurocode 3), 3.2.6(1); Meyer, Wagemann, Jackstadt and Seifried, Material and particle size sensitivity analysis on coefficient of restitution in low-velocity normal impacts, Comput. Part. Mech. 2022, doi:10.1007/s40571-022-00471-z",
+  "sourceUrl": "https://ucpcdn.thyssenkrupp.com/_legacy/UCPthyssenkruppBAMXFrance/assets.files/product_pdf/carbon_flat_steel_/plates_and_slabs_carbon_steel/s235jr_1_0038_11_2016_engl.pdf ; https://publikationen.bibliothek.kit.edu/1000144661/148635022",
   "observedAt": "2026-10-13"
  },
  {
@@ -201,8 +208,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "yieldStrengthMPa": 900,
   "tensileStrengthMPa": 1100,
   "poissonsRatio": 0.3,
-  "source": "thyssenkrupp Materials Services Werkstoffdatenblatt 42CrMo4 / 42CrMoS4 (MX/TIS-TS 01.2017); AISI name from ABRAMS Industries, PREMIUM 1.7225+QT; Poisson's ratio from Ovako Steel Navigator, 42CrMo4",
-  "sourceUrl": "https://ucpcdn.thyssenkrupp.com/_binary/UCPthyssenkruppBAMaterialsSchulte/dc4e3d67-9afe-4b41-8794-a82c0d3ab7bb/42CrMo4-42CrMoS4-1.7225-1.7227.pdf ; https://eu.abrams-industries.com/steel/premium-17225qt ; https://steelnavigator.ovako.com/steel-grades/42crmo4/",
+  "restitution": 0.86,
+  "source": "thyssenkrupp Materials Services Werkstoffdatenblatt 42CrMo4 / 42CrMoS4 (MX/TIS-TS 01.2017); AISI name from ABRAMS Industries, PREMIUM 1.7225+QT; Poisson's ratio from Ovako Steel Navigator, 42CrMo4; Radil and Palazzolo, Influence of Temperature and Impact Velocity on the Coefficient of Restitution, NASA TM-106485, 1994",
+  "sourceUrl": "https://ucpcdn.thyssenkrupp.com/_binary/UCPthyssenkruppBAMaterialsSchulte/dc4e3d67-9afe-4b41-8794-a82c0d3ab7bb/42CrMo4-42CrMoS4-1.7225-1.7227.pdf ; https://eu.abrams-industries.com/steel/premium-17225qt ; https://steelnavigator.ovako.com/steel-grades/42crmo4/ ; https://ntrs.nasa.gov/api/citations/19950004401/downloads/19950004401.pdf",
   "observedAt": "2026-10-13"
  },
  {
@@ -215,8 +223,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 97,
   "yieldStrengthMPa": 230,
   "tensileStrengthMPa": 360,
-  "source": "Aalco Metals datasheet, Copper and Copper Alloys CW614N Brass Rod",
-  "sourceUrl": "https://www.aalco.co.uk/datasheets/Copper-and-Copper-Alloys-CW614N-Brass-Rod_31.ashx",
+  "restitution": 0.77,
+  "source": "Aalco Metals datasheet, Copper and Copper Alloys CW614N Brass Rod; Cornell Grain Flow Research (M. Louge), Fall 1999 Impact Parameter Chart",
+  "sourceUrl": "https://www.aalco.co.uk/datasheets/Copper-and-Copper-Alloys-CW614N-Brass-Rod_31.ashx ; https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
   "observedAt": "2026-10-13"
  },
  {
@@ -229,8 +238,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 117,
   "yieldStrengthMPa": 50,
   "tensileStrengthMPa": 200,
-  "source": "Aalco Metals datasheet, Copper and Copper Alloys CW004A Sheet, Plate and Bar",
-  "sourceUrl": "https://www.aalco.co.uk/datasheets/Copper-and-Copper-Alloys-CW004A-Sheet-Plate-and-Bar_32.ashx",
+  "restitution": 0.54,
+  "source": "Aalco Metals datasheet, Copper and Copper Alloys CW004A Sheet, Plate and Bar; Radil and Palazzolo, Influence of Temperature and Impact Velocity on the Coefficient of Restitution, NASA TM-106485, 1994",
+  "sourceUrl": "https://www.aalco.co.uk/datasheets/Copper-and-Copper-Alloys-CW004A-Sheet-Plate-and-Bar_32.ashx ; https://ntrs.nasa.gov/api/citations/19950004401/downloads/19950004401.pdf",
   "observedAt": "2026-10-13"
  },
  {
@@ -244,8 +254,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "yieldStrengthMPa": 830,
   "tensileStrengthMPa": 900,
   "poissonsRatio": 0.31,
-  "source": "voestalpine Specialty Metals data sheet, Titanium Grade 5 (Ti6Al4V); modulus, Poisson's ratio and UNS from Wikipedia, Ti-6Al-4V",
-  "sourceUrl": "https://www.voestalpine.com/specialtymetals/eu/app/uploads/sites/251/2026/03/Titanium-Grade-5-Ti6Al4V.pdf ; https://en.wikipedia.org/wiki/Ti-6Al-4V",
+  "restitution": 0.92,
+  "source": "voestalpine Specialty Metals data sheet, Titanium Grade 5 (Ti6Al4V); modulus, Poisson's ratio and UNS from Wikipedia, Ti-6Al-4V; Cornell Grain Flow Research (M. Louge), Fall 1999 Impact Parameter Chart",
+  "sourceUrl": "https://www.voestalpine.com/specialtymetals/eu/app/uploads/sites/251/2026/03/Titanium-Grade-5-Ti6Al4V.pdf ; https://en.wikipedia.org/wiki/Ti-6Al-4V ; https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
   "observedAt": "2026-10-13"
  },
  {
@@ -255,8 +266,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "densityGCm3": 1.24,
   "youngsModulusGPa": 2.3,
   "yieldStrengthMPa": 57,
-  "source": "Prusa Polymers technical datasheet, Prusament PLA, version 1.1 (27-07-2022); copy hosted by MatterHackers",
-  "sourceUrl": "https://www.matterhackers.com/r/xFvGl8",
+  "restitution": 0.55,
+  "source": "Prusa Polymers technical datasheet, Prusament PLA, version 1.1 (27-07-2022); copy hosted by MatterHackers; Stoimenov, Paneva, Kotseva and Sokolov, Simulation Modelling of Coefficient of Restitution, Machines. Technologies. Materials. 2022 (Winter congress)",
+  "sourceUrl": "https://www.matterhackers.com/r/xFvGl8 ; https://mtmcongress.com/winter/sbornik/2-2022.pdf",
   "observedAt": "2026-10-13"
  },
  {
@@ -266,8 +278,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "densityGCm3": 1.27,
   "youngsModulusGPa": 1.5,
   "yieldStrengthMPa": 46,
-  "source": "Prusa Polymers technical datasheet, Prusament PETG, version 1.1 (16-02-2022)",
-  "sourceUrl": "https://storage.googleapis.com/prusa3d-content-prod-14e8-wordpress-prusament-prod/2023/10/9f8d2165-tds_prusament-petg_n_en.pdf",
+  "restitution": 0.634,
+  "source": "Prusa Polymers technical datasheet, Prusament PETG, version 1.1 (16-02-2022); Kotseva, Mechanical and Tribological Studies of Polymers and Composites Produced by 3D Printing, PhD thesis abstract, IICT-BAS, 2025",
+  "sourceUrl": "https://storage.googleapis.com/prusa3d-content-prod-14e8-wordpress-prusament-prod/2023/10/9f8d2165-tds_prusament-petg_n_en.pdf ; https://www.iict.bas.bg/konkursi/2026/GKoceva/Avtoreferat-EN.pdf",
   "observedAt": "2026-10-13"
  },
  {
@@ -300,8 +313,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 1.8,
   "yieldStrengthMPa": 53,
   "tensileStrengthMPa": 53,
-  "source": "Ensinger product page, PA 12 - TECAMID 12 natural",
-  "sourceUrl": "https://www.ensingerplastics.com/en/shapes/pa12-tecamid-12-natural",
+  "restitution": 0.83,
+  "source": "Ensinger product page, PA 12 - TECAMID 12 natural; Cornell Grain Flow Research (M. Louge), Fall 1999 Impact Parameter Chart",
+  "sourceUrl": "https://www.ensingerplastics.com/en/shapes/pa12-tecamid-12-natural ; https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
   "observedAt": "2026-10-13"
  },
  {
@@ -312,8 +326,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 2.8,
   "yieldStrengthMPa": 67,
   "tensileStrengthMPa": 67,
-  "source": "Ensinger product page, POM-C - TECAFORM AH natural",
-  "sourceUrl": "https://www.ensingerplastics.com/en/shapes/acetal-tecaform-ah-natural",
+  "restitution": 0.95,
+  "source": "Ensinger product page, POM-C - TECAFORM AH natural; Cornell Grain Flow Research (M. Louge), Fall 1999 Impact Parameter Chart",
+  "sourceUrl": "https://www.ensingerplastics.com/en/shapes/acetal-tecaform-ah-natural ; https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
   "observedAt": "2026-10-13"
  },
  {
@@ -325,8 +340,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "yieldStrengthMPa": 69,
   "tensileStrengthMPa": 69,
   "poissonsRatio": 0.37,
-  "source": "Ensinger product page, Polycarbonate (PC) - TECANAT natural; Poisson's ratio of polycarbonate (not of this grade) from Wikipedia, Polycarbonate",
-  "sourceUrl": "https://www.ensingerplastics.com/en/shapes/polycarbonate-tecanat-natural ; https://en.wikipedia.org/wiki/Polycarbonate",
+  "restitution": 0.95,
+  "source": "Ensinger product page, Polycarbonate (PC) - TECANAT natural; Poisson's ratio of polycarbonate (not of this grade) from Wikipedia, Polycarbonate; Cornell Grain Flow Research (M. Louge), Fall 1999 Impact Parameter Chart",
+  "sourceUrl": "https://www.ensingerplastics.com/en/shapes/polycarbonate-tecanat-natural ; https://en.wikipedia.org/wiki/Polycarbonate ; https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
   "observedAt": "2026-10-13"
  },
  {
@@ -337,8 +353,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 3.3,
   "tensileStrengthMPa": 80,
   "poissonsRatio": 0.37,
-  "source": "PLEXIGLAS GS/XT technical information, Ref. No. 211-1 (04/25); copy hosted by the distributor Vos Kunststoffen",
-  "sourceUrl": "https://www.voskunststoffen.nl/files/166151/datasheet%20plexiglas%20XT%20GS.pdf",
+  "restitution": 0.934,
+  "source": "PLEXIGLAS GS/XT technical information, Ref. No. 211-1 (04/25); copy hosted by the distributor Vos Kunststoffen; Cornell Grain Flow Research (M. Louge), Fall 1999 Impact Parameter Chart",
+  "sourceUrl": "https://www.voskunststoffen.nl/files/166151/datasheet%20plexiglas%20XT%20GS.pdf ; https://grainflowresearch.mae.cornell.edu/impact/data/Impact%20Results.html",
   "observedAt": "2026-10-13"
  },
  {
@@ -374,8 +391,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 193,
   "yieldStrengthMPa": 450,
   "tensileStrengthMPa": 700,
-  "source": "TorqBolt, A2 70 Stainless Steel Bolts ISO 3506-1 (strength, designation); density and modulus from Aalco Metals datasheet, Stainless Steel 1.4301 (304) Bar and Section",
-  "sourceUrl": "https://torqbolt.com/a2-70-stainless-steel-bolts-iso-3506-1-uns-s30400 ; https://www.aalco.co.uk/datasheets/Stainless-Steel-14301-304-Bar-and-Section_34.ashx",
+  "restitution": 0.7,
+  "source": "TorqBolt, A2 70 Stainless Steel Bolts ISO 3506-1 (strength, designation); density and modulus from Aalco Metals datasheet, Stainless Steel 1.4301 (304) Bar and Section; Baca, Brake, Reu and Aragon, SAND2016-5693 (the data of Brake, Reu and Aragon, A Comprehensive Set of Impact Data for Common Aerospace Metals, J. Comput. Nonlinear Dynam. 12(6), 2017)",
+  "sourceUrl": "https://torqbolt.com/a2-70-stainless-steel-bolts-iso-3506-1-uns-s30400 ; https://www.aalco.co.uk/datasheets/Stainless-Steel-14301-304-Bar-and-Section_34.ashx ; https://www.osti.gov/servlets/purl/1561711",
   "observedAt": "2026-10-22"
  },
  {
@@ -388,8 +406,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 193,
   "yieldStrengthMPa": 450,
   "tensileStrengthMPa": 700,
-  "source": "Total Materia, EN A4-70 Stainless steels (strength); density and modulus from Aalco Metals datasheet, Stainless Steel 1.4401 (316) Bar and Section",
-  "sourceUrl": "https://www.totalmateria.com/en-us/material/1454955 ; https://www.aalco.co.uk/datasheets/Stainless-Steel-14401-316-Bar-and-Section_37.ashx",
+  "restitution": 0.63,
+  "source": "Total Materia, EN A4-70 Stainless steels (strength); density and modulus from Aalco Metals datasheet, Stainless Steel 1.4401 (316) Bar and Section; Radil and Palazzolo, Influence of Temperature and Impact Velocity on the Coefficient of Restitution, NASA TM-106485, 1994",
+  "sourceUrl": "https://www.totalmateria.com/en-us/material/1454955 ; https://www.aalco.co.uk/datasheets/Stainless-Steel-14401-316-Bar-and-Section_37.ashx ; https://ntrs.nasa.gov/api/citations/19950004401/downloads/19950004401.pdf",
   "observedAt": "2026-10-22"
  },
  {
@@ -430,8 +449,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "yieldStrengthMPa": 1100,
   "tensileStrengthMPa": 1220,
   "poissonsRatio": 0.3,
-  "source": "TR Fastenings knowledge base, Mechanical properties - Steel Screws and Bolts ISO 898-1 EN 20898-1 (cross-checked with Optimas, Mechanical and physical properties of steel fasteners); density, modulus and Poisson's ratio from Ovako Steel Navigator, 42CrMo4",
-  "sourceUrl": "https://www.trfastenings.com/knowledge-base/metric-screws/screws-and-bolts-mechanical-properties ; https://optimas.com/technical-resources/mechanical-physical-properties-steel-fasteners/ ; https://steelnavigator.ovako.com/steel-grades/42crmo4/",
+  "restitution": 0.86,
+  "source": "TR Fastenings knowledge base, Mechanical properties - Steel Screws and Bolts ISO 898-1 EN 20898-1 (cross-checked with Optimas, Mechanical and physical properties of steel fasteners); density, modulus and Poisson's ratio from Ovako Steel Navigator, 42CrMo4; Radil and Palazzolo, Influence of Temperature and Impact Velocity on the Coefficient of Restitution, NASA TM-106485, 1994",
+  "sourceUrl": "https://www.trfastenings.com/knowledge-base/metric-screws/screws-and-bolts-mechanical-properties ; https://optimas.com/technical-resources/mechanical-physical-properties-steel-fasteners/ ; https://steelnavigator.ovako.com/steel-grades/42crmo4/ ; https://ntrs.nasa.gov/api/citations/19950004401/downloads/19950004401.pdf",
   "observedAt": "2026-10-22"
  },
  {
@@ -444,8 +464,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 117,
   "yieldStrengthMPa": 69,
   "tensileStrengthMPa": 220,
-  "source": "MakeItFrom, Annealed (OS050) C11000 Copper (yield and tensile strength); LFA Wire, C11000 (density 8.89 g/cm³, modulus 17 000 ksi = 117 GPa)",
-  "sourceUrl": "https://www.makeitfrom.com/material-properties/Annealed-OS050-C11000-Copper ; https://www.lfa-wire.com/?p=175",
+  "restitution": 0.27,
+  "source": "MakeItFrom, Annealed (OS050) C11000 Copper (yield and tensile strength); LFA Wire, C11000 (density 8.89 g/cm³, modulus 17 000 ksi = 117 GPa); Baca, Brake, Reu and Aragon, SAND2016-5693 (the data of Brake, Reu and Aragon, A Comprehensive Set of Impact Data for Common Aerospace Metals, J. Comput. Nonlinear Dynam. 12(6), 2017)",
+  "sourceUrl": "https://www.makeitfrom.com/material-properties/Annealed-OS050-C11000-Copper ; https://www.lfa-wire.com/?p=175 ; https://www.osti.gov/servlets/purl/1561711",
   "observedAt": "2026-11-03"
  },
  {
