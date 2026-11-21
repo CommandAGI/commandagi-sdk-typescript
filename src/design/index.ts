@@ -118,7 +118,7 @@ export { replicadModule, fromReplicad } from "./replicad.js";
 export { jsx, jsxs, Fragment, isElement, type DesignElement } from "./jsx-runtime.js";
 export { declareVideo, declareSong, fromMedia, mediaKind, pitchOf, pitchName, tempoOf, meterOf, MEDIA_ROOTS, SONG_STRUCTURE, SONG_EFFECT_KINDS } from "./media.js";
 export * from "./footage.js";
-export * from "./factory-flow.js";
+export * from "./factory-operations.js";
 export * from "./scene-agents.js";
 export * from "./scene-people.js";
 export { readWorkbook, readPage, readDeck, readOffice, isOfficeRoot, inlineHtml, richText, OFFICE_ROOTS, DECK_TYPES } from "./office.js";
