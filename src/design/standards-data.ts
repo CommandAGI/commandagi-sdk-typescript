@@ -196,7 +196,7 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "tensileStrengthMPa": 620,
   "poissonsRatio": 0.3,
   "restitution": 0.64,
-  "source": "Saarstahl material specification sheet C45 (strength); Ovako Steel Navigator, C45 (density, modulus, Poisson's ratio); Ji, Li et al., Experimental and theoretical analysis of large particle-wall collision with different metal plates, J. Braz. Soc. Mech. Sci. Eng. 44:77, 2022, doi:10.1007/s40430-022-03376-3",
+  "source": "Saarstahl material specification sheet C45 (strength); Ovako Steel Navigator, C45 (density, modulus, Poisson's ratio); Chen, Ji and Li, Experimental and theoretical analysis of large particle-wall collision with different metal plates, J. Braz. Soc. Mech. Sci. Eng. 44:77, 2022, doi:10.1007/s40430-022-03376-3",
   "sourceUrl": "https://en.saarstahl.com/app/uploads/2024/03/20160401102929-0503_C45.pdf ; https://steelnavigator.ovako.com/steel-grades/c45/ ; https://doi.org/10.1007/s40430-022-03376-3",
   "observedAt": "2026-10-13"
  },
