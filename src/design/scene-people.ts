@@ -62,8 +62,9 @@ export const LOOK_FIELDS = ["body", "height_m", "weight", "muscle", "proportions
 export interface GoalPlan { policy: string; step: number }
 /** `task`: the dispatcher's token for the goal, said back on the unit's status channel when it is done or refused. */
 interface GoalBase { plan?: GoalPlan; task?: string }
-/** Walk a route of 1 to 64 points (metres), at `speed` m/s (above 0, at most 1.6). */
-export interface WalkGoal extends GoalBase { do: "walk"; route: XY[]; speed?: number }
+/** Walk a route of 1 to 64 points (metres), at `speed` m/s (above 0, at most 1.6). Each point is a destination whose way
+ *  is planned round the furniture; `straight`: the route is the way already (a floor's walkway), walked point to point. */
+export interface WalkGoal extends GoalBase { do: "walk"; route: XY[]; speed?: number; straight?: boolean }
 /** Step to a point without turning (sideways or back). */
 export interface StepGoal extends GoalBase { do: "step"; to: XY; heading?: number }
 /** Turn to a heading: radians about z, from +x. */
@@ -96,7 +97,7 @@ export interface StopGoal extends GoalBase { do: "stop" }
 export type Goal = WalkGoal | StepGoal | TurnGoal | SitGoal | StandGoal | IdleGoal | ReachGoal | TakeGoal | PutGoal | PushGoal | JackGoal | PressGoal | InspectGoal | HandGoal | RideGoal | DriveGoal | DockGoal | LiftGoal | StopGoal;
 /** Each goal's own fields, beside `do`, `plan` and `task`. One table, the same in the three SDKs. */
 export const GOAL_FIELDS = {
-  walk: ["route", "speed"], step: ["to", "heading"], turn: ["heading"], sit: ["seat", "facing"], stand: [],
+  walk: ["route", "speed", "straight"], step: ["to", "heading"], turn: ["heading"], sit: ["seat", "facing"], stand: [],
   idle: ["activity", "seconds", "at", "with"], reach: ["at", "hand", "seconds"],
   take: ["body", "hands"], put: ["at"], push: ["body", "handle"], jack: ["body", "handle"], press: ["at"], inspect: ["body", "seconds"], hand: ["body", "to"], ride: ["body"],
   drive: ["route", "speed", "reverse"], dock: ["at", "heading", "speed", "reverse"], lift: ["height", "load"], stop: [],
@@ -210,6 +211,7 @@ export function goalProblem(g: unknown): string | null {
   if (kind === "walk" && !(Array.isArray(g.route) && g.route.length >= 1 && g.route.length <= 64 && g.route.every(point(2))))
     return "walk needs a route: 1 to 64 points [x, y] (metres)";
   if (g.speed !== undefined && !(num(g.speed) && g.speed > 0 && g.speed <= 1.6)) return "walk speed is metres a second, above 0 and at most 1.6";
+  if (g.straight !== undefined && typeof g.straight !== "boolean") return "walk straight is true or false";
   if ((BODY_GOALS as readonly string[]).includes(kind) && !text(g.body)) return `${kind} needs a body (what it takes, pushes, steers, inspects, hands over or rides on)`;
   if (g.hands !== undefined && !oneOf(WORK_HANDS, g.hands)) return "hands is both, left or right";
   if (kind === "press" && !point(3)(g.at)) return "press needs at [x, y, z] (metres): the button";
