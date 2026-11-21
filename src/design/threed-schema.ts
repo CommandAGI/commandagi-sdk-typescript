@@ -646,6 +646,9 @@ export const THREED_SCHEMA: SchemaDocument = {
     },
     "texture": {
      "$ref": "#/$defs/SurfaceTexture"
+    },
+    "maps": {
+     "$ref": "#/$defs/SurfaceMaps"
     }
    },
    "additionalProperties": false,
@@ -6157,6 +6160,10 @@ export const THREED_SCHEMA: SchemaDocument = {
     "texture": {
      "$ref": "#/$defs/SurfaceTexture",
      "description": "The surface's small relief."
+    },
+    "maps": {
+     "$ref": "#/$defs/SurfaceMaps",
+     "description": "The surface's photographed maps: a wood's grain, a carpet's pile, a brick wall."
     }
    },
    "required": [
@@ -11582,6 +11589,53 @@ export const THREED_SCHEMA: SchemaDocument = {
    ],
    "additionalProperties": false,
    "description": "A surface-finish (roughness) symbol on a face."
+  },
+  "SurfaceMaps": {
+   "type": "object",
+   "properties": {
+    "color": {
+     "type": "string",
+     "description": "The base colour (sRGB): Poly Haven's `diff`.",
+     "pattern": "\\S"
+    },
+    "normal": {
+     "type": "string",
+     "description": "The tangent-space normal, OpenGL's convention (green up): Poly Haven's `nor_gl`.",
+     "pattern": "\\S"
+    },
+    "roughness": {
+     "type": "string",
+     "description": "The roughness, read from green: Poly Haven's `rough`, or its `arm`.",
+     "pattern": "\\S"
+    },
+    "metalness": {
+     "type": "string",
+     "description": "The metalness, read from blue: Poly Haven's `metal`, or its `arm`.",
+     "pattern": "\\S"
+    },
+    "ao": {
+     "type": "string",
+     "description": "The ambient occlusion, read from red: Poly Haven's `ao`, or its `arm`.",
+     "pattern": "\\S"
+    },
+    "size": {
+     "type": "array",
+     "items": {
+      "type": "number",
+      "exclusiveMinimum": 0
+     },
+     "minItems": 2,
+     "maxItems": 2,
+     "description": "What one copy of the images covers on the surface, along its two directions.",
+     "x-unit": "mm",
+     "default": [
+      1000,
+      1000
+     ]
+    }
+   },
+   "additionalProperties": false,
+   "description": "A surface's photographed maps: a physically based texture set (Poly Haven's CC0 textures, `cloud://home/user-commandagi/assets/polyhaven/textures/<name>/1k/textures/…`), each image by its ref, a path from the document's folder or an address. The images repeat over the body: each face takes them along the axis it is most nearly normal to, in the body's own millimetres, so a box, a wall or a floor needs no unwrap and one copy of the image covers `size` of it. A map multiplies its field: `color` tints the colour map (white when the material states none), and `roughness` and `metalness` scale their maps (1 when it states none). A grey roughness map and Poly Haven's packed `arm` map (occlusion, roughness, metalness in its red, green and blue) are read alike: roughness from green, metalness from blue, occlusion from red."
   },
   "SurfaceTexture": {
    "type": "object",

@@ -443,6 +443,11 @@ test("<body material> declares a physically based material: the golden's bodies 
   assert.deepEqual(part().nodes.bodyMeta!.inputs, golden.bodies);
   assert.throws(() => part({ roughness: golden.refused.roughness }), new RegExp(golden.refused.says));
   assert.throws(() => part({ texture: { kind: "knurl", scale: 1, depth: 0.1 } }), /kind/);
+  // Photographed maps: images by address, and the size one copy covers; a map it has no name for, or a size of 0, is refused.
+  const maps = { color: "cloud://home/user-commandagi/assets/polyhaven/textures/red_brick_03/1k/textures/red_brick_03_diff_1k.jpg", size: [1600, 1600] };
+  assert.deepEqual((part({ maps }).nodes.bodyMeta!.inputs as Record<string, { material: Record<string, unknown> }>).case!.material.maps, maps);
+  assert.throws(() => part({ maps: { ...maps, height: "x.jpg" } }), /height/);
+  assert.throws(() => part({ maps: { ...maps, size: [0, 1600] } }), /size/);
 });
 
 // pattern-operation.golden.json is the golden of the three SDKs (pattern_operation.json in the Python and Rust SDKs'

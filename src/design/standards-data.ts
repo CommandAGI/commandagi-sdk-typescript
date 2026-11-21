@@ -17,6 +17,10 @@ export interface EngineeringMaterial {
   tensileStrengthMPa?: number;
   /** Poisson's ratio ν, when a source states it: what a study uses when it states none. */
   poissonsRatio?: number;
+  /** The sliding (kinetic) friction coefficient a simulation's body of the grade takes, when a source states it. */
+  friction?: number;
+  /** The coefficient of restitution a simulation's body of the grade takes, when a source states it (0 to 1). */
+  restitution?: number;
   /** Where the numbers were read. */
   source: string;
   sourceUrl?: string;
