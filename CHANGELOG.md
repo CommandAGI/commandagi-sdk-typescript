@@ -21,6 +21,9 @@ Added
 - `scene-agents.ts`: the agents a design's scene attaches to its robots or their joints (CommandAGI's docs/formats.md §
   simulations, Agents in a scene): `SceneAgent` and `checkSceneAgents` (an unknown field, a malformed or repeated id, a
   unit that is no robot or joint of the scene, in the engine's words).
+- `scene-people.ts`: a person in a scene (CommandAGI's docs/formats.md § a person in the scene): the human avatar's
+  `Look`, the `HumanoidPolicy`, the `Goal` / `MotorsCommand` / `AssistCommand` commands, `HUMANOID_JOINTS`, and
+  `checkLook`, `checkGoal`, `checkHumanoidPolicy`, `checkMotors`, `checkAssist` (in the engine's words).
 - `factory-flow.ts`: a station's `energy_j` (joules a batch) and `cell` (the design a level below that measures its cycle
   time, failures and energy, and owns them once measured).
 - `factory-flow.ts`: a factory in a design's scene, the `flow` system (CommandAGI's docs/formats.md § simulations, A
