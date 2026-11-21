@@ -1,7 +1,7 @@
 /**
  * A PERSON IN A SCENE — the human avatar (`cloud://global/devices/human-avatar/definition.tsx`) placed in a design's
  * `<slot name="scene">` as a `robots` entry with a `look`, the `humanoid` policy that drives it, and the `goal`,
- * `motors` and `assist` commands an agent sends it (docs/formats.md § a person in the scene, in the CommandAGI
+ * `motors`, `assist` and `face` commands an agent sends it (docs/formats.md § a person in the scene, in the CommandAGI
  * repository). The scene stays a plain literal, so the editor writes into it; these types say what it may hold.
  *
  *   // Office.3d.tsx
@@ -12,7 +12,7 @@
  *       { do: "walk", route: [[0, 0], [1, 2]] }, { do: "sit", seat: [1, 2.4, 0.45], facing: 1.57 },
  *       { do: "idle", activity: "type", seconds: 60 }, { do: "stand" }] }] }} />
  *
- * `checkLook`, `checkGoal`, `checkHumanoidPolicy`, `checkMotors` and `checkAssist` refuse what the engine refuses, in
+ * `checkLook`, `checkGoal`, `checkHumanoidPolicy`, `checkMotors`, `checkAssist` and `checkFace` refuse what the engine refuses, in
  * its words. They check the shape only: whether a unit, a body or a constraint is in the scene is the engine's to say.
  */
 
@@ -25,6 +25,8 @@ export const LOOK_BODIES = ["masculine", "feminine"] as const;
 export const HAIR_STYLES = ["none", "afro", "bob", "bob_sleek", "braid", "long", "ponytail", "short", "short_swept", "pixie", "crop"] as const;
 export const OUTFITS = ["tee_jeans", "crew_tee_jeans", "longsleeve_jeans", "shirt_jeans", "denim_shirt_jeans", "jacket_jeans", "suit_tie", "overalls", "fitted_tee_jeans", "tee_shorts", "blouse_skirt", "sport_top_leggings"] as const;
 export const FOOTWEAR = ["leather_shoes", "hiking_shoes", "boots", "black_shoes", "white_trainers", "blue_trainers"] as const;
+/** MakeHuman's ethnic macros. A look's `ethnicity` weighs them; absent, an even blend. */
+export const ETHNICITIES = ["african", "asian", "caucasian"] as const;
 
 /** A robots entry's `look`: how the person looks. Every field is optional; the definition gives the rest. */
 export interface Look {
@@ -37,6 +39,10 @@ export interface Look {
   muscle?: number;
   /** MakeHuman's proportions macro: 0 uncommon, 0.5 neutral, 1 ideal. */
   proportions?: number;
+  /** Years, 25 to 90 (MakeHuman's adult ages); absent, 25. */
+  age_years?: number;
+  /** Each weight 0 or more, not all 0; the engine blends them. Absent, an even blend. */
+  ethnicity?: { [K in (typeof ETHNICITIES)[number]]?: number };
   skin?: Rgb;
   hair?: Rgb;
   /** top, bottom and shoes tint the outfit's and the footwear's own colours. */
@@ -48,9 +54,9 @@ export interface Look {
   footwear?: (typeof FOOTWEAR)[number];
 }
 /** A look's numbers and their bounds, and its colours. One table, the same in the three SDKs. */
-export const LOOK_BOUNDS = { height_m: [1.2, 2.2], weight: [0, 1], muscle: [0, 1], proportions: [0, 1] } as const;
+export const LOOK_BOUNDS = { height_m: [1.2, 2.2], weight: [0, 1], muscle: [0, 1], proportions: [0, 1], age_years: [25, 90] } as const;
 export const LOOK_COLOURS = ["skin", "hair", "top", "bottom", "shoes"] as const;
-export const LOOK_FIELDS = ["body", "height_m", "weight", "muscle", "proportions", ...LOOK_COLOURS, "hair_style", "outfit", "footwear"] as const;
+export const LOOK_FIELDS = ["body", "height_m", "weight", "muscle", "proportions", "age_years", "ethnicity", ...LOOK_COLOURS, "hair_style", "outfit", "footwear"] as const;
 
 /** Which step of which policy's routine a goal is (a policy writes it on the goals it sends). */
 export interface GoalPlan { policy: string; step: number }
@@ -105,6 +111,29 @@ export interface MotorsCommand {
 /** The heading (radians about z, from +x) a body's balance aid turns it to; null lets it be. */
 export interface AssistCommand { verb: "assist"; body: string; heading: number | null }
 
+/** ARKit's 52 face units (blendshapes), each from 0 (rest) to 1. A `face` command names them. */
+export const FACE_UNITS = Object.freeze([
+  "browDownLeft", "browDownRight", "browInnerUp", "browOuterUpLeft", "browOuterUpRight", "cheekPuff", "cheekSquintLeft", "cheekSquintRight",
+  "eyeBlinkLeft", "eyeBlinkRight", "eyeLookDownLeft", "eyeLookDownRight", "eyeLookInLeft", "eyeLookInRight", "eyeLookOutLeft", "eyeLookOutRight",
+  "eyeLookUpLeft", "eyeLookUpRight", "eyeSquintLeft", "eyeSquintRight", "eyeWideLeft", "eyeWideRight", "jawForward", "jawLeft", "jawOpen",
+  "jawRight", "mouthClose", "mouthDimpleLeft", "mouthDimpleRight", "mouthFrownLeft", "mouthFrownRight", "mouthFunnel", "mouthLeft",
+  "mouthLowerDownLeft", "mouthLowerDownRight", "mouthPressLeft", "mouthPressRight", "mouthPucker", "mouthRight", "mouthRollLower",
+  "mouthRollUpper", "mouthShrugLower", "mouthShrugUpper", "mouthSmileLeft", "mouthSmileRight", "mouthStretchLeft", "mouthStretchRight",
+  "mouthUpperUpLeft", "mouthUpperUpRight", "noseSneerLeft", "noseSneerRight", "tongueOut",
+] as const);
+export type FaceUnit = (typeof FACE_UNITS)[number];
+/** A person's face: each unit's weight now (`set`), or weights over time (`path`, `at` seconds from `since`). */
+export interface FaceCommand {
+  verb: "face";
+  /** The robots entry whose face it moves. */
+  unit: string;
+  set?: Partial<Record<FaceUnit, number>>;
+  /** `at` increasing, at most 10 seconds. */
+  path?: { at: number; set: Partial<Record<FaceUnit, number>> }[];
+  /** The scene time the path starts at, not later than now; absent, now. */
+  since?: number;
+}
+
 /** The person's joints. Each is the constraint `humanoidConstraint(unit, joint)` that a `motors` command names. */
 export const HUMANOID_JOINTS = Object.freeze([
   "spine_lower", "spine_lower_lean", "spine_lower_twist", "spine_upper", "spine_upper_lean", "spine_upper_twist", "neck_turn", "neck_nod", "neck_lean",
@@ -137,6 +166,11 @@ export function checkLook<L>(look: L, where = "robot"): L {
     if (l[k] !== undefined && !(num(l[k]) && (l[k] as number) >= lo && (l[k] as number) <= hi)) no(`look.${k} is a number from ${lo} to ${hi}`);
   for (const k of LOOK_COLOURS)
     if (l[k] !== undefined && !(point(3)(l[k]) && (l[k] as number[]).every((c) => c >= 0 && c <= 1))) no(`look.${k} is [r, g, b], sRGB from 0 to 1`);
+  if (l.ethnicity !== undefined) {
+    const e = l.ethnicity;
+    const ok = isObj(e) && !unknown(e, ETHNICITIES, "") && Object.values(e).every((w) => num(w) && w >= 0) && Object.values(e).some((w) => (w as number) > 0);
+    if (!ok) no(`look.ethnicity is { ${ETHNICITIES.map((k) => `${k}?`).join(", ")} }, each a number 0 or more, not all 0`);
+  }
   for (const [k, list] of [["hair_style", HAIR_STYLES], ["outfit", OUTFITS], ["footwear", FOOTWEAR]] as const)
     if (l[k] !== undefined && !oneOf(list, l[k])) no(`look.${k} is one of ${list.join(", ")}`);
   return look;
@@ -228,5 +262,33 @@ export function checkAssist<C>(cmd: C): C {
   if (bad) throw new Error(bad);
   if (!text(cmd.body)) throw new Error("assist needs a body (the body whose balance aid it turns)");
   if (cmd.heading !== null && !num(cmd.heading)) throw new Error("assist needs a heading (radians) or null");
+  return cmd;
+}
+
+/** Refuses what the engine would refuse of a `face` command's shape; returns it. */
+export function checkFace<C>(cmd: C): C {
+  const no = (why: string): never => { throw new Error(`face ${why}`); };
+  if (!isObj(cmd) || cmd.verb !== "face") no("is { verb: \"face\", unit, set?, path?, since? }");
+  const c = cmd as Obj, set = c.set ?? {}, path = c.path ?? [];
+  const bad = unknown(c, ["verb", "unit", "set", "path", "since"], "face");
+  if (bad) throw new Error(bad);
+  if (!text(c.unit)) no("needs a unit (the person whose face it moves)");
+  if (!isObj(set) || !Array.isArray(path) || (!Object.keys(set).length && !path.length))
+    no("needs set { <face unit>: 0 to 1 } or path [{ at, set: { <face unit>: 0 to 1 } }]");
+  const weights = (where: string, w: Obj) => {
+    for (const [name, v] of Object.entries(w)) {
+      if (!(FACE_UNITS as readonly string[]).includes(name)) no(`${where}: ${name} is not one of ARKit's 52 face units (browDownLeft … tongueOut)`);
+      if (!(num(v) && v >= 0 && v <= 1)) no(`${where}: ${name} is a number from 0 to 1`);
+    }
+  };
+  weights("set", set as Obj);
+  let before = -Infinity;
+  for (const pt of path as unknown[]) {
+    if (!isObj(pt) || !(num(pt.at) && pt.at >= 0 && pt.at > before && pt.at <= 10) || !isObj(pt.set))
+      no("path: each point is { at (seconds from now, increasing, at most 10), set: { <face unit>: 0 to 1 } }");
+    before = (pt as Obj).at as number;
+    weights("path", (pt as Obj).set as Obj);
+  }
+  if (c.since !== undefined && !num(c.since)) no("since is the scene time its path starts at, not later than now");
   return cmd;
 }

@@ -3,10 +3,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { checkAssist, checkGoal, checkHumanoidPolicy, checkLook, checkMotors, HUMANOID_JOINTS, humanoidConstraint } from "./scene-people.js";
+import { checkAssist, checkFace, checkGoal, checkHumanoidPolicy, checkLook, checkMotors, ETHNICITIES, FACE_UNITS, HUMANOID_JOINTS, humanoidConstraint } from "./scene-people.js";
 
 const golden = JSON.parse(readFileSync(new URL("./scene-people.golden.json", import.meta.url), "utf8"));
-const checks: Record<string, (x: unknown) => unknown> = { look: checkLook, goal: checkGoal, humanoid: checkHumanoidPolicy, motors: checkMotors, assist: checkAssist };
+const checks: Record<string, (x: unknown) => unknown> = { look: checkLook, goal: checkGoal, humanoid: checkHumanoidPolicy, motors: checkMotors, assist: checkAssist, face: checkFace };
 
 test("a person's look, policy and commands the engine accepts pass, and each refusal names what is wrong in the engine's words", () => {
   for (const c of golden.cases) {
@@ -19,4 +19,9 @@ test("the person's joints are 33 constraints, named <unit>-<joint with - for _>"
   assert.equal(HUMANOID_JOINTS.length, 33);
   assert.equal(new Set(HUMANOID_JOINTS).size, 33);
   assert.equal(humanoidConstraint("ana", "shoulder_l_abduct"), "ana-shoulder-l-abduct");
+});
+
+test("a face has ARKit's 52 units, and a look's ethnicity MakeHuman's three", () => {
+  assert.equal(new Set(FACE_UNITS).size, 52);
+  assert.deepEqual([...ETHNICITIES], ["african", "asian", "caucasian"]);
 });
