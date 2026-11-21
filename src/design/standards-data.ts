@@ -118,8 +118,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "yieldStrengthMPa": 130,
   "tensileStrengthMPa": 210,
   "poissonsRatio": 0.33,
-  "source": "Aalco Metals datasheet, Aluminium Alloy 5052 - H32 Sheet and Treadplate; Poisson's ratio from Wikipedia, 5052 aluminium alloy",
-  "sourceUrl": "https://www.aalco.co.uk/datasheets/Aluminium-Alloy-5052-H32-Sheet-and-Treadplate_138.ashx ; https://en.wikipedia.org/wiki/5052_aluminium_alloy",
+  "restitution": 0.5,
+  "source": "Aalco Metals datasheet, Aluminium Alloy 5052 - H32 Sheet and Treadplate; Poisson's ratio from Wikipedia, 5052 aluminium alloy; Minamoto, Hagawa and Kawamura, Impact between Al-sphere and SUJ2-sphere (Al-SUJ2 dokei nikyu no shototsu), JSME Dynamics and Design Conference 2008 No. 118, doi:10.1299/jsmedmc.2008._118-1_",
+  "sourceUrl": "https://www.aalco.co.uk/datasheets/Aluminium-Alloy-5052-H32-Sheet-and-Treadplate_138.ashx ; https://en.wikipedia.org/wiki/5052_aluminium_alloy ; https://www.jstage.jst.go.jp/article/jsmedmc/2008/0/2008__118-1_/_pdf/-char/ja",
   "observedAt": "2026-10-13"
  },
  {
@@ -132,8 +133,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "youngsModulusGPa": 72,
   "yieldStrengthMPa": 125,
   "tensileStrengthMPa": 275,
-  "source": "Aalco Metals datasheet, Aluminium Alloy 5083 - '0' - H111 Sheet and Plate",
-  "sourceUrl": "https://www.aalco.co.uk/datasheets/Aluminium-Alloy-5083-0-H111-Sheet-and-Plate_149.ashx",
+  "restitution": 0.5,
+  "source": "Aalco Metals datasheet, Aluminium Alloy 5083 - '0' - H111 Sheet and Plate; Minamoto, Hagawa and Kawamura, Impact between Al-sphere and SUJ2-sphere (Al-SUJ2 dokei nikyu no shototsu), JSME Dynamics and Design Conference 2008 No. 118, doi:10.1299/jsmedmc.2008._118-1_",
+  "sourceUrl": "https://www.aalco.co.uk/datasheets/Aluminium-Alloy-5083-0-H111-Sheet-and-Plate_149.ashx ; https://www.jstage.jst.go.jp/article/jsmedmc/2008/0/2008__118-1_/_pdf/-char/ja",
   "observedAt": "2026-10-13"
  },
  {
@@ -193,8 +195,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "yieldStrengthMPa": 340,
   "tensileStrengthMPa": 620,
   "poissonsRatio": 0.3,
-  "source": "Saarstahl material specification sheet C45 (strength); Ovako Steel Navigator, C45 (density, modulus, Poisson's ratio)",
-  "sourceUrl": "https://en.saarstahl.com/app/uploads/2024/03/20160401102929-0503_C45.pdf ; https://steelnavigator.ovako.com/steel-grades/c45/",
+  "restitution": 0.64,
+  "source": "Saarstahl material specification sheet C45 (strength); Ovako Steel Navigator, C45 (density, modulus, Poisson's ratio); Ji, Li et al., Experimental and theoretical analysis of large particle-wall collision with different metal plates, J. Braz. Soc. Mech. Sci. Eng. 44:77, 2022, doi:10.1007/s40430-022-03376-3",
+  "sourceUrl": "https://en.saarstahl.com/app/uploads/2024/03/20160401102929-0503_C45.pdf ; https://steelnavigator.ovako.com/steel-grades/c45/ ; https://doi.org/10.1007/s40430-022-03376-3",
   "observedAt": "2026-10-13"
  },
  {
@@ -290,8 +293,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "densityGCm3": 1.1,
   "youngsModulusGPa": 1.962,
   "yieldStrengthMPa": 38.1,
-  "source": "Ultimaker ABS technical data sheet v5.00 (April 20, 2022)",
-  "sourceUrl": "https://um-support-files.ultimaker.com/materials/2.85mm/tds/ABS/Ultimaker-ABS-TDS-v5.00.pdf",
+  "restitution": 0.81,
+  "source": "Ultimaker ABS technical data sheet v5.00 (April 20, 2022); Borges, Batista, Souza and Bettega, Experimental Determination of Interaction Parameters for CFD-DEM Modeling of Spouted Bed Hydrodynamics, Dynamics 6 25, 2026, doi:10.3390/dynamics6030025",
+  "sourceUrl": "https://um-support-files.ultimaker.com/materials/2.85mm/tds/ABS/Ultimaker-ABS-TDS-v5.00.pdf ; https://mdpi-res.com/d_attachment/dynamics/dynamics-06-00025/article_deploy/dynamics-06-00025.pdf",
   "observedAt": "2026-10-13"
  },
  {
@@ -301,8 +305,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "densityGCm3": 1.07,
   "youngsModulusGPa": 1.6,
   "yieldStrengthMPa": 40,
-  "source": "Prusa Polymers technical datasheet, Prusament ASA, version 1.1 (20-05-2024)",
-  "sourceUrl": "https://storage.googleapis.com/prusa3d-content-prod-14e8-wordpress-prusament-prod/2024/05/bc8551ef-tds_prusament-asa_2024_en.pdf",
+  "restitution": 0.81,
+  "source": "Prusa Polymers technical datasheet, Prusament ASA, version 1.1 (20-05-2024); Borges, Batista, Souza and Bettega, Experimental Determination of Interaction Parameters for CFD-DEM Modeling of Spouted Bed Hydrodynamics, Dynamics 6 25, 2026, doi:10.3390/dynamics6030025",
+  "sourceUrl": "https://storage.googleapis.com/prusa3d-content-prod-14e8-wordpress-prusament-prod/2024/05/bc8551ef-tds_prusament-asa_2024_en.pdf ; https://mdpi-res.com/d_attachment/dynamics/dynamics-06-00025/article_deploy/dynamics-06-00025.pdf",
   "observedAt": "2026-10-13"
  },
  {
@@ -377,8 +382,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "densityGCm3": 0.96,
   "youngsModulusGPa": 1.1,
   "yieldStrengthMPa": 23,
-  "source": "Ensinger product page, TECAFINE PE300 natural",
-  "sourceUrl": "https://www.ensingerplastics.com/en-sg/shapes/polyethylene-tecafine-pe-300-natural",
+  "restitution": 0.822,
+  "source": "Ensinger product page, TECAFINE PE300 natural; LaMarche, Dahl, Fullmer and Hrenya, Very small-scale, segregating-fluidized-bed experiments: A dataset for CFD-DEM validation and uncertainty quantification, AIChE J. 68(6) e17643, 2022, doi:10.1002/aic.17643",
+  "sourceUrl": "https://www.ensingerplastics.com/en-sg/shapes/polyethylene-tecafine-pe-300-natural ; https://www.osti.gov/servlets/purl/1976262",
   "observedAt": "2026-10-13"
  },
  {
@@ -421,8 +427,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "yieldStrengthMPa": 640,
   "tensileStrengthMPa": 800,
   "poissonsRatio": 0.3,
-  "source": "TR Fastenings knowledge base, Mechanical properties - Steel Screws and Bolts ISO 898-1 EN 20898-1 (cross-checked with Optimas, Mechanical and physical properties of steel fasteners); density, modulus and Poisson's ratio from Ovako Steel Navigator, C45",
-  "sourceUrl": "https://www.trfastenings.com/knowledge-base/metric-screws/screws-and-bolts-mechanical-properties ; https://optimas.com/technical-resources/mechanical-physical-properties-steel-fasteners/ ; https://steelnavigator.ovako.com/steel-grades/c45/",
+  "restitution": 0.64,
+  "source": "TR Fastenings knowledge base, Mechanical properties - Steel Screws and Bolts ISO 898-1 EN 20898-1 (cross-checked with Optimas, Mechanical and physical properties of steel fasteners); density, modulus and Poisson's ratio from Ovako Steel Navigator, C45; Yamamoto et al., Impact load of the small ball rebound hardness eNM3A10 estimated from the indentation size and shape, Zairyo Shiken Gijutsu 67(4), 2022, doi:10.57536/jmtraj.67.4_136",
+  "sourceUrl": "https://www.trfastenings.com/knowledge-base/metric-screws/screws-and-bolts-mechanical-properties ; https://optimas.com/technical-resources/mechanical-physical-properties-steel-fasteners/ ; https://steelnavigator.ovako.com/steel-grades/c45/ ; https://doi.org/10.57536/jmtraj.67.4_136",
   "observedAt": "2026-10-22"
  },
  {
@@ -435,8 +442,9 @@ export const MATERIALS: readonly EngineeringMaterial[] = [
   "yieldStrengthMPa": 660,
   "tensileStrengthMPa": 830,
   "poissonsRatio": 0.3,
-  "source": "TR Fastenings knowledge base, Mechanical properties - Steel Screws and Bolts ISO 898-1 EN 20898-1; density, modulus and Poisson's ratio from Ovako Steel Navigator, C45",
-  "sourceUrl": "https://www.trfastenings.com/knowledge-base/metric-screws/screws-and-bolts-mechanical-properties ; https://steelnavigator.ovako.com/steel-grades/c45/",
+  "restitution": 0.64,
+  "source": "TR Fastenings knowledge base, Mechanical properties - Steel Screws and Bolts ISO 898-1 EN 20898-1; density, modulus and Poisson's ratio from Ovako Steel Navigator, C45; Yamamoto et al., Impact load of the small ball rebound hardness eNM3A10 estimated from the indentation size and shape, Zairyo Shiken Gijutsu 67(4), 2022, doi:10.57536/jmtraj.67.4_136",
+  "sourceUrl": "https://www.trfastenings.com/knowledge-base/metric-screws/screws-and-bolts-mechanical-properties ; https://steelnavigator.ovako.com/steel-grades/c45/ ; https://doi.org/10.57536/jmtraj.67.4_136",
   "observedAt": "2026-10-23"
  },
  {
