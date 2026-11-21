@@ -60,7 +60,8 @@ export const LOOK_FIELDS = ["body", "height_m", "weight", "muscle", "proportions
 
 /** Which step of which policy's routine a goal is (a policy writes it on the goals it sends). */
 export interface GoalPlan { policy: string; step: number }
-interface GoalBase { plan?: GoalPlan }
+/** `task`: the dispatcher's token for the goal, said back on the unit's status channel when it is done or refused. */
+interface GoalBase { plan?: GoalPlan; task?: string }
 /** Walk a route of 1 to 64 points (metres), at `speed` m/s (above 0, at most 1.6). */
 export interface WalkGoal extends GoalBase { do: "walk"; route: XY[]; speed?: number }
 /** Step to a point without turning (sideways or back). */
@@ -75,12 +76,34 @@ export const IDLE_ACTIVITIES = ["type", "look", "still", "talk"] as const;
 export interface IdleGoal extends GoalBase { do: "idle"; activity?: (typeof IDLE_ACTIVITIES)[number]; seconds?: number; at?: XYZ; with?: string }
 export const REACH_HANDS = ["left", "right", "both"] as const;
 export interface ReachGoal extends GoalBase { do: "reach"; at: XYZ; hand?: (typeof REACH_HANDS)[number]; seconds?: number }
-export type Goal = WalkGoal | StepGoal | TurnGoal | SitGoal | StandGoal | IdleGoal | ReachGoal;
-/** Each goal's own fields, beside `do` and `plan`. One table, the same in the three SDKs. */
+export const WORK_HANDS = ["both", "left", "right"] as const;
+/** A worker's actions on a factory floor (docs/formats.md § a factory floor): take a body in its hands and carry it,
+ *  put what it carries at a point, push a cart by its handle, steer a walk-behind pallet jack by its tiller, press a
+ *  panel's button, gauge a part with the gauge in its right hand, hand what it holds to a unit, ride a vehicle's seat. */
+export interface TakeGoal extends GoalBase { do: "take"; body: string; hands?: (typeof WORK_HANDS)[number] }
+export interface PutGoal extends GoalBase { do: "put"; at?: XYZ }
+export interface PushGoal extends GoalBase { do: "push"; body: string; handle?: XYZ }
+export interface JackGoal extends GoalBase { do: "jack"; body: string; handle?: XYZ }
+export interface PressGoal extends GoalBase { do: "press"; at: XYZ }
+export interface InspectGoal extends GoalBase { do: "inspect"; body: string; seconds?: number }
+export interface HandGoal extends GoalBase { do: "hand"; body: string; to: string }
+export interface RideGoal extends GoalBase { do: "ride"; body: string }
+/** A vehicle's goals (its `vehicle` policy does them): drive a route, dock to a pose, lift its forks, stop. */
+export interface DriveGoal extends GoalBase { do: "drive"; route: XY[]; speed?: number; reverse?: boolean }
+export interface DockGoal extends GoalBase { do: "dock"; at: XY; heading: number; speed?: number; reverse?: boolean }
+export interface LiftGoal extends GoalBase { do: "lift"; height: number; load?: string }
+export interface StopGoal extends GoalBase { do: "stop" }
+export type Goal = WalkGoal | StepGoal | TurnGoal | SitGoal | StandGoal | IdleGoal | ReachGoal | TakeGoal | PutGoal | PushGoal | JackGoal | PressGoal | InspectGoal | HandGoal | RideGoal | DriveGoal | DockGoal | LiftGoal | StopGoal;
+/** Each goal's own fields, beside `do`, `plan` and `task`. One table, the same in the three SDKs. */
 export const GOAL_FIELDS = {
   walk: ["route", "speed"], step: ["to", "heading"], turn: ["heading"], sit: ["seat", "facing"], stand: [],
   idle: ["activity", "seconds", "at", "with"], reach: ["at", "hand", "seconds"],
+  take: ["body", "hands"], put: ["at"], push: ["body", "handle"], jack: ["body", "handle"], press: ["at"], inspect: ["body", "seconds"], hand: ["body", "to"], ride: ["body"],
+  drive: ["route", "speed", "reverse"], dock: ["at", "heading", "speed", "reverse"], lift: ["height", "load"], stop: [],
 } as const;
+/** The goals that act on a body, and the vehicles' goals. */
+export const BODY_GOALS = ["take", "push", "jack", "inspect", "hand", "ride"] as const;
+export const VEHICLE_GOALS = ["drive", "dock", "lift", "stop"] as const;
 export const GOAL_KINDS = Object.keys(GOAL_FIELDS) as Goal["do"][];
 
 /** A scene policy that drives one person through its routine: each step a goal, then `wait` seconds once it is done. */
@@ -181,10 +204,18 @@ export function goalProblem(g: unknown): string | null {
   if (!isObj(g)) return "a goal is an object";
   if (!oneOf(GOAL_KINDS, g.do)) return `do is one of ${GOAL_KINDS.join(", ")}`;
   const kind = g.do as Goal["do"], own: readonly string[] = GOAL_FIELDS[kind];
-  for (const k of Object.keys(g)) if (k !== "do" && k !== "plan" && !own.includes(k)) return `${kind} has no field ${k} (it has ${[...own, "plan"].join(", ")})`;
+  for (const k of Object.keys(g)) if (k !== "do" && k !== "plan" && k !== "task" && !own.includes(k)) return `${kind} has no field ${k} (it has ${[...own, "plan", "task"].join(", ")})`;
+  if (g.task !== undefined && !text(g.task)) return "task is a text (the dispatcher's token)";
+  if ((VEHICLE_GOALS as readonly string[]).includes(kind)) return vehicleGoalProblem(g, kind);
   if (kind === "walk" && !(Array.isArray(g.route) && g.route.length >= 1 && g.route.length <= 64 && g.route.every(point(2))))
     return "walk needs a route: 1 to 64 points [x, y] (metres)";
   if (g.speed !== undefined && !(num(g.speed) && g.speed > 0 && g.speed <= 1.6)) return "walk speed is metres a second, above 0 and at most 1.6";
+  if ((BODY_GOALS as readonly string[]).includes(kind) && !text(g.body)) return `${kind} needs a body (what it takes, pushes, steers, inspects, hands over or rides on)`;
+  if (g.hands !== undefined && !oneOf(WORK_HANDS, g.hands)) return "hands is both, left or right";
+  if (kind === "press" && !point(3)(g.at)) return "press needs at [x, y, z] (metres): the button";
+  if (kind === "put" && g.at !== undefined && !point(3)(g.at)) return "at is [x, y, z] (metres)";
+  if (g.handle !== undefined && !point(3)(g.handle)) return "handle is [x, y, z] (metres): where the hands close on it";
+  if (kind === "hand" && !text(g.to)) return "hand needs to (the unit it hands the body to)";
   if (kind === "step" && !point(2)(g.to)) return "step needs to [x, y] (the point it steps to, metres)";
   if (kind === "turn" && !num(g.heading)) return "turn needs a heading (radians about z, from +x)";
   if (kind === "step" && g.heading !== undefined && !num(g.heading)) return "step heading is radians about z, from +x";
@@ -195,6 +226,19 @@ export function goalProblem(g: unknown): string | null {
   if (kind === "reach" && !point(3)(g.at)) return "reach needs at [x, y, z] (the point it reaches for, metres)";
   if (g.hand !== undefined && !oneOf(REACH_HANDS, g.hand)) return "reach hand is left, right or both";
   if (g.seconds !== undefined && !(num(g.seconds) && g.seconds > 0)) return "seconds is a positive number";
+  if (g.plan !== undefined && !(isObj(g.plan) && typeof g.plan.policy === "string" && Number.isInteger(g.plan.step))) return "plan is { policy, step }";
+  return null;
+}
+
+/** A vehicle goal's problem (drive, dock, lift, stop), or null. */
+function vehicleGoalProblem(g: Obj, kind: string): string | null {
+  if (kind === "drive" && !(Array.isArray(g.route) && g.route.length >= 1 && g.route.length <= 128 && g.route.every(point(2))))
+    return "drive needs a route: 1 to 128 points [x, y] (metres)";
+  if (kind === "dock" && !(point(2)(g.at) && num(g.heading))) return "dock needs at [x, y] (metres) and heading (radians)";
+  if (kind === "lift" && !(num(g.height) && g.height >= 0)) return "lift needs a height (metres, 0 or more)";
+  if (g.speed !== undefined && !(num(g.speed) && g.speed > 0 && g.speed <= 10)) return "speed is metres a second, above 0 and at most 10";
+  if (g.reverse !== undefined && typeof g.reverse !== "boolean") return "reverse is true or false";
+  if (g.load !== undefined && typeof g.load !== "string") return "load names a body";
   if (g.plan !== undefined && !(isObj(g.plan) && typeof g.plan.policy === "string" && Number.isInteger(g.plan.step))) return "plan is { policy, step }";
   return null;
 }
