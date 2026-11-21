@@ -88,23 +88,30 @@ export interface JackGoal extends GoalBase { do: "jack"; body: string; handle?: 
 export interface PressGoal extends GoalBase { do: "press"; at: XYZ }
 export interface InspectGoal extends GoalBase { do: "inspect"; body: string; seconds?: number }
 export interface HandGoal extends GoalBase { do: "hand"; body: string; to: string }
-export interface RideGoal extends GoalBase { do: "ride"; body: string }
-/** A vehicle's goals (its `vehicle` policy does them): drive a route, dock to a pose, lift its forks, stop. */
+/** On a vehicle: its seat or platform (`body`); with `at` it climbs on from beside it, its hips pulled there; `standing` on a stand-up truck's pedal. */
+export interface RideGoal extends GoalBase { do: "ride"; body: string; at?: XYZ; standing?: boolean }
+/** Off the vehicle it rides, to `to` beside it. */
+export interface GetOffGoal extends GoalBase { do: "get-off"; to: XY }
+/** A vehicle's goals (its `vehicle` policy does them): drive a route, dock to a pose, lift its forks, reach its mast out, couple and uncouple what it tows, stop. */
 export interface DriveGoal extends GoalBase { do: "drive"; route: XY[]; speed?: number; reverse?: boolean }
 export interface DockGoal extends GoalBase { do: "dock"; at: XY; heading: number; speed?: number; reverse?: boolean }
 export interface LiftGoal extends GoalBase { do: "lift"; height: number; load?: string }
+export interface MastGoal extends GoalBase { do: "mast"; out: number }
+/** Back its hitch onto `pin` (m, `body`'s frame), pin them, lift its hitch and crank the towed `legs` up; `axle` (m, `body`'s frame) lets it back what it tows. */
+export interface CoupleGoal extends GoalBase { do: "couple"; body: string; pin: XYZ; axle?: XY; legs?: string }
+export interface UncoupleGoal extends GoalBase { do: "uncouple" }
 export interface StopGoal extends GoalBase { do: "stop" }
-export type Goal = WalkGoal | StepGoal | TurnGoal | SitGoal | StandGoal | IdleGoal | ReachGoal | TakeGoal | PutGoal | PushGoal | JackGoal | PressGoal | InspectGoal | HandGoal | RideGoal | DriveGoal | DockGoal | LiftGoal | StopGoal;
+export type Goal = WalkGoal | StepGoal | TurnGoal | SitGoal | StandGoal | IdleGoal | ReachGoal | TakeGoal | PutGoal | PushGoal | JackGoal | PressGoal | InspectGoal | HandGoal | RideGoal | GetOffGoal | DriveGoal | DockGoal | LiftGoal | MastGoal | CoupleGoal | UncoupleGoal | StopGoal;
 /** Each goal's own fields, beside `do`, `plan` and `task`. One table, the same in the three SDKs. */
 export const GOAL_FIELDS = {
   walk: ["route", "speed"], step: ["to", "heading"], turn: ["heading"], sit: ["seat", "facing"], stand: [],
   idle: ["activity", "seconds", "at", "with"], reach: ["at", "hand", "seconds"],
-  take: ["body", "hands"], put: ["at"], push: ["body", "handle"], jack: ["body", "handle"], press: ["at"], inspect: ["body", "seconds"], hand: ["body", "to"], ride: ["body"],
-  drive: ["route", "speed", "reverse"], dock: ["at", "heading", "speed", "reverse"], lift: ["height", "load"], stop: [],
+  take: ["body", "hands"], put: ["at"], push: ["body", "handle"], jack: ["body", "handle"], press: ["at"], inspect: ["body", "seconds"], hand: ["body", "to"], ride: ["body", "at", "standing"], "get-off": ["to"],
+  drive: ["route", "speed", "reverse"], dock: ["at", "heading", "speed", "reverse"], lift: ["height", "load"], mast: ["out"], couple: ["body", "pin", "axle", "legs"], uncouple: [], stop: [],
 } as const;
 /** The goals that act on a body, and the vehicles' goals. */
 export const BODY_GOALS = ["take", "push", "jack", "inspect", "hand", "ride"] as const;
-export const VEHICLE_GOALS = ["drive", "dock", "lift", "stop"] as const;
+export const VEHICLE_GOALS = ["drive", "dock", "lift", "mast", "couple", "uncouple", "stop"] as const;
 export const GOAL_KINDS = Object.keys(GOAL_FIELDS) as Goal["do"][];
 
 /** A scene policy that drives one person through its routine: each step a goal, then `wait` seconds once it is done. */
@@ -217,6 +224,9 @@ export function goalProblem(g: unknown): string | null {
   if (kind === "put" && g.at !== undefined && !point(3)(g.at)) return "at is [x, y, z] (metres)";
   if (g.handle !== undefined && !point(3)(g.handle)) return "handle is [x, y, z] (metres): where the hands close on it";
   if (kind === "hand" && !text(g.to)) return "hand needs to (the unit it hands the body to)";
+  if (kind === "ride" && g.at !== undefined && !point(3)(g.at)) return "ride at is [x, y, z] (metres): where its hips go on the seat or above the platform";
+  if (g.standing !== undefined && typeof g.standing !== "boolean") return "ride standing is true or false (on a stand-up platform)";
+  if (kind === "get-off" && !point(2)(g.to)) return "get-off needs to [x, y] (metres): where it steps down to, beside its vehicle";
   if (kind === "step" && !point(2)(g.to)) return "step needs to [x, y] (the point it steps to, metres)";
   if (kind === "turn" && !num(g.heading)) return "turn needs a heading (radians about z, from +x)";
   if (kind === "step" && g.heading !== undefined && !num(g.heading)) return "step heading is radians about z, from +x";
@@ -231,12 +241,16 @@ export function goalProblem(g: unknown): string | null {
   return null;
 }
 
-/** A vehicle goal's problem (drive, dock, lift, stop), or null. */
+/** A vehicle goal's problem (drive, dock, lift, mast, couple, uncouple, stop), or null. */
 function vehicleGoalProblem(g: Obj, kind: string): string | null {
   if (kind === "drive" && !(Array.isArray(g.route) && g.route.length >= 1 && g.route.length <= 128 && g.route.every(point(2))))
     return "drive needs a route: 1 to 128 points [x, y] (metres)";
   if (kind === "dock" && !(point(2)(g.at) && num(g.heading))) return "dock needs at [x, y] (metres) and heading (radians)";
   if (kind === "lift" && !(num(g.height) && g.height >= 0)) return "lift needs a height (metres, 0 or more)";
+  if (kind === "mast" && !(num(g.out) && g.out >= 0)) return "mast needs out (metres, 0 or more: how far the mast reaches out)";
+  if (kind === "couple" && !(text(g.body) && point(3)(g.pin))) return "couple needs a body (what it tows) and pin [x, y, z] (metres, that body's frame: its drawbar eye or kingpin)";
+  if (g.axle !== undefined && !point(2)(g.axle)) return "axle is [x, y] (metres, the towed body's frame: the middle of its axle)";
+  if (g.legs !== undefined && !text(g.legs)) return "legs names the towed unit's joint that cranks its landing gear";
   if (g.speed !== undefined && !(num(g.speed) && g.speed > 0 && g.speed <= 10)) return "speed is metres a second, above 0 and at most 10";
   if (g.reverse !== undefined && typeof g.reverse !== "boolean") return "reverse is true or false";
   if (g.load !== undefined && typeof g.load !== "string") return "load names a body";
