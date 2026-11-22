@@ -5,7 +5,7 @@
  * mount names it by its address. Nothing is copied: a listing is the API's answer now, a file's bytes are read from
  * where the API says they are, by Range.
  *
- *   // cloud://global/connectors/polyhaven.connector.tsx
+ *   // cloud://home/user-commandagi/global/connectors/polyhaven.connector.tsx
  *   export default () => (
  *     <connector name="Poly Haven" base="https://api.polyhaven.com" home="https://polyhaven.com" rate={2} cache={86400}
  *                licence="CC0-1.0" credit="Poly Haven" hosts={["dl.polyhaven.org"]}>

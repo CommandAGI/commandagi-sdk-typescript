@@ -8,7 +8,7 @@
  *   fitOf(toleranceLimits(25, { class: "H7" }), toleranceLimits(25, { class: "g6" })).kind   // "clearance"
  *
  * A class is any ISO 286 class (`H7`, `e8`, `E10`, `H13`, `zc11`), computed from its fundamental deviation and grade
- * over 0 up to 3150 mm (`cloud://global/standards/iso-286-1-grades.csv`, `iso-286-1-deviations.csv`), a general
+ * over 0 up to 3150 mm (`cloud://home/user-commandagi/global/standards/iso-286-1-grades.csv`, `iso-286-1-deviations.csv`), a general
  * tolerance of ISO 2768-1 (`ISO 2768-m`), or a bearing ring's ISO 492 Normal class (`ISO 492 bore`, `ISO 492 outside`,
  * `ISO 492 width`); `./standards-data.ts` `TOLERANCE_TABLES` holds the tables. A class or a size the standard does not
  * give is refused, with the reason. The same rules are the 3D engine's (`packages/domain/3d-core/tolerances.ts`) and the Python and

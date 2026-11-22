@@ -1,5 +1,5 @@
 // The engineering tables as the SDK carries them, held to numbers typed here from the standards' own tables (the
-// shipped CSVs name the page each row was read from; `cloud://global/standards/<table>.csv`). The Python and Rust SDKs
+// shipped CSVs name the page each row was read from; `cloud://home/user-commandagi/global/standards/<table>.csv`). The Python and Rust SDKs
 // hold the same values (sdk/python tests/test_standards.py, sdk/rust tests/standards.rs): one set of tables makes all
 // three.
 import assert from "node:assert/strict";

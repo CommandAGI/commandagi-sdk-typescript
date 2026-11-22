@@ -242,7 +242,7 @@ export default () => (
   callouts, the document's dimensions and a title block. `Kernel.bom(doc)` lists the parts.
 - `standardRow("iso-4762", "M4")`, `standardRow("bearings", "608")`: the dimension tables of standard parts.
   `STANDARD_SOURCES` names where each table was read; the rows with their full provenance are
-  `cloud://global/standards/<table>.csv`.
+  `cloud://home/user-commandagi/global/standards/<table>.csv`.
 
 ## The 3D kernel: `Kernel`
 

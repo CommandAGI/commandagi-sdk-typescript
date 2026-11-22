@@ -1,12 +1,12 @@
 /**
- * A PERSON IN A SCENE — the human avatar (`cloud://global/devices/human-avatar/definition.tsx`) placed in a design's
+ * A PERSON IN A SCENE — the human avatar (`cloud://home/user-commandagi/global/devices/human-avatar/definition.tsx`) placed in a design's
  * `<slot name="scene">` as a `robots` entry with a `look`, the `humanoid` policy that drives it, and the `goal`,
  * `motors`, `assist` and `face` commands an agent sends it (docs/formats.md § a person in the scene, in the CommandAGI
  * repository). The scene stays a plain literal, so the editor writes into it; these types say what it may hold.
  *
  *   // Office.3d.tsx
  *   <slot name="scene" value={{ hz: 240,
- *     robots: [{ id: "ana", definition: "cloud://global/devices/human-avatar/definition.tsx",
+ *     robots: [{ id: "ana", definition: "cloud://home/user-commandagi/global/devices/human-avatar/definition.tsx",
  *                look: { body: "feminine", height_m: 1.68, hair_style: "ponytail", outfit: "blouse_skirt" } }],
  *     policies: [{ id: "ana-day", kind: "humanoid", unit: "ana", repeat: true, routine: [
  *       { do: "walk", route: [[0, 0], [1, 2]] }, { do: "sit", seat: [1, 2.4, 0.45], facing: 1.57 },

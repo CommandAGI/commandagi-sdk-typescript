@@ -24,16 +24,16 @@ test("a base names its harness; a fork names its parent", () => {
   const base = declare(el("agent", { harness: "anthropic", model: "anthropic/claude-opus-5-5", effort: "medium", name: "Claude Opus 5.5" }));
   assert.deepEqual(base.document, { harness: "anthropic", model: "anthropic/claude-opus-5-5", effort: "medium", name: "Claude Opus 5.5" });
   assert.throws(() => declare(el("agent", { harness: "anthropic", effort: "" })), /effort is a word/);
-  assert.equal(declare(el("agent", { parent: "cloud://global/agents/claude-code", supervisor: "agent:lead" })).document.supervisor, "agent:lead");
-  assert.throws(() => declare(el("agent", { parent: "cloud://global/agents/claude-code", supervisor: "lead" })), /supervisor is an agent or a person/);
-  const fork = declare(el("agent", { parent: "cloud://global/agents/claude-code", name: "Joe's secretary", instructions: "Keep Joe's calendar.\nAsk before booking.", tools: ["calendar_save_event"] }));
-  assert.deepEqual(fork.document, { parent: "cloud://global/agents/claude-code", name: "Joe's secretary", instructions: "Keep Joe's calendar.\nAsk before booking.", tools: ["calendar_save_event"] });
+  assert.equal(declare(el("agent", { parent: "cloud://home/user-commandagi/global/agents/claude-code", supervisor: "agent:lead" })).document.supervisor, "agent:lead");
+  assert.throws(() => declare(el("agent", { parent: "cloud://home/user-commandagi/global/agents/claude-code", supervisor: "lead" })), /supervisor is an agent or a person/);
+  const fork = declare(el("agent", { parent: "cloud://home/user-commandagi/global/agents/claude-code", name: "Joe's secretary", instructions: "Keep Joe's calendar.\nAsk before booking.", tools: ["calendar_save_event"] }));
+  assert.deepEqual(fork.document, { parent: "cloud://home/user-commandagi/global/agents/claude-code", name: "Joe's secretary", instructions: "Keep Joe's calendar.\nAsk before booking.", tools: ["calendar_save_event"] });
   assert.deepEqual(AGENTS.agent.fromTree(AGENTS.agent.toTree(fork.document as never)), fork.document);
 });
 
 test("a fork's runtime configuration is its file's too, both ways", () => {
   const props = {
-    parent: "cloud://global/agents/commandagi", name: "Researcher", avatar: "avatar.png", sound: "chime",
+    parent: "cloud://home/user-commandagi/global/agents/commandagi", name: "Researcher", avatar: "avatar.png", sound: "chime",
     skills: ["../../skills/review/SKILL.md"], kernel: { type: "llm" },
     cognition: { urgency: 0.8, faculties: { working_memory: true }, models: [], speculation: true },
     routing: { quality: 2, cost: 1 }, fabric: { config: {}, mindPin: "anthropic/claude-opus-5-5", added: [], gates: {} },

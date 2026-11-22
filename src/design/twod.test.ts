@@ -266,13 +266,13 @@ test("a <link> is a draw.instance node that names another drawing: a path from t
     h("drawing", { width: 400, height: 300 },
       h("layer", { name: "Badge" },
         h("link", { label: "Badge", src: "parts/Badge.draw.tsx", x: 40, y: 60, inputs: { size: 48, tone: "warm", outlined: true } }),
-        h("link", { src: "cloud://global/examples/2d/Badge.draw.tsx" }),
+        h("link", { src: "cloud://home/user-commandagi/examples/2d/Badge.draw.tsx" }),
       ),
     ),
   );
   const [first, second] = ["children.1", "children.2"].map((port) => g.nodes[(g.nodes.group!.inputs[port] as { wire: { node: string } }).wire.node]!);
   assert.deepEqual({ type: first!.type, label: first!.label, inputs: first!.inputs }, { type: "draw.instance", label: "Badge", inputs: { __instance: { path: "parts/Badge.draw.tsx" }, x: 40, y: 60, inputs: { size: 48, tone: "warm", outlined: true } } });
-  assert.deepEqual(second!.inputs, { __instance: { assetPath: "cloud://global/examples/2d/Badge.draw.tsx" } });
+  assert.deepEqual(second!.inputs, { __instance: { assetPath: "cloud://home/user-commandagi/examples/2d/Badge.draw.tsx" } });
 });
 
 test("a <link> is checked against its schema, with the sentence an op panel shows", () => {

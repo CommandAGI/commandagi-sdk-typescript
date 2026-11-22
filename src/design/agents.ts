@@ -6,38 +6,38 @@
  * on one harness. A base instance names its harness and has no parent; every other instance is a fork: it names its
  * parent and keeps its parent's harness.
  *
- *   // cloud://global/agents/harnesses/claude-code/harness.tsx
+ *   // cloud://home/user-commandagi/global/agents/harnesses/claude-code/harness.tsx
  *   export default () => <harness kind="cli" label="Claude Code" provider="anthropic" cli="claude" runs={["host", "vm"]} />;
  *
- *   // cloud://global/agents/harnesses/symbolic-planner-001/harness.tsx — a program with no model, one variant of a family
+ *   // cloud://home/user-commandagi/global/agents/harnesses/symbolic-planner-001/harness.tsx — a program with no model, one variant of a family
  *   export default () => <harness kind="program" label="Symbolic Planner 001" family="symbolic" experimental runs={["host"]} />;
  *
- *   // cloud://global/agents/harnesses/scaledown-classify-1/harness.tsx — a model that does one task in one pass
+ *   // cloud://home/user-commandagi/global/agents/harnesses/scaledown-classify-1/harness.tsx — a model that does one task in one pass
  *   export default () => <harness kind="api" label="ScaleDown Classify-1" provider="scaledown" tasks={["classify", "decide"]} family="system-one" experimental runs={["host"]} />;
  *
- *   // cloud://global/agents/harnesses/openai-realtime/harness.tsx — a model that converses live (docs/realtime-agents.md)
+ *   // cloud://home/user-commandagi/global/agents/harnesses/openai-realtime/harness.tsx — a model that converses live (docs/realtime-agents.md)
  *   export default () => (
  *     <harness kind="api" label="OpenAI Realtime API" provider="openai" runs={["worker", "host"]}
  *       realtime={{ in: ["audio", "video", "text"], out: ["audio", "text", "tools"],
  *         audio: { in: ["g711-ulaw@8000", "pcm16@24000"], out: ["g711-ulaw@8000", "pcm16@24000"] }, fps: 1, hz: 2, minutes: 60 }} />
  *   );
  *
- *   // cloud://global/agents/openai-gpt-realtime-2-1/agent.tsx — a base of a realtime harness: one per realtime model of its provider
+ *   // cloud://home/user-commandagi/global/agents/openai-gpt-realtime-2-1/agent.tsx — a base of a realtime harness: one per realtime model of its provider
  *   export default () => <agent harness="openai-realtime" name="GPT Realtime 2.1" model="openai/gpt-realtime-2.1" />;
  *
- *   // cloud://global/agents/claude-code/agent.tsx — the one base instance of a CLI harness
+ *   // cloud://home/user-commandagi/global/agents/claude-code/agent.tsx — the one base instance of a CLI harness
  *   export default () => <agent harness="claude-code" name="Claude Code" />;
  *
  *   // agents/secretary/agent.tsx in an account's Drive — a fork
- *   export default () => <agent parent="cloud://global/agents/claude-code" name="Joe's secretary" instructions="Keep Joe's calendar." />;
+ *   export default () => <agent parent="cloud://home/user-commandagi/global/agents/claude-code" name="Joe's secretary" instructions="Keep Joe's calendar." />;
  *
  *   // agents/a2/agent.tsx — a fork on another model, at a reasoning effort its CLI takes
- *   export default () => <agent parent="cloud://global/agents/claude-code" name="A2" model="anthropic/claude-sonnet-5-5" effort="medium" />;
+ *   export default () => <agent parent="cloud://home/user-commandagi/global/agents/claude-code" name="A2" model="anthropic/claude-sonnet-5-5" effort="medium" />;
  *
  *   // agents/researcher/agent.tsx — and its runtime configuration: its picture beside it, its equipped skills, its
  *   // cognition, its routing weights, its wiring, its reach into its owner's account, and that it asks before it spends
  *   export default () => (
- *     <agent parent="cloud://global/agents/commandagi" name="Researcher" avatar="avatar.png"
+ *     <agent parent="cloud://home/user-commandagi/global/agents/commandagi" name="Researcher" avatar="avatar.png"
  *       skills={["../../skills/review/SKILL.md"]} cognition={{ urgency: 0.8, faculties: { working_memory: true }, models: [], speculation: true }}
  *       routing={{ quality: 2, cost: 1 }} fabric={{ config: {}, mindPin: "anthropic/claude-opus-5-5", added: [], gates: {} }}
  *       access={{ scopes: ["threads:read"], reach: "own" }} confirmSpend />
@@ -45,7 +45,7 @@
  *
  * A file never names itself: a harness's id is its folder's name, an agent's id is its folder's name. `parent` is a
  * ref to the parent's folder: relative to this agent's folder (`../researcher`), or an address
- * (`cloud://global/agents/claude-code`). `harness` is a harness's id (its folder under `cloud://global/agents/harnesses/`).
+ * (`cloud://home/user-commandagi/global/agents/claude-code`). `harness` is a harness's id (its folder under `cloud://home/user-commandagi/global/agents/harnesses/`).
  *
  * Nothing adds a default: what the file does not say, the document does not have.
  */
@@ -247,7 +247,7 @@ function agentOf(t: DocTree): AgentDoc {
   if (t.attrs.supervisor !== undefined && !/^(agent|person):\S+$/.test(t.attrs.supervisor as string)) throw new Error(`<agent> supervisor is an agent or a person ("agent:lead", "person:me"), not ${JSON.stringify(t.attrs.supervisor)}`);
   const base = t.attrs.harness !== undefined, fork = t.attrs.parent !== undefined;
   if (base === fork)
-    throw new Error(base ? `<agent> names a harness (a base instance) or a parent (a fork), not both: a fork keeps its parent's harness` : `<agent> names its harness (a base instance: harness="claude-code") or its parent (a fork: parent="cloud://global/agents/claude-code")`);
+    throw new Error(base ? `<agent> names a harness (a base instance) or a parent (a fork), not both: a fork keeps its parent's harness` : `<agent> names its harness (a base instance: harness="claude-code") or its parent (a fork: parent="cloud://home/user-commandagi/global/agents/claude-code")`);
   if (base && !AGENT_ID.test(t.attrs.harness as string)) throw new Error(`<agent> harness is a harness's id ("claude-code"), not ${JSON.stringify(t.attrs.harness)}`);
   const tools = t.attrs.tools;
   if (tools !== undefined && !(Array.isArray(tools) && tools.every((x) => typeof x === "string" && x))) throw new Error(`<agent> tools is a list of tool names, not ${JSON.stringify(tools)}`);
