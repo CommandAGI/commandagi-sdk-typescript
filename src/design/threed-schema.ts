@@ -11636,6 +11636,11 @@ export const THREED_SCHEMA: SchemaDocument = {
      "description": "The ambient occlusion, read from red: Poly Haven's `ao`, or its `arm`.",
      "pattern": "\\S"
     },
+    "alpha": {
+     "type": "string",
+     "description": "What is there, read from green: white where the surface is, black where it is open (a welded wire mesh's openings, a perforated sheet's holes). The surface is drawn only where the map is over half, on both of its sides.",
+     "pattern": "\\S"
+    },
     "size": {
      "type": "array",
      "items": {
