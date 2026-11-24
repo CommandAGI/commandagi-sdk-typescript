@@ -126,3 +126,49 @@ test("a computer's screenshot and action answers keep their images (the agent se
     ["computer_act", { threadId: "th_world", embodimentId: "emb_pc", action: "click", payload: { x: 412, y: 300 } }],
   ]);
 });
+
+/** A WebSocket the test speaks for: every socket a session opens, and a way to send it a message. */
+function fakeSockets() {
+  const opened: { url: string; send(m: unknown): void }[] = [];
+  class Fake {
+    private on = new Map<string, ((ev: { data: string }) => void)[]>();
+    constructor(public url: string) {
+      opened.push({ url, send: (m) => (this.on.get("message") ?? []).forEach((f) => f({ data: JSON.stringify(m) })) });
+    }
+    addEventListener(type: string, f: (ev: { data: string }) => void) {
+      this.on.set(type, [...(this.on.get(type) ?? []), f]);
+    }
+    close() {}
+  }
+  const real = globalThis.WebSocket;
+  (globalThis as { WebSocket: unknown }).WebSocket = Fake;
+  return { opened, restore: () => ((globalThis as { WebSocket: unknown }).WebSocket = real) };
+}
+
+test("a simulation's frames are kept by channel: the camera's picture, its depth, another camera; fresh waits for the next", async () => {
+  const sockets = fakeSockets();
+  try {
+    const { cagi } = scripted({});
+    const s = cagi.session("th_world", "emb_sim");
+    const first = s.frame({ timeoutMs: 1_000 });
+    const [ws] = sockets.opened;
+    assert.match(ws!.url, /\/rt\/thread\/th_world\?token=cagi_test$/);
+    const jpeg = "data:image/jpeg;base64,/9j/AA==", png = "data:image/png;base64,iVBORw==";
+    ws!.send({ t: "data", embodimentId: "emb_sim", channelId: "depth", kind: "depth", format: "image/png", url: png, at: 1 });
+    ws!.send({ t: "frame", embodimentId: "emb_other", channelId: "cam-head", url: "data:image/jpeg;base64,AA==", at: 2 });
+    ws!.send({ t: "frame", embodimentId: "emb_sim", channelId: "cam-head", url: jpeg, at: 3 });
+    assert.equal((await first).url, jpeg, "a depth image is not the picture a plain frame() answers, nor another embodiment's");
+    ws!.send({ t: "frame", embodimentId: "emb_sim", channelId: "top", url: "data:image/jpeg;base64,/9j/AQ==", at: 4 });
+    assert.equal((await s.frame({ channel: "cam-head" })).url, jpeg, "a channel's own newest");
+    assert.equal((await s.frame({ channel: "depth" })).url, png);
+    assert.deepEqual([...(await s.observe({ channel: "depth" }))], [0x89, 0x50, 0x4e, 0x47]);
+    const fresh = s.frame({ fresh: true, channel: "cam-head", timeoutMs: 1_000 });
+    ws!.send({ t: "frame", embodimentId: "emb_sim", channelId: "top", url: "data:image/jpeg;base64,/9j/Ag==", at: 5 });
+    ws!.send({ t: "frame", embodimentId: "emb_sim", channelId: "cam-head", url: "data:image/jpeg;base64,/9j/Aw==", at: 6 });
+    assert.equal((await fresh).at, 6, "fresh is the next frame of that channel");
+    await assert.rejects(() => s.frame({ fresh: true, channel: "depth", timeoutMs: 50 }), /no frame from emb_sim on depth within 50ms/);
+    s.close();
+  } finally {
+    sockets.restore();
+  }
+});

@@ -35,6 +35,7 @@ await world.sim.run(); // a launched simulation starts paused
 await world.sim.ik({ target: [0.08, -0.12, 0.86] }); // typed robot/sim control: the arm's tool point, in metres
 await new Promise((r) => setTimeout(r, 2000)); // an answer is not a state: let it move, then read
 console.log(await cagi.embodiments.describe(world.threadId)); // the world now: its robots, their tool points in mm
+const jpeg = await world.observe({ fresh: true }); // what its camera sees now: a 320 x 240 JPEG (channel "cam-head")
 
 // Anything else: every platform tool by name.
 await cagi.call("list_snapshots");

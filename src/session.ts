@@ -7,7 +7,9 @@
  *     `robot` and `sim` are the GENERATED typed vocabularies over that one method; `act` is the untyped
  *     form for anything a runtime declares that no vocabulary names.
  *   - FRAMES arrive over the thread's WebSocket (`/rt/thread/:id`) as `frame` messages; the socket opens
- *     on the first frame request and is read-only (control never rides it).
+ *     on the first frame request and is read-only (control never rides it). Each channel keeps its newest
+ *     frame: a simulation's first camera is `cam-head` (a JPEG), its depth is `depth` (a 16-bit PNG of
+ *     millimetres, sent as `data` of an image format), and every other camera of its scene is a channel of its id.
  */
 import type { CommandAGI, ToolContent } from "./client.js";
 import { DesktopControls, RobotControls, SimControls, type Actor, type Args } from "./generated.js";
@@ -21,6 +23,12 @@ export interface Frame {
   at: number;
 }
 
+/** A kept frame: whether it is a picture (a `frame`, not a depth image) and when it arrived here, by this clock. */
+interface Kept extends Frame {
+  picture: boolean;
+  received: number;
+}
+
 /** What `controls()` reports: each live channel, the actions it accepts and their payload schemas. */
 export interface ControlChannel {
   channelId: string;
@@ -30,7 +38,7 @@ export interface ControlChannel {
   payloadSchema?: unknown;
 }
 
-type Waiter = { resolve: (f: Frame) => void; reject: (e: Error) => void; after: number };
+type Waiter = { resolve: (f: Frame) => void; reject: (e: Error) => void; after: number; channel: string | undefined };
 
 export class Session implements Actor {
   /** Computers: pointer, keyboard, waits. */
@@ -41,7 +49,8 @@ export class Session implements Actor {
   readonly sim: SimControls;
 
   private socket: WebSocket | null = null;
-  private latest: Frame | null = null;
+  /** The newest frame of each channel, by channel id. */
+  private latest = new Map<string, Kept>();
   private waiters: Waiter[] = [];
   private closed = false;
   private readonly ownsThread: boolean;
@@ -130,26 +139,7 @@ export class Session implements Actor {
       this.client.baseUrl.replace(/^http/, "ws") +
       `/rt/thread/${encodeURIComponent(this.threadId)}?token=${encodeURIComponent(this.client.apiKey)}`;
     const ws = new WebSocket(url);
-    ws.addEventListener("message", (ev) => {
-      let m: { t?: string; embodimentId?: string; channelId?: string; url?: string; at?: number };
-      try {
-        m = JSON.parse(String(ev.data));
-      } catch {
-        return;
-      }
-      if (m.t !== "frame" || m.embodimentId !== this.embodimentId || typeof m.url !== "string")
-        return;
-      const frame: Frame = {
-        embodimentId: m.embodimentId,
-        channelId: m.channelId ?? "",
-        url: m.url,
-        at: typeof m.at === "number" ? m.at : Date.now(),
-      };
-      this.latest = frame;
-      const ready = this.waiters.filter((w) => frame.at > w.after);
-      this.waiters = this.waiters.filter((w) => frame.at <= w.after);
-      for (const w of ready) w.resolve(frame);
-    });
+    ws.addEventListener("message", (ev) => this.take(String(ev.data)));
     const fail = (why: string) => {
       this.socket = null;
       const err = new Error(`commandagi: frame socket ${why}`);
@@ -160,28 +150,69 @@ export class Session implements Actor {
     this.socket = ws;
   }
 
+  /** One message of the thread's socket: a frame of this embodiment is kept as its channel's newest. */
+  private take(raw: string): void {
+    let m: { t?: string; embodimentId?: string; channelId?: string; url?: string; at?: number; format?: string };
+    try {
+      m = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    // A picture is a `frame`; a depth image comes as `data` of an image format (it is not a picture to show).
+    const picture = m.t === "frame";
+    if (!(picture || (m.t === "data" && String(m.format ?? "").startsWith("image/")))) return;
+    if (m.embodimentId !== this.embodimentId || typeof m.url !== "string") return;
+    const kept: Kept = {
+      embodimentId: m.embodimentId,
+      channelId: m.channelId ?? "",
+      url: m.url,
+      at: typeof m.at === "number" ? m.at : Date.now(),
+      picture,
+      // When it arrived here, by this computer's clock: what `fresh` compares, so another clock never decides.
+      received: Date.now(),
+    };
+    this.latest.set(kept.channelId, kept);
+    const ready = this.waiters.filter((w) => this.matches(kept, w.channel) && kept.received >= w.after);
+    this.waiters = this.waiters.filter((w) => !ready.includes(w));
+    for (const w of ready) w.resolve(frameOf(kept));
+  }
+
+  private matches(f: Kept, channel: string | undefined): boolean {
+    return channel === undefined ? f.picture : f.channelId === channel;
+  }
+
+  private newest(channel: string | undefined): Kept | null {
+    let best: Kept | null = null;
+    for (const f of this.latest.values())
+      if (this.matches(f, channel) && (!best || f.received > best.received)) best = f;
+    return best;
+  }
+
   /**
-   * The latest frame. `fresh: true` waits for one that arrives AFTER this call — what you want right
-   * after acting, so you see the result and not the moment before it.
+   * The latest frame of `channel` (default: the newest picture of any channel). `fresh: true` waits for one
+   * that arrives AFTER this call — what you want right after acting, so you see the result and not the
+   * moment before it.
    */
-  frame(opts: { fresh?: boolean; timeoutMs?: number } = {}): Promise<Frame> {
+  frame(opts: { fresh?: boolean; timeoutMs?: number; channel?: string } = {}): Promise<Frame> {
     this.open();
-    if (!opts.fresh && this.latest) return Promise.resolve(this.latest);
+    const newest = this.newest(opts.channel);
+    if (!opts.fresh && newest) return Promise.resolve(frameOf(newest));
     const after = opts.fresh ? Date.now() : 0;
     return new Promise<Frame>((resolve, reject) => {
-      const waiter: Waiter = { resolve, reject, after };
+      const waiter: Waiter = { resolve, reject, after, channel: opts.channel };
       this.waiters.push(waiter);
       const timeoutMs = opts.timeoutMs ?? 30_000;
       setTimeout(() => {
         if (!this.waiters.includes(waiter)) return;
         this.waiters = this.waiters.filter((w) => w !== waiter);
-        reject(new Error(`commandagi: no frame from ${this.embodimentId} within ${timeoutMs}ms`));
+        const on = opts.channel === undefined ? "" : ` on ${opts.channel}`;
+        reject(new Error(`commandagi: no frame from ${this.embodimentId}${on} within ${timeoutMs}ms`));
       }, timeoutMs);
     });
   }
 
   /** The latest frame's image bytes (JPEG/PNG), decoding a data: URL or fetching an https one. */
-  async observe(opts: { fresh?: boolean; timeoutMs?: number } = {}): Promise<Uint8Array> {
+  async observe(opts: { fresh?: boolean; timeoutMs?: number; channel?: string } = {}): Promise<Uint8Array> {
     const { url } = await this.frame(opts);
     if (url.startsWith("data:")) {
       const b64 = url.slice(url.indexOf(",") + 1);
@@ -194,11 +225,11 @@ export class Session implements Actor {
     return new Uint8Array(await res.arrayBuffer());
   }
 
-  /** Every new frame, as it arrives. */
-  async *frames(): AsyncGenerator<Frame> {
+  /** Every new frame (of `channel`), as it arrives. */
+  async *frames(opts: { channel?: string } = {}): AsyncGenerator<Frame> {
     let last = 0;
     while (!this.closed) {
-      const f = await this.frame({ fresh: true, timeoutMs: 3_600_000 });
+      const f = await this.frame({ fresh: true, timeoutMs: 3_600_000, channel: opts.channel });
       if (f.at > last) {
         last = f.at;
         yield f;
@@ -226,6 +257,7 @@ export class Session implements Actor {
   }
 }
 
+const frameOf = ({ embodimentId, channelId, url, at }: Kept): Frame => ({ embodimentId, channelId, url, at });
 const textOf = (parts: ToolContent[]) => parts.map((p) => (p.type === "text" ? p.text : "")).join("\n");
 function imageOf(parts: ToolContent[]): { image: Uint8Array; mimeType: string } {
   const img = parts.find((p): p is Extract<ToolContent, { type: "image" }> => p.type === "image");
