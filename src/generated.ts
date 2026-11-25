@@ -2992,6 +2992,34 @@ export const SDK_SCHEMA = {
               additionalProperties: false,
             },
           },
+          {
+            name: "goal",
+            channelId: "ctrl",
+            label: "Simulation people",
+            schema: {
+              type: "object",
+              properties: {
+                unit: { type: "string", minLength: 1, maxLength: 1024 },
+                do: { type: "string", minLength: 1, maxLength: 32 },
+              },
+              required: ["unit", "do"],
+              additionalProperties: true,
+            },
+          },
+          {
+            name: "ghost",
+            channelId: "ctrl",
+            label: "Simulation people",
+            schema: {
+              type: "object",
+              properties: {
+                unit: { type: "string", minLength: 1, maxLength: 1024 },
+                on: { type: "boolean" },
+              },
+              required: ["unit", "on"],
+              additionalProperties: false,
+            },
+          },
         ],
       },
     ],
@@ -3909,6 +3937,14 @@ export class SimControls {
   /** Simulation robots · `remove_robot` */
   removeRobot(payload: { robotId?: string } = {}): Promise<unknown> {
     return this.a.act("remove_robot", payload);
+  }
+  /** Simulation people · `goal` */
+  goal(payload: { unit: string; do: string; [key: string]: unknown }): Promise<unknown> {
+    return this.a.act("goal", payload);
+  }
+  /** Simulation people · `ghost` */
+  ghost(payload: { unit: string; on: boolean }): Promise<unknown> {
+    return this.a.act("ghost", payload);
   }
 }
 
