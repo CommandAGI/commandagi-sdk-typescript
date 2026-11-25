@@ -3727,6 +3727,10 @@ export const THREED_SCHEMA: SchemaDocument = {
      },
      "description": "A placed 3D document at other values of its `<parameter>`s, each by its name: a library profile at its cut length (`inputs={{ length: 2830 }}`), a screw at its length. The file is built at those values for this placement alone; a name the file does not declare is an error of the placement."
     },
+    "scene": {
+     "type": "boolean",
+     "description": "A placed 3D document's scene comes with it (`<externalPart … scene />`): its bodies, robots, people, policies, agents and systems step here, each id under this placement's (`place-ana`), with its environment when this document declares none (docs/formats.md § a placed file's scene). Only a placement whose importer is `3d`."
+    },
     "operation": {
      "$ref": "#/$defs/BooleanMode",
      "description": "How the linked part's bodies combine with the bodies before it.",

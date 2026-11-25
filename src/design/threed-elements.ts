@@ -1777,6 +1777,10 @@ export type ExternalPartRef = {
    */
   inputs?: { [key: string]: number };
   /**
+   * A placed 3D document's scene comes with it (`<externalPart … scene />`): its bodies, robots, people, policies, agents and systems step here, each id under this placement's (`place-ana`), with its environment when this document declares none (docs/formats.md § a placed file's scene). Only a placement whose importer is `3d`.
+   */
+  scene?: boolean;
+  /**
    * How the linked part's bodies combine with the bodies before it.
    * @default "new"
    */
