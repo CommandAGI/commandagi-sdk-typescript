@@ -67,6 +67,12 @@ interface GoalBase { plan?: GoalPlan; task?: string }
 export interface WalkGoal extends GoalBase { do: "walk"; route: XY[]; speed?: number }
 /** Step to a point without turning (sideways or back). */
 export interface StepGoal extends GoalBase { do: "step"; to: XY; heading?: number }
+/** Walk as a hand steers it (the walker, docs/fpv-walker.md): `forward` m/s along `heading` (−0.5 to 1.6), `side` m/s to
+ *  its left (−0.3 to 0.3), `pitch` its head's nod (radians, positive down, within its neck's range), `crouch` with bent
+ *  knees, held `seconds` (over 0, at most 2; 0.5 when none): then it stands and the goal is done. */
+export interface SteerGoal extends GoalBase { do: "steer"; forward?: number; side?: number; heading: number; pitch?: number; crouch?: boolean; seconds?: number }
+/** A steer goal's ranges: its speeds (m/s) and the most seconds it holds. One table, the same in the three SDKs. */
+export const STEER_BOUNDS = { forward: [-0.5, 1.6], side: [-0.3, 0.3], seconds: 2 } as const;
 /** Turn to a heading: radians about z, from +x. */
 export interface TurnGoal extends GoalBase { do: "turn"; heading: number }
 /** Sit on a seat (metres), facing a heading (radians). */
@@ -103,10 +109,10 @@ export interface UncoupleGoal extends GoalBase { do: "uncouple" }
 export interface StopGoal extends GoalBase { do: "stop" }
 /** A robot's program of skills (a G1's: steps of `{ id, dur, … }`, g1-skills compilePlan), which its skills executor runs. */
 export interface ProgramGoal extends GoalBase { do: "program"; program: { steps: { id: string; dur: number }[] } }
-export type Goal = WalkGoal | StepGoal | TurnGoal | SitGoal | StandGoal | IdleGoal | ReachGoal | TakeGoal | PutGoal | PushGoal | JackGoal | PressGoal | InspectGoal | HandGoal | RideGoal | GetOffGoal | DriveGoal | DockGoal | LiftGoal | MastGoal | CoupleGoal | UncoupleGoal | StopGoal | ProgramGoal;
+export type Goal = WalkGoal | StepGoal | SteerGoal | TurnGoal | SitGoal | StandGoal | IdleGoal | ReachGoal | TakeGoal | PutGoal | PushGoal | JackGoal | PressGoal | InspectGoal | HandGoal | RideGoal | GetOffGoal | DriveGoal | DockGoal | LiftGoal | MastGoal | CoupleGoal | UncoupleGoal | StopGoal | ProgramGoal;
 /** Each goal's own fields, beside `do`, `plan` and `task`. One table, the same in the three SDKs. */
 export const GOAL_FIELDS = {
-  walk: ["route", "speed"], step: ["to", "heading"], turn: ["heading"], sit: ["seat", "facing"], stand: [],
+  walk: ["route", "speed"], step: ["to", "heading"], steer: ["forward", "side", "heading", "pitch", "crouch", "seconds"], turn: ["heading"], sit: ["seat", "facing"], stand: [],
   idle: ["activity", "seconds", "at", "with"], reach: ["at", "hand", "seconds"],
   take: ["body", "hands"], put: ["at"], push: ["body", "handle"], jack: ["body", "handle"], press: ["at"], inspect: ["body", "seconds"], hand: ["body", "to"], ride: ["body", "at", "standing"], "get-off": ["to"],
   drive: ["route", "speed", "reverse"], dock: ["at", "heading", "speed", "reverse"], lift: ["height", "load"], mast: ["out"], couple: ["body", "pin", "axle", "legs"], uncouple: [], stop: [], program: ["program"],
@@ -235,6 +241,15 @@ export function goalProblem(g: unknown): string | null {
   if (kind === "get-off" && !point(2)(g.to)) return "get-off needs to [x, y] (metres): where it steps down to, beside its vehicle";
   if (kind === "step" && !point(2)(g.to)) return "step needs to [x, y] (the point it steps to, metres)";
   if (kind === "turn" && !num(g.heading)) return "turn needs a heading (radians about z, from +x)";
+  if (kind === "steer") {
+    if (!num(g.heading)) return "steer needs a heading (radians about z, from +x): where the body faces";
+    for (const k of ["forward", "side"] as const)
+      if (g[k] !== undefined && !(num(g[k]) && g[k] >= STEER_BOUNDS[k][0] && g[k] <= STEER_BOUNDS[k][1]))
+        return `steer ${k} is metres a second ${k === "side" ? "to its left " : "along its heading "}from ${STEER_BOUNDS[k][0]} to ${STEER_BOUNDS[k][1]}`;
+    if (g.pitch !== undefined && !num(g.pitch)) return "steer pitch is the head's nod (radians, positive down), within its neck's range";
+    if (g.crouch !== undefined && typeof g.crouch !== "boolean") return "steer crouch is true or false (walk and stand with bent knees)";
+    if (g.seconds !== undefined && !(num(g.seconds) && g.seconds > 0 && g.seconds <= STEER_BOUNDS.seconds)) return `steer seconds is how long it holds: over 0, at most ${STEER_BOUNDS.seconds}`;
+  }
   if (kind === "step" && g.heading !== undefined && !num(g.heading)) return "step heading is radians about z, from +x";
   if (kind === "sit" && !(point(3)(g.seat) && num(g.facing))) return "sit needs a seat [x, y, z] (where it sits, metres) and facing (the heading it sits facing, radians)";
   if (g.activity !== undefined && !oneOf(IDLE_ACTIVITIES, g.activity)) return `idle activity is one of ${IDLE_ACTIVITIES.join(", ")}`;
