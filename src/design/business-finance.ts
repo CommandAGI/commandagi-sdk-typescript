@@ -7,6 +7,7 @@
  *     <Budget journal="Northwind Survey/books/budget.journal" />
  *     <BankAccount name="Operating" provider="First Bank" last4="4321" currency="USD" ledger="Assets:Cash:Operating"
  *                  kind="checking" statements="Northwind Survey/bank/operating/" />
+ *     <BankAccount file="Northwind Survey/money/Reserve.money.tsx" />
  *     <Payroll provider="Gusto" ledger="Expenses:Payroll" register="Northwind Survey/payroll/" schedule="semimonthly" />
  *     <DataRoom name="Seed round" expires="2026-12-31">
  *       <Include document="Northwind Survey/Documents/Certificate of formation.pdf" section="corporate" />
@@ -30,8 +31,9 @@ export const Include = "Include";
 export const FINANCE_TAGS: Readonly<Record<string, TagSpec>> = {
   Budget: { props: { journal: "text" }, required: ["journal"] },
   BankAccount: {
-    props: { name: "text", provider: "text", last4: "text", currency: "text", ledger: "text", kind: "text", statements: "text", opened: "text", closed: "text" },
-    required: ["name"],
+    // `file`: a money account (`<name>.money.tsx`) that says every other field; CommandAGI refuses a second copy by name.
+    props: { file: "text", name: "text", provider: "text", last4: "text", currency: "text", ledger: "text", kind: "text", statements: "text", opened: "text", closed: "text" },
+    required: [],
   },
   Payroll: { props: { provider: "text", ledger: "text", register: "text", schedule: "text", jurisdiction: "text" }, required: ["provider"] },
   DataRoom: { props: { name: "text", about: "text", expires: "text" }, required: ["name"], many: { include: "Include" } },

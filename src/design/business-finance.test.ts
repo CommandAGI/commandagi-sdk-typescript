@@ -28,6 +28,8 @@ test("<Budget>, <BankAccount>, <Payroll> and <DataRoom> are the company's financ
   });
   assert.deepEqual(Object.keys(d.sources!).sort(), ["", "bankAccounts/0", "budget", "dataRooms/0", "dataRooms/0/include/0", "payroll/0"]);
   assert.equal("finance" in (declared(jsx(Company, { name: "Bare" })).document as object), false, "no finance named: no field");
+  const byFile = declared(jsx(Company, { name: "Harbor", children: jsx(BankAccount, { file: "money/Operating.money.tsx" }) }));
+  assert.deepEqual((byFile.document as { finance: { bankAccounts: unknown } }).finance.bankAccounts, [{ file: "money/Operating.money.tsx" }], "a money account by its file");
 });
 
 test("a finance element says only its own words", () => {

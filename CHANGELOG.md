@@ -8,6 +8,8 @@ Python and Rust SDKs carry the same version number. A version promises nothing a
 
 Added
 
+- Company finance: `<BankAccount file="money/Operating.money.tsx" />` names a money account that says every other field
+  (`name` is no longer required: a line has a name or a file).
 - Money accounts: `<MoneyAccount name kind institution last4 currency ledger books statements opened closed holder>`
   with `<Connection id provider account mode>`, `<Counterparty id name kind file>` and its `<At connection recipient>`,
   and `<Recurring id to amount rail every day by starts ends memo>`: the document of `<name>.money.tsx` (CommandAGI's
