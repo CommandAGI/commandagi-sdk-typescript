@@ -37,7 +37,8 @@ export const At = "At";
 export const Recurring = "Recurring";
 
 export const MONEY_KINDS = ["checking", "savings", "money-market", "card", "loan", "credit-line", "brokerage", "payments", "wallet", "other"] as const;
-export const MONEY_PROVIDER_IDS = ["stripe-financial-connections", "plaid", "stripe-treasury", "increase", "mercury", "brex", "venue"] as const;
+/** A provider is named by its id; the platform's catalog names the providers (docs/financial-accounts.md), so a new one needs no SDK release. */
+const PROVIDER_ID = /^[a-z][a-z0-9-]{0,39}$/;
 export const MONEY_RAILS = ["ach", "wire", "book", "rtp", "check"] as const;
 export const MONEY_EVERY = ["week", "month", "quarter", "year"] as const;
 export const MONEY_ACCOUNT_FIELDS = ["name", "kind", "institution", "last4", "currency", "ledger", "books", "statements", "opened", "closed", "holder"] as const;
@@ -46,7 +47,7 @@ export const MONEY_COUNTERPARTY_FIELDS = ["id", "name", "kind", "file"] as const
 export const MONEY_AT_FIELDS = ["connection", "recipient"] as const;
 export const MONEY_RECURRING_FIELDS = ["id", "to", "amount", "rail", "every", "day", "by", "starts", "ends", "memo"] as const;
 
-export interface MoneyConnection { id: string; provider: (typeof MONEY_PROVIDER_IDS)[number]; account: string; mode?: "live" | "sandbox" }
+export interface MoneyConnection { id: string; provider: string; account: string; mode?: "live" | "sandbox" }
 export interface MoneyAt { connection: string; recipient: string }
 export interface MoneyCounterparty { id: string; name: string; kind?: string; file?: string; at?: MoneyAt[] }
 export interface MoneyRecurring {
@@ -82,7 +83,7 @@ function texts(a: Record<string, unknown>, at: string, fields: readonly string[]
 function connectionOf(a: Record<string, unknown>): MoneyConnection {
   if (typeof a.id !== "string" || !ID.test(a.id)) throw new Error(`<Connection> id is letters, digits, . _ - (at most 64), not ${said(a.id)}`);
   const at = `<Connection id="${a.id}">`;
-  if (!one(a.provider, MONEY_PROVIDER_IDS)) throw new Error(`${at} provider is ${MONEY_PROVIDER_IDS.join(", ")}, not ${said(a.provider)}`);
+  if (typeof a.provider !== "string" || !PROVIDER_ID.test(a.provider)) throw new Error(`${at} provider is a provider's id (lowercase letters, digits and -, as plaid or increase), not ${said(a.provider)}`);
   if (!text(a.account, 200)) throw new Error(`${at} account is the provider's own id of the account (not a bank number), not ${said(a.account)}`);
   if (a.mode !== undefined && a.mode !== "live" && a.mode !== "sandbox") throw new Error(`${at} mode is live or sandbox, not ${said(a.mode)}`);
   return keep({} as MoneyConnection, a, MONEY_CONNECTION_FIELDS);

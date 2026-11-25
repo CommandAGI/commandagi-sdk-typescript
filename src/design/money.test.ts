@@ -53,7 +53,7 @@ test("a money account that does not read is refused with why", () => {
   refused(el(MoneyAccount, { name: "Operating", kind: "piggy-bank" }), /kind is checking/);
   refused(el(MoneyAccount, { name: "Operating", kind: "checking", last4: "123456" }), /last4 is the last four digits/);
   refused(el(MoneyAccount, { name: "Operating", kind: "checking", routingNumber: "000000000" }), /routingNumber is not read/);
-  refused(el(MoneyAccount, { name: "Operating", kind: "checking" }, el(Connection, { id: "x", provider: "acme", account: "a" })), /provider is stripe-financial-connections/);
+  refused(el(MoneyAccount, { name: "Operating", kind: "checking" }, el(Connection, { id: "x", provider: "Acme Bank", account: "a" })), /provider is a provider's id/);
   refused(el(MoneyAccount, { name: "Operating", kind: "checking" }, el(Connection, { id: "x", provider: "plaid", account: "a", accessToken: "t" })), /accessToken is not read/);
   refused(el(MoneyAccount, { name: "Operating", kind: "checking" }, el(Counterparty, { id: "a", name: "A" })), /needs an <At connection recipient>/);
   refused(el(MoneyAccount, { name: "Operating", kind: "checking" }, el(Counterparty, { id: "a", name: "A" }, el(At, { connection: "nowhere", recipient: "r" }))), /<At> connection is the id of a <Connection>/);
