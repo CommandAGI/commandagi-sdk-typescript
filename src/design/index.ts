@@ -78,7 +78,7 @@ export {
   PartRef,
   type Footprint,
   type Pad,
-  type At,
+  type At as PlacementAt,
 } from "./eda.js";
 export { fromTscircuit } from "./tscircuit.js";
 export { schSymbolTypeFor, SHEET_PARTS } from "./sheet.js";
@@ -129,6 +129,7 @@ export * from "./mounts.js";
 export * from "./products.js";
 export * from "./carts.js";
 export * from "./storefronts.js";
+export * from "./money.js";
 export * from "./opportunities.js";
 export * from "./optimize.js";
 export * from "./connectors.js";

@@ -4,6 +4,20 @@ One entry for each release. A release is the tag `v<version>` in this repository
 Python and Rust SDKs carry the same version number. A version promises nothing about the next one (README
 § Versions): read this file before you change the version you pin.
 
+## Unreleased
+
+Added
+
+- Money accounts: `<MoneyAccount name kind institution last4 currency ledger books statements opened closed holder>`
+  with `<Connection id provider account mode>`, `<Counterparty id name kind file>` and its `<At connection recipient>`,
+  and `<Recurring id to amount rail every day by starts ends memo>`: the document of `<name>.money.tsx` (CommandAGI's
+  docs/financial-accounts.md). No bank or card number and no credential: `last4` at most, the provider's own ids.
+
+Changed
+
+- The board placement type `At` (`eda.ts`) is exported from `commandagi/design` as `PlacementAt`: `At` is the money
+  account's element.
+
 ## 0.6.9 (2026-11-23)
 
 Added
