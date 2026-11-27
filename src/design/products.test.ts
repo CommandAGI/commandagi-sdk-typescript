@@ -36,13 +36,28 @@ test("a product in JSX: its attributes, each <variant> by its sku and each <disc
   assert.equal((pre.document!.sources as Record<string, unknown>)["discount#Launch10"], 2);
 });
 
+test("a subscription: each variant a plan paid again each interval; the quantity bought is its seats", () => {
+  const PLAN = { name: "Team", kind: "subscription", status: "active", variants: [{ sku: "team-seat-month", name: "Team, a seat a month", priceCents: 8900, interval: "month" }], discounts: [] };
+  const { document } = declarationOf({ default: el("product", { name: "Team", kind: "subscription", status: "active" }, el("variant", PLAN.variants[0]!)) });
+  assert.deepEqual(document!.document, PLAN);
+  assert.deepEqual(PRODUCTS.product.fromTree(PRODUCTS.product.toTree(PLAN as never)), PLAN, "both ways");
+  const bad = (attrs: Record<string, unknown>, k: Record<string, unknown>) => () => declarationOf({ default: el("product", attrs, el("variant", k)) });
+  const sub = { name: "x", kind: "subscription" }, v = { sku: "a", name: "b", priceCents: 1900 };
+  assert.throws(bad(sub, v), /is a subscription: interval is month or year, not undefined/);
+  assert.throws(bad(sub, { ...v, interval: "week" }), /interval is month or year, not "week"/);
+  assert.throws(bad(sub, { ...v, interval: "month", stock: 3 }), /is a subscription: it has no stock/);
+  assert.throws(bad(sub, { ...v, interval: "month", file: "f.zip" }), /is a subscription: it has no file/);
+  assert.throws(bad({ ...sub, shipping: SHIPPING }, { ...v, interval: "month" }), /is subscription: it ships nothing/);
+  assert.throws(bad({ name: "x", kind: "physical", shipping: SHIPPING }, { ...v, interval: "month" }), /is physical: it is paid once, so it has no interval/);
+});
+
 test("a product that does not read is refused with why", () => {
   const bad = (attrs: Record<string, unknown>, ...kids: Record<string, unknown>[]) => () =>
     declarationOf({ default: el("product", attrs, ...kids.map((k) => ("code" in k ? el("discount", k) : el("variant", k)))) });
   const dig = { name: "x", kind: "digital" }, phys = { name: "x", kind: "physical", shipping: SHIPPING };
   const v = { sku: "a", name: "b", priceCents: 100 };
   const d = { code: "SAVE5", amountCents: 500 };
-  assert.throws(bad({ name: "x", kind: "service" }, v), /kind is physical or digital/);
+  assert.throws(bad({ name: "x", kind: "service" }, v), /kind is physical or digital or subscription/);
   assert.throws(bad({ ...phys, taxCode: "txcd_1" }, v), /taxCode is a Stripe product tax code like txcd_99999999/);
   assert.equal(declarationOf({ default: el("product", { ...phys, taxCode: "txcd_99999999" }, el("variant", v)) }).document!.document.taxCode, "txcd_99999999");
   // Classification (docs/formats.md § classification): product schemes only, tags as they are kept.

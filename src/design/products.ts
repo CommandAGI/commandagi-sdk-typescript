@@ -18,8 +18,17 @@
  *     </product>
  *   );
  *
- * `kind` is `physical` (shipped: `shipping` is its policy, required) or `digital` (downloaded: each variant names the
- * `file` it sells, a path relative to this file's folder or an absolute address; no shipping, weight, stock or deposit).
+ *   // Plans/Pro.product.tsx: a subscription, one variant a plan; a buyer may buy several (a team's seats)
+ *   export default () => (
+ *     <product name="Pro" kind="subscription" status="active">
+ *       <variant sku="pro-month" name="Pro, monthly" priceCents={1900} interval="month" />
+ *     </product>
+ *   );
+ *
+ * `kind` is `physical` (shipped: `shipping` is its policy, required), `digital` (downloaded: each variant names the
+ * `file` it sells, a path relative to this file's folder or an absolute address; no shipping, weight, stock or deposit)
+ * or `subscription` (paid again each `interval`, `month` or `year`, until the buyer cancels; the quantity bought is the
+ * number of seats; no shipping, file, weight, stock or deposit).
  * A variant's `stock` is how many are on hand; a physical variant with no `stock` is made to order. A `deposit` makes a
  * variant a pre-order: `{ percent }` (1 to 99) or `{ cents }` (at least 50, less than the price) is paid now, and the
  * balance when the seller says the product is ready. A `<discount>` takes `percent` or `amountCents` off, between
@@ -33,10 +42,12 @@ import { PRODUCT_SCHEMES, classificationProblem } from "./classification.js";
 
 /** A product's file: `<name>.product.tsx` (or `.jsx`, `.py`, `.rs`). */
 export const PRODUCT_FILE = /\.product\.(?:[jt]sx|py|rs)$/i;
-export const PRODUCT_KINDS = ["physical", "digital"] as const;
+export const PRODUCT_KINDS = ["physical", "digital", "subscription"] as const;
+/** How often a subscription is paid again. */
+export const SUBSCRIPTION_INTERVALS = ["month", "year"] as const;
 export const PRODUCT_STATUSES = ["draft", "active", "archived"] as const;
 export const PRODUCT_FIELDS = ["name", "kind", "slug", "subtitle", "description", "images", "status", "shipping", "fulfilment", "quantityTerms", "embodimentKind", "taxCode", "codes", "tags"] as const;
-export const VARIANT_FIELDS = ["sku", "name", "priceCents", "compareAtCents", "stock", "options", "weightGrams", "file", "deposit"] as const;
+export const VARIANT_FIELDS = ["sku", "name", "priceCents", "compareAtCents", "stock", "options", "weightGrams", "file", "deposit", "interval"] as const;
 export const DISCOUNT_FIELDS = ["code", "percent", "amountCents", "startsAt", "endsAt", "usageLimit"] as const;
 
 export type ProductDeposit = { percent: number } | { cents: number };
@@ -50,6 +61,8 @@ export interface ProductVariant {
   weightGrams?: number;
   file?: string;
   deposit?: ProductDeposit;
+  /** A subscription's: how often it is paid again. */
+  interval?: (typeof SUBSCRIPTION_INTERVALS)[number];
 }
 export interface ProductDiscount {
   code: string;
@@ -117,7 +130,7 @@ export function depositOf(v: unknown, priceCents: number, at: string): ProductDe
 
 /** One variant as its element declares it, for a product of `kind`; throws with why it does not read. */
 export function variantOf(attrs: Record<string, unknown>, kind: ProductDoc["kind"]): ProductVariant {
-  const { sku, name, priceCents, compareAtCents, stock, options, weightGrams, file, deposit } = attrs;
+  const { sku, name, priceCents, compareAtCents, stock, options, weightGrams, file, deposit, interval } = attrs;
   if (!text(sku, 80)) throw new Error(`<variant> sku is a short text (at most 80), not ${said(sku)}`);
   const at = `<variant sku="${sku}">`;
   if (!text(name, 120)) throw new Error(`${at} name is a short text (at most 120), not ${said(name)}`);
@@ -132,6 +145,13 @@ export function variantOf(attrs: Record<string, unknown>, kind: ProductDoc["kind
     if (!ok) throw new Error(`${at} options is an object of at most 20 names, each a text, a number or a boolean, not ${said(options)}`);
     out.options = { ...(options as Record<string, string | number | boolean>) };
   }
+  if (kind === "subscription") {
+    for (const [k, x] of Object.entries({ stock, weightGrams, deposit, file })) if (x !== undefined) throw new Error(`${at} is a subscription: it has no ${k}`);
+    if (!(SUBSCRIPTION_INTERVALS as readonly unknown[]).includes(interval)) throw new Error(`${at} is a subscription: interval is ${SUBSCRIPTION_INTERVALS.join(" or ")}, not ${said(interval)}`);
+    out.interval = interval as ProductVariant["interval"];
+    return out;
+  }
+  if (interval !== undefined) throw new Error(`${at} is ${kind}: it is paid once, so it has no interval`);
   if (kind === "digital") {
     if (stock !== undefined) throw new Error(`${at} is digital: it has no stock (a file does not run out)`);
     if (weightGrams !== undefined) throw new Error(`${at} is digital: it has no weightGrams`);
@@ -215,7 +235,7 @@ export function productOf(t: DocTree): ProductDoc {
     if (!(PRODUCT_STATUSES as readonly unknown[]).includes(a.status)) throw new Error(`${at} status is ${PRODUCT_STATUSES.join(", ")}, not ${said(a.status)}`);
     out.status = a.status as ProductDoc["status"];
   }
-  if (kind === "digital" && a.shipping !== undefined) throw new Error(`${at} is digital: it ships nothing, so it has no shipping`);
+  if (kind !== "physical" && a.shipping !== undefined) throw new Error(`${at} is ${kind}: it ships nothing, so it has no shipping`);
   if (kind === "physical") {
     if (!isObject(a.shipping)) throw new Error(`${at} is physical: shipping is its shipping policy ({ zones, from?, parcel? }), not ${said(a.shipping)}`);
     out.shipping = a.shipping;
